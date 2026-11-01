@@ -160,15 +160,64 @@ bool EditorSession::ApplyHistory(bool redo, std::string& reason) {
     if (entry.kind == HistoryKind::Keys || (!redo && entry.kind == HistoryKind::PoseWithFrame))
         next.document.timeline.currentFrame = int(entry.frame);
     if (entry.kind == HistoryKind::Keys) {
-        model->boneKeys = entry.keys;
+        if (entry.partialKeys) {
+            std::map<std::uint32_t, std::uint32_t> channels;
+            if (!format::PmmRecordChannels(model->boneKeys, channels)) {
+                reason = "history-key-links";
+                return false;
+            }
+            std::set<std::uint32_t> selected;
+            const auto remember = [&](std::uint32_t index, const auto& key) {
+                if (next.selection.keys.count(
+                        {Track::Bone, selection_.model, channels.at(index), key.frame}))
+                    selected.insert(index);
+            };
+            for (unsigned i = 0; i < model->boneKeys.dense.size(); ++i)
+                remember(i, model->boneKeys.dense[i]);
+            for (const auto& key : model->boneKeys.sparse)
+                remember(unsigned(key.index), key.value);
+            displaced.partialKeys = true;
+            displaced.keys = {};
+            for (const auto& [index, key] : entry.keyRecords) {
+                if (selected.erase(index))
+                    displaced.selectedKeyRecords.insert(index);
+            }
+            selected.insert(entry.selectedKeyRecords.begin(), entry.selectedKeyRecords.end());
+            if (!format::RestorePmmKeyRecords(model->boneKeys, entry.keyRecords,
+                                              displaced.keyRecords) ||
+                !format::PmmRecordChannels(model->boneKeys, channels)) {
+                reason = "history-key-restore";
+                return false;
+            }
+            for (auto& [index, key] : displaced.keyRecords)
+                key.allocated = displaced.selectedKeyRecords.count(index) != 0;
+            for (auto it = next.selection.keys.begin(); it != next.selection.keys.end();) {
+                if (it->track == Track::Bone && it->slot == selection_.model)
+                    it = next.selection.keys.erase(it);
+                else
+                    ++it;
+            }
+            const auto restoreSelection = [&](std::uint32_t index, auto& key) {
+                key.allocated = selected.count(index) != 0;
+                if (selected.count(index))
+                    next.selection.keys.insert(
+                        {Track::Bone, selection_.model, channels.at(index), key.frame});
+            };
+            for (unsigned i = 0; i < model->boneKeys.dense.size(); ++i)
+                restoreSelection(i, model->boneKeys.dense[i]);
+            for (auto& key : model->boneKeys.sparse)
+                restoreSelection(unsigned(key.index), key.value);
+        } else {
+            model->boneKeys = entry.keys;
+        }
         displaced.frame = entry.frame;
         displaced.insertedFrameLine = entry.insertedFrameLine;
         if (entry.insertedFrameLine) {
             std::set<KeyAddress> keys;
             for (const auto& address : next.selection.keys) {
                 if (address.track == Track::Bone && address.slot == selection_.model &&
-                    address.frame && (redo ? address.frame >= entry.frame
-                                           : address.frame > entry.frame)) {
+                    address.frame &&
+                    (redo ? address.frame >= entry.frame : address.frame > entry.frame)) {
                     displaced.frameLineSelection.insert(address);
                 } else {
                     keys.insert(address);

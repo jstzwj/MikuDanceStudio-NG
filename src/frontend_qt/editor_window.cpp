@@ -826,8 +826,7 @@ void EditorWindow::Dispatch(int id) {
     const auto current = unsigned(session_.Document().timeline.currentFrame);
     switch (id) {
     case kPhysicsFrameCheckbox:
-        session_.SetAutoInterpolation(
-            static_cast<QAbstractButton*>(Control(id))->isChecked());
+        session_.SetAutoInterpolation(static_cast<QAbstractButton*>(Control(id))->isChecked());
         break;
     case kCurveCopyButton:
         ok = session_.CopyInterpolation(interpolation_->Channel(), r);
@@ -1242,14 +1241,18 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
     }
     if (event->type() == QEvent::KeyPress && !qobject_cast<QLineEdit*>(object)) {
         auto* key = static_cast<QKeyEvent*>(event);
-        if (key->key() == Qt::Key_I || key->key() == Qt::Key_U) {
+        if (key->key() == Qt::Key_I || key->key() == Qt::Key_U || key->key() == Qt::Key_K ||
+            key->key() == Qt::Key_J) {
             if (!key->isAutoRepeat() && !session_.Playing()) {
-                const bool primary = key->key() == Qt::Key_I;
+                const bool primary = key->key() == Qt::Key_I || key->key() == Qt::Key_K;
+                const bool insertion = key->key() == Qt::Key_I || key->key() == Qt::Key_U;
                 const bool model = session_.Selected().model != 255;
                 const auto track = model ? (primary ? editor::Track::Bone : editor::Track::Morph)
                                          : (primary ? editor::Track::Camera : editor::Track::Light);
                 std::string reason;
-                Result(session_.InsertFrameLine(track, reason), reason);
+                Result(insertion ? session_.InsertFrameLine(track, reason)
+                                 : session_.DeleteFrameLine(track, reason),
+                       reason);
                 Refresh();
             }
             return true;

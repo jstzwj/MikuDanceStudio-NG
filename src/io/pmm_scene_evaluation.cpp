@@ -1,4 +1,5 @@
 #include "mikudancestudio/pmm_scene_evaluation.hpp"
+#include "mikudancestudio/pmm_edit.hpp"
 #include <cmath>
 #include <unordered_map>
 #include <utility>
@@ -37,13 +38,24 @@ template <class Key> struct IndexedTrack {
                 return true;
             }
             const auto next = keys.find(current->next);
-            if (next == keys.end() || next->second->previous != index ||
-                next->second->frame <= current->frame)
+            if (next == keys.end() || next->second->frame <= current->frame)
                 return false;
             const Key* following = next->second;
+            const Key* left = current;
+            if (following->previous != index) {
+                if constexpr (!std::is_same_v<Key, PmmBoneKey>) {
+                    return false;
+                } else {
+                    std::vector<std::vector<Key>> checked;
+                    if (!PmmTrackChains(track, checked))
+                        return false;
+                    left = keys.at(following->previous);
+                }
+            }
             if (frame <= following->frame) {
                 bracket = frame == following->frame ? Bracket<Key>{following, following}
-                                                    : Bracket<Key>{current, following};
+                          : frame < left->frame     ? Bracket<Key>{left, left}
+                                                    : Bracket<Key>{left, following};
                 return true;
             }
             index = current->next;
@@ -644,7 +656,7 @@ float InterpolatePmmMorphValue(float previousValue, float nextValue, std::uint32
 
 bool InterpolatePmmBoneSegment(const PmmBoneKey& left, const PmmBoneKey& right, std::uint32_t frame,
                                PmmEvaluatedBone& output, PmmBoneEase ease, void* context) {
-    if (right.frame <= left.frame || frame <= left.frame || frame >= right.frame)
+    if (right.frame <= left.frame || frame < left.frame || frame >= right.frame)
         return false;
     PmmEvaluatedBone result;
     result.physicsDisabled = left.physicsDisabled;

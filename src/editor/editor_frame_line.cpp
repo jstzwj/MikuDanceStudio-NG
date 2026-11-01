@@ -1,8 +1,16 @@
 #include "mikudancestudio/editor_session.hpp"
+#include "mikudancestudio/pmm_frame_line.hpp"
 #include <algorithm>
 
 namespace mikudancestudio::editor {
 bool EditorSession::InsertFrameLine(Track track, std::string& reason, bool fromMenu) {
+    return ChangeFrameLine(track, true, reason, fromMenu);
+}
+bool EditorSession::DeleteFrameLine(Track track, std::string& reason, bool fromMenu) {
+    return ChangeFrameLine(track, false, reason, fromMenu);
+}
+bool EditorSession::ChangeFrameLine(Track track, bool insertion, std::string& reason,
+                                    bool fromMenu) {
     const bool modelTrack = track == Track::Bone || track == Track::Morph;
     if (playing_ || (!modelTrack && track != Track::Camera && track != Track::Light) ||
         modelTrack != (selection_.model != 255)) {
@@ -14,14 +22,6 @@ bool EditorSession::InsertFrameLine(Track track, std::string& reason, bool fromM
     const auto frame = std::uint32_t(doc.timeline.currentFrame);
     unsigned affected = 0;
     std::uint32_t maximum = 0;
-    const auto insert = [&](auto& keys) {
-        if (!format::InsertPmmFrameLine(keys, frame, affected))
-            return false;
-        for (const auto& key : keys.sparse)
-            if (key.value.frame > frame)
-                maximum = std::max(maximum, key.value.frame);
-        return true;
-    };
     HistoryBatch history;
     // Seeking the edited model also changes its evaluated bone poses. Only
     // the native bone command records history; morph/camera/light do not.
@@ -37,16 +37,81 @@ bool EditorSession::InsertFrameLine(Track track, std::string& reason, bool fromM
         }
         if (track == Track::Bone) {
             history[model->slot] = CaptureHistory(*model, HistoryKind::Keys, frame);
-            history[model->slot].insertedFrameLine = true;
+            history[model->slot].insertedFrameLine = insertion;
             for (const auto& address : selection_.keys)
                 if (address.track == Track::Bone && address.slot == model->slot && address.frame &&
                     address.frame >= frame)
                     history[model->slot].frameLineSelection.insert(address);
         }
-        ok = track == Track::Bone ? insert(model->boneKeys) : insert(model->morphKeys);
-    } else {
-        ok = track == Track::Camera ? insert(doc.cameraKeys) : insert(doc.lightKeys);
     }
+    const auto edit = [&](auto& keys) {
+        if (insertion) {
+            if (!format::InsertPmmFrameLine(keys, frame, affected))
+                return false;
+            for (const auto& key : keys.sparse)
+                if (key.value.frame > frame)
+                    maximum = std::max(maximum, key.value.frame);
+            return true;
+        }
+        using T = typename std::decay_t<decltype(keys.dense)>::value_type;
+        std::map<std::uint32_t, std::uint32_t> channels;
+        if (!format::PmmRecordChannels(keys, channels))
+            return false;
+        // Selection is represented by addresses in the Qt frontend, but native
+        // key mutation/history operate on each record's selection byte.
+        const auto sync = [&](std::uint32_t index, auto& key) {
+            const bool selected =
+                next.selection.keys.count({track, selection_.model, channels.at(index), key.frame});
+            if constexpr (std::is_same_v<T, format::PmmBoneKey> ||
+                          std::is_same_v<T, format::PmmMorphKey>)
+                key.allocated = selected;
+            else
+                key.selected = selected;
+        };
+        for (unsigned i = 0; i < keys.dense.size(); ++i)
+            sync(i, keys.dense[i]);
+        for (auto& key : keys.sparse)
+            sync(unsigned(key.index), key.value);
+        format::PmmFrameLineDeletion<T> result;
+        if (!format::DeletePmmFrameLine(keys, frame, autoInterpolation_, result))
+            return false;
+        affected = result.affected;
+        if constexpr (std::is_same_v<T, format::PmmBoneKey>) {
+            auto& entry = history.at(model->slot);
+            entry.partialKeys = true;
+            entry.keyRecords = std::move(result.captured);
+            entry.keys = {};
+            for (const auto& [index, key] : entry.keyRecords)
+                if (key.allocated)
+                    entry.selectedKeyRecords.insert(index);
+        }
+        for (auto it = next.selection.keys.begin(); it != next.selection.keys.end();) {
+            if (it->track == track && it->slot == selection_.model)
+                it = next.selection.keys.erase(it);
+            else
+                ++it;
+        }
+        const auto select = [&](std::uint32_t index, const auto& key) {
+            bool selected;
+            if constexpr (std::is_same_v<T, format::PmmBoneKey> ||
+                          std::is_same_v<T, format::PmmMorphKey>)
+                selected = key.allocated != 0;
+            else
+                selected = key.selected != 0;
+            if (selected)
+                next.selection.keys.insert(
+                    {track, selection_.model, channels.at(index), key.frame});
+        };
+        for (unsigned i = 0; i < keys.dense.size(); ++i)
+            select(i, keys.dense[i]);
+        for (const auto& key : keys.sparse)
+            select(unsigned(key.index), key.value);
+        return true;
+    };
+    if (modelTrack)
+        ok = track == Track::Bone ? edit(model->boneKeys) : edit(model->morphKeys);
+    else
+        ok = track == Track::Camera ? edit(doc.cameraKeys) : edit(doc.lightKeys);
     if (!ok) {
         reason = "frame-line-invalid-track-or-overflow";
         return false;
@@ -85,8 +150,8 @@ bool EditorSession::InsertFrameLine(Track track, std::string& reason, bool fromM
     }
     std::set<KeyAddress> selected;
     for (auto address : next.selection.keys) {
-        if (address.track == track && address.slot == selection_.model && address.frame &&
-            address.frame >= frame)
+        if (insertion && address.track == track && address.slot == selection_.model &&
+            address.frame && address.frame >= frame)
             ++address.frame;
         selected.insert(address);
     }

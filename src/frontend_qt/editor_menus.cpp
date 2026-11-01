@@ -91,6 +91,8 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_PHYSICS_FLOOR:
     case MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE:
     case MDS_CMD_INSERT_MORPH_LIGHT_FRAME_LINE:
+    case MDS_CMD_DELETE_BONE_CAMERA_FRAME_LINE:
+    case MDS_CMD_DELETE_MORPH_LIGHT_FRAME_LINE:
     case MDS_CMD_TOGGLE_UI_LANGUAGE:
         return true;
     default:
@@ -190,7 +192,9 @@ void EditorWindow::RefreshMenus() {
         if (ModelCommand(command))
             enabled &= model && !session_.Playing();
         if (command == MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE ||
-            command == MDS_CMD_INSERT_MORPH_LIGHT_FRAME_LINE)
+            command == MDS_CMD_INSERT_MORPH_LIGHT_FRAME_LINE ||
+            command == MDS_CMD_DELETE_BONE_CAMERA_FRAME_LINE ||
+            command == MDS_CMD_DELETE_MORPH_LIGHT_FRAME_LINE)
             enabled &= !session_.Playing();
         if (command >= MDS_CMD_SELECT_ALL_CAMERA_FRAMES &&
             command <= MDS_CMD_SELECT_ALL_ACCESSORY_FRAMES)
@@ -235,13 +239,20 @@ void EditorWindow::MenuCommand(int command) {
         return;
     }
     if (command == MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE ||
-        command == MDS_CMD_INSERT_MORPH_LIGHT_FRAME_LINE) {
-        const bool primary = command == MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE;
+        command == MDS_CMD_INSERT_MORPH_LIGHT_FRAME_LINE ||
+        command == MDS_CMD_DELETE_BONE_CAMERA_FRAME_LINE ||
+        command == MDS_CMD_DELETE_MORPH_LIGHT_FRAME_LINE) {
+        const bool primary = command == MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE ||
+                             command == MDS_CMD_DELETE_BONE_CAMERA_FRAME_LINE;
+        const bool insertion = command == MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE ||
+                               command == MDS_CMD_INSERT_MORPH_LIGHT_FRAME_LINE;
         const bool model = session_.Selected().model != 255;
         const auto track = model ? (primary ? editor::Track::Bone : editor::Track::Morph)
                                  : (primary ? editor::Track::Camera : editor::Track::Light);
         std::string reason;
-        Result(session_.InsertFrameLine(track, reason, true), reason);
+        Result(insertion ? session_.InsertFrameLine(track, reason, true)
+                         : session_.DeleteFrameLine(track, reason, true),
+               reason);
         Refresh();
         return;
     }

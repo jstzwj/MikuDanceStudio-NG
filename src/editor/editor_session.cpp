@@ -430,8 +430,7 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     }
     State next;
     next.document = session.Document();
-    if (next.document.envelope.header.version == PmmVersion::V1 &&
-        next.document.v1TailStage < 11)
+    if (next.document.envelope.header.version == PmmVersion::V1 && next.document.v1TailStage < 11)
         next.document.appearance.floorVisible = Document().appearance.floorVisible;
     next.assets.modelPaths = resolver.Resolved();
     for (std::size_t i = 0; i < session.Models().size(); ++i) {
@@ -1132,12 +1131,13 @@ std::vector<KeyAddress> EditorSession::Keys() const {
     std::vector<KeyAddress> out;
     const auto& d = Document();
     const auto append = [&](const auto& track, Track kind, std::uint8_t slot) {
-        using T = typename std::decay_t<decltype(track.dense)>::value_type;
-        std::vector<std::vector<T>> chains;
-        if (PmmTrackChains(track, chains))
-            for (std::size_t i = 0; i < chains.size(); ++i)
-                for (const auto& k : chains[i])
-                    out.push_back({kind, slot, std::uint32_t(i), k.frame});
+        std::map<std::uint32_t, std::uint32_t> channels;
+        if (PmmRecordChannels(track, channels)) {
+            for (std::uint32_t i = 0; i < track.dense.size(); ++i)
+                out.push_back({kind, slot, i, track.dense[i].frame});
+            for (const auto& key : track.sparse)
+                out.push_back({kind, slot, channels.at(unsigned(key.index)), key.value.frame});
+        }
     };
     append(d.cameraKeys, Track::Camera, 255);
     append(d.lightKeys, Track::Light, 255);

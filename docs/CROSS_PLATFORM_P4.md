@@ -6,7 +6,7 @@ on 2026-11-01. These are acceptance requirements, not claims about this revision
 
 ## Shared document and commands
 
-The editor has a new PMM v2 topology writer. It rebuilds links/offsets and reparses
+The editor has a new PMM v2 topology writer. It rebuilds offsets and reparses
 the result before publishing it. The existing byte-preserving writer and runtime
 bridge remain available. Editing invalid links, invalid numeric values or expired
 selections must leave the session and history unchanged.
@@ -1096,3 +1096,50 @@ remaining P4 gates.
 
 Validation passed all 26 local P4 tests, the Qt application build, and Win32
 PMM editing/frame-line regressions. Tests remained offscreen or headless.
+
+The stable-identity batch passed the three editor jobs at `17f6e0f` in
+[run 41327655587](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41327655587),
+along with the formats and rendering workflows.
+
+## Frame-line deletion and partial key history
+
+The Qt delete-frame-line menus and `K`/`J` now dispatch bone/camera and morph/light
+commands through EditorSession. There are 42 connected native menu commands.
+Text editing, key repeats, playback availability and modifier handling follow
+the insertion commands. Only the bone operation creates undo history; a bone
+keyboard no-op leaves the runtime/revision alone while its menu marks dirty.
+Frame limits retain the native high-water values.
+
+Deletion scans stable record indices, unlinks keys at the cursor and shifts later
+keys down. Frame-one keys merge into the roots at cursor zero, preserving each
+track's native field subset: bone physics, camera parents/selection and two
+interpolation columns, and light selection survive. Bone automatic interpolation
+rebuilds neighboring curves at the same point as the original operation.
+
+History captures each touched slot on its first actual visit, rather than taking
+the entire pre-command key table. In the original, frame-zero merging can leave
+the root modified after undo and retain a detached frame-one record. Allocation
+order can also make a forward link bypass that restored predecessor. The PMM
+contract preserves these cases, validates all references/time order, and allows
+that bone-only bypass only through a detached predecessor of the same channel.
+Key enumeration includes detached records; seeking uses the actual predecessor
+selected by the original routine. General marked-key deletion/root resets still
+have additional compatibility work; this does not close that broader gate.
+
+The extended `editor_frame_line_oracle_test` calls original deletion RVAs
+`8A110`/`8B3A0`, undo/redo and actual model seeking at `CBD90`. It passed **384
+persisted-record table checkpoints** and **6,192 bit-exact bone seek poses**,
+covering four track types, three allocation orders, seven cursor boundaries,
+automatic interpolation on/off and three undo/redo cycles. The public table hash
+is `45bef3b62b79d390`. Freed-slot padding/payload is not part of the typed PMM
+comparison. No original entrypoint, window, GPU or audio device runs; UI refresh
+calls are excluded explicitly, while model seeking is executed independently.
+
+Public session coverage adds selection restoration, scoped history, native
+frame-zero undo, invalid atomic rejection, detached-record saving/reopening,
+seeking and further deletion, and unavailable commands during playback. The
+original comparisons do not constitute full editor event-loop or C1 acceptance.
+
+Local validation passed all 26 P4 tests and the scene-evaluation regression,
+six Win32 format/editor tests, the legacy hidden-window undo and format tests,
+and both Qt/legacy application builds. No tolerance was relaxed.

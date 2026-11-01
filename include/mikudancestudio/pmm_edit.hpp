@@ -4,6 +4,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <type_traits>
 
 namespace mikudancestudio::format {
 // Materialize a new v2 envelope after topology/path/settings changes. The old
@@ -25,6 +26,7 @@ bool PmmTrackChains(const PmmKeyTrack<T>& track, std::vector<std::vector<T>>& ch
             !sparse.emplace(std::uint32_t(entry.index), &entry.value).second)
             return false;
     std::set<std::uint32_t> visited;
+    std::vector<std::pair<std::uint32_t, std::uint32_t>> bypassed;
     std::vector<std::vector<T>> result(track.dense.size());
     for (std::size_t root = 0; root < track.dense.size(); ++root) {
         const T* key = &track.dense[root];
@@ -38,17 +40,121 @@ bool PmmTrackChains(const PmmKeyTrack<T>& track, std::vector<std::vector<T>>& ch
         while (key->next) {
             const auto next = sparse.find(key->next);
             if (next == sparse.end() || !visited.insert(next->first).second ||
-                next->second->previous != index || next->second->frame <= key->frame ||
-                next->second->frame > 0x7fffffffU)
+                next->second->frame <= key->frame || next->second->frame > 0x7fffffffU)
                 return false;
+            if (next->second->previous != index) {
+                if constexpr (!std::is_same_v<T, PmmBoneKey>)
+                    return false;
+                bypassed.emplace_back(std::uint32_t(root), next->first);
+            }
             index = next->first;
             key = next->second;
             result[root].push_back(*key);
         }
     }
-    if (visited.size() != sparse.size())
-        return false;
+    // Native root resets and frame-line undo can retain nonzero records that
+    // are detached from the root's next chain. They remain allocated/savable.
+    // Validate their references and strict time ordering, without inventing a
+    // reciprocal link into the active chain. Ordering rules exclude cycles.
+    for (const auto& [index, key] : sparse) {
+        if (visited.count(index))
+            continue;
+        if (!key->frame || key->frame > 0x7fffffffU)
+            return false;
+        const T* previous = nullptr;
+        if (key->previous < track.dense.size())
+            previous = &track.dense[key->previous];
+        else if (const auto found = sparse.find(key->previous); found != sparse.end())
+            previous = found->second;
+        if (!previous || previous->frame >= key->frame)
+            return false;
+        if (key->next) {
+            const auto found = sparse.find(key->next);
+            if (found == sparse.end() || found->second->frame <= key->frame)
+                return false;
+        }
+    }
+    // Depending on allocation order, native bone undo can restore the next
+    // key's predecessor before the frame-zero merge. Permit only a detached
+    // predecessor from this same channel that still points to that next key.
+    for (const auto& [root, index] : bypassed) {
+        const auto& key = *sparse.at(index);
+        const auto previous = sparse.find(key.previous);
+        if (previous == sparse.end() || visited.count(key.previous) ||
+            previous->second->next != index || previous->second->frame >= key.frame)
+            return false;
+        auto ancestor = key.previous;
+        while (ancestor >= track.dense.size())
+            ancestor = sparse.at(ancestor)->previous;
+        if (ancestor != root)
+            return false;
+    }
     chains = std::move(result);
+    return true;
+}
+
+// Includes detached records, whose channel follows predecessor ancestry.
+// The active forward chain remains the source for playback and registration.
+template <class T>
+bool PmmRecordChannels(const PmmKeyTrack<T>& track,
+                       std::map<std::uint32_t, std::uint32_t>& channels) {
+    std::vector<std::vector<T>> checked;
+    if (!PmmTrackChains(track, checked))
+        return false;
+    std::map<std::uint32_t, const T*> records;
+    std::map<std::uint32_t, std::uint32_t> result;
+    for (std::uint32_t i = 0; i < track.dense.size(); ++i)
+        result.emplace(i, i);
+    for (const auto& key : track.sparse)
+        records.emplace(std::uint32_t(key.index), &key.value);
+    for (const auto& [index, key] : records) {
+        auto previous = index;
+        std::vector<std::uint32_t> path;
+        while (!result.count(previous)) {
+            path.push_back(previous);
+            previous = records.at(previous)->previous;
+        }
+        for (auto i : path)
+            result.emplace(i, result.at(previous));
+    }
+    channels = std::move(result);
+    return true;
+}
+
+// Restore only captured native slots; absent sparse slots are represented by
+// frame zero. Capture the displaced slots for redo, including their holes.
+template <class T>
+bool RestorePmmKeyRecords(PmmKeyTrack<T>& track, const std::map<std::uint32_t, T>& saved,
+                          std::map<std::uint32_t, T>& displaced) {
+    auto next = track;
+    std::map<std::uint32_t, T> old;
+    for (const auto& [index, key] : saved) {
+        if (index >= next.dense.size() + 100000)
+            return false;
+        if (index < next.dense.size()) {
+            old.emplace(index, next.dense[index]);
+            next.dense[index] = key;
+        } else {
+            auto found = std::find_if(next.sparse.begin(), next.sparse.end(),
+                                      [&](const auto& record) { return record.index == index; });
+            old.emplace(index, found == next.sparse.end() ? T{} : found->value);
+            if (found != next.sparse.end()) {
+                if (key.frame)
+                    found->value = key;
+                else
+                    next.sparse.erase(found);
+            } else if (key.frame) {
+                next.sparse.push_back({std::int32_t(index), 0, key});
+            }
+        }
+    }
+    std::vector<std::vector<T>> checked;
+    if (!PmmTrackChains(next, checked))
+        return false;
+    std::sort(next.sparse.begin(), next.sparse.end(),
+              [](const auto& a, const auto& b) { return a.index < b.index; });
+    track = std::move(next);
+    displaced = std::move(old);
     return true;
 }
 template <class T>

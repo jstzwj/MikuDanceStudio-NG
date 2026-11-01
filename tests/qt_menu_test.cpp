@@ -238,9 +238,23 @@ int main(int argc, char** argv) {
     window.Refresh();
     CHECK(!command(MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE)->isEnabled());
     CHECK(!command(MDS_CMD_INSERT_MORPH_LIGHT_FRAME_LINE)->isEnabled());
+    CHECK(!command(MDS_CMD_DELETE_BONE_CAMERA_FRAME_LINE)->isEnabled());
+    CHECK(!command(MDS_CMD_DELETE_MORPH_LIGHT_FRAME_LINE)->isEnabled());
     QCoreApplication::sendEvent(window.Control(panel::kCopyFramesButton), &insertMorph);
     CHECK(session.Revision() == inputRevision && session.Playing());
     session.Pause();
+    window.Refresh();
+    command(MDS_CMD_DELETE_BONE_CAMERA_FRAME_LINE)->trigger();
+    QKeyEvent deleteMorph(QEvent::KeyPress, Qt::Key_J, Qt::NoModifier);
+    QCoreApplication::sendEvent(window.Control(panel::kCopyFramesButton), &deleteMorph);
+    CHECK(session.Document().models[0].boneKeys.sparse[0].value.frame == 5);
+    CHECK(session.Document().models[0].morphKeys.sparse[0].value.frame == 5);
+    const auto deletionRevision = session.Revision();
+    QKeyEvent deleteRepeat(QEvent::KeyPress, Qt::Key_K, Qt::NoModifier, {}, true);
+    QCoreApplication::sendEvent(window.Control(panel::kCopyFramesButton), &deleteRepeat);
+    QKeyEvent deleteTyping(QEvent::KeyPress, Qt::Key_J, Qt::NoModifier, "j");
+    QCoreApplication::sendEvent(window.Control(panel::kCurrentFrameEdit), &deleteTyping);
+    CHECK(session.Revision() == deletionRevision);
     CHECK(session.SelectModel(255, reason));
     CHECK(session.Register({{Track::Camera, 255, 0, 5}, {Track::Light, 255, 0, 5}}, reason));
     window.Refresh();
@@ -249,11 +263,16 @@ int main(int argc, char** argv) {
     QCoreApplication::sendEvent(window.Control(panel::kCopyFramesButton), &insertCamera);
     CHECK(session.Document().cameraKeys.sparse[0].value.frame == 6);
     CHECK(session.Document().lightKeys.sparse[0].value.frame == 6);
-    CHECK(session.Document().models[0].boneKeys.sparse[0].value.frame == 6);
+    CHECK(session.Document().models[0].boneKeys.sparse[0].value.frame == 5);
+    command(MDS_CMD_DELETE_MORPH_LIGHT_FRAME_LINE)->trigger();
+    QKeyEvent deleteCamera(QEvent::KeyPress, Qt::Key_K, Qt::ControlModifier);
+    QCoreApplication::sendEvent(window.Control(panel::kCopyFramesButton), &deleteCamera);
+    CHECK(session.Document().cameraKeys.sparse[0].value.frame == 5);
+    CHECK(session.Document().lightKeys.sparse[0].value.frame == 5);
     unsigned implemented = 0;
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 40);
+    CHECK(implemented == 42);
     CHECK(window.LastError().isEmpty());
     CHECK(!window.isVisible() && window.RenderWindow()->Submissions() == 0);
     std::cout

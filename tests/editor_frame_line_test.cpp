@@ -1,4 +1,5 @@
 #include "mikudancestudio/editor_session.hpp"
+#include "frame_line_deletion_fixture.hpp"
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -59,10 +60,55 @@ template <class T> bool Kernel() {
     return !InsertPmmFrameLine(source, 0, affected);
 }
 
+template <class T> bool DeletionKernel(std::uint64_t& hash) {
+    for (unsigned order = 0; order < 3; ++order)
+        for (unsigned cursor : {0, 1, 2, 15, 16, 30, 31})
+            for (bool automatic : {false, true}) {
+                auto track = frame_line_fixture::Make<T>(order);
+                PmmFrameLineDeletion<T> deletion;
+                if (!DeletePmmFrameLine(track, cursor, automatic, deletion))
+                    return false;
+                frame_line_fixture::Hash(hash, track);
+                if constexpr (std::is_same_v<T, PmmBoneKey>) {
+                    if (deletion.affected)
+                        for (unsigned cycle = 0; cycle < 3; ++cycle) {
+                            std::map<std::uint32_t, T> redo, unused;
+                            if (!RestorePmmKeyRecords(track, deletion.captured, redo))
+                                return false;
+                            frame_line_fixture::Hash(hash, track);
+                            if (!RestorePmmKeyRecords(track, redo, unused))
+                                return false;
+                            frame_line_fixture::Hash(hash, track);
+                        }
+                }
+            }
+    return true;
+}
 int main(int argc, char** argv) {
     CHECK(argc == 2);
     CHECK(Kernel<PmmBoneKey>() && Kernel<PmmMorphKey>() && Kernel<PmmCameraKey>() &&
           Kernel<PmmLightKey>());
+    // Frozen from 384 original x64 deletion/undo/redo persisted-record tables.
+    std::uint64_t hash = 14695981039346656037ull;
+    CHECK(DeletionKernel<PmmBoneKey>(hash) && DeletionKernel<PmmMorphKey>(hash) &&
+          DeletionKernel<PmmCameraKey>(hash) && DeletionKernel<PmmLightKey>(hash));
+    CHECK(hash == 0x45bef3b62b79d390ull);
+    auto malformed = frame_line_fixture::Make<PmmBoneKey>(0);
+    malformed.sparse[0].value.previous = 999;
+    const auto beforeMalformed = frame_line_fixture::Records(malformed);
+    PmmFrameLineDeletion<PmmBoneKey> rejected;
+    rejected.affected = 77;
+    CHECK(!DeletePmmFrameLine(malformed, 0, true, rejected));
+    CHECK(rejected.affected == 77);
+    for (const auto& [index, key] : frame_line_fixture::Records(malformed))
+        CHECK(frame_line_fixture::Bytes(key) ==
+              frame_line_fixture::Bytes(beforeMalformed.at(index)));
+    auto invalidRestore = frame_line_fixture::Make<PmmBoneKey>(0);
+    auto badKey = invalidRestore.dense[0];
+    badKey.next = 999;
+    std::map<std::uint32_t, PmmBoneKey> displaced;
+    CHECK(!RestorePmmKeyRecords(invalidRestore, {{0, badKey}}, displaced));
+    CHECK(invalidRestore.dense[0].next == 13 && displaced.empty());
     const auto root = std::filesystem::absolute(argv[1]);
     const auto writer = [](const auto& path, const auto& bytes, auto&) {
         std::ofstream file(path, std::ios::binary);
@@ -175,6 +221,96 @@ int main(int argc, char** argv) {
     CHECK(empty.InsertFrameLine(Track::Bone, reason, true));
     CHECK(empty.Dirty() && !empty.CanUndo() && &empty.Runtime() == runtime);
     CHECK(!empty.InsertFrameLine(Track::Shadow, reason));
+    for (auto track : {Track::Bone, Track::Morph, Track::Camera, Track::Light})
+        for (unsigned cursor : {0, 1, 15, 31}) {
+            EditorSession session;
+            session.SetAutoInterpolation(false);
+            CHECK(session.ImportModel(root / "triangle.pmx", reason));
+            const bool model = track == Track::Bone || track == Track::Morph;
+            CHECK(session.SelectModel(model ? 0 : 255, reason));
+            const auto slot = session.Selected().model;
+            // Reverse allocation order exercises the original partial undo
+            // whose root forward chain can bypass a restored predecessor.
+            for (unsigned frame : {30, 15, 1}) {
+                if (track == Track::Bone)
+                    CHECK(session.SetBone(0, 0, {float(frame), 0, 0}, {0, 0, 0, 1}, reason));
+                else if (track == Track::Morph)
+                    CHECK(session.SetMorph(0, 0, float(frame) / 30, reason));
+                else if (track == Track::Camera) {
+                    auto camera = session.Runtime().Session()->Pose().camera;
+                    camera.position[0] = float(frame);
+                    CHECK(session.SetCamera(camera, reason));
+                } else {
+                    CHECK(session.Edit(
+                        "light",
+                        [&](auto& doc, auto&) {
+                            doc.lightState[0] = float(frame) / 100;
+                            return true;
+                        },
+                        reason));
+                }
+                CHECK(session.Register({{track, slot, 0, frame}}, reason));
+            }
+            CHECK(session.Seek(cursor, reason));
+            CHECK(session.Save(root / "delete-line.pmm", writer, reason));
+            CHECK(session.Open(root / "delete-line.pmm", reason));
+            session.Selected().keys = {{track, slot, 0, 1}, {track, slot, 0, 30}};
+            const auto maximum = session.Document().timeline.lastRegisteredFrame;
+            CHECK(session.DeleteFrameLine(track, reason));
+            CHECK(session.Document().timeline.lastRegisteredFrame == maximum);
+            CHECK(session.Document().timeline.currentFrame == cursor);
+            CHECK(session.CanUndo() == (track == Track::Bone && cursor <= 30));
+            if (cursor <= 30) {
+                CHECK(session.Selected().keys.count({track, slot, 0, 29}));
+                if (cursor == 0 && model)
+                    CHECK(session.Selected().keys.count({track, slot, 0, 0}));
+            }
+            if (session.CanUndo()) {
+                for (unsigned cycle = 0; cycle < 3; ++cycle) {
+                    session.Selected().keys.erase({track, slot, 0, 29});
+                    CHECK(session.Undo(reason));
+                    CHECK(session.Selected().keys.count({track, slot, 0, 30}));
+                    CHECK(session.Document().models[0].boneKeys.sparse.size() == 3);
+                    if (cursor == 0) {
+                        const auto& keys = session.Document().models[0].boneKeys;
+                        CHECK(keys.dense[0].position[0] == 1 && keys.dense[0].next == 2);
+                        CHECK(keys.sparse[1].value.previous == 3);
+                    }
+                    CHECK(session.Redo(reason));
+                    CHECK(!session.Selected().keys.count({track, slot, 0, 29}));
+                    CHECK(session.Document().models[0].boneKeys.sparse[0].value.allocated == 0);
+                }
+                if (cursor == 0) {
+                    CHECK(session.Undo(reason));
+                    CHECK(session.Save(root / "detached-line.pmm", writer, reason));
+                    CHECK(session.Open(root / "detached-line.pmm", reason));
+                    CHECK(session.Document().models[0].boneKeys.sparse.size() == 3);
+                    const auto keys = session.Keys();
+                    CHECK(std::any_of(keys.begin(), keys.end(), [&](const auto& key) {
+                        return key.track == track && key.slot == slot && key.channel == 0 &&
+                               key.frame == 1;
+                    }));
+                    CHECK(session.Seek(2, reason));
+                    CHECK(std::abs(session.Document().models[0].bonePose[0].components[0] - 2) <
+                          .005f);
+                    CHECK(session.Seek(1, reason));
+                    CHECK(session.DeleteFrameLine(track, reason));
+                    CHECK(session.Document().models[0].boneKeys.sparse.size() == 2);
+                }
+            }
+            CHECK(session.Save(root / "delete-line.pmm", writer, reason));
+            CHECK(session.Open(root / "delete-line.pmm", reason));
+            CHECK(session.Play(reason));
+            CHECK(!session.DeleteFrameLine(track, reason));
+        }
+    CHECK(empty.New(reason));
+    CHECK(empty.ImportModel(root / "pose.pmd", reason));
+    CHECK(empty.Save(root / "empty-delete.pmm", writer, reason));
+    const auto emptyRevision = empty.Revision();
+    CHECK(empty.DeleteFrameLine(Track::Bone, reason));
+    CHECK(empty.Revision() == emptyRevision && !empty.CanUndo());
+    CHECK(empty.DeleteFrameLine(Track::Bone, reason, true));
+    CHECK(empty.Dirty() && !empty.CanUndo());
     std::cout
-        << "Frame-line insertion: stable links, scope, selection, history, bounds and persistence passed\n";
+        << "Frame-line insertion/deletion: native tables, selection, partial history and persistence passed\n";
 }
