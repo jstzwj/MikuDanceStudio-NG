@@ -30,17 +30,13 @@
 #include <cwchar>
 
 #include "background_quad.hpp"
+#include "mikudancestudio/background_placement.hpp"
 #include "mikudancestudio/globals.hpp"
 #include "mikudancestudio/mmd_app.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
 
 namespace mikudancestudio {
 namespace {
-
-// .rdata 0x52BA20 - double 1.2000000476837158, overlay scale divisor used by
-// both quad builders (x87 divide runs in double precision, result stored
-// as float - reproduced by keeping the arithmetic in double).
-constexpr double kOverlayScale = 1.2000000476837158;
 
 // 0x529688 - L"%s%s"; the original calls it with no varargs (VC9 stack
 // garbage).  The port passes two empty strings (same idiom as the file
@@ -80,62 +76,29 @@ struct OverlayPlacement {
 
 void ComputeOverlayRect(MMDApp* app, const OverlayPlacement& placement, double* leftOut,
                         double* topOut, double* rightOut, double* bottomOut) {
-    auto& s = *app;
-    D3DRenderer* wrapper = s.Renderer(); // viewScale (0x1D4F0)
-    const double ratio = wrapper->viewScale;
-    const double k = kOverlayScale;
-    const double offXv = static_cast<double>(placement.x);
-    const double offYv = static_cast<double>(placement.y);
-    const double zoomV = static_cast<double>(placement.scale);
-    const double wv = static_cast<double>(placement.width);
-    const double hv = static_cast<double>(placement.height);
-    const RECT& viewport = s.ViewportRect();
-    const std::int32_t rectL = viewport.left;
-    const std::int32_t rectT = viewport.top;
-    const std::int32_t rectR = viewport.right;
-    const std::int32_t rectB = viewport.bottom;
-
-    if (s.RecordingWindow() == nullptr) { // 0xA0D24
-        // 0x416F13: full-window placement against the A0D40 rect.
-        const double left = rectL + offXv * ratio / k - 1.0;
-        const double top = offYv * ratio / k + rectT - 1.0;
-        *leftOut = left;
-        *topOut = top;
-        *rightOut = wv * zoomV * ratio / k + left + 1.0;
-        *bottomOut = hv * zoomV * ratio / k + top + 1.0;
-        return;
-    }
-
-    if (wrapper->multisampleAvailable != 0) { // 0x1D4F8
-        // 0x416E23: separate render window - uniform scale.  The x87 pair
-        // (fildl + fidivl + fstps) divides in double precision and stores
-        // the factor as float; reproduced explicitly.
-        const float scale = static_cast<float>(static_cast<double>(s.state.renderW) /
-                                               static_cast<double>(rectR - rectL));
-        const double sc = scale;
-        const double left = sc * offXv * ratio / k - 1.0;
-        const double top = sc * offYv * ratio / k - 1.0;
-        *leftOut = left;
-        *topOut = top;
-        *rightOut = wv * zoomV * ratio * sc / k + left + 1.0;
-        // This branch pre-divides by k at 0x416FE0 and jumps past the
-        // shared divide - a single /k total.
-        *bottomOut = hv * zoomV * ratio * sc / k + top + 1.0;
-        return;
-    }
-
-    // 0x416D0B: per-axis float scales against the separate-window rect
-    // (again fildl/fidivl/fstps, not integer division).
-    const float sxF = static_cast<float>(static_cast<double>(wrapper->screenWidth) / // 0x1D4E4
-                                         static_cast<double>(rectR - rectL));
-    const float syF = static_cast<float>(static_cast<double>(wrapper->screenHeight) / // 0x1D4E8
-                                         static_cast<double>(rectB - rectT));
-    const double left = static_cast<double>(sxF) * offXv * ratio / k - 1.0;
-    const double top = static_cast<double>(syF) * offYv * ratio / k - 1.0;
-    *leftOut = left;
-    *topOut = top;
-    *rightOut = wv * zoomV * ratio * sxF / k + left + 1.0;
-    *bottomOut = hv * zoomV * ratio * syF / k + top + 1.0;
+    const auto* wrapper = app->Renderer();
+    const auto& viewport = app->ViewportRect();
+    render::BackgroundView view;
+    view.left = viewport.left;
+    view.top = viewport.top;
+    view.width = viewport.right - viewport.left;
+    view.height = viewport.bottom - viewport.top;
+    view.scale = wrapper->viewScale;
+    view.recording = app->RecordingWindow() != nullptr;
+    view.multisampled = wrapper->multisampleAvailable != 0;
+    view.renderWidth = app->state.renderW;
+    view.surfaceWidth = wrapper->screenWidth;
+    view.surfaceHeight = wrapper->screenHeight;
+#if defined(_M_IX86)
+    const auto rect = render::PlaceBackgroundX86(
+#else
+    const auto rect = render::PlaceBackground(
+#endif
+        {placement.x, placement.y, placement.width, placement.height, placement.scale}, view);
+    *leftOut = rect.left;
+    *topOut = rect.top;
+    *rightOut = rect.right;
+    *bottomOut = rect.bottom;
 }
 
 void RefreshOverlayVertexBuffer(MMDApp* app, IDirect3DVertexBuffer9* vb,

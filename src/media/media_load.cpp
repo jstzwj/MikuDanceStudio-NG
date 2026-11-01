@@ -23,6 +23,7 @@
 // =========================================================================//
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#include "mikudancestudio/background_placement.hpp"
 #include "mikudancestudio/menu_commands.h"
 #include <Windows.h>
 #include <d3d9.h>
@@ -70,11 +71,6 @@ static const char kMsgBmpFailJp[] =
 static const char kMsgBmpCaptionJp[] = "BMP\x83\x74\x83\x40\x83\x43\x83\x8B"
                                        "\x93\xC7\x8D\x9E";
 
-// .rdata float constant used by x64 aspect-ratio calculations (SSE single-precision multiply/divide,
-// referenced by sub_7FF7CB487A20 at 0x7ff7cb487ed3/0x7ff7cb487f03).
-constexpr float kOverlaySpan = 1.2f; // float @0x7FF7CB552B3C (3F 99 99 9A)
-constexpr float kOverlayHalf = 0.5f; // float @0x7FF7CB55298C (3F 00 00 00)
-
 // 0x50747B: CRT _wsopen_s(&fh, path, _O_BINARY, _SH_DENYNO, _S_IREAD);
 // used as an existence probe (returns errno, 0 = exists).
 bool WsOpenOk(const wchar_t* path) {
@@ -110,16 +106,13 @@ void AviFailTail(MMDApp* app) {
 // view), so hideLeft - hideRight is a positive viewport width; h2 likewise uses positive half-height.
 void MediaAspect(MMDApp* app, std::int32_t width, std::int32_t height, float& scaleOut,
                  std::int32_t& posOut) {
-    auto& s = *app;
-    const std::int32_t w = s.state.hideLeft - s.state.hideRight;        // 0x4336B7
-    const std::int32_t h2 = (s.state.hideBottom - s.state.hideTop) / 2; // 0x4336E9
-    const float ratio = s.Renderer()->viewScale;                        // 0x4336E0
-    const float spanW = static_cast<float>(w) / ratio;                  // 0x4336F5..
-    const float zoom = (spanW * kOverlaySpan) / static_cast<float>(width);
-    const float drawnH = (static_cast<float>(height) * zoom * ratio) / kOverlaySpan;
-    scaleOut = zoom;
-    posOut =
-        static_cast<std::int32_t>(static_cast<float>(h2) - drawnH * kOverlayHalf); // 0x43370D..
+    render::BackgroundView view;
+    view.width = app->state.hideLeft - app->state.hideRight;
+    view.height = app->state.hideBottom - app->state.hideTop;
+    view.scale = app->Renderer()->viewScale;
+    const auto placement = render::FitBackground(width, height, view);
+    scaleOut = placement.scale;
+    posOut = placement.y;
 }
 
 } // namespace

@@ -221,3 +221,17 @@ backends for first/next/stable frame behavior, reload, reset and display-order
 changes. Image export warms up preceding material-history frames; exporting a
 later range reproduces the same image as that range of a full sequence. This is
 separate from MME history and does not close the remaining P4 exit gates.
+
+
+[Run 41285421759](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41285421759)
+at `0dafcea` passed stock-effect history, export range and viewport invalidation
+checks on all three platforms.
+
+Background-image placement now follows the original x64 single-precision
+operation order. The previous Windows port had carried over the x86 double
+formula. A hidden DX9 oracle invokes the original x64 quad writer and compares
+all 168 vertex bytes across 108 offsets, zooms, viewport sizes and recording
+branches. All cases passed exactly; a frozen digest of the original output
+also gates the portable helper without loading the reference executable.
+This validates placement only; image loading, filtering and complete background
+interaction are still being integrated into the Qt editor.
