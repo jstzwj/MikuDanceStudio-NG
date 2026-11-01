@@ -23,7 +23,7 @@ jobs:
       - name: Build editor with DX11 WARP
         run: |
           cmake -S cmake/portable-editor -B out/p4 -A x64 -DMIKUDANCESTUDIO_RHI_VULKAN=OFF -DMIKUDANCESTUDIO_RHI_D3D11=ON -DMIKUDANCESTUDIO_RHI_D3D12=OFF
-          cmake --build out/p4 --config Release --target qt_audio_test qt_editor_test qt_editor_render_test qt_presentation_test editor_session_test pmm_edit_test wave_format_test MikuDanceStudioNG --parallel 3
+          cmake --build out/p4 --config Release --target qt_timeline_gdi_test qt_audio_test qt_editor_test qt_editor_render_test qt_presentation_test editor_session_test pmm_edit_test wave_format_test MikuDanceStudioNG --parallel 3
       - name: Offscreen editor and generated export
         env:
           MDS_GPU_BACKEND: d3d11

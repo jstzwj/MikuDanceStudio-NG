@@ -52,6 +52,10 @@ function(mds_add_qt_editor)
         qt_add_executable(qt_presentation_test "${root}/tests/qt_presentation_test.cpp")
         target_link_libraries(qt_presentation_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
+            qt_add_executable(qt_timeline_gdi_test "${root}/tests/qt_timeline_gdi_test.cpp")
+            target_link_libraries(qt_timeline_gdi_test PRIVATE mikudancestudio_frontend_qt gdi32 user32)
+            add_test(NAME qt_timeline_gdi COMMAND qt_timeline_gdi_test "${root}/res/assets")
+            set_tests_properties(qt_timeline_gdi PROPERTIES LABELS "p4;offscreen;qt;oracle" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
             # Explicit hidden DX9 oracle; never required on machines without a
             # connected DX9 session. D3DX is loaded only inside this test.
             add_executable(portable_scene_dx9_test "${root}/tests/portable_scene_dx9_test.cpp")

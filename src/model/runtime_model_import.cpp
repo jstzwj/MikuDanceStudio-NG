@@ -63,6 +63,11 @@ bool NormalizePmd(const format::PmdDocument& source, format::PmxDocument& out,
             reason = "invalid-pmd-bone-name";
             return false;
         }
+        const auto n = result.bones.size();
+        if (n < source.englishBoneNames.size()) {
+            const auto& name = source.englishBoneNames[n];
+            Name(name.data(), name.size(), bone.names[1]);
+        }
         result.bones.push_back(std::move(bone));
     }
     for (const auto& m : source.materials) {
@@ -78,6 +83,11 @@ bool NormalizePmd(const format::PmdDocument& source, format::PmxDocument& out,
         if (!Name(m.header.name, sizeof m.header.name, morph.names[0])) {
             reason = "invalid-pmd-morph-name";
             return false;
+        }
+        // PMD English morph names exclude the base morph at index zero.
+        if (n && n - 1 < source.englishMorphNames.size()) {
+            const auto& name = source.englishMorphNames[n - 1];
+            Name(name.data(), name.size(), morph.names[1]);
         }
         for (const auto& offset : m.offsets) {
             if (n == 0) {

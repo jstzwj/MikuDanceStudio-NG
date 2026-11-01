@@ -57,6 +57,11 @@ public:
         if (option > 0 && option < scene_.envelope.settings.options.size())
             scene_.envelope.settings.options[option] = expanded;
     }
+    void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded) {
+        for (auto& model : scene_.models)
+            if (model.slot == slot && group < model.selection.groupFlags.size())
+                model.selection.groupFlags[group] = expanded;
+    }
     bool Save(WritePmmBytes write, void* context) const;
     bool KinematicWorld(std::uint8_t slot,
                         std::vector<std::optional<std::array<float, 16>>>& world) const;

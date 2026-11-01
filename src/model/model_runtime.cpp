@@ -204,6 +204,77 @@ bool ModelResource::Create(const format::ModelDocument& source,
                        resource->boneNames_, resource->skeleton_, resource->chains_, reason))
         return false;
     resource->sourceKind_ = source.kind;
+    auto& groups = resource->displayGroups_;
+    const auto decode = [](const format::PmxText& bytes) {
+        std::string value;
+        text::DecodeUtf16Le(bytes.data(), bytes.size(), value);
+        return value;
+    };
+    if (!model.bones.empty()) {
+        if (source.kind == format::ModelKind::Pmx && !model.frames.empty() &&
+            !model.frames[0].entries.empty() && model.frames[0].entries[0].type == 0) {
+            const auto root = model.frames[0].entries[0].index;
+            if (root < 0 || std::size_t(root) >= model.bones.size())
+                return Fail(reason, "invalid-display-root");
+            resource->displayRoot_ = unsigned(root);
+        }
+        groups.push_back({0,
+                          {resource->boneNames_[resource->displayRoot_], {}},
+                          {{false, resource->displayRoot_}}});
+        groups.push_back({1, {}, {}});
+        std::vector<ModelDisplayEntry> facial;
+        if (source.kind == format::ModelKind::Pmd) {
+            for (auto index : source.pmd.facialTargets) {
+                if (index >= model.morphs.size())
+                    return Fail(reason, "invalid-display-morph");
+                facial.push_back({true, index});
+            }
+        } else {
+            for (const auto& frame : model.frames)
+                for (const auto& entry : frame.entries) {
+                    if (entry.type > 1 || entry.index < 0 ||
+                        std::size_t(entry.index) >=
+                            (entry.type ? model.morphs.size() : model.bones.size()))
+                        return Fail(reason, "invalid-display-entry");
+                    if (entry.type)
+                        facial.push_back({true, unsigned(entry.index)});
+                }
+            facial.resize(std::uint8_t(facial.size())); // native byte-sized facial row count
+        }
+        const bool hasFacial = !facial.empty();
+        if (hasFacial)
+            groups.push_back({2, {}, std::move(facial)});
+        if (source.kind == format::ModelKind::Pmd) {
+            for (std::size_t i = 0; i < source.pmd.groupNames.size(); ++i) {
+                ModelDisplayGroup group;
+                const auto& name = source.pmd.groupNames[i];
+                Cp932Identifier(name.data(), name.size(), group.names[0]);
+                if (i < source.pmd.englishGroupNames.size()) {
+                    const auto& en = source.pmd.englishGroupNames[i];
+                    Cp932Identifier(en.data(), en.size(), group.names[1]);
+                }
+                groups.push_back(std::move(group));
+            }
+            for (const auto& entry : source.pmd.boneFrames) {
+                const auto g = unsigned(entry.group) + 1 + hasFacial;
+                if (entry.bone >= model.bones.size() || g >= groups.size())
+                    return Fail(reason, "invalid-display-bone");
+                groups[g].entries.push_back({false, entry.bone});
+            }
+        } else {
+            for (std::size_t i = 2; i < model.frames.size(); ++i) {
+                const auto& frame = model.frames[i];
+                ModelDisplayGroup group;
+                group.names = {decode(frame.names[0]), decode(frame.names[1])};
+                for (const auto& entry : frame.entries)
+                    if (!entry.type)
+                        group.entries.push_back({false, unsigned(entry.index)});
+                groups.push_back(std::move(group));
+            }
+        }
+        if (groups.size() > 255)
+            return Fail(reason, "display-group-limit");
+    }
     if (source.kind == format::ModelKind::Pmd)
         resource->pmdToonNames_ = source.pmd.toonNames;
     resource->document_ = model;

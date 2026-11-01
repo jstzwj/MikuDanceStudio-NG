@@ -2,11 +2,12 @@
 #include "language.hpp"
 #include "mikudancestudio/editor_session.hpp"
 #include <QWidget>
+#include <QImage>
 #include <functional>
 namespace mikudancestudio::qt {
 class Timeline final : public QWidget {
 public:
-    Timeline(editor::EditorSession&, Language&, QWidget*);
+    Timeline(editor::EditorSession&, Language&, const std::filesystem::path& assets, QWidget*);
     std::function<void()> changed;
     void Refresh();
     void SetFrameScroll(int);
@@ -30,6 +31,10 @@ private:
     struct Row {
         editor::KeyAddress address;
         QString name;
+        std::vector<editor::KeyAddress> tracks;
+        int group = -1, indent = 12;
+        bool expanded = false;
+        Row(editor::KeyAddress a, QString n) : address(a), name(std::move(n)), tracks{a} {}
     };
     editor::EditorSession& session_;
     Language& language_;
@@ -37,6 +42,9 @@ private:
     int frameScroll_ = 0, rowScroll_ = 0;
     QPoint press_, pointer_;
     bool dragging_ = false;
+    QImage icons_;
+    bool Matches(const Row&, const editor::KeyAddress&) const;
+    bool Selected(const Row&) const;
     int FrameAt(int x) const;
     int RowAt(int y) const;
 };

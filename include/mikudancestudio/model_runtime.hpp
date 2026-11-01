@@ -32,6 +32,16 @@ inline constexpr const char* UnsupportedCapabilities[]{
     "qdef", "pmx-2.1", "pmx-utf8", "animated-or-framed-x", "rendering", "mme"};
 // ModelInstance is a kinematic host; SceneRuntime owns the shared Bullet world,
 // playback state and inter-model bindings. Unsupported features fail at import.
+struct ModelDisplayEntry {
+    bool morph = false;
+    std::uint32_t index = 0;
+};
+struct ModelDisplayGroup {
+    // Stable roles: 0=root, 1=display/IK, 2=facial, 3=source-defined group.
+    unsigned role = 3;
+    std::array<std::string, 2> names;
+    std::vector<ModelDisplayEntry> entries;
+};
 class ModelResource final {
 public:
     static bool Create(const format::ModelDocument&, std::shared_ptr<const ModelResource>&,
@@ -39,9 +49,12 @@ public:
     const format::PmxDocument& Document() const { return document_; }
     const std::vector<std::string>& BoneNames() const { return boneNames_; }
     const std::vector<std::string>& MorphNames() const { return morphNames_; }
+    const std::vector<ModelDisplayGroup>& DisplayGroups() const { return displayGroups_; }
+    std::uint32_t DisplayRootBone() const { return displayRoot_; }
     std::vector<std::int32_t> IkBoneIndices() const {
         std::vector<std::int32_t> result;
-        for(const auto& chain:chains_) result.push_back(chain.boneIndex);
+        for (const auto& chain : chains_)
+            result.push_back(chain.boneIndex);
         return result;
     }
     format::ModelKind SourceKind() const { return sourceKind_; }
@@ -58,6 +71,8 @@ private:
     std::vector<cpu_model::Bone> skeleton_;
     std::vector<cpu_model::IkChain> chains_;
     std::vector<std::string> boneNames_, morphNames_;
+    std::vector<ModelDisplayGroup> displayGroups_;
+    std::uint32_t displayRoot_ = 0;
     std::vector<std::size_t> order_;
     ModelResource() = default;
 };

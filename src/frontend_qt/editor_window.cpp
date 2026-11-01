@@ -133,7 +133,7 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     setFont(font);
     canvas_ = new Canvas(language_, session_, this);
     setCentralWidget(canvas_);
-    timeline_ = new Timeline(session_, language_, canvas_);
+    timeline_ = new Timeline(session_, language_, assets_, canvas_);
     timeline_->changed = [this] { Refresh(); };
     for (const auto& spec : ui::kControls) {
         QWidget* widget = nullptr;

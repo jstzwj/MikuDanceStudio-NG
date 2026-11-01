@@ -28,6 +28,7 @@ struct Selection {
     std::uint8_t model = 255, accessory = 255;
     std::vector<std::uint32_t> bones;
     std::set<KeyAddress> keys;
+    std::set<KeyAddress> tracks; // frame-independent row selections use frame zero
 };
 using Key = std::variant<format::PmmBoneKey, format::PmmMorphKey, format::PmmDisplayKey,
                          format::PmmCameraKey, format::PmmLightKey, format::PmmSelfShadowKey,
@@ -77,6 +78,7 @@ public:
     bool Redo(std::string&);
     bool Seek(std::uint32_t, std::string&);
     void SetPanelExpanded(unsigned option, bool expanded);
+    void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
     bool Play(std::string&);
     void Pause();
     bool Advance(double deltaSeconds, std::string&);

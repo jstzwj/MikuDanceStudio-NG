@@ -114,3 +114,17 @@ the real decoded PCM without opening an audio device. The Qt regression covers
 WAV EOF handoff and output-start failure. The editor follows the processed audio
 clock while active, and restarts the stream when playback loops. These tests do
 not measure physical output latency. Six local P4 tests passed after this batch.
+
+[Run 41281340260](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41281340260)
+at `cb9800c` passed all three platforms, including accessory shadow rendering,
+the silent audio transport and native viewport lifecycle.
+
+Timeline work now preserves PMD/PMX display groups, synthetic display/IK and
+facial rows, collapsed child-key summaries and PMM group flags. Folding does not
+evaluate physics or consume undo history. Local Qt tests cover fold/expand,
+Ctrl selection, collapsed-key selection, undo and save/reopen. The explicit
+Windows `qt_timeline_gdi` test draws the original GDI rectangle/grid/atlas command
+sequence into a memory DIB, without any window or desktop DC. All pixels in the
+key-grid region match Qt exactly across 18 size/scroll/selection cases. Text,
+physics-key icons and the complete timeline interaction model are not covered
+by that pixel oracle and remain open requirements.

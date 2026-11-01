@@ -201,7 +201,7 @@ PmmSceneModel MakeModel(std::uint8_t slot, const runtime::ModelResource& resourc
         m.morphNames.push_back(Name(n));
     m.layout.boneCount = std::uint32_t(m.boneNames.size());
     m.layout.morphCount = std::uint32_t(m.morphNames.size());
-    m.groupCount = std::uint8_t(std::min<std::size_t>(255, resource.Document().frames.size()));
+    m.groupCount = std::uint8_t(resource.DisplayGroups().size());
     m.ikSources = resource.IkBoneIndices();
     std::set<int> selectors;
     for (std::size_t i = 0; i < resource.Document().bones.size(); ++i) {
@@ -211,7 +211,7 @@ PmmSceneModel MakeModel(std::uint8_t slot, const runtime::ModelResource& resourc
     }
     m.layout.ikCount = std::uint32_t(m.ikSources.size());
     m.rigidCount = std::uint32_t(m.rigidSources.size());
-    m.selection.groupFlags.resize(m.groupCount, 1);
+    m.selection.groupFlags.resize(m.groupCount, 0);
     m.selection.loadComplete = 1;
     m.selection.comboIndex = slot;
     m.selection.maxFrame = 300;
@@ -285,8 +285,25 @@ void EditorSession::SetPanelExpanded(unsigned option, bool expanded) {
             if (option > 0 && option < state.document.envelope.settings.options.size())
                 state.document.envelope.settings.options[option] = expanded;
 }
+void EditorSession::SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded) {
+    runtime_->SetGroupExpanded(slot, group, expanded);
+    for (auto* history : {&undo_, &redo_})
+        for (auto& state : *history)
+            for (auto& model : state.document.models)
+                if (model.slot == slot && group < model.selection.groupFlags.size())
+                    model.selection.groupFlags[group] = expanded;
+}
 bool EditorSession::Prepare(State& state, std::unique_ptr<runtime::SceneRuntime>& out,
                             std::string& reason) const try {
+    // UI display groups come from the model, including synthetic Root/Disp/IK
+    // rows. Older portable projects did not save that metadata for PMD.
+    for (auto& model : state.document.models) {
+        const auto found = state.assets.models.find(model.slot);
+        if (found != state.assets.models.end()) {
+            model.groupCount = std::uint8_t(found->second->DisplayGroups().size());
+            model.selection.groupFlags.resize(model.groupCount, 0);
+        }
+    }
     SceneSession session;
     if (!SceneSession::Create(state.document, session, reason))
         return false;
