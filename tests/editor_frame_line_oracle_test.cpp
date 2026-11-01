@@ -1,8 +1,10 @@
 #include <Windows.h>
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/global_key_layout.hpp"
+#include "mikudancestudio/accessory_layout.hpp"
 #include "mikudancestudio/pmm_edit.hpp"
 #include "frame_line_deletion_fixture.hpp"
+#include "mikudancestudio/pmm_key_deletion.hpp"
 #include <array>
 #include <cstdio>
 #include <cstring>
@@ -47,6 +49,13 @@ template <class Out, class In> Out ConvertKey(const In& key) {
     } else if constexpr (std::is_same_v<Out, PmmMorphKey> || std::is_same_v<In, PmmMorphKey>) {
         FIELD(value);
         FIELD(allocated);
+    } else if constexpr (std::is_same_v<Out, PmmDisplayKey>) {
+        FIELD(visible);
+        FIELD(allocated);
+        out.ikEnabled.assign(key.ikStates, key.ikStates + 2);
+        for (unsigned i = 0; i < 2; ++i)
+            out.rigidStates.push_back(
+                {key.selectorStates[i].modelIndex, key.selectorStates[i].boneIndex});
     } else if constexpr (std::is_same_v<Out, PmmCameraKey> || std::is_same_v<In, PmmCameraKey>) {
         FIELD(distance);
         FIELD(eye);
@@ -57,9 +66,30 @@ template <class Out, class In> Out ConvertKey(const In& key) {
         FIELD(perspective);
         FIELD(selected);
         FIELD(fov);
-    } else {
+    } else if constexpr (std::is_same_v<Out, PmmLightKey> || std::is_same_v<In, PmmLightKey>) {
         FIELD(color);
         FIELD(direction);
+        FIELD(selected);
+    } else if constexpr (std::is_same_v<Out, PmmSelfShadowKey> ||
+                         std::is_same_v<In, PmmSelfShadowKey>) {
+        FIELD(mode);
+        FIELD(distance);
+        FIELD(selected);
+    } else if constexpr (std::is_same_v<Out, PmmGravityKey> || std::is_same_v<In, PmmGravityKey>) {
+        FIELD(acceleration);
+        FIELD(direction);
+        FIELD(noise);
+        FIELD(noiseEnabled);
+        FIELD(selected);
+    } else {
+        FIELD(position);
+        FIELD(rotation);
+        FIELD(scale);
+        FIELD(opacity);
+        FIELD(parentModel);
+        FIELD(parentBone);
+        FIELD(visible);
+        FIELD(shadowEnabled);
         FIELD(selected);
     }
 #undef FIELD
@@ -86,14 +116,15 @@ public:
               "import identity");
         Write(&replacement);
     }
-    Patch(const OriginalPhysicsModule& module, unsigned rva, unsigned target)
+    Patch(const OriginalPhysicsModule& module, unsigned rva, unsigned target, bool tail = false)
         : address_(module.Function<unsigned char*>(rva)), saved_(5) {
         std::memcpy(saved_.data(), address_, 5);
         std::int32_t relative;
         std::memcpy(&relative, address_ + 1, 4);
-        Check(address_[0] == 0xe8 && std::intptr_t(rva) + 5 + relative == target,
+        Check(address_[0] == (tail ? 0xe9 : 0xe8) && std::intptr_t(rva) + 5 + relative == target,
               "excluded call identity");
-        const std::array<unsigned char, 5> nop{0x90, 0x90, 0x90, 0x90, 0x90};
+        const std::array<unsigned char, 5> nop{std::uint8_t(tail ? 0xc3 : 0x90), 0x90, 0x90, 0x90,
+                                               0x90};
         Write(nop.data());
     }
     ~Patch() { Write(saved_.data()); }
@@ -340,8 +371,218 @@ unsigned ExerciseDeletion(OriginalPhysicsModule& original, unsigned capacity, st
             }
     return count;
 }
+unsigned ExerciseMarkedBoneDeletion(OriginalPhysicsModule& original, std::uint64_t& hash) {
+    unsigned count = 0;
+    const auto& selections = frame_line_fixture::BoneSelections();
+    for (unsigned order = 0; order < 3; ++order)
+        for (bool automatic : {false, true})
+            for (const auto& selected : selections) {
+                auto track = frame_line_fixture::Make<PmmBoneKey>(order);
+                auto model = std::make_unique<mdl::ModelRecord>();
+                std::array<mdl::BoneRecord, 3> bones{};
+                std::array<unsigned char, 3> edited{};
+                std::vector<mdl::BoneKey> records(mdl::kBoneKeyCapacity);
+                std::vector<mdl::MorphKey> morphs(mdl::kMorphKeyCapacity);
+                std::vector<mdl::DisplayKey> displays(mdl::kDisplayKeyCapacity);
+                model->boneCount = 3;
+                model->boneTable = bones.data();
+                model->bonePhysicsState = edited.data();
+                model->boneKeys = records.data();
+                model->morphKeys = morphs.data();
+                model->displayKeys = displays.data();
+                model->UndoCursor() = model->LatestUndoCursor() = 29;
+                bones[0].hasRigidBody = bones[2].hasRigidBody = 1;
+                for (unsigned i = 0; i < track.dense.size(); ++i)
+                    track.dense[i].allocated = selected.count(i) != 0;
+                for (auto& key : track.sparse)
+                    key.value.allocated = selected.count(unsigned(key.index)) != 0;
+                for (const auto& [index, key] : frame_line_fixture::Records(track))
+                    records[index] = ConvertKey<mdl::BoneKey>(key);
+                automaticInterpolation = automatic;
+                PmmKeyDeletionOptions options;
+                options.autoInterpolation = automatic;
+                options.physicsBones = {0, 2};
+                PmmFrameLineDeletion<PmmBoneKey> deletion;
+                Check(DeletePmmKeyRecords(track, selected, options, deletion), "marked deletion");
+                original.Function<void (*)(mdl::ModelRecord*, int)>(0xcde50)(model.get(), 7);
+                const auto compare = [&] {
+                    const auto expected = frame_line_fixture::Records(track);
+                    for (unsigned index = 0; index < records.size(); ++index) {
+                        const bool alive = index < 3 || records[index].frame;
+                        Check(alive == bool(expected.count(index)), "marked record presence");
+                        if (alive)
+                            Check(
+                                frame_line_fixture::Bytes(ConvertKey<PmmBoneKey>(records[index])) ==
+                                    frame_line_fixture::Bytes(expected.at(index)),
+                                "marked native record differs");
+                    }
+                    frame_line_fixture::Hash(hash, track);
+                    ++count;
+                };
+                compare();
+                if (!selected.empty()) {
+                    const auto& undo = model->undoRings[0].slots[model->UndoCursor()];
+                    Check(undo.recordCount == deletion.captured.size(), "marked capture count");
+                    for (unsigned i = 0; i < undo.recordCount; ++i) {
+                        const auto& key = undo.keySnapshots[i];
+                        Check(frame_line_fixture::Bytes(ConvertKey<PmmBoneKey>(key.key)) ==
+                                  frame_line_fixture::Bytes(deletion.captured.at(key.index)),
+                              "marked native capture differs");
+                    }
+                    for (unsigned cycle = 0; cycle < 3; ++cycle) {
+                        std::map<std::uint32_t, PmmBoneKey> redo, unused;
+                        Check(RestorePmmKeyRecords(track, deletion.captured, redo), "marked undo");
+                        int frame = 7;
+                        original.Function<void (*)(mdl::ModelRecord*, int*)>(0xcef90)(model.get(),
+                                                                                      &frame);
+                        compare();
+                        Check(RestorePmmKeyRecords(track, redo, unused), "marked redo");
+                        original.Function<void (*)(mdl::ModelRecord*, int*)>(0xcfb80)(model.get(),
+                                                                                      &frame);
+                        compare();
+                    }
+                }
+                for (auto& ring : model->undoRings)
+                    for (auto& slot : ring.slots) {
+                        auto free = *original.Function<void (**)(void*)>(0x128450);
+                        if (slot.bonePose)
+                            free(slot.bonePose);
+                        if (slot.keySnapshots)
+                            free(slot.keySnapshots);
+                    }
+            }
+    return count;
+}
+template <class T, class Native>
+unsigned ExerciseMarkedGlobalDeletion(OriginalPhysicsModule& original, unsigned offset,
+                                      std::uint64_t& hash) {
+    unsigned count = 0;
+    const auto& selections = frame_line_fixture::GlobalSelections();
+    for (unsigned order = 0; order < 3; ++order)
+        for (unsigned shadowMode : {0, 1})
+            for (const auto& selected : selections) {
+                auto track = frame_line_fixture::Make<T>(order);
+                std::vector<Native> records(mdl::kTimelineKeyCapacity);
+                std::vector<mdl::CameraKey> camera(mdl::kTimelineKeyCapacity);
+                std::vector<mdl::LightKey> light(mdl::kTimelineKeyCapacity);
+                std::vector<mdl::SelfShadowKey> shadow(mdl::kTimelineKeyCapacity);
+                std::vector<mdl::GravityKey> gravity(mdl::kTimelineKeyCapacity);
+                // Original initialization allocates every accessory slot. The
+                // empty unselected slots can share a read-only fixture table.
+                std::vector<mdl::AccessoryKey> emptyAccessory(mdl::kTimelineKeyCapacity);
+                track.dense[0].selected = selected.count(0) != 0;
+                for (auto& key : track.sparse)
+                    key.value.selected = selected.count(unsigned(key.index)) != 0;
+                for (const auto& [index, key] : frame_line_fixture::Records(track))
+                    records[index] = ConvertKey<Native>(key);
+                std::vector<unsigned char> app(0xa6000), renderer(0x3aa48);
+                renderer[0x3aa44] = std::uint8_t(shadowMode);
+                const auto store = [&](unsigned position, const auto& value) {
+                    std::memcpy(app.data() + position, &value, sizeof value);
+                };
+                store(0x328, std::uint8_t(1));
+                store(0x3d0, camera.data());
+                store(0x3d8, light.data());
+                store(0x3e0, shadow.data());
+                store(0x3e8, gravity.data());
+                for (unsigned slot = 0; slot < 255; ++slot)
+                    store(0x3f0 + slot * 8, emptyAccessory.data());
+                store(offset, records.data());
+                store(0xa16e0, renderer.data());
+                PmmKeyDeletionOptions options;
+                options.shadowMode = std::uint8_t(shadowMode);
+                PmmFrameLineDeletion<T> deletion;
+                Check(DeletePmmKeyRecords(track, selected, options, deletion), "global deletion");
+                original.Function<void (*)(void*)>(0x64b30)(app.data());
+                const auto expected = frame_line_fixture::Records(track);
+                for (unsigned index = 0; index < records.size(); ++index) {
+                    const bool alive = !index || records[index].frame;
+                    Check(alive == bool(expected.count(index)), "global record presence");
+                    if (alive && frame_line_fixture::Bytes(ConvertKey<T>(records[index])) !=
+                                     frame_line_fixture::Bytes(expected.at(index))) {
+                        std::fprintf(stderr, "global offset=%x order=%u shadow=%u index=%u\n",
+                                     offset, order, shadowMode, index);
+                        Check(false, "global native record differs");
+                    }
+                }
+                frame_line_fixture::Hash(hash, track);
+                ++count;
+            }
+    return count;
+}
+template <class T>
+unsigned ExerciseMarkedModelAux(OriginalPhysicsModule& original, std::uint64_t& hash) {
+    constexpr bool morph = std::is_same_v<T, PmmMorphKey>;
+    unsigned count = 0;
+    const auto& selections =
+        morph ? frame_line_fixture::BoneSelections() : frame_line_fixture::GlobalSelections();
+    for (unsigned order = 0; order < 3; ++order)
+        for (const auto& selected : selections) {
+            auto track = frame_line_fixture::Make<T>(order);
+            auto model = std::make_unique<mdl::ModelRecord>();
+            std::vector<mdl::BoneKey> bones(mdl::kBoneKeyCapacity);
+            std::vector<mdl::MorphKey> morphs(mdl::kMorphKeyCapacity);
+            std::vector<mdl::DisplayKey> displays(mdl::kDisplayKeyCapacity);
+            std::vector<std::array<std::uint8_t, 2>> ik(mdl::kDisplayKeyCapacity);
+            std::vector<std::array<mdl::BoneReference, 2>> selectors(mdl::kDisplayKeyCapacity);
+            model->boneCount = 3;
+            model->morphCount = morph ? 3 : 0;
+            model->ikChainCount = model->boneOrderCount = 2;
+            model->boneKeys = bones.data();
+            model->morphKeys = morphs.data();
+            model->displayKeys = displays.data();
+            model->UndoCursor() = model->LatestUndoCursor() = 29;
+            for (unsigned i = 0; i < track.dense.size(); ++i)
+                track.dense[i].allocated = selected.count(i) != 0;
+            for (auto& key : track.sparse)
+                key.value.allocated = selected.count(unsigned(key.index)) != 0;
+            for (const auto& [index, key] : frame_line_fixture::Records(track)) {
+                if constexpr (morph) {
+                    morphs[index] = ConvertKey<mdl::MorphKey>(key);
+                } else {
+                    auto& native = displays[index];
+                    native.frame = key.frame;
+                    native.previous = key.previous;
+                    native.next = key.next;
+                    native.visible = key.visible;
+                    native.allocated = key.allocated;
+                    for (unsigned i = 0; i < 2; ++i) {
+                        ik[index][i] = key.ikEnabled[i];
+                        selectors[index][i] = {key.rigidStates[i].modelIndex,
+                                               key.rigidStates[i].boneIndex};
+                    }
+                    native.ikStates = ik[index].data();
+                    native.selectorStates = selectors[index].data();
+                }
+            }
+            PmmFrameLineDeletion<T> deletion;
+            Check(DeletePmmKeyRecords(track, selected, {}, deletion), "model auxiliary deletion");
+            original.Function<void (*)(mdl::ModelRecord*, int)>(0xcde50)(model.get(), 7);
+            const auto expected = frame_line_fixture::Records(track);
+            const auto compare = [&](const auto& records) {
+                for (unsigned index = 0; index < records.size(); ++index) {
+                    const bool alive = index < track.dense.size() || records[index].frame;
+                    Check(alive == bool(expected.count(index)), "auxiliary record presence");
+                    if (alive)
+                        Check(frame_line_fixture::Bytes(ConvertKey<T>(records[index])) ==
+                                  frame_line_fixture::Bytes(expected.at(index)),
+                              "auxiliary native record differs");
+                }
+            };
+            if constexpr (morph)
+                compare(morphs);
+            else
+                compare(displays);
+            Check(model->UndoCursor() == 29 && deletion.captured.empty(),
+                  "auxiliary has no history");
+            frame_line_fixture::Hash(hash, track);
+            ++count;
+        }
+    return count;
+}
 }
 int main(int argc, char** argv) try {
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     Check(argc == 2, "provide original x64 executable");
     OriginalPhysicsModule original(argv[1]);
@@ -359,6 +600,10 @@ int main(int argc, char** argv) try {
         m(original, 0x8b1e9, 0xcbd90), n(original, 0x8b1f1, 0x60ea0), o(original, 0x8b1f9, 0x62bb0),
         p(original, 0x8b505, 0x5ba90), q(original, 0x8b50d, 0x60ea0), r(original, 0x8b759, 0xcbd90),
         s(original, 0x8b761, 0x60ea0), t(original, 0x8b769, 0x62bb0);
+    Patch u(original, 0x6673a, 0x60ea0), v(original, 0x66742, 0x62bb0),
+        w(original, 0x66758, 0x59c30), x(original, 0x66760, 0x5ba90), y(original, 0x66768, 0x5caf0),
+        z(original, 0x66770, 0x5d320), aa(original, 0x6678b, 0x5e150),
+        ab(original, 0x667b0, 0x5e510, true);
     unsigned cases =
         Exercise<PmmBoneKey, mdl::BoneKey>(original, true, true, mdl::kBoneKeyCapacity);
     cases += Exercise<PmmMorphKey, mdl::MorphKey>(original, true, false, mdl::kMorphKeyCapacity);
@@ -377,6 +622,25 @@ int main(int argc, char** argv) try {
     std::printf(
         "%u deletion/history persisted tables, hash %016llx; 6192 exact native seek poses; no UI or GPU\n",
         cases, static_cast<unsigned long long>(hash));
+    hash = 14695981039346656037ull;
+    cases = ExerciseMarkedBoneDeletion(original, hash);
+    std::printf("%u marked bone deletion/history tables, hash %016llx\n", cases,
+                static_cast<unsigned long long>(hash));
+    hash = 14695981039346656037ull;
+    cases = ExerciseMarkedGlobalDeletion<PmmCameraKey, mdl::CameraKey>(original, 0x3d0, hash);
+    cases += ExerciseMarkedGlobalDeletion<PmmLightKey, mdl::LightKey>(original, 0x3d8, hash);
+    cases +=
+        ExerciseMarkedGlobalDeletion<PmmSelfShadowKey, mdl::SelfShadowKey>(original, 0x3e0, hash);
+    cases += ExerciseMarkedGlobalDeletion<PmmGravityKey, mdl::GravityKey>(original, 0x3e8, hash);
+    cases +=
+        ExerciseMarkedGlobalDeletion<PmmAccessoryKey, mdl::AccessoryKey>(original, 0x3f0, hash);
+    std::printf("%u marked global deletion tables, hash %016llx\n", cases,
+                static_cast<unsigned long long>(hash));
+    hash = 14695981039346656037ull;
+    cases = ExerciseMarkedModelAux<PmmMorphKey>(original, hash);
+    cases += ExerciseMarkedModelAux<PmmDisplayKey>(original, hash);
+    std::printf("%u marked morph/display deletion tables, hash %016llx\n", cases,
+                static_cast<unsigned long long>(hash));
     return 0;
 } catch (const std::exception& e) {
     std::fprintf(stderr, "%s\n", e.what());

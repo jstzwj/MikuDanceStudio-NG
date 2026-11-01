@@ -38,7 +38,8 @@ snapshots are constructed independently; this is a kernel comparison, not an
 original UI event-loop or all timeline-topology acceptance. No window is created.
 The portable regression additionally checks model isolation, camera/Morph
 preservation, selection, failed edits, gesture grouping and unload invalidation.
-Touched-key identity, detached records and chained timeline operations remain
+Frame-line and marked-key deletion now have touched-record/detached-record
+evidence below. Registration, clipboard and chained range operations remain
 part of the broader timeline gate.
 
 Local Windows x64 checks executed during implementation:
@@ -176,11 +177,10 @@ Frame-zero deletion now resets retained camera, bone, morph, display and accesso
 keys, preserving the native per-track fields and successors, and immediately
 re-evaluates the affected pose. Regression covers undo/redo, interpolation/FOV
 preservation, successor playback and PMM reload. Light/shadow/gravity roots reset
-when no unselected successors remain. Their native head-cut behavior with retained
-detached records is still unsupported: the command rejects the entire edit with
-`native-root-reset-detached-keys-unsupported` rather than silently removing those
-records. Detached-record identity/topology and automatic bone-curve rebuilding
-remain requirements for complete deletion parity.
+with their native head-cut behavior, retaining unselected detached records. The
+later marked-key deletion batch below adds record-order processing and automatic
+bone-curve rebuilding with original executable comparisons. Clipboard and chained
+range-edit compatibility remain separate timeline requirements.
 
 [Run 41282592148](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41282592148)
 passed interpolation editing and the frozen GDI curve hashes on all platforms.
@@ -1123,8 +1123,8 @@ order can also make a forward link bypass that restored predecessor. The PMM
 contract preserves these cases, validates all references/time order, and allows
 that bone-only bypass only through a detached predecessor of the same channel.
 Key enumeration includes detached records; seeking uses the actual predecessor
-selected by the original routine. General marked-key deletion/root resets still
-have additional compatibility work; this does not close that broader gate.
+selected by the original routine. The later marked-key deletion batch extends
+this contract; registration/clipboard and chained edits remain broader gates.
 
 The extended `editor_frame_line_oracle_test` calls original deletion RVAs
 `8A110`/`8B3A0`, undo/redo and actual model seeking at `CBD90`. It passed **384
@@ -1143,3 +1143,43 @@ original comparisons do not constitute full editor event-loop or C1 acceptance.
 Local validation passed all 26 P4 tests and the scene-evaluation regression,
 six Win32 format/editor tests, the legacy hidden-window undo and format tests,
 and both Qt/legacy application builds. No tolerance was relaxed.
+
+All three editor jobs at `b54e7c4` passed in
+[run 41329300724](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41329300724),
+along with the formats and rendering workflows.
+
+## Marked-key deletion and root resets
+
+`pmm_key_deletion.hpp` now handles all eight track types in native record order.
+EditorSession groups deletion requests by table and maps addresses to stable
+slots, including detached records. Bone deletion captures only the slots visited
+by the original, applies automatic interpolation and restores selection through
+the same partial history used for frame-line deletion. In particular, smoothing
+can change a further neighbor that is not captured by native undo; the regression
+retains that change through repeated undo/redo instead of restoring a whole track.
+
+Light, self-shadow and gravity root resets cut the head link. A subsequently
+deleted selected successor can reconnect an unselected successor, so resetting
+roots after all sparse keys would produce a different result. Detached keys now
+survive saving/reopening and can be copied or deleted. Global deletion evaluates
+global tracks while preserving pending model poses, and retains frame limits.
+
+The optional original-executable oracle calls model deletion at `CDE50` and global
+deletion at `64B30`. New coverage comprises **510 bone deletion/history tables**,
+**210 global deletion tables**, and **60 morph/display tables**. The corresponding
+public frozen hashes are `1f2e2300834a6371`, `d07a4ddebc56687f`, and
+`806f058af8b58aa1`. Inputs cover allocation order, root/sparse selections, automatic
+interpolation, physics-bone root flags, both native shadow reset modes, IK/selector
+reset payloads and repeated bone undo/redo. The global fixture supplies all 255
+accessory table pointers required by original initialization. UI/renderer refresh
+calls and the final UI tail are excluded; no entrypoint or desktop window runs.
+
+Session tests cover detached light persistence, copying/deleting its retained
+key, root/successor reconnection, preserved pending model edits, atomic expired
+selection rejection and the uncaptured interpolation neighbor. This evidence
+does not close all registration/clipboard/chained-operation or full C1 gates.
+
+Validation passed all 26 local P4 tests (62.18 seconds), four Win32 editor
+regressions, the extended original-executable oracle and the Qt application
+build. All execution was offscreen or in memory; comparison tolerances are
+unchanged.

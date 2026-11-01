@@ -5,6 +5,27 @@
 
 namespace frame_line_fixture {
 using namespace mikudancestudio::format;
+inline const std::vector<std::set<std::uint32_t>>& BoneSelections() {
+    static const std::vector<std::set<std::uint32_t>> values{{},
+                                                             {0},
+                                                             {1},
+                                                             {2},
+                                                             {0, 1},
+                                                             {13},
+                                                             {19},
+                                                             {7},
+                                                             {0, 13},
+                                                             {1, 5},
+                                                             {13, 19},
+                                                             {7, 13, 19},
+                                                             {0, 1, 5, 7, 13, 17, 19}};
+    return values;
+}
+inline const std::vector<std::set<std::uint32_t>>& GlobalSelections() {
+    static const std::vector<std::set<std::uint32_t>> values{{},      {0},      {13},      {0, 13},
+                                                             {0, 19}, {13, 19}, {0, 7, 13}};
+    return values;
+}
 inline PmmSceneDocument Scene(const PmmKeyTrack<PmmBoneKey>& track) {
     auto doc = NewPmmScene();
     PmmSceneModel model;
@@ -51,6 +72,10 @@ template <class T> PmmKeyTrack<T> Make(unsigned order) {
         } else if constexpr (std::is_same_v<T, PmmMorphKey>) {
             key.value = float(i) / 32;
             key.allocated = i % 2;
+        } else if constexpr (std::is_same_v<T, PmmDisplayKey>) {
+            key.visible = key.allocated = i % 2;
+            key.ikEnabled = {0, 1};
+            key.rigidStates = {{int(i), int(i + 1)}, {int(i + 2), int(i + 3)}};
         } else if constexpr (std::is_same_v<T, PmmCameraKey>) {
             key.distance = -30 - float(i);
             key.eye = {float(i), float(i + 1), float(i + 2)};
@@ -63,10 +88,29 @@ template <class T> PmmKeyTrack<T> Make(unsigned order) {
             key.perspective = i % 2;
             key.selected = (i + 1) % 2;
             key.fov = 30 + i;
-        } else {
+        } else if constexpr (std::is_same_v<T, PmmLightKey>) {
             key.color = {float(i) / 32, .3f, .6f};
             key.direction = {float(i), -1, 2};
             key.selected = i % 2;
+        } else if constexpr (std::is_same_v<T, PmmSelfShadowKey>) {
+            key.mode = i % 3;
+            key.distance = float(i) / 1000;
+            key.selected = i % 2;
+        } else if constexpr (std::is_same_v<T, PmmGravityKey>) {
+            key.acceleration = float(i);
+            key.direction = {float(i), -1, 2};
+            key.noise = i + 10;
+            key.noiseEnabled = key.selected = i % 2;
+        } else {
+            static_assert(std::is_same_v<T, PmmAccessoryKey>);
+            key.position = {float(i), float(i + 1), -float(i)};
+            key.rotation = {float(i) / 10, 0, 0};
+            key.opacity = .5f;
+            key.scale = float(i + 1);
+            key.parentModel = int(i) - 1;
+            key.parentBone = i + 3;
+            key.selected = key.shadowEnabled = i % 2;
+            key.visible = 1;
         }
     };
     for (unsigned i = 0; i < track.dense.size(); ++i)
@@ -105,6 +149,17 @@ template <class T> std::vector<std::uint8_t> Bytes(const T& key) {
     } else if constexpr (std::is_same_v<T, PmmMorphKey>) {
         Bytes(out, key.value);
         Bytes(out, key.allocated);
+    } else if constexpr (std::is_same_v<T, PmmDisplayKey>) {
+        Bytes(out, key.visible);
+        Bytes(out, key.allocated);
+        Bytes(out, std::uint32_t(key.ikEnabled.size()));
+        for (auto flag : key.ikEnabled)
+            Bytes(out, flag);
+        Bytes(out, std::uint32_t(key.rigidStates.size()));
+        for (const auto& state : key.rigidStates) {
+            Bytes(out, state.modelIndex);
+            Bytes(out, state.boneIndex);
+        }
     } else if constexpr (std::is_same_v<T, PmmCameraKey>) {
         Bytes(out, key.distance);
         Bytes(out, key.eye);
@@ -115,9 +170,30 @@ template <class T> std::vector<std::uint8_t> Bytes(const T& key) {
         Bytes(out, key.perspective);
         Bytes(out, key.selected);
         Bytes(out, key.fov);
-    } else {
+    } else if constexpr (std::is_same_v<T, PmmLightKey>) {
         Bytes(out, key.color);
         Bytes(out, key.direction);
+        Bytes(out, key.selected);
+    } else if constexpr (std::is_same_v<T, PmmSelfShadowKey>) {
+        Bytes(out, key.mode);
+        Bytes(out, key.distance);
+        Bytes(out, key.selected);
+    } else if constexpr (std::is_same_v<T, PmmGravityKey>) {
+        Bytes(out, key.acceleration);
+        Bytes(out, key.direction);
+        Bytes(out, key.noise);
+        Bytes(out, key.noiseEnabled);
+        Bytes(out, key.selected);
+    } else {
+        static_assert(std::is_same_v<T, PmmAccessoryKey>);
+        Bytes(out, key.position);
+        Bytes(out, key.rotation);
+        Bytes(out, key.scale);
+        Bytes(out, key.opacity);
+        Bytes(out, key.parentModel);
+        Bytes(out, key.parentBone);
+        Bytes(out, key.visible);
+        Bytes(out, key.shadowEnabled);
         Bytes(out, key.selected);
     }
     return out;

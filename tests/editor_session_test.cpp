@@ -200,16 +200,30 @@ int main(int argc, char** argv) {
               !resetAccessory.shadowEnabled);
         CHECK(resetAccessory.next != 0);
         CHECK(roots.Register({{Track::Light, 255, 0, 20}}, reason));
-        const auto beforeRejected = roots.Revision();
-        CHECK(!roots.Delete({{Track::Light, 255, 0, 0}}, reason));
-        CHECK(reason == "native-root-reset-detached-keys-unsupported");
-        CHECK(roots.Revision() == beforeRejected && roots.Document().lightKeys.sparse.size() == 1);
+        CHECK(roots.SetBone(0, 0, {9, 0, 0}, {0, 0, 0, 1}, reason));
+        CHECK(roots.Delete({{Track::Light, 255, 0, 0}}, reason));
+        CHECK(roots.Document().models[0].bonePose[0].components[0] == 9 &&
+              roots.Document().models[0].bonePose[0].flags[1] == 1);
+        CHECK(roots.Document().lightKeys.dense[0].next == 0);
+        CHECK(roots.Document().lightKeys.sparse.size() == 1);
+        CHECK(roots.Save(root / "detached-light.pmm", Write, reason));
+        CHECK(roots.Open(root / "detached-light.pmm", reason));
+        CHECK(roots.Document().lightKeys.dense[0].next == 0 &&
+              roots.Document().lightKeys.sparse.size() == 1);
+        CHECK(roots.Copy({{Track::Light, 255, 0, 20}}, reason));
         CHECK(roots.Delete({{Track::Light, 255, 0, 0},
                             {Track::Light, 255, 0, 20},
                             {Track::Shadow, 255, 0, 0},
                             {Track::Gravity, 255, 0, 0}},
                            reason));
         CHECK(roots.Document().lightKeys.sparse.empty());
+        CHECK(roots.Register({{Track::Light, 255, 0, 20}, {Track::Light, 255, 0, 40}}, reason));
+        CHECK(roots.Delete({{Track::Light, 255, 0, 0}, {Track::Light, 255, 0, 20}}, reason));
+        // The root is cut before selected records are unlinked. Deleting the
+        // first successor reconnects its unselected successor to the head.
+        CHECK(roots.Document().lightKeys.dense[0].next == 2);
+        CHECK(roots.Document().lightKeys.sparse.size() == 1 &&
+              roots.Document().lightKeys.sparse[0].value.frame == 40);
         CHECK(roots.Document().lightKeys.dense[0].color[0] == .602f);
         CHECK(roots.Document().selfShadowKeys.dense[0].distance == .01125f);
         CHECK(roots.Document().gravityKeys.dense[0].acceleration == 9.8000002f);

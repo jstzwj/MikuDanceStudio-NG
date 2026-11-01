@@ -1,5 +1,6 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "frame_line_deletion_fixture.hpp"
+#include "mikudancestudio/pmm_key_deletion.hpp"
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -84,6 +85,70 @@ template <class T> bool DeletionKernel(std::uint64_t& hash) {
             }
     return true;
 }
+bool MarkedBoneKernel(std::uint64_t& hash) {
+    for (unsigned order = 0; order < 3; ++order)
+        for (bool automatic : {false, true})
+            for (const auto& selected : frame_line_fixture::BoneSelections()) {
+                auto track = frame_line_fixture::Make<PmmBoneKey>(order);
+                for (unsigned i = 0; i < track.dense.size(); ++i)
+                    track.dense[i].allocated = selected.count(i) != 0;
+                for (auto& key : track.sparse)
+                    key.value.allocated = selected.count(unsigned(key.index)) != 0;
+                PmmKeyDeletionOptions options;
+                options.autoInterpolation = automatic;
+                options.physicsBones = {0, 2};
+                PmmFrameLineDeletion<PmmBoneKey> deletion;
+                if (!DeletePmmKeyRecords(track, selected, options, deletion))
+                    return false;
+                frame_line_fixture::Hash(hash, track);
+                if (!selected.empty())
+                    for (unsigned cycle = 0; cycle < 3; ++cycle) {
+                        std::map<std::uint32_t, PmmBoneKey> redo, unused;
+                        if (!RestorePmmKeyRecords(track, deletion.captured, redo))
+                            return false;
+                        frame_line_fixture::Hash(hash, track);
+                        if (!RestorePmmKeyRecords(track, redo, unused))
+                            return false;
+                        frame_line_fixture::Hash(hash, track);
+                    }
+            }
+    return true;
+}
+template <class T> bool MarkedGlobalKernel(std::uint64_t& hash) {
+    for (unsigned order = 0; order < 3; ++order)
+        for (unsigned shadowMode : {0, 1})
+            for (const auto& selected : frame_line_fixture::GlobalSelections()) {
+                auto track = frame_line_fixture::Make<T>(order);
+                track.dense[0].selected = selected.count(0) != 0;
+                for (auto& key : track.sparse)
+                    key.value.selected = selected.count(unsigned(key.index)) != 0;
+                PmmKeyDeletionOptions options;
+                options.shadowMode = std::uint8_t(shadowMode);
+                PmmFrameLineDeletion<T> deletion;
+                if (!DeletePmmKeyRecords(track, selected, options, deletion))
+                    return false;
+                frame_line_fixture::Hash(hash, track);
+            }
+    return true;
+}
+template <class T> bool MarkedModelAuxKernel(std::uint64_t& hash) {
+    const auto& selections = std::is_same_v<T, PmmMorphKey>
+                                 ? frame_line_fixture::BoneSelections()
+                                 : frame_line_fixture::GlobalSelections();
+    for (unsigned order = 0; order < 3; ++order)
+        for (const auto& selected : selections) {
+            auto track = frame_line_fixture::Make<T>(order);
+            for (unsigned i = 0; i < track.dense.size(); ++i)
+                track.dense[i].allocated = selected.count(i) != 0;
+            for (auto& key : track.sparse)
+                key.value.allocated = selected.count(unsigned(key.index)) != 0;
+            PmmFrameLineDeletion<T> deletion;
+            if (!DeletePmmKeyRecords(track, selected, {}, deletion) || !deletion.captured.empty())
+                return false;
+            frame_line_fixture::Hash(hash, track);
+        }
+    return true;
+}
 int main(int argc, char** argv) {
     CHECK(argc == 2);
     CHECK(Kernel<PmmBoneKey>() && Kernel<PmmMorphKey>() && Kernel<PmmCameraKey>() &&
@@ -93,6 +158,38 @@ int main(int argc, char** argv) {
     CHECK(DeletionKernel<PmmBoneKey>(hash) && DeletionKernel<PmmMorphKey>(hash) &&
           DeletionKernel<PmmCameraKey>(hash) && DeletionKernel<PmmLightKey>(hash));
     CHECK(hash == 0x45bef3b62b79d390ull);
+    hash = 14695981039346656037ull;
+    CHECK(MarkedBoneKernel(hash) && hash == 0x1f2e2300834a6371ull);
+    hash = 14695981039346656037ull;
+    CHECK(MarkedGlobalKernel<PmmCameraKey>(hash) && MarkedGlobalKernel<PmmLightKey>(hash) &&
+          MarkedGlobalKernel<PmmSelfShadowKey>(hash) && MarkedGlobalKernel<PmmGravityKey>(hash) &&
+          MarkedGlobalKernel<PmmAccessoryKey>(hash));
+    CHECK(hash == 0xd07a4ddebc56687full);
+    hash = 14695981039346656037ull;
+    CHECK(MarkedModelAuxKernel<PmmMorphKey>(hash) && MarkedModelAuxKernel<PmmDisplayKey>(hash));
+    CHECK(hash == 0x806f058af8b58aa1ull);
+    PmmKeyTrack<PmmDisplayKey> display;
+    display.dense.resize(1);
+    auto& displayRoot = display.dense[0];
+    displayRoot.next = 5;
+    displayRoot.visible = 0;
+    displayRoot.allocated = 1;
+    displayRoot.ikEnabled = {0, 1};
+    displayRoot.rigidStates = {{4, 7}, {8, 9}};
+    auto displayLater = displayRoot;
+    displayLater.frame = 20;
+    displayLater.next = 0;
+    display.sparse.push_back({5, 0, displayLater});
+    PmmFrameLineDeletion<PmmDisplayKey> displayDeletion;
+    CHECK(DeletePmmKeyRecords(display, {0}, {}, displayDeletion));
+    CHECK(display.dense[0].next == 5 && display.dense[0].visible == 1 &&
+          display.dense[0].allocated == 0 &&
+          display.dense[0].ikEnabled == (std::vector<std::uint8_t>{1, 1}));
+    CHECK(display.dense[0].rigidStates[0].modelIndex == -1 &&
+          display.dense[0].rigidStates[0].boneIndex == 0);
+    CHECK(display.sparse[0].value.visible == 0);
+    CHECK(DeletePmmKeyRecords(display, {5}, {}, displayDeletion));
+    CHECK(display.sparse.empty() && display.dense[0].next == 0);
     auto malformed = frame_line_fixture::Make<PmmBoneKey>(0);
     malformed.sparse[0].value.previous = 999;
     const auto beforeMalformed = frame_line_fixture::Records(malformed);
@@ -109,6 +206,8 @@ int main(int argc, char** argv) {
     std::map<std::uint32_t, PmmBoneKey> displaced;
     CHECK(!RestorePmmKeyRecords(invalidRestore, {{0, badKey}}, displaced));
     CHECK(invalidRestore.dense[0].next == 13 && displaced.empty());
+    CHECK(!DeletePmmKeyRecords(invalidRestore, {0, 999}, {}, rejected));
+    CHECK(invalidRestore.dense[0].next == 13 && rejected.affected == 77);
     const auto root = std::filesystem::absolute(argv[1]);
     const auto writer = [](const auto& path, const auto& bytes, auto&) {
         std::ofstream file(path, std::ios::binary);

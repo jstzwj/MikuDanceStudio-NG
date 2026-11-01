@@ -102,6 +102,33 @@ int main(int argc, char** argv) {
     CHECK(session.Open(root / "auto-curves.pmm", reason));
     CHECK(!session.AutoInterpolation() && CurvesOf(session) == manual);
     CHECK(session.New(reason) && !session.AutoInterpolation());
+    // Native marked-key deletion captures self/previous/next. Rebuilding the
+    // next curve can also change the following key, which is not in that undo
+    // entry and deliberately retains its modified handle after undo.
+    EditorSession erase;
+    erase.SetAutoInterpolation(false);
+    CHECK(erase.ImportModel(root / "pose.pmd", reason));
+    for (unsigned frame : {10, 20, 15, 25}) {
+        CHECK(erase.SetBone(0, 1, {frame == 15 ? -1.f : float(frame) / 10, 0, 0}, {0, 0, 0, 1},
+                            reason));
+        CHECK(erase.Register({{Track::Bone, 0, 1, frame}}, reason));
+    }
+    erase.SetAutoInterpolation(true);
+    CHECK(erase.Delete({{Track::Bone, 0, 1, 15}}, reason));
+    const auto erasedCurves = CurvesOf(erase);
+    CHECK(erasedCurves.size() == 4);
+    CHECK(Curve(erasedCurves[1], 0, {20, 20, 87, 87}));
+    CHECK(Curve(erasedCurves[2], 0, {40, 40, 87, 87}));
+    CHECK(Curve(erasedCurves[3], 0, {40, 40, 107, 107}));
+    for (unsigned cycle = 0; cycle < 3; ++cycle) {
+        CHECK(erase.Undo(reason));
+        const auto restored = CurvesOf(erase);
+        CHECK(restored.size() == 5);
+        for (unsigned i = 0; i < 4; ++i)
+            CHECK(Curve(restored[i], 0, {20, 20, 107, 107}));
+        CHECK(Curve(restored[4], 0, {40, 40, 107, 107}));
+        CHECK(erase.Redo(reason) && CurvesOf(erase) == erasedCurves);
+    }
     // The typed adapter rejects invalid links and missing frames atomically.
     PmmKeyTrack<PmmBoneKey> track;
     track.dense.resize(1);

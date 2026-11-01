@@ -1,4 +1,5 @@
 #include "mikudancestudio/editor_session.hpp"
+#include "mikudancestudio/pmm_key_deletion.hpp"
 #include "mikudancestudio/scene_resources.hpp"
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/vmd_scene_tracks.hpp"
@@ -120,6 +121,14 @@ bool Get(PmmSceneDocument& d, const KeyAddress& a, Key& value) {
         for (const auto& key : chains[a.channel])
             if (key.frame == a.frame) {
                 value = key;
+                return true;
+            }
+        std::map<std::uint32_t, std::uint32_t> channels;
+        if (!PmmRecordChannels(track, channels))
+            return false;
+        for (const auto& record : track.sparse)
+            if (record.value.frame == a.frame && channels.at(unsigned(record.index)) == a.channel) {
+                value = record.value;
                 return true;
             }
         return false;
@@ -857,82 +866,60 @@ bool EditorSession::Delete(const std::set<KeyAddress>& addresses, std::string& r
             return false;
         }
     }
-    for (const auto& a : addresses)
-        if (a.frame &&
-            !Visit(d, a, [&](auto& track) { return DeletePmmKey(track, a.channel, a.frame); })) {
+    // Group the requested addresses into physical tables. Each table is edited
+    // once in native slot order, including roots before later records.
+    std::set<std::pair<Track, std::uint8_t>> tables;
+    for (const auto& address : addresses)
+        tables.emplace(address.track, address.slot);
+    for (const auto& [kind, slot] : tables) {
+        const KeyAddress table{kind, slot, 0, 0};
+        if (!Visit(d, table, [&](auto& track) {
+                using T = typename std::decay_t<decltype(track.dense)>::value_type;
+                std::map<std::uint32_t, std::uint32_t> channels;
+                if (!PmmRecordChannels(track, channels))
+                    return false;
+                std::set<std::uint32_t> selected;
+                const auto mark = [&](std::uint32_t index, auto& key) {
+                    const KeyAddress address{kind, slot, channels.at(index), key.frame};
+                    const bool erase = addresses.count(address) != 0;
+                    if (erase)
+                        selected.insert(index);
+                    const bool marked = erase || next.selection.keys.count(address);
+                    if constexpr (std::is_same_v<T, PmmBoneKey> || std::is_same_v<T, PmmMorphKey> ||
+                                  std::is_same_v<T, PmmDisplayKey>)
+                        key.allocated = marked;
+                    else
+                        key.selected = marked;
+                };
+                for (unsigned i = 0; i < track.dense.size(); ++i)
+                    mark(i, track.dense[i]);
+                for (auto& key : track.sparse)
+                    mark(unsigned(key.index), key.value);
+                PmmKeyDeletionOptions options;
+                options.autoInterpolation = autoInterpolation_;
+                if constexpr (std::is_same_v<T, PmmBoneKey>) {
+                    for (const auto& body : next.assets.models.at(slot)->Document().rigids)
+                        if (body.fields.mode > 0 && body.fields.boneIndex >= 0)
+                            options.physicsBones.insert(unsigned(body.fields.boneIndex));
+                }
+                PmmFrameLineDeletion<T> result;
+                if (!DeletePmmKeyRecords(track, selected, options, result))
+                    return false;
+                if constexpr (std::is_same_v<T, PmmBoneKey>) {
+                    auto& entry = history.at(slot);
+                    entry.partialKeys = true;
+                    entry.keys = {};
+                    entry.keyRecords = std::move(result.captured);
+                    for (const auto& [index, key] : entry.keyRecords)
+                        if (key.allocated)
+                            entry.selectedKeyRecords.insert(index);
+                }
+                return true;
+            })) {
             reason = "key-delete-failed";
             return false;
         }
-    for (const auto& a : addresses)
-        if (!a.frame) {
-            bool rigid = false;
-            if (a.track == Track::Bone) {
-                const auto resource = next.assets.models.at(a.slot);
-                for (const auto& body : resource->Document().rigids)
-                    rigid |= body.fields.mode > 0 && body.fields.boneIndex == int(a.channel);
-            }
-            if (!Visit(d, a, [&](auto& track) {
-                    if (a.channel >= track.dense.size())
-                        return false;
-                    auto& key = track.dense[a.channel];
-                    using K = std::decay_t<decltype(key)>;
-                    if constexpr (std::is_same_v<K, PmmCameraKey>) {
-                        key.distance = -45;
-                        key.eye = {0, 10, 0};
-                        key.target = {};
-                        key.parentModel = -1;
-                        key.parentBone = 0;
-                        for (unsigned i = 0; i < 4; ++i)
-                            key.interpolation[i].fill(i < 2 ? 20 : 107);
-                        key.selected = 0; // fov/perspective and successor survive
-                    } else if constexpr (std::is_same_v<K, PmmBoneKey>) {
-                        key.position = {};
-                        key.rotation = {0, 0, 0, 1};
-                        key.allocated = 0;
-                        if (rigid)
-                            key.physicsDisabled = 0;
-                    } else if constexpr (std::is_same_v<K, PmmMorphKey>) {
-                        key.value = 0;
-                        key.allocated = 0;
-                    } else if constexpr (std::is_same_v<K, PmmDisplayKey>) {
-                        key.visible = 1;
-                        std::fill(key.ikEnabled.begin(), key.ikEnabled.end(), 1);
-                        std::fill(key.rigidStates.begin(), key.rigidStates.end(),
-                                  PmmRigidState{-1, 0});
-                        key.allocated = 0;
-                    } else if constexpr (std::is_same_v<K, PmmAccessoryKey>) {
-                        key.parentModel = -1;
-                        key.parentBone = 0;
-                        key.position = key.rotation = {};
-                        key.opacity = key.scale = 1;
-                        key.visible = 1;
-                        key.shadowEnabled = key.selected = 0;
-                    } else {
-                        // The native light/shadow/gravity reset cuts the head's
-                        // successor. Retaining unselected detached records needs
-                        // a separate topology contract; reject it atomically.
-                        if (key.next) {
-                            reason = "native-root-reset-detached-keys-unsupported";
-                            return false;
-                        }
-                        key.selected = 0;
-                        if constexpr (std::is_same_v<K, PmmLightKey>) {
-                            key.color = {.602f, .602f, .602f};
-                            key.direction = {-.5f, -1, .5f};
-                        } else if constexpr (std::is_same_v<K, PmmSelfShadowKey>) {
-                            key.mode = 1;
-                            key.distance = .01125f;
-                        } else if constexpr (std::is_same_v<K, PmmGravityKey>) {
-                            key.noiseEnabled = 0;
-                            key.noise = 10;
-                            key.acceleration = 9.8000002f;
-                            key.direction = {0, -1, 0};
-                        }
-                    }
-                    return true;
-                }))
-                return false;
-        }
+    }
     // Deletion immediately evaluates the edited tracks, including frame zero.
     SceneSession evaluated;
     if (!SceneSession::Create(d, evaluated, reason) ||
@@ -950,13 +937,30 @@ bool EditorSession::Delete(const std::set<KeyAddress>& addresses, std::string& r
             global = true;
         next.selection.keys.erase(a);
     }
-    if (global)
-        d = evaluated.Document();
-    else
-        for (const auto& model : evaluated.Document().models)
-            if (models.count(model.slot))
-                *Model(d, model.slot) = model;
-    return Commit(std::move(next), reason, history);
+    if (global) {
+        // Native global deletion refreshes every global track, without seeking
+        // model poses. Preserve pending edits in all unrelated models.
+        const auto& value = evaluated.Document();
+        d.cameraState = value.cameraState;
+        d.cameraState[3] = d.cameraState[4] = 0;
+        d.cameraPerspective = value.cameraPerspective;
+        d.envelope.settings.cameraFov = value.envelope.settings.cameraFov;
+        d.appearance.cameraParentModel = value.appearance.cameraParentModel;
+        d.appearance.cameraParentBone = value.appearance.cameraParentBone;
+        d.lightState = value.lightState;
+        d.selfShadowMode = value.selfShadowMode;
+        d.physicsInterval = value.physicsInterval;
+        d.physics.gravityNoiseEnabled = value.physics.gravityNoiseEnabled;
+        d.physics.gravityNoise = value.physics.gravityNoise;
+        d.physics.gravityMagnitude = value.physics.gravityMagnitude;
+        d.physics.gravityDirection = value.physics.gravityDirection;
+        for (std::size_t i = 0; i < d.accessories.size(); ++i)
+            d.accessories[i].state = value.accessories[i].state;
+    }
+    for (const auto& model : evaluated.Document().models)
+        if (models.count(model.slot))
+            *Model(d, model.slot) = model;
+    return Commit(std::move(next), reason, history, false);
 }
 bool EditorSession::Copy(const std::set<KeyAddress>& addresses, std::string& reason) {
     auto d = Document();
