@@ -1303,3 +1303,49 @@ restricted to unused-slot bounds, zero frames and collisions, preserving the old
 byte-preserving editor's acceptance of legacy serialized tracks. The optional
 external PMM test had no fixture configured and was skipped; it is not counted
 as a pass. Existing public PMM fixtures ran in the document/editor regressions.
+
+
+## Bone-key clipboard registration
+
+Bone-key paste now preserves the original registration contract separately from
+the pose-register button. Rotation-only bones retain the destination slot's
+translation during ordinary paste; mirrored paste writes reflected translation.
+Both retain copied interpolation and physics flags, independent of automatic
+interpolation and the registration checkbox. Overwrite/insertion compare the raw
+paste offset against the existing maximum frame, while append uses the absolute
+frame. Copy orders keys by native table index before paste allocation.
+
+The session clears current-model bone/Morph/display key marks, captures live
+editable poses and first-visited bone records, marks the pasted keys and seeks
+the affected model at the existing cursor. History restores only captured
+records. Missing names are successful no-ops. Mirroring searches CP932 side
+markers anywhere in the name, compares opposite suffixes and falls back to the
+original name. Fixed-axis correction follows the target PMD tail axis or PMX
+explicit axis. Overflow rejects the whole command without publishing edits or
+consuming history.
+
+The new optional `editor_clipboard_oracle_test <original.exe>` calls original
+`C9390`/`C9DB0` without an entrypoint or window. It passed **168 exact complete
+slot/capture/maximum comparisons**, frozen hash `205473a38f34f6f0`, **168 fixed-axis
+comparisons** covering PMD/PMX and FixedAxis/UnderIk flags, and **seven exact
+mirrored-name cases**. Fixed-axis rotations use absolute component error at most
+`2e-6`; the observed maximum was `5.96046448e-8`. All other fields retain exact
+comparison. The rotation limit applies only to this newly covered math path,
+not to key payload copying, frame limits, topology or existing output gates.
+
+The public regression freezes the exact hash and checks PMD/PMX integration,
+three undo/redo cycles, slot reuse, out-of-order frame allocation, current-cursor
+interpolation, model switching, missing names and atomic overflow. It does not
+claim original-executable coverage for the complete clipboard UI command,
+Morph/display/global clipboard registrars, separate mode clipboards or range
+editing. Those remain within the broader timeline acceptance gate. Physical-world
+continuity across commands and the other full P4/C1 exit gates remain open.
+
+The preceding unused-slot revision (`4276633`) passed all three platforms in the
+editor [run 41336057664](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41336057664),
+and the formats/rendering workflows.
+
+Local validation passed **28 P4 tests** (82.06 seconds), five Win32 editor tests,
+the new original clipboard oracle and the Qt application build. Tests remained
+offscreen/in memory, with no local audio output. Linux/macOS execution is provided
+by the editor workflow; results for this revision must be recorded separately.

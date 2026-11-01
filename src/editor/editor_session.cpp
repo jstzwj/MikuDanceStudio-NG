@@ -1,6 +1,7 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/pmm_key_deletion.hpp"
 #include "mikudancestudio/pmm_bone_registration.hpp"
+#include "mikudancestudio/pmm_bone_clipboard.hpp"
 #include "mikudancestudio/scene_resources.hpp"
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/vmd_scene_tracks.hpp"
@@ -11,6 +12,7 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include <tuple>
 
 namespace mikudancestudio::editor {
 using namespace format;
@@ -1019,7 +1021,7 @@ bool EditorSession::Delete(const std::set<KeyAddress>& addresses, std::string& r
 }
 bool EditorSession::Copy(const std::set<KeyAddress>& addresses, std::string& reason) {
     auto d = Document();
-    std::vector<ClipboardKey> next;
+    std::vector<std::pair<std::uint32_t, ClipboardKey>> next;
     for (const auto& a : addresses) {
         Key key;
         if (!Get(d, a, key)) {
@@ -1032,17 +1034,42 @@ bool EditorSession::Copy(const std::set<KeyAddress>& addresses, std::string& rea
             name = a.track == Track::Bone ? model->boneNames.at(a.channel)
                                           : model->morphNames.at(a.channel);
         }
-        next.push_back({a, key, std::move(name)});
+        std::uint32_t record = a.channel;
+        if (!Visit(d, a, [&](auto& track) {
+                if (!a.frame)
+                    return true;
+                std::map<std::uint32_t, std::uint32_t> channels;
+                if (!PmmRecordChannels(track, channels))
+                    return false;
+                for (const auto& entry : track.sparse)
+                    if (entry.value.frame == a.frame &&
+                        channels.at(unsigned(entry.index)) == a.channel) {
+                        record = unsigned(entry.index);
+                        return true;
+                    }
+                return false;
+            })) {
+            reason = "key-selection-expired";
+            return false;
+        }
+        next.push_back({record, {a, key, std::move(name)}});
     }
     if (next.empty()) {
         reason = "no-selected-keys";
         return false;
     }
-    clipboard_ = std::move(next);
+    std::stable_sort(next.begin(), next.end(), [](const auto& a, const auto& b) {
+        return std::tie(a.second.address.track, a.second.address.slot, a.first) <
+               std::tie(b.second.address.track, b.second.address.slot, b.first);
+    });
+    clipboard_.clear();
+    for (auto& item : next)
+        clipboard_.push_back(std::move(item.second));
     reason.clear();
     return true;
 }
 bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason) {
+    EndGesture();
     if (clipboard_.empty()) {
         reason = "clipboard-empty";
         return false;
@@ -1050,64 +1077,160 @@ bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason)
     auto first = clipboard_.front().address.frame;
     for (const auto& item : clipboard_)
         first = std::min(first, item.address.frame);
-    return Edit(
-        "paste-keys",
-        [&](auto& d, auto& error) {
-            for (auto item : clipboard_) {
-                const auto offset = item.address.frame - first;
-                if (frame > 0x7fffffffU - offset) {
-                    error = "frame-overflow";
+    auto next = Current();
+    auto& d = next.document;
+    auto* model = Model(d, selection_.model);
+    const bool boneClipboard =
+        std::any_of(clipboard_.begin(), clipboard_.end(),
+                    [](const auto& item) { return item.address.track == Track::Bone; });
+    const bool modelClipboard =
+        boneClipboard || std::any_of(clipboard_.begin(), clipboard_.end(), [](const auto& item) {
+            return item.address.track == Track::Morph || item.address.track == Track::Display;
+        });
+    HistoryBatch history;
+    if (modelClipboard) {
+        if (!model) {
+            reason = "clipboard-model-unavailable";
+            return false;
+        }
+        const auto clear = [](auto& track) {
+            for (auto& key : track.dense)
+                key.allocated = 0;
+            for (auto& key : track.sparse)
+                key.value.allocated = 0;
+            for (auto& [index, key] : track.unused)
+                key.allocated = 0;
+        };
+        clear(model->boneKeys);
+        clear(model->morphKeys);
+        clear(model->displayKeys);
+        for (auto it = next.selection.keys.begin(); it != next.selection.keys.end();)
+            if (it->slot == model->slot && (it->track == Track::Bone || it->track == Track::Morph ||
+                                            it->track == Track::Display))
+                it = next.selection.keys.erase(it);
+            else
+                ++it;
+        if (boneClipboard) {
+            auto entry =
+                CaptureHistory(*model, HistoryKind::Keys, unsigned(d.timeline.currentFrame));
+            entry.partialKeys = true;
+            entry.keys = {};
+            for (auto& pose : entry.poses) {
+                PmmEvaluatedBone live;
+                bool controlled;
+                if (!runtime_->BoneRegistrationPose(model->slot, pose.index, 0, live, controlled,
+                                                    reason))
                     return false;
-                }
-                item.address.frame = frame + offset;
-                if (item.address.track == Track::Bone || item.address.track == Track::Morph ||
-                    item.address.track == Track::Display)
-                    item.address.slot = selection_.model;
-                if (item.address.track == Track::Bone || item.address.track == Track::Morph) {
-                    auto* model = Model(d, item.address.slot);
-                    if (!model) {
-                        error = "clipboard-model-unavailable";
-                        return false;
-                    }
-                    const auto& names =
-                        item.address.track == Track::Bone ? model->boneNames : model->morphNames;
-                    auto found = std::find(names.begin(), names.end(), item.name);
-                    if (found == names.end()) {
-                        error = "clipboard-name-not-bound";
-                        return false;
-                    }
-                    item.address.channel = std::uint32_t(found - names.begin());
-                }
-                if (mirror && item.address.track == Track::Bone) {
-                    auto* m = Model(d, item.address.slot);
-                    if (!m || item.address.channel >= m->boneNames.size())
-                        return false;
-                    auto name = m->boneNames[item.address.channel];
-                    // CP932 left/right prefix: same reflection used by MMD.
-                    if (name.size() >= 2 &&
-                        ((std::uint8_t(name[0]) == 0x8d && std::uint8_t(name[1]) == 0xb6) ||
-                         (std::uint8_t(name[0]) == 0x89 && std::uint8_t(name[1]) == 0x45))) {
-                        const bool left = std::uint8_t(name[0]) == 0x8d;
-                        name[0] = char(left ? 0x89 : 0x8d);
-                        name[1] = char(left ? 0x45 : 0xb6);
-                        auto it = std::find(m->boneNames.begin(), m->boneNames.end(), name);
-                        if (it != m->boneNames.end())
-                            item.address.channel = std::uint32_t(it - m->boneNames.begin());
-                    }
-                    auto& k = std::get<PmmBoneKey>(item.key);
-                    k.position[0] = -k.position[0];
-                    k.rotation[1] = -k.rotation[1];
-                    k.rotation[2] = -k.rotation[2];
-                }
-                if (!Put(d, item.address, item.key)) {
-                    error = "clipboard-track-mismatch";
+                std::copy(live.translation.begin(), live.translation.end(),
+                          pose.components.begin());
+                std::copy(live.rotation.begin(), live.rotation.end(), pose.components.begin() + 3);
+            }
+            history.emplace(model->slot, std::move(entry));
+        }
+    }
+    for (auto item : clipboard_) {
+        if (mirror && item.address.track != Track::Bone)
+            continue;
+        const auto offset = item.address.frame - first;
+        if (frame > 0x7fffffffU - offset) {
+            reason = "frame-overflow";
+            return false;
+        }
+        item.address.frame = frame + offset;
+        if (item.address.track == Track::Bone || item.address.track == Track::Morph ||
+            item.address.track == Track::Display)
+            item.address.slot = selection_.model;
+        if (item.address.track == Track::Bone || item.address.track == Track::Morph) {
+            const auto& names =
+                item.address.track == Track::Bone ? model->boneNames : model->morphNames;
+            const int index = FindPmmClipboardBone(
+                {item.name.data(), item.name.size()}, names.size(),
+                [&](std::size_t i) { return std::string_view(names[i].data(), names[i].size()); },
+                mirror);
+            if (index < 0)
+                continue; // Native name misses are successful no-ops.
+            item.address.channel = unsigned(index);
+        }
+        if (item.address.track == Track::Bone) {
+            int resourceBone;
+            if (!runtime_->DocumentBoneIndex(model->slot, int(item.address.channel), resourceBone,
+                                             reason))
+                return false;
+            const auto resource = runtime_->Resource(model->slot);
+            const auto& info = resource->EditingBones().at(unsigned(resourceBone));
+            auto key = std::get<PmmBoneKey>(item.key);
+            key.frame = offset;
+            const bool fixed = info.type == cpu_bone::BoneType::FixedAxis ||
+                               (info.type == cpu_bone::BoneType::UnderIk &&
+                                (info.flags & cpu_bone::kBoneFlagFixedAxis));
+            if (fixed) {
+                const auto& bone = resource->Document().bones.at(unsigned(resourceBone)).fields;
+                float axis[3];
+                if (resource->SourceKind() == ModelKind::Pmd) {
+                    const auto& tail =
+                        resource->Document().bones.at(unsigned(std::max(info.tailBone, 0))).fields;
+                    float direction[3];
+                    for (unsigned i = 0; i < 3; ++i)
+                        direction[i] = tail.position[i] - bone.position[i];
+                    cpu_model::Math math;
+                    math.normalize(axis, direction);
+                } else
+                    std::copy_n(bone.axis, 3, axis);
+                if (!ConstrainPmmClipboardRotation(key.rotation, axis, mirror)) {
+                    reason = "clipboard-fixed-axis-invalid";
                     return false;
                 }
             }
-            return true;
-        },
-        reason);
+            const bool movable = info.type == cpu_bone::BoneType::RotateMove ||
+                                 info.type == cpu_bone::BoneType::Move ||
+                                 info.type == cpu_bone::BoneType::Ik;
+            if (!RegisterPmmBoneClipboard(model->boneKeys, item.address.channel, key, frame,
+                                          movable, mirror, history.at(model->slot).keyRecords,
+                                          model->selection.maxFrame)) {
+                reason = "clipboard-bone-registration-failed";
+                return false;
+            }
+        } else {
+            std::visit(
+                [](auto& key) {
+                    using T = std::decay_t<decltype(key)>;
+                    if constexpr (std::is_same_v<T, PmmMorphKey> ||
+                                  std::is_same_v<T, PmmDisplayKey>)
+                        key.allocated = 1;
+                    else if constexpr (!std::is_same_v<T, PmmBoneKey>)
+                        key.selected = 1;
+                },
+                item.key);
+            if (!Put(d, item.address, item.key)) {
+                reason = "clipboard-track-mismatch";
+                return false;
+            }
+            if (model &&
+                (item.address.track == Track::Morph || item.address.track == Track::Display))
+                model->selection.maxFrame = std::max(model->selection.maxFrame, item.address.frame);
+            else
+                d.timeline.lastRegisteredFrame =
+                    std::max(d.timeline.lastRegisteredFrame, int(item.address.frame));
+        }
+        next.selection.keys.insert(item.address);
+    }
+    if (modelClipboard) {
+        // Native paste seeks this model at the current cursor after inserting
+        // all keys. Other models' pending edits remain untouched.
+        SceneSession evaluated;
+        if (!SceneSession::Create(d, evaluated, reason) ||
+            !evaluated.Seek(unsigned(d.timeline.currentFrame), {false, false}))
+            return false;
+        const auto& result = evaluated.Document().models;
+        const auto found = std::find_if(result.begin(), result.end(),
+                                        [&](const auto& m) { return m.slot == model->slot; });
+        if (found == result.end())
+            return false;
+        *model = *found;
+    }
+    return Commit(std::move(next), reason, history, false);
 }
+
 bool EditorSession::Undo(std::string& reason) {
     return ApplyHistory(false, reason);
 }
