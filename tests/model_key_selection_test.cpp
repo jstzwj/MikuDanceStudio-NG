@@ -24,7 +24,8 @@ int main() {
     keys[8].physicsDisabled = 1;
     keys[2].physicsDisabled = 1;
     keys[2].next = 16;
-    for (auto& key : keys) key.allocated = 1;
+    for (auto& key : keys)
+        key.allocated = 1;
     for (auto& key : morphs) {
         key.frame = 42;
         key.value = 0.25f;
@@ -46,15 +47,24 @@ int main() {
         }
     }
     for (const auto& key : display) {
-        if (key.allocated || key.frame != 91 || key.visible != 1 ||
-            key.ikStates != ikStates || key.selectorStates != &selector) {
+        if (key.allocated || key.frame != 91 || key.visible != 1 || key.ikStates != ikStates ||
+            key.selectorStates != &selector) {
             std::fprintf(stderr, "Display selection damaged a key or pointer\n");
             return 1;
         }
     }
     for (const auto& key : morphs)
-        if (key.allocated || key.frame != 42 || key.value != 0.25f) return 1;
+        if (key.allocated || key.frame != 42 || key.value != 0.25f)
+            return 1;
     if (keys[0].next != 8 || keys[8].next != 15 || !keys[8].physicsDisabled)
+        return 1;
+    // An empty physical chain must not mark an unrelated record zero.
+    bones[0].hasRigidBody = 0;
+    keys[2].next = 0;
+    SelectPhysicsOnBoneKeys(*model);
+    if (keys[0].allocated)
+        return 1;
+    if (keys[2].allocated || keys[15].allocated || keys[16].allocated)
         return 1;
     return 0;
 }

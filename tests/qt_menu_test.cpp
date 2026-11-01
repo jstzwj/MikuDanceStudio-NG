@@ -1,5 +1,6 @@
 #include "editor_window.hpp"
 #include "mikudancestudio/menu_commands.h"
+#include "editor_physics_selection_fixture.hpp"
 #include <QApplication>
 #include <QAbstractButton>
 #include <QFile>
@@ -332,9 +333,34 @@ int main(int argc, char** argv) {
             session.Pause();
         }
     unsigned implemented = 0;
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        CHECK(PhysicsSelectionFixture(session, root, "articulated.pmx", true, 1, reason));
+        CHECK(window.SetLanguage(language));
+        CHECK(window.Save(root / "physics-selection.pmm"));
+        const auto revision = session.Revision(), frames = session.Runtime().Counters().frames;
+        const auto count = unsigned(session.Document().models[0].bonePose.size());
+        CHECK(command(MDS_CMD_SELECT_PHYSICS_ON_FRAMES)->isEnabled());
+        command(MDS_CMD_SELECT_PHYSICS_ON_FRAMES)->trigger();
+        CHECK(!session.Dirty() && session.Revision() == revision &&
+              session.Runtime().Counters().frames == frames);
+        CHECK(session.Selected().keys.count({Track::Bone, 0, count - 1, 0}) &&
+              session.Selected().keys.count({Track::Bone, 0, count - 1, 5}));
+        CHECK(!session.Selected().keys.count({Track::Bone, 0, count - 1, 2}));
+        CHECK(window.Save(root / "physics-selection.pmm"));
+        CHECK(window.Open(root / "physics-selection.pmm"));
+        CHECK(session.Document().models[0].boneKeys.dense.back().allocated &&
+              !session.Document().models[0].boneKeys.dense.front().allocated);
+        CHECK(session.Play(reason));
+        window.Refresh();
+        CHECK(!command(MDS_CMD_SELECT_PHYSICS_ON_FRAMES)->isEnabled());
+        session.Pause();
+        CHECK(session.SelectModel(255, reason));
+        window.Refresh();
+        CHECK(!command(MDS_CMD_SELECT_PHYSICS_ON_FRAMES)->isEnabled());
+    }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 52);
+    CHECK(implemented == 53);
     CHECK(window.LastError().isEmpty());
     CHECK(!window.isVisible() && window.RenderWindow()->Submissions() == 0);
     std::cout

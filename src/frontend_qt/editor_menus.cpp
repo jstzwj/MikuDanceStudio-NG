@@ -78,6 +78,7 @@ bool ModelCommand(int command) {
     case MDS_CMD_REGISTER_ALL_MORPH_FRAMES:
     case MDS_CMD_RESET_MORPHS:
     case MDS_CMD_SELECT_PHYSICS_BONES:
+    case MDS_CMD_SELECT_PHYSICS_ON_FRAMES:
         return true;
     default:
         return false;
@@ -297,6 +298,12 @@ void EditorWindow::MenuCommand(int command) {
         return;
     }
     int control = 0;
+    if (command == MDS_CMD_SELECT_PHYSICS_ON_FRAMES) {
+        std::string reason;
+        Result(session_.SelectPhysicsOnKeys(reason), reason);
+        Refresh();
+        return;
+    }
     if (command == MDS_CMD_RESET_BONE_CAMERA_ROTATION || command == MDS_CMD_SELECT_PHYSICS_BONES) {
         std::string reason;
         Result(command == MDS_CMD_RESET_BONE_CAMERA_ROTATION ? session_.ResetRotation(reason)

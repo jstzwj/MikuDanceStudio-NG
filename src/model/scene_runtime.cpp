@@ -667,6 +667,11 @@ void SceneRuntime::ClearPoseEditMarkers() {
     if (impl_ && impl_->session)
         impl_->session->ClearPoseEditMarkers();
 }
+bool SceneRuntime::SelectPhysicsOnKeys(std::uint8_t slot,
+                                       const std::vector<std::uint8_t>& physical) {
+    return impl_ && !impl_->failed && impl_->session &&
+           impl_->session->SelectPhysicsOnKeys(slot, physical);
+}
 void SceneRuntime::SetBoneSelection(std::uint8_t slot, const std::vector<std::uint32_t>& indices,
                                     int active) {
     if (impl_->session)

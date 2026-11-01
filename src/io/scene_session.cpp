@@ -1,5 +1,6 @@
 #include "mikudancestudio/scene_session.hpp"
 #include "mikudancestudio/pmm_edit.hpp"
+#include "mikudancestudio/bone_key_selection.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -639,6 +640,41 @@ bool SceneSession::Edit(const std::function<void(PmmSceneDocument&)>& change) {
     playback_ = {};
     playing_ = false;
     return true;
+}
+
+bool SceneSession::SelectPhysicsOnKeys(std::uint8_t slot,
+                                       const std::vector<std::uint8_t>& physical) {
+    if (!loaded_)
+        return false;
+    for (auto& model : scene_.models) {
+        if (model.slot != slot)
+            continue;
+        std::map<std::uint32_t, std::uint32_t> channels;
+        if (physical.size() != model.boneKeys.dense.size() ||
+            !PmmRecordChannels(model.boneKeys, channels))
+            return false;
+        std::map<std::uint32_t, PmmBoneKey*> records;
+        for (unsigned i = 0; i < model.boneKeys.dense.size(); ++i)
+            records.emplace(i, &model.boneKeys.dense[i]);
+        for (auto& key : model.boneKeys.sparse)
+            records.emplace(unsigned(key.index), &key.value);
+        const auto clear = [](auto& track) {
+            for (auto& key : track.dense)
+                key.allocated = 0;
+            for (auto& key : track.sparse)
+                key.value.allocated = 0;
+            for (auto& entry : track.unused)
+                entry.second.allocated = 0;
+        };
+        clear(model.boneKeys);
+        clear(model.morphKeys);
+        clear(model.displayKeys);
+        cpu_bone::MarkPhysicsOnKeys(
+            unsigned(physical.size()), [&](unsigned bone) { return physical[bone] != 0; },
+            [&](unsigned index) -> PmmBoneKey& { return *records.at(index); });
+        return true;
+    }
+    return false;
 }
 
 bool SceneSession::Save(WritePmmBytes write, void* context) const {

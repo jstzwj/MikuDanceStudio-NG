@@ -47,6 +47,7 @@ public:
     void SetSidebarWidth(int width);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
     void ClearPoseEditMarkers();
+    bool SelectPhysicsOnKeys(std::uint8_t, const std::vector<std::uint8_t>& physical);
     void SetBoneSelection(std::uint8_t, const std::vector<std::uint32_t>&, int active);
     void SetEditMode(std::int32_t);
     bool SetViewCamera(const format::PmmEvaluatedCamera&, const std::array<float, 2>&);

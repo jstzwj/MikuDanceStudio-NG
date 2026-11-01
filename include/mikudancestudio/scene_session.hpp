@@ -114,6 +114,7 @@ public:
             for (auto& pose : model.bonePose)
                 pose.flags[1] = 0;
     }
+    bool SelectPhysicsOnKeys(std::uint8_t slot, const std::vector<std::uint8_t>& physical);
     void SetEditMode(std::int32_t mode) { scene_.timeline.editMode = mode; }
     void SetBoneSelection(std::uint8_t slot, const std::vector<std::uint32_t>& indices,
                           int active) {

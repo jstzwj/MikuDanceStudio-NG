@@ -1824,5 +1824,33 @@ unchanged. This batch does not close the overall P4/C1 acceptance gates.
 Local validation passed all **31 P4 tests** (53.04 seconds), the separate scene
 runtime test, and rebuilt Win32 session/physics-continuity tests. The complete Qt
 render regression also passed DX12 (27.90 seconds) and Vulkan (8.86 seconds),
-including strict restored-outline output. The Qt application builds. Three-platform
-CI for this batch remains required before extending its platform evidence.
+including strict restored-outline output. The Qt application builds.
+[Run 41351022451](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41351022451)
+subsequently passed all three platform jobs, including numeric/menu/render tests
+and native surface checks. The wider P4 gates remain open.
+
+## Physics-enabled key selection
+
+The original "select physics on frames" command now uses a shared chain walker
+in the Win32 compatibility path and portable scene session. It clears selection
+bytes across the selected model's bone, Morph and display pools, including retained
+unused slots, then selects enabled keys on the forward chains of bones with rigid
+bodies. The terminal key is included and the successor sentinel is tested as a
+signed value. An empty chain touches only its own root. Resource/document name
+maps determine which document bones own rigid bodies.
+
+The Qt command updates both typed record marks and timeline addresses, retaining
+unrelated model/global selection. It does not change revision, physics, poses,
+key topology or per-model Undo/Redo. Camera mode is a no-op; the menu is unavailable
+during playback or without a model. Saved PMM record marks survive reopening.
+The broader synchronization of all timeline-selection operations remains pending.
+
+The optional auxiliary oracle executes original command **274** through dispatcher
+RVA **3F550**, stubbing only its panel paint tail. **18 cases** compare all **600000
+bone, 20000 Morph and 1000 display** record marks for PMD/PMX, physical/nonphysical
+models, ordinary/reversed bindings, empty chains and alternating physics flags.
+The complete auxiliary oracle now passes **178 checkpoints/cases**. Local Qt menu,
+portable selection and scene-runtime tests passed (10.75 seconds); the legacy
+model-key-selection test and Qt application build also passed. The rebuilt Win32
+portable selection test passed (4.10 seconds). No window is shown. Three-platform
+CI for this selection batch remains required.

@@ -2,6 +2,7 @@
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/menu_commands.h"
+#include "editor_physics_selection_fixture.hpp"
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -344,6 +345,87 @@ unsigned SceneCommands(OriginalPhysicsModule& original, const std::filesystem::p
         }
     return count;
 }
+unsigned PhysicsKeyCommand(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    const unsigned char ret = 0xc3;
+    Patch paint(original.Function<void*>(0x60ea0), &ret, 1);
+    std::vector<unsigned char> app(0xa3000);
+    auto* pointer = app.data();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    const auto execute = original.Function<void (*)(HWND, WPARAM)>(0x3f550);
+    unsigned cases = 0;
+    for (const char* file : {"articulated.pmd", "articulated.pmx", "triangle.pmd"})
+        for (bool reverse : {false, true})
+            for (unsigned mode = 0; mode < 3; ++mode) {
+                EditorSession portable;
+                std::string reason;
+                Check(PhysicsSelectionFixture(portable, root, file, reverse, mode, reason),
+                      reason.c_str());
+                const auto& source = portable.Document().models[0];
+                const auto resource = portable.Runtime().Resource(0);
+                NativeAuxiliary native(source, resource->SourceKind() == ModelKind::Pmx);
+                auto* model = native.model.get();
+                std::vector<mdl::BoneKey> keys(mdl::kBoneKeyCapacity);
+                std::vector<mdl::BoneRecord> bones(source.bonePose.size());
+                model->boneCount = unsigned(bones.size());
+                model->boneTable = bones.data();
+                model->boneKeys = keys.data();
+                for (unsigned i = 0; i < bones.size(); ++i) {
+                    int index;
+                    Check(portable.Runtime().DocumentBoneIndex(0, int(i), index, reason),
+                          reason.c_str());
+                    bones[i].hasRigidBody =
+                        resource->EditingBones()[std::size_t(index)].hasRigidBody;
+                }
+                const auto copy = [&](unsigned index, const auto& key) {
+                    keys[index].frame = key.frame;
+                    keys[index].previous = key.previous;
+                    keys[index].next = key.next;
+                    keys[index].physicsDisabled = key.physicsDisabled;
+                    std::copy(key.position.begin(), key.position.end(), keys[index].position);
+                    std::copy(key.rotation.begin(), key.rotation.end(), keys[index].rotation);
+                };
+                for (unsigned i = 0; i < source.boneKeys.dense.size(); ++i)
+                    copy(i, source.boneKeys.dense[i]);
+                for (const auto& key : source.boneKeys.sparse)
+                    copy(unsigned(key.index), key.value);
+                for (const auto& key : source.boneKeys.unused)
+                    copy(key.first, key.second);
+                for (auto& key : keys)
+                    key.allocated = 1;
+                for (auto& key : native.morphs)
+                    key.allocated = 1;
+                for (auto& key : native.displays)
+                    key.allocated = 1;
+                std::fill(app.begin(), app.end(), 0);
+                std::memcpy(app.data() + 0xbe8, &model, sizeof model);
+                execute(nullptr, MDS_CMD_SELECT_PHYSICS_ON_FRAMES);
+                Check(portable.SelectPhysicsOnKeys(reason), reason.c_str());
+                std::set<unsigned> marked;
+                const auto& result = portable.Document().models[0].boneKeys;
+                for (unsigned i = 0; i < result.dense.size(); ++i)
+                    if (result.dense[i].allocated)
+                        marked.insert(i);
+                for (const auto& key : result.sparse)
+                    if (key.value.allocated)
+                        marked.insert(unsigned(key.index));
+                for (unsigned i = 0; i < keys.size(); ++i) {
+                    if (bool(keys[i].allocated) != (marked.count(i) != 0))
+                        std::fprintf(stderr,
+                                     "%s reverse=%u mode=%u record=%u native=%u portable=%u\n",
+                                     file, unsigned(reverse), mode, i, unsigned(keys[i].allocated),
+                                     unsigned(marked.count(i)));
+                    Check(bool(keys[i].allocated) == (marked.count(i) != 0),
+                          "native physics-key pool marks");
+                }
+                for (const auto& key : native.morphs)
+                    Check(!key.allocated, "native physics-key morph sweep");
+                for (const auto& key : native.displays)
+                    Check(!key.allocated, "native physics-key display sweep");
+                Check(!app[0xa1b31], "native physics-key selection does not dirty scene");
+                ++cases;
+            }
+    return cases;
+}
 }
 int wmain(int argc, wchar_t** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
@@ -404,6 +486,9 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf(
         "%u original full-dispatch checks: rotation reset, physics selection and deferred reset\n",
         SceneCommands(original, argv[2]));
+    std::printf(
+        "%u original physics-key commands: full pool sweeps, reversed bindings and empty chains\n",
+        PhysicsKeyCommand(original, argv[2]));
     return 0;
 } catch (const std::exception& e) {
     std::fprintf(stderr, "%s\n", e.what());

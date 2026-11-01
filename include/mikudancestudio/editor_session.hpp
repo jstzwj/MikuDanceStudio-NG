@@ -186,6 +186,7 @@ public:
     bool SelectModel(std::uint8_t, std::string&);
     bool SelectAllBones(bool unregisteredOnly, std::string&);
     bool SelectPhysicsBones(std::string&);
+    bool SelectPhysicsOnKeys(std::string&);
     bool PickBone(const std::vector<cpu_bone::ScreenPoint>&, int x, int y, bool additive,
                   std::string&);
     bool BoxSelectBones(const std::vector<cpu_bone::ScreenPoint>&, int left, int top, int right,

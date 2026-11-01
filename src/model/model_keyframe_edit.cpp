@@ -22,6 +22,7 @@
 #include "mikudancestudio/ported_funcs.hpp"
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/bone_key_interpolation.hpp"
+#include "mikudancestudio/bone_key_selection.hpp"
 #include "mikudancestudio/panel_controls.hpp"
 
 namespace mikudancestudio {
@@ -125,9 +126,8 @@ void ResetBoneInterpolation(mdl::BoneKey& record, int lane) {
 
 // Shared native automatic interpolation, including neighboring key handles.
 void RebuildBoneInterpolation(mdl::ModelRecord* model, int index, int lane) {
-    keyframe_edit::RebuildBoneCurve(
-        [&](auto i) -> auto& { return model->boneKeys[i]; },
-        model->boneCount, unsigned(index), unsigned(lane));
+    keyframe_edit::RebuildBoneCurve([&](auto i) -> auto& { return model->boneKeys[i]; },
+                                    model->boneCount, unsigned(index), unsigned(lane));
 }
 
 void BoneKeyOverflow(mdl::ModelRecord* model) {
@@ -672,19 +672,9 @@ void mdl::SelectPhysicsOnBoneKeys(ModelRecord& model) {
     for (std::size_t i = 0; i < kBoneKeyCapacity; ++i)
         model.boneKeys[i].allocated = 0;
 
-    for (std::uint32_t bone = 0; bone < model.boneCount; ++bone) {
-        if (model.boneTable[bone].hasRigidBody == 0)
-            continue;
-        BoneKey* key = &model.boneKeys[bone];
-        for (;;) {
-            if (key->physicsDisabled == 0)
-                key->allocated = 1;
-            // The original treats the link as signed when testing the sentinel.
-            if (static_cast<std::int32_t>(key->next) <= 0)
-                break;
-            key = &model.boneKeys[key->next];
-        }
-    }
+    cpu_bone::MarkPhysicsOnKeys(
+        model.boneCount, [&](unsigned bone) { return model.boneTable[bone].hasRigidBody != 0; },
+        [&](unsigned index) -> BoneKey& { return model.boneKeys[index]; });
 }
 
 } // namespace mikudancestudio

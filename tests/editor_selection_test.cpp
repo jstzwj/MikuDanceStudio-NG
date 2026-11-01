@@ -1,4 +1,5 @@
 #include "mikudancestudio/editor_session.hpp"
+#include "editor_physics_selection_fixture.hpp"
 #include <iostream>
 using namespace mikudancestudio;
 std::string reason;
@@ -109,6 +110,66 @@ int main(int argc, char** argv) {
     CHECK(session.Selected().bones.size() == 8);
     CHECK(session.SelectModel(1, reason));
     CHECK(session.Selected().bones.empty());
+    for (const char* file : {"articulated.pmd", "articulated.pmx", "triangle.pmd"})
+        for (bool reverse : {false, true})
+            for (unsigned mode = 0; mode < 3; ++mode) {
+                editor::EditorSession selected;
+                CHECK(PhysicsSelectionFixture(selected, root, file, reverse, mode, reason));
+                const auto revision = selected.Revision(),
+                           frames = selected.Runtime().Counters().frames;
+                const auto updates = selected.Runtime().Counters().editorUpdates;
+                const bool undo = selected.CanUndo(), redo = selected.CanRedo();
+                const auto& before = selected.Document().models[0];
+                const unsigned count = unsigned(before.bonePose.size());
+                const unsigned physical = reverse ? count - 1 : 0;
+                const auto prior = selected.Selected().keys;
+                CHECK(selected.SelectPhysicsOnKeys(reason));
+                const auto& model = selected.Document().models[0];
+                for (unsigned i = 0; i < count; ++i) {
+                    const bool root = count > 1 && mode != 2 && i == physical;
+                    CHECK(bool(model.boneKeys.dense[i].allocated) == root);
+                    CHECK(bool(selected.Selected().keys.count({editor::Track::Bone, 0, i, 0})) ==
+                          root);
+                }
+                std::map<std::uint32_t, std::uint32_t> channels;
+                CHECK(format::PmmRecordChannels(model.boneKeys, channels));
+                for (const auto& key : model.boneKeys.sparse) {
+                    const bool wanted = count > 1 && channels.at(unsigned(key.index)) == physical &&
+                                        key.value.frame == 5;
+                    CHECK(bool(key.value.allocated) == wanted);
+                    CHECK(bool(selected.Selected().keys.count({editor::Track::Bone, 0,
+                                                               channels.at(unsigned(key.index)),
+                                                               key.value.frame})) == wanted);
+                }
+                CHECK(!model.boneKeys.unused.at(32).allocated &&
+                      !model.morphKeys.unused.at(32).allocated &&
+                      !model.displayKeys.unused.at(32).allocated);
+                for (const auto& key : model.morphKeys.dense)
+                    CHECK(!key.allocated);
+                for (const auto& key : model.displayKeys.dense)
+                    CHECK(!key.allocated);
+                CHECK(selected.Document().models[1].boneKeys.dense[0].allocated);
+                for (const auto& key : prior)
+                    if (key.slot != 0 ||
+                        (key.track != editor::Track::Bone && key.track != editor::Track::Morph &&
+                         key.track != editor::Track::Display))
+                        CHECK(selected.Selected().keys.count(key));
+                CHECK(selected.Revision() == revision &&
+                      selected.Runtime().Counters().frames == frames &&
+                      selected.Runtime().Counters().editorUpdates == updates);
+                CHECK(selected.CanUndo() == undo && selected.CanRedo() == redo);
+                CHECK(selected.SelectPhysicsOnKeys(reason) && selected.Revision() == revision);
+                CHECK(selected.Play(reason));
+                CHECK(!selected.SelectPhysicsOnKeys(reason));
+                selected.Pause();
+                CHECK(selected.SelectModel(255, reason));
+                const auto cameraRevision = selected.Revision();
+                CHECK(selected.SelectPhysicsOnKeys(reason) &&
+                      selected.Revision() == cameraRevision);
+                CHECK(selected.UnloadModel(0, reason));
+                selected.Selected().model = 0;
+                CHECK(!selected.SelectPhysicsOnKeys(reason));
+            }
     std::cout
         << "Bone selection: click/cycle, Shift, box, markers, model isolation and no evaluation passed\n";
 }

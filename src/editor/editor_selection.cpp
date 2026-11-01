@@ -271,6 +271,47 @@ void EditorSession::SelectKeys(std::uint32_t first, std::uint32_t last, const Ke
         if (matches(key) && first <= key.frame && key.frame <= last)
             selection_.keys.insert(key);
 }
+bool EditorSession::SelectPhysicsOnKeys(std::string& reason) {
+    reason.clear();
+    if (selection_.model == 255)
+        return true;
+    const auto slot = selection_.model;
+    const auto resource = runtime_->Resource(slot);
+    const auto& models = Document().models;
+    const auto model =
+        std::find_if(models.begin(), models.end(), [&](const auto& m) { return m.slot == slot; });
+    if (playing_ || !resource || model == models.end()) {
+        reason = "physics-key-selection-unavailable";
+        return false;
+    }
+    std::vector<std::uint8_t> physical(model->boneKeys.dense.size());
+    for (unsigned bone = 0; bone < physical.size(); ++bone) {
+        int index;
+        if (!runtime_->DocumentBoneIndex(slot, int(bone), index, reason))
+            return false;
+        physical[bone] = resource->EditingBones()[std::size_t(index)].hasRigidBody;
+    }
+    std::map<std::uint32_t, std::uint32_t> channels;
+    if (!format::PmmRecordChannels(model->boneKeys, channels) ||
+        !runtime_->SelectPhysicsOnKeys(slot, physical)) {
+        reason = "physics-key-selection-invalid-tracks";
+        return false;
+    }
+    for (auto it = selection_.keys.begin(); it != selection_.keys.end();)
+        if (ModelTrack(it->track) && it->slot == slot)
+            it = selection_.keys.erase(it);
+        else
+            ++it;
+    const auto select = [&](unsigned index, const auto& key) {
+        if (key.allocated)
+            selection_.keys.insert({Track::Bone, slot, channels.at(index), key.frame});
+    };
+    for (unsigned i = 0; i < model->boneKeys.dense.size(); ++i)
+        select(i, model->boneKeys.dense[i]);
+    for (const auto& key : model->boneKeys.sparse)
+        select(unsigned(key.index), key.value);
+    return true;
+}
 void EditorSession::ExtendSelectedColumns() {
     std::set<std::uint32_t> frames;
     for (const auto& key : selection_.keys)
