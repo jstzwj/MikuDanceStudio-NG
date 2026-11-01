@@ -693,9 +693,9 @@ host. Focus loss, teardown and backend replacement release the cursor without
 warping into an inactive window. Offscreen tests exercise cursor state only and
 never move the global pointer; the local 1/1.5/2 scale-factor gesture tests and
 frozen restoration-point checks passed. Actual exposed pointer interaction is
-still an isolated-runner acceptance item. Wayland cursor hiding/capture works
-through Qt, but client warping is prohibited; a pointer-lock/relative-motion
-adapter remains required for equivalent centered dragging there.
+still an isolated-runner acceptance item. Wayland cursor hiding works through
+Qt, but its platform plugin supports explicit mouse capture only for popups;
+ordinary viewport capture requires the protocol adapter described below.
 
 The Windows Win32 foundation run exposed an evaluation-model leak: the public
 scene-runtime dependency propagated Bullet's `/arch:IA32` into portable editor
@@ -806,3 +806,22 @@ scale factors 1, 1.5 and 2. DX11/DX12/Vulkan background tests preserve exact
 repeated output and restore the original image after resetting placement.
 Background-video manipulation belongs to P6; exposed input, Wayland pointer
 lock and the remaining C1/UI gates are still open.
+
+Wayland centered tools now request the compositor's relative-pointer and
+one-shot pointer-lock protocols on Qt's existing connection/event queue. A header
+press locks the canvas surface; an axis press locks the native child viewport.
+Accelerated surface motion accumulates fractional physical pixels before entering
+the same tool commands as ordinary Qt input. Matching absolute motion is ignored
+while a request is pending/active. Release supplies a surface-local cursor hint;
+the compositor retains authority over its final position. Focus loss, backend
+replacement, surface teardown, protocol removal, compositor revocation and an
+ungranted lock cancel the gesture and restore cursor state. Missing protocols
+produce an explicit diagnostic rather than a silently bounded hidden drag.
+
+The new Linux `qt_wayland_pointer_*` gate runs a separate Qt client against a
+private, memory-only Qt Wayland compositor, with real registry/seat/xdg-surface
+transport and scripted optional pointer protocols. It covers fractional motion,
+scales 1/1.5/2, duplicate absolute events, release hints, revocation, cancellation,
+missing protocols and an ungranted request. Linux execution is pending for this
+batch; local Windows synthetic gestures passed at all three scale factors.
+No test connects to the user's Wayland socket or moves the desktop pointer.

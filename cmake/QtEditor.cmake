@@ -12,6 +12,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/editor_window.cpp"
         "${root}/src/frontend_qt/editor_panels.cpp"
         "${root}/src/frontend_qt/viewport.cpp"
+        "${root}/src/frontend_qt/relative_pointer.cpp"
         "${root}/src/frontend_qt/surface.cpp")
     target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/audio.cpp" "${root}/src/frontend_qt/export.cpp")
     target_include_directories(mikudancestudio_frontend_qt PUBLIC "${root}/src/frontend_qt")
@@ -30,6 +31,24 @@ function(mds_add_qt_editor)
         # The small platform adapter uses QPA to retrieve Wayland wl_surface.
         # Keep the Qt minor version pinned in CI and test both X11 and Wayland.
         target_link_libraries(mikudancestudio_frontend_qt PRIVATE Qt6::GuiPrivate)
+        enable_language(C)
+        find_package(Qt6 6.8 REQUIRED COMPONENTS WaylandClient)
+        find_package(PkgConfig REQUIRED)
+        pkg_check_modules(MDS_WAYLAND REQUIRED IMPORTED_TARGET wayland-client)
+        pkg_get_variable(MDS_WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
+        if(NOT MDS_WAYLAND_PROTOCOLS)
+            message(FATAL_ERROR "The Qt editor requires the wayland-protocols development package")
+        endif()
+        if(NOT TARGET Wayland::Scanner)
+            find_program(MDS_WAYLAND_SCANNER wayland-scanner REQUIRED)
+            add_executable(Wayland::Scanner IMPORTED)
+            set_target_properties(Wayland::Scanner PROPERTIES IMPORTED_LOCATION "${MDS_WAYLAND_SCANNER}")
+        endif()
+        target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/relative_pointer_wayland.cpp")
+        target_link_libraries(mikudancestudio_frontend_qt PRIVATE Qt6::WaylandClient PkgConfig::MDS_WAYLAND)
+        qt_generate_wayland_protocol_client_sources(mikudancestudio_frontend_qt PRIVATE_CODE FILES
+            "${MDS_WAYLAND_PROTOCOLS}/unstable/relative-pointer/relative-pointer-unstable-v1.xml"
+            "${MDS_WAYLAND_PROTOCOLS}/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml")
     endif()
     qt_add_resources(mikudancestudio_frontend_qt editor_translations
         PREFIX "/i18n" BASE "${root}/res/i18n"
@@ -39,6 +58,9 @@ function(mds_add_qt_editor)
     add_custom_command(TARGET MikuDanceStudioNG POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${root}/res/assets" "$<TARGET_FILE_DIR:MikuDanceStudioNG>/assets")
     if(BUILD_TESTING)
+        if(UNIX AND NOT APPLE)
+            add_subdirectory("${root}/cmake/qt-wayland-pointer-tests" "${CMAKE_CURRENT_BINARY_DIR}/wayland-pointer")
+        endif()
         add_executable(editor_overlay_test "${root}/tests/editor_overlay_test.cpp")
         target_link_libraries(editor_overlay_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render)
         add_test(NAME editor_overlay COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"

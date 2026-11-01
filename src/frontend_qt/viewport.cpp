@@ -5,6 +5,7 @@
 #include <QWheelEvent>
 #include <QGuiApplication>
 #include <QCursor>
+#include <cmath>
 namespace mikudancestudio::qt {
 namespace {
 render::SceneRenderSources Sources(const editor::EditorAssets& assets) {
@@ -188,9 +189,9 @@ void Viewport::FinishBoxSelection() {
     if (changed)
         changed(ok, reason);
 }
-void Viewport::BeginCenteredCursor(int operation) {
+bool Viewport::BeginCenteredCursor(int operation, QWindow* inputSurface) {
     if (operation < 9 && operation != 1 && operation != 2)
-        return;
+        return true;
     const auto ratio = devicePixelRatio();
     const int w = qRound(width() * ratio), h = qRound(height() * ratio);
     if (operation >= 9) {
@@ -201,14 +202,55 @@ void Viewport::BeginCenteredCursor(int operation) {
     savedCursor_ = cursor();
     centeredCursor_ = true;
     setCursor(Qt::BlankCursor);
-    // Hidden/offscreen tests exercise state only. Global pointer movement is
-    // reserved for an exposed native viewport. Wayland prohibits client warps;
-    // its pointer-lock/relative-motion adapter remains a separate platform gate.
+    // Hidden/offscreen tests never request capture or global pointer movement.
     cursorWarped_ = isExposed() && !QGuiApplication::platformName().startsWith("wayland");
     if (cursorWarped_) {
         previous_ = {qRound((w / 2) / ratio), qRound((h / 2) / ratio)};
         QCursor::setPos(mapToGlobal(previous_));
     }
+    toolPrevious_ = DevicePoint(previous_);
+    relativePosition_ = toolPrevious_;
+    if (isExposed() && QGuiApplication::platformName().startsWith("wayland")) {
+        if (!relativePointer_)
+            relativePointer_ = CreateWaylandRelativePointer();
+        auto* surface = inputSurface ? inputSurface : this;
+        std::string reason;
+        // The pointer is focused on the canvas for a header press, and on the
+        // child native window for an axis press. Lock the actual focused surface.
+        const auto restore = surface->mapFromGlobal(mapToGlobal(restoreCursor_));
+        relativePosition_ = QPoint(w / 2, h / 2);
+        toolPrevious_ = relativePosition_.toPoint();
+        const bool ok =
+            relativePointer_ &&
+            relativePointer_->Begin(
+                *surface, restore,
+                [this](QPointF delta) {
+                    relativePosition_ += delta * devicePixelRatio();
+                    if (!std::isfinite(relativePosition_.x()) ||
+                        !std::isfinite(relativePosition_.y()) ||
+                        std::abs(relativePosition_.x()) > 100000000 ||
+                        std::abs(relativePosition_.y()) > 100000000) {
+                        CancelInput();
+                        if (changed)
+                            changed(false, "relative-pointer-position-overflow");
+                        return;
+                    }
+                    ToolMotion(relativePosition_.toPoint(), QGuiApplication::keyboardModifiers());
+                },
+                [this](const std::string& error) {
+                    CancelInput();
+                    if (changed)
+                        changed(false, error);
+                },
+                reason);
+        if (!ok) {
+            FinishToolDrag();
+            if (changed)
+                changed(false, reason.empty() ? "wayland-relative-pointer-unavailable" : reason);
+            return false;
+        }
+    }
+    return true;
 }
 void Viewport::FinishToolDrag(bool restorePosition) {
     if (!boneDragMode_ && !sceneDragMode_ && !headerDragOperation_)
@@ -221,16 +263,19 @@ void Viewport::FinishToolDrag(bool restorePosition) {
     pressed_ = false;
     toolOperation_ = 0;
     if (centeredCursor_) {
+        if (relativePointer_)
+            relativePointer_->End(restorePosition);
         const bool warp = cursorWarped_ && restorePosition && isExposed();
         centeredCursor_ = cursorWarped_ = false;
         setCursor(savedCursor_);
         if (warp)
             QCursor::setPos(mapToGlobal(restoreCursor_));
     }
-    if (isExposed())
+    if (isExposed() && !QGuiApplication::platformName().startsWith("wayland"))
         setMouseGrabEnabled(false);
 }
-bool Viewport::BeginHeaderDrag(unsigned operation, QPoint position, QPoint restore) {
+bool Viewport::BeginHeaderDrag(unsigned operation, QPoint position, QPoint restore,
+                               QWindow* inputSurface) {
     if ((operation != 1 && operation != 2) || boneDragMode_ || sceneDragMode_ ||
         headerDragOperation_ || box_)
         return false;
@@ -238,8 +283,9 @@ bool Viewport::BeginHeaderDrag(unsigned operation, QPoint position, QPoint resto
     pressed_ = true;
     previous_ = position;
     restoreCursor_ = restore;
-    BeginCenteredCursor(int(operation));
-    if (isExposed())
+    if (!BeginCenteredCursor(int(operation), inputSurface))
+        return false;
+    if (isExposed() && !QGuiApplication::platformName().startsWith("wayland"))
         setMouseGrabEnabled(true);
     if (changed)
         changed(true, {});
@@ -286,8 +332,9 @@ void Viewport::mousePressEvent(QMouseEvent* e) {
         !session_.Playing()) {
         sceneDragMode_ = unsigned(operation - 2);
         toolOperation_ = operation;
-        BeginCenteredCursor(operation);
-        if (isExposed())
+        if (!BeginCenteredCursor(operation))
+            return;
+        if (isExposed() && !QGuiApplication::platformName().startsWith("wayland"))
             setMouseGrabEnabled(true);
         if (changed)
             changed(true, {});
@@ -345,8 +392,10 @@ void Viewport::mousePressEvent(QMouseEvent* e) {
             dragModel_ = session_.Selected().model;
             dragResource_ = session_.Runtime().Resource(dragModel_);
             toolOperation_ = operation;
-            BeginCenteredCursor(operation);
-            if (isExposed())
+            toolPrevious_ = DevicePoint(previous_);
+            if (!BeginCenteredCursor(operation))
+                return;
+            if (isExposed() && !QGuiApplication::platformName().startsWith("wayland"))
                 setMouseGrabEnabled(true);
             if (changed)
                 changed(true, {});
@@ -384,18 +433,47 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
     }
     auto point = e->position().toPoint();
     const auto delta = DevicePoint(point) - DevicePoint(previous_);
-    if (headerDragOperation_) {
+    if (headerDragOperation_ || sceneDragMode_ || boneDragMode_) {
         if (!(e->buttons() & Qt::LeftButton)) {
             CancelInput();
             return;
         }
-        const auto motion = DevicePoint(point) - DevicePoint(previous_);
+        // A pending/active Wayland request consumes only relative protocol
+        // motion. Do not count its matching absolute Qt event a second time.
+        if (!relativePointer_ || !relativePointer_->Requested())
+            ToolMotion(DevicePoint(point), e->modifiers());
+        return;
+    }
+    previous_ = point;
+    if (box_ && (e->buttons() & Qt::LeftButton)) {
+        std::string reason;
+        if (session_.Playing() || session_.Selected().model != boxModel_) {
+            FinishBoxSelection();
+            return;
+        }
+        boxAdditive_ = e->modifiers() & Qt::ShiftModifier;
+        frameCached_ = false;
+        const auto bounds = QRect(DevicePoint(anchor_), DevicePoint(point)).normalized();
+        const bool ok = session_.BoxSelectBones(bonePoints_, bounds.left(), bounds.top(),
+                                                bounds.right(), bounds.bottom(),
+                                                e->modifiers() & Qt::ShiftModifier, false, reason);
+        if (changed)
+            changed(ok, reason);
+        return;
+    }
+    if (drag)
+        drag(delta, e->buttons(), e->modifiers());
+}
+void Viewport::ToolMotion(QPoint point, Qt::KeyboardModifiers modifiers) {
+    const auto motion = point - toolPrevious_;
+    const auto previous = toolPrevious_;
+    toolPrevious_ = point;
+    if (headerDragOperation_) {
         std::string reason;
         const bool ok = session_.DragViewTool(
-            headerDragOperation_, motion.x(), motion.y(), e->modifiers() & Qt::ShiftModifier,
-            e->modifiers() & Qt::ControlModifier,
+            headerDragOperation_, motion.x(), motion.y(), modifiers & Qt::ShiftModifier,
+            modifiers & Qt::ControlModifier,
             render::BackgroundViewScale(qRound(width() * devicePixelRatio())), reason);
-        previous_ = point;
         if (!ok)
             FinishToolDrag();
         if (changed)
@@ -403,19 +481,16 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
         return;
     }
     if (sceneDragMode_) {
-        if (session_.Playing() || session_.Selected().model != 255 ||
-            !(e->buttons() & Qt::LeftButton)) {
+        if (session_.Playing() || session_.Selected().model != 255) {
             FinishToolDrag();
             if (changed)
                 changed(true, {});
             return;
         }
-        const auto dy = DevicePoint(point).y() - DevicePoint(previous_).y();
         std::string reason;
         const bool ok =
-            session_.DragSceneAxis(sceneDragMode_, dy, e->modifiers() & Qt::ShiftModifier,
-                                   e->modifiers() & Qt::ControlModifier, reason);
-        previous_ = point;
+            session_.DragSceneAxis(sceneDragMode_, motion.y(), modifiers & Qt::ShiftModifier,
+                                   modifiers & Qt::ControlModifier, reason);
         if (!ok)
             FinishToolDrag();
         if (changed)
@@ -443,40 +518,19 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
             return;
         }
         boneDrag_.clipW = bonePoints_[unsigned(ActiveBone())].clipW;
-        const auto ratio = devicePixelRatio();
-        boneDrag_.previousX = qRound(previous_.x() * ratio);
-        boneDrag_.previousY = qRound(previous_.y() * ratio);
-        boneDrag_.x = qRound(point.x() * ratio);
-        boneDrag_.y = qRound(point.y() * ratio);
-        boneDrag_.shift = e->modifiers() & Qt::ShiftModifier;
-        boneDrag_.control = e->modifiers() & Qt::ControlModifier;
-        const bool ok = (e->buttons() & Qt::LeftButton) && session_.DragBones(boneDrag_, reason);
-        previous_ = point;
+        boneDrag_.previousX = previous.x();
+        boneDrag_.previousY = previous.y();
+        boneDrag_.x = point.x();
+        boneDrag_.y = point.y();
+        boneDrag_.shift = modifiers & Qt::ShiftModifier;
+        boneDrag_.control = modifiers & Qt::ControlModifier;
+        const bool ok = session_.DragBones(boneDrag_, reason);
         if (!ok)
             FinishToolDrag();
         if (changed)
             changed(ok, reason);
         return;
     }
-    previous_ = point;
-    if (box_ && (e->buttons() & Qt::LeftButton)) {
-        std::string reason;
-        if (session_.Playing() || session_.Selected().model != boxModel_) {
-            FinishBoxSelection();
-            return;
-        }
-        boxAdditive_ = e->modifiers() & Qt::ShiftModifier;
-        frameCached_ = false;
-        const auto bounds = QRect(DevicePoint(anchor_), DevicePoint(point)).normalized();
-        const bool ok = session_.BoxSelectBones(bonePoints_, bounds.left(), bounds.top(),
-                                                bounds.right(), bounds.bottom(),
-                                                e->modifiers() & Qt::ShiftModifier, false, reason);
-        if (changed)
-            changed(ok, reason);
-        return;
-    }
-    if (drag)
-        drag(delta, e->buttons(), e->modifiers());
 }
 void Viewport::mouseReleaseEvent(QMouseEvent* e) {
     if ((boneDragMode_ || sceneDragMode_ || headerDragOperation_) &&

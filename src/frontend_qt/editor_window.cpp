@@ -1258,7 +1258,8 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
                 const auto restore =
                     render::ViewportHeaderRestorePoint(operation, canvas_->width(), origin.y());
                 return viewport_->BeginHeaderDrag(unsigned(operation), point - origin,
-                                                  QPoint(restore[0], restore[1]) - origin);
+                                                  QPoint(restore[0], restore[1]) - origin,
+                                                  canvas_->window()->windowHandle());
             }
         } else if (viewport_->HeaderDragging()) {
             const QPointF point = mouse->position() - origin;

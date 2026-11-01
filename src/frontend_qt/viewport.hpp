@@ -3,6 +3,7 @@
 #include "mikudancestudio/rhi_scene_preview.hpp"
 #include "mikudancestudio/scene_frame_producer.hpp"
 #include "mikudancestudio/scene_editor_overlay.hpp"
+#include "relative_pointer.hpp"
 #include <QWindow>
 #include <QImage>
 #include <functional>
@@ -21,7 +22,8 @@ public:
     std::function<void(bool, const std::string&)> changed;
     std::uint64_t Submissions() const;
     std::uint64_t FrameBuilds() const { return frameBuilds_; }
-    bool BeginHeaderDrag(unsigned operation, QPoint position, QPoint restore);
+    bool BeginHeaderDrag(unsigned operation, QPoint position, QPoint restore,
+                         QWindow* inputSurface = nullptr);
     bool HeaderDragging() const { return headerDragOperation_ != 0; }
     void CancelInput();
 
@@ -61,7 +63,11 @@ private:
     std::shared_ptr<const runtime::ModelResource> dragResource_;
     editor::BoneDragInput boneDrag_;
     void FinishToolDrag(bool restorePosition = false);
-    void BeginCenteredCursor(int operation);
+    bool BeginCenteredCursor(int operation, QWindow* inputSurface = nullptr);
+    void ToolMotion(QPoint physical, Qt::KeyboardModifiers);
+    QPoint toolPrevious_;
+    QPointF relativePosition_;
+    std::unique_ptr<RelativePointer> relativePointer_;
     bool centeredCursor_ = false, cursorWarped_ = false;
     QPoint restoreCursor_;
     QCursor savedCursor_;
