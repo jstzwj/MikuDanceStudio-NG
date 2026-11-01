@@ -63,6 +63,61 @@ int main(int argc, char** argv) {
     boundary.Pause();
     editor::EditorSession session;
     const auto root = std::filesystem::absolute(argv[1]);
+    for (const char* file : {"floor.pmd", "floor.pmx"})
+        for (unsigned mode = 0; mode < 4; ++mode) {
+            editor::EditorSession idle;
+            CHECK(idle.ImportModel(root / file, reason));
+            CHECK(idle.Edit(
+                "idle physics mode",
+                [mode](auto& d, auto&) {
+                    d.physics.playbackMode = std::uint8_t(mode);
+                    d.appearance.floorVisible = 0;
+                    return true;
+                },
+                reason));
+            const auto bodies = idle.Runtime().Bodies(0);
+            const auto revision = idle.Revision(), epoch = idle.PlaybackEpoch();
+            const bool dirty = idle.Dirty(), undo = idle.CanUndo(), redo = idle.CanRedo();
+            const auto cursor = idle.CursorSeconds();
+            const auto frames = idle.Runtime().Counters().frames;
+            const auto prepared = idle.Runtime().Counters().preparedModels;
+            const auto write = [](void* p, const void* bytes, std::size_t count) {
+                auto& out = *static_cast<std::vector<std::uint8_t>*>(p);
+                const auto* data = static_cast<const std::uint8_t*>(bytes);
+                out.insert(out.end(), data, data + count);
+                return true;
+            };
+            std::vector<std::uint8_t> before, after;
+            CHECK(format::WritePmmSceneDocument(write, &before, idle.Document()));
+            CHECK(idle.TickIdle(0, reason));
+            for (double invalid : {-1., 1.01, std::numeric_limits<double>::infinity(),
+                                   std::numeric_limits<double>::quiet_NaN()})
+                CHECK(!idle.TickIdle(invalid, reason));
+            CHECK(idle.Runtime().Counters().frames == frames && idle.Runtime().Bodies(0) == bodies);
+            for (unsigned n = 0; n < 60; ++n)
+                CHECK(idle.TickIdle(1. / 60, reason));
+            CHECK(idle.Runtime().Counters().frames == frames + 60);
+            CHECK(idle.Runtime().Counters().preparedModels == prepared + 60);
+            const auto result = idle.Runtime().Bodies(0);
+            CHECK(mode == 1 || mode == 2 ? result[0][13] < bodies[0][13] - 5 : result == bodies);
+            CHECK(idle.CursorSeconds() == cursor && !idle.Playing());
+            CHECK(idle.Runtime().Simulation().cursorSeconds == float(cursor));
+            CHECK(idle.Revision() == revision && idle.PlaybackEpoch() == epoch &&
+                  idle.Dirty() == dirty && idle.CanUndo() == undo && idle.CanRedo() == redo);
+            CHECK(format::WritePmmSceneDocument(write, &after, idle.Document()) && before == after);
+            CHECK(idle.Play(reason));
+            const auto activeFrames = idle.Runtime().Counters().frames;
+            CHECK(!idle.TickIdle(.1, reason));
+            CHECK(idle.Runtime().Counters().frames == activeFrames);
+            CHECK(idle.Advance(.1, reason));
+            CHECK(idle.Runtime().Counters().frames == activeFrames + 1);
+            idle.Pause();
+            const auto pausedCursor = idle.CursorSeconds();
+            CHECK(idle.TickIdle(1. / 60, reason));
+            CHECK(idle.CursorSeconds() == pausedCursor);
+            CHECK(idle.UnloadModel(0, reason));
+            CHECK(idle.TickIdle(1. / 60, reason) && idle.Runtime().Bodies(0).empty());
+        }
     {
         // Native v1 loading leaves the current floor setting alone when its
         // optional section is absent. A fresh editor starts with floor on.

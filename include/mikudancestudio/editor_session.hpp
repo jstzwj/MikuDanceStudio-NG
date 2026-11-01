@@ -152,6 +152,9 @@ public:
     bool Play(std::string&);
     void Pause();
     bool Advance(double deltaSeconds, std::string&);
+    // A paused display frame: update live poses/physics without moving the
+    // timeline, marking the document dirty or creating history. Zero is a no-op.
+    bool TickIdle(double deltaSeconds, std::string&);
     bool Playing() const { return playing_; }
     double CursorSeconds() const { return cursorSeconds_; }
     std::uint64_t PlaybackEpoch() const { return playbackEpoch_; }

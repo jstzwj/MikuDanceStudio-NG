@@ -1385,3 +1385,32 @@ Local validation passed **29 P4 tests** (38.32 seconds), six Win32 editor/runtim
 tests, the x64 scene-runtime test and all 123 original undo/redo checkpoints. The
 Qt application also built successfully. Tests used offscreen or in-memory paths
 and did not play audio. Three-platform CI results for this change follow separately.
+
+## Paused Qt frames still run the shared physical simulation
+
+Qt's timer previously rendered the frozen CPU snapshot whenever playback was
+stopped. Positive elapsed paused frames now call `EditorSession::TickIdle`, which
+uses the existing shared simulation scheduler. Modes 1/2 continue simulating;
+mode 0 disables physics and mode 3 retains its existing active/reset/moved-body
+gates. A paused frame never advances timeline tracks or the playback cursor, and
+does not touch the document, revision, selection or history. A zero-duration
+refresh does not evaluate a frame. Invalid deltas and attempts to call the idle
+path during playback reject before simulation.
+
+The Qt timer chooses exactly one playback/idle path. Audio position is consulted
+only while playing. Rendering, layout, language and backend changes remain
+separate from simulation; they cannot add a second CPU update. An idle runtime
+error retains the diagnostic and does not repeatedly open modal dialogs.
+
+The editor regression covers PMD/PMX in all four modes, 60 paused frames,
+byte-identical PMM serialization, unchanged cursor/revision/history, invalid
+deltas, playback/pause transitions and unloading. The offscreen Qt regression
+checks four modes, gravity-induced motion versus stationary bodies, zero-delta
+and language refreshes, and one update per playing/paused timer invocation.
+The existing deterministic audio clock and CPU performance checks also pass.
+These tests integrate the previously compared shared scheduler; they do not
+establish every original UI selection/reset/body-drag transition or full C1 parity.
+
+Local validation passed all **29 P4 tests** (36.68 seconds), the Win32 playback
+and physics-continuity regressions, and the Qt application build. No local window
+was exposed and audio remained on the deterministic test sink.

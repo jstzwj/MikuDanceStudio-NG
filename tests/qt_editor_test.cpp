@@ -57,6 +57,44 @@ int main(int argc, char** argv) {
     CHECK(QFontMetrics(window.font()).inFont(QChar('0')));
     CHECK(!window.isVisible());
     CHECK(window.SetLanguage("en"));
+    for (unsigned mode = 0; mode < 4; ++mode) {
+        qt::EditorWindow idle(std::filesystem::absolute(argv[2]), true);
+        auto& s = idle.Session();
+        CHECK(s.ImportModel(root / "floor.pmx", reason));
+        CHECK(s.Edit(
+            "idle physics",
+            [mode](auto& d, auto&) {
+                d.physics.playbackMode = std::uint8_t(mode);
+                d.appearance.floorVisible = 0;
+                return true;
+            },
+            reason));
+        idle.Refresh();
+        const auto frames = s.Runtime().Counters().frames, revision = s.Revision();
+        const auto bodies = s.Runtime().Bodies(0);
+        idle.Tick(0);
+        for (const char* language : {"en", "ja", "zh_CN"})
+            CHECK(idle.SetLanguage(language));
+        CHECK(s.Runtime().Counters().frames == frames && s.Runtime().Bodies(0) == bodies);
+        for (unsigned i = 0; i < 60; ++i)
+            idle.Tick(1. / 60);
+        CHECK(s.Runtime().Counters().frames == frames + 60);
+        CHECK(s.Revision() == revision && s.CursorSeconds() == 0 && !s.Playing());
+        const auto result = s.Runtime().Bodies(0);
+        CHECK(mode == 1 || mode == 2 ? result[0][13] < bodies[0][13] - 5 : result == bodies);
+        CHECK(s.Play(reason));
+        const auto playingFrames = s.Runtime().Counters().frames;
+        idle.Tick(1. / 30);
+        CHECK(s.Runtime().Counters().frames == playingFrames + 1);
+        CHECK(s.CursorSeconds() == 1. / 30);
+        s.Pause();
+        idle.Refresh();
+        const auto paused = s.CursorSeconds();
+        idle.Tick(1. / 60);
+        CHECK(s.Runtime().Counters().frames == playingFrames + 2 && s.CursorSeconds() == paused);
+        CHECK(idle.LastError().isEmpty() && !idle.isVisible());
+        CHECK(idle.RenderWindow()->Submissions() == 0);
+    }
     {
         qt::EditorWindow registration(std::filesystem::absolute(argv[2]), true);
         auto& s = registration.Session();

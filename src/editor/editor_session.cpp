@@ -1299,6 +1299,17 @@ void EditorSession::Pause() {
     playing_ = false;
     runtime_->Pause();
 }
+bool EditorSession::TickIdle(double delta, std::string& reason) {
+    if (playing_ || !std::isfinite(delta) || delta < 0 || delta > 1) {
+        reason = "invalid-idle-delta-or-playback-active";
+        return false;
+    }
+    if (delta == 0) {
+        reason.clear();
+        return true;
+    }
+    return runtime_->Tick(float(delta), reason);
+}
 bool EditorSession::Advance(double delta, std::string& reason) {
     if (!playing_)
         return true;

@@ -223,9 +223,9 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
 void EditorWindow::Tick(double seconds) {
     if (!std::isfinite(seconds) || seconds < 0)
         return;
-    if (const auto position = audio_.ClockPosition())
-        seconds = std::max(0., *position - session_.CursorSeconds());
     if (session_.Playing()) {
+        if (const auto position = audio_.ClockPosition())
+            seconds = std::max(0., *position - session_.CursorSeconds());
         std::string reason;
         const auto epoch = session_.PlaybackEpoch();
         if (seconds > 0 && !Result(session_.Advance(std::min(1., seconds), reason), reason))
@@ -235,8 +235,16 @@ void EditorWindow::Tick(double seconds) {
             !Result(audio_.Play(session_.CursorSeconds(), reason), reason))
             session_.Pause();
         Refresh();
-    } else
+    } else {
+        std::string reason;
+        if (!session_.TickIdle(std::min(1., seconds), reason)) {
+            // As with a failed render, retain the diagnostic without reopening
+            // a modal dialog on every timer tick of a failed runtime.
+            lastError_ = QString::fromUtf8(reason.c_str());
+            return;
+        }
         UpdateFrame();
+    }
 }
 EditorWindow::~EditorWindow() {
     timer_.stop();
