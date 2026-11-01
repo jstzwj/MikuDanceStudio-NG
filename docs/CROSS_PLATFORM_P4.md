@@ -1074,3 +1074,25 @@ its native interpolation/history topology remain the next timeline work.
 Local validation passed all **26 P4 tests**, the Qt and legacy Windows
 application builds, four Win32 editor tests, and the legacy hidden-window
 `undo_frame_test` plus PMM editing regression. No comparison tolerance changed.
+
+All three editor CI jobs at `76fdf08` passed in
+[run 41326507308](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41326507308);
+the formats, rendering and Bullet workflows also passed.
+
+## Stable key-record identities
+
+Portable registration and deletion now splice existing records instead of
+rebuilding and renumbering every chain. Registration reuses the first free slot
+after the roots, overwriting a payload retains its links, and unrelated records
+keep their indices. The root-zero `previous` field accepts the native terminal
+unlink sentinel store; it is not traversed as a predecessor edge. Other roots
+and all live chain links retain their validation.
+
+The PMM editing test covers all eight key types, interleaved channels, out-of-order
+registration, hole reuse, payload overwrite, terminal deletion, invalid atomic
+rejection and persistence of record indices. This is a prerequisite for native
+frame-line deletion/history, not acceptance of detached-key history or the
+remaining P4 gates.
+
+Validation passed all 26 local P4 tests, the Qt application build, and Win32
+PMM editing/frame-line regressions. Tests remained offscreen or headless.

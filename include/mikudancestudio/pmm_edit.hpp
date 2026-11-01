@@ -12,7 +12,7 @@ namespace mikudancestudio::format {
 bool RebuildPmmV2(const PmmSceneDocument&, PmmSceneDocument&, std::string& reason);
 PmmSceneDocument NewPmmScene();
 bool RebuildPmmBoneInterpolation(PmmKeyTrack<PmmBoneKey>&, std::size_t channel,
-                                  std::uint32_t frame);
+                                 std::uint32_t frame);
 
 template <class T>
 bool PmmTrackChains(const PmmKeyTrack<T>& track, std::vector<std::vector<T>>& chains) {
@@ -28,7 +28,10 @@ bool PmmTrackChains(const PmmKeyTrack<T>& track, std::vector<std::vector<T>>& ch
     std::vector<std::vector<T>> result(track.dense.size());
     for (std::size_t root = 0; root < track.dense.size(); ++root) {
         const T* key = &track.dense[root];
-        if (key->frame || key->previous)
+        // Native unlinking writes table[next].previous even when next is the
+        // zero sentinel. Root 0 can therefore retain a predecessor (including
+        // a subsequently freed slot); it is never followed as a chain edge.
+        if (key->frame || (root && key->previous) || key->previous >= track.dense.size() + 100000)
             return false;
         auto index = std::uint32_t(root);
         result[root].push_back(*key);
@@ -106,16 +109,44 @@ bool InsertPmmFrameLine(PmmKeyTrack<T>& track, std::uint32_t frame, unsigned& af
 }
 template <class T> bool RegisterPmmKey(PmmKeyTrack<T>& track, std::size_t channel, T key) {
     std::vector<std::vector<T>> chains;
-    if (!PmmTrackChains(track, chains) || channel >= chains.size())
+    if (key.frame > 0x7fffffffU || !PmmTrackChains(track, chains) || channel >= chains.size())
         return false;
-    auto& keys = chains[channel];
-    auto found = std::lower_bound(keys.begin(), keys.end(), key.frame,
-                                  [](const T& k, auto frame) { return k.frame < frame; });
-    if (found != keys.end() && found->frame == key.frame)
-        *found = key;
-    else
-        keys.insert(found, key);
-    return BuildPmmTrack(chains, track);
+    std::map<std::uint32_t, T*> records;
+    for (std::size_t i = 0; i < track.dense.size(); ++i)
+        records.emplace(std::uint32_t(i), &track.dense[i]);
+    for (auto& record : track.sparse)
+        records.emplace(std::uint32_t(record.index), &record.value);
+    auto index = std::uint32_t(channel);
+    while (records.at(index)->frame < key.frame && records.at(index)->next)
+        index = records.at(index)->next;
+    auto& current = *records.at(index);
+    if (current.frame == key.frame) {
+        // A payload overwrite must not relocate any key, including this one.
+        key.previous = current.previous;
+        key.next = current.next;
+        current = std::move(key);
+        return true;
+    }
+    if (track.sparse.size() >= 100000)
+        return false;
+    // Button registration reuses the first free record after the roots.
+    auto free = std::uint32_t(track.dense.size());
+    while (records.count(free))
+        ++free;
+    if (current.frame < key.frame) {
+        key.previous = index;
+        key.next = 0;
+        current.next = free;
+    } else {
+        key.previous = current.previous;
+        key.next = index;
+        records.at(current.previous)->next = free;
+        current.previous = free;
+    }
+    track.sparse.push_back({std::int32_t(free), 0, std::move(key)});
+    std::sort(track.sparse.begin(), track.sparse.end(),
+              [](const auto& a, const auto& b) { return a.index < b.index; });
+    return true;
 }
 template <class T>
 bool DeletePmmKey(PmmKeyTrack<T>& track, std::size_t channel, std::uint32_t frame) {
@@ -125,12 +156,22 @@ bool DeletePmmKey(PmmKeyTrack<T>& track, std::size_t channel, std::uint32_t fram
     std::vector<std::vector<T>> chains;
     if (!PmmTrackChains(track, chains) || channel >= chains.size())
         return false;
-    auto& keys = chains[channel];
-    auto found =
+    const auto& keys = chains[channel];
+    const auto found =
         std::find_if(keys.begin(), keys.end(), [frame](const T& k) { return k.frame == frame; });
     if (found == keys.end())
         return false;
-    keys.erase(found);
-    return BuildPmmTrack(chains, track);
+    std::map<std::uint32_t, T*> records;
+    for (std::size_t i = 0; i < track.dense.size(); ++i)
+        records.emplace(std::uint32_t(i), &track.dense[i]);
+    for (auto& record : track.sparse)
+        records.emplace(std::uint32_t(record.index), &record.value);
+    auto& previous = *records.at(found->previous);
+    const auto removed = previous.next;
+    previous.next = found->next;
+    records.at(found->next)->previous = found->previous;
+    track.sparse.erase(std::find_if(track.sparse.begin(), track.sparse.end(),
+                                    [&](const auto& record) { return record.index == removed; }));
+    return true;
 }
 }
