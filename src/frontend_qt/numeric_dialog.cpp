@@ -89,9 +89,10 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     QFont font;
     font.setFamilies(language.Code() == "en"
-                         ? QStringList{"Arial", "Liberation Sans", "Helvetica", "DejaVu Sans"}
-                         : QStringList{"MS PGothic", "Noto Sans CJK SC", "Hiragino Sans",
-                                       "Microsoft YaHei", "PingFang SC"});
+                         ? QStringList{QString::fromUtf8(template_.fontFamily), "Liberation Sans",
+                                       "Helvetica", "DejaVu Sans"}
+                         : QStringList{QString::fromUtf8(template_.fontFamily), "Noto Sans CJK SC",
+                                       "Hiragino Sans", "Microsoft YaHei", "PingFang SC"});
     font.setPixelSize(template_.pointSize * 96 / 72);
     setFont(font);
     // Original 96-DPI Arial / MS PGothic dialog base units, independently
@@ -117,6 +118,11 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
             slider->setFocusPolicy(Qt::ClickFocus);
             sliders_[control.id] = slider;
             widget = slider;
+        } else if (control.kind == ui::NumericControlKind::Combobox) {
+            auto* combo = new QComboBox(this);
+            combo->setFocusPolicy(Qt::ClickFocus); // Original 669 has no WS_TABSTOP.
+            combos_[control.id] = combo;
+            widget = combo;
         } else if (control.kind == ui::NumericControlKind::Checkbox) {
             auto* check = new QCheckBox(language.Text(control.message), this);
             check->setFocusPolicy(Qt::ClickFocus);
@@ -132,7 +138,11 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
         }
         widget->setObjectName(QString("numeric.control.%1").arg(i));
         widget->setProperty("mmdControlId", control.id);
-        widget->setGeometry(x(control.x), y(control.y), x(control.width), y(control.height));
+        // A Win32 dropdown resource stores the expanded height. The closed
+        // control uses font height + 8 pixels (measured on hidden 813/812).
+        widget->setGeometry(x(control.x), y(control.y), x(control.width),
+                            control.kind == ui::NumericControlKind::Combobox ? baseY + 8
+                                                                             : y(control.height));
         if (control.kind == ui::NumericControlKind::Edit ||
             control.kind == ui::NumericControlKind::Button) {
             if (previous)
@@ -319,6 +329,15 @@ void BoneScaleDialog::accept() {
         }
     values_ = next;
     QDialog::accept();
+}
+PhysicsKeysDialog::PhysicsKeysDialog(const Language& language, QWidget* parent)
+    : TemplateDialog(language.Code() == "en" ? ui::kNumericPhysicsKeysEn
+                                             : ui::kNumericPhysicsKeysJa,
+                     language, parent) {
+    setObjectName("mmd.physicsKeys");
+    Choice()->addItem(language.Text("dialog.numeric.physics_keys.on"));
+    Choice()->addItem(language.Text("dialog.numeric.physics_keys.off"));
+    Choice()->setCurrentIndex(0);
 }
 GravityDialog::GravityDialog(const Language& language, const format::PmmEvaluatedGravity& value,
                              QWidget* parent)

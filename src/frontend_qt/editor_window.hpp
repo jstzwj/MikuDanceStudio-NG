@@ -106,6 +106,7 @@ private:
     void MorphScale();
     void CameraScale();
     void BoneScale();
+    void PhysicsKeys();
     bool Result(bool, const std::string&);
     bool ConfirmUnsaved();
     void CreateViewport(const rhi::BackendOptions&);

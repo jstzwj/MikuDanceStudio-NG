@@ -564,5 +564,13 @@
   "dialog.numeric.bone_scale.control.22": "Z *",
   "dialog.numeric.bone_scale.control.24": "+",
   "dialog.numeric.bone_scale.control.26": "OK",
-  "dialog.numeric.bone_scale.control.27": "ｷｬﾝｾﾙ"
+  "dialog.numeric.bone_scale.control.27": "ｷｬﾝｾﾙ",
+  "dialog.numeric.physics_keys.title": "物理ON/OFFフレーム変換",
+  "dialog.numeric.physics_keys.control.0": "選択されたフレームポイントのうち、物理影響ボーンの",
+  "dialog.numeric.physics_keys.control.1": "フレームを全て物理",
+  "dialog.numeric.physics_keys.control.2": "の状態にします",
+  "dialog.numeric.physics_keys.control.4": "OK",
+  "dialog.numeric.physics_keys.control.5": "ｷｬﾝｾﾙ",
+  "dialog.numeric.physics_keys.on": "ON (X印)",
+  "dialog.numeric.physics_keys.off": "OFF"
 }

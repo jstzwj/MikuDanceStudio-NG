@@ -7,7 +7,8 @@ enum class NumericControlKind {
     Edit,
     Button,
     Slider,
-    Checkbox
+    Checkbox,
+    Combobox
 };
 struct NumericControl {
     int id, x, y, width, height;
@@ -16,6 +17,7 @@ struct NumericControl {
 };
 struct NumericTemplate {
     int id, width, height, pointSize;
+    const char* fontFamily;
     const char* title;
     const NumericControl* controls;
     std::size_t count;
@@ -39,7 +41,7 @@ inline constexpr NumericControl kNumericBoneEnControls[] = {
     {2, 45, 120, 30, 14, NumericControlKind::Button, "dialog.numeric.bone.control.15"},
 };
 inline constexpr NumericTemplate kNumericBoneEn = {
-    663, 82, 138, 9, "dialog.numeric.bone.title", kNumericBoneEnControls, 16};
+    663, 82, 138, 9, "Arial", "dialog.numeric.bone.title", kNumericBoneEnControls, 16};
 inline constexpr NumericControl kNumericBoneJaControls[] = {
     {-1, 8, 5, 80, 12, NumericControlKind::Static, "dialog.numeric.bone.control.0"},
     {-1, 14, 17, 80, 12, NumericControlKind::Static, "dialog.numeric.bone.control.1"},
@@ -59,7 +61,7 @@ inline constexpr NumericControl kNumericBoneJaControls[] = {
     {2, 45, 120, 30, 14, NumericControlKind::Button, "dialog.numeric.bone.control.15"},
 };
 inline constexpr NumericTemplate kNumericBoneJa = {
-    648, 82, 138, 9, "dialog.numeric.bone.title", kNumericBoneJaControls, 16};
+    648, 82, 138, 9, "MS PGothic", "dialog.numeric.bone.title", kNumericBoneJaControls, 16};
 inline constexpr NumericControl kNumericCameraEnControls[] = {
     {-1, 8, 5, 80, 12, NumericControlKind::Static, "dialog.numeric.camera.control.0"},
     {-1, 14, 17, 80, 12, NumericControlKind::Static, "dialog.numeric.camera.control.1"},
@@ -81,7 +83,7 @@ inline constexpr NumericControl kNumericCameraEnControls[] = {
     {2, 45, 148, 30, 14, NumericControlKind::Button, "dialog.numeric.camera.control.17"},
 };
 inline constexpr NumericTemplate kNumericCameraEn = {
-    664, 82, 166, 9, "dialog.numeric.camera.title", kNumericCameraEnControls, 18};
+    664, 82, 166, 9, "Arial", "dialog.numeric.camera.title", kNumericCameraEnControls, 18};
 inline constexpr NumericControl kNumericCameraJaControls[] = {
     {-1, 8, 5, 80, 12, NumericControlKind::Static, "dialog.numeric.camera.control.0"},
     {-1, 14, 17, 80, 12, NumericControlKind::Static, "dialog.numeric.camera.control.1"},
@@ -103,7 +105,7 @@ inline constexpr NumericControl kNumericCameraJaControls[] = {
     {2, 45, 148, 30, 14, NumericControlKind::Button, "dialog.numeric.camera.control.17"},
 };
 inline constexpr NumericTemplate kNumericCameraJa = {
-    649, 82, 166, 9, "dialog.numeric.camera.title", kNumericCameraJaControls, 18};
+    649, 82, 166, 9, "MS PGothic", "dialog.numeric.camera.title", kNumericCameraJaControls, 18};
 inline constexpr NumericControl kNumericScreenEnControls[] = {
     {-1, 13, 5, 35, 10, NumericControlKind::Static, "dialog.numeric.screen.control.0"},
     {-1, 58, 5, 35, 10, NumericControlKind::Static, "dialog.numeric.screen.control.1"},
@@ -113,7 +115,7 @@ inline constexpr NumericControl kNumericScreenEnControls[] = {
     {2, 55, 32, 30, 14, NumericControlKind::Button, "dialog.numeric.screen.control.5"},
 };
 inline constexpr NumericTemplate kNumericScreenEn = {
-    653, 100, 50, 9, "dialog.numeric.screen.title", kNumericScreenEnControls, 6};
+    653, 100, 50, 9, "Arial", "dialog.numeric.screen.title", kNumericScreenEnControls, 6};
 inline constexpr NumericControl kNumericScreenJaControls[] = {
     {-1, 13, 5, 35, 10, NumericControlKind::Static, "dialog.numeric.screen.control.0"},
     {-1, 58, 5, 35, 10, NumericControlKind::Static, "dialog.numeric.screen.control.1"},
@@ -123,7 +125,7 @@ inline constexpr NumericControl kNumericScreenJaControls[] = {
     {2, 55, 32, 30, 14, NumericControlKind::Button, "dialog.numeric.screen.control.5"},
 };
 inline constexpr NumericTemplate kNumericScreenJa = {
-    607, 100, 50, 9, "dialog.numeric.screen.title", kNumericScreenJaControls, 6};
+    607, 100, 50, 9, "MS PGothic", "dialog.numeric.screen.title", kNumericScreenJaControls, 6};
 inline constexpr NumericControl kNumericEdgeEnControls[] = {
     {-1, 3, 3, 40, 12, NumericControlKind::Static, "dialog.numeric.edge.control.0"},
     {646, 112, 15, 18, 12, NumericControlKind::Edit, ""},
@@ -131,7 +133,7 @@ inline constexpr NumericControl kNumericEdgeEnControls[] = {
     {-1, 3, 30, 120, 12, NumericControlKind::Static, "dialog.numeric.edge.control.3"},
 };
 inline constexpr NumericTemplate kNumericEdgeEn = {
-    662, 135, 40, 9, "dialog.numeric.edge.title", kNumericEdgeEnControls, 4};
+    662, 135, 40, 9, "Arial", "dialog.numeric.edge.title", kNumericEdgeEnControls, 4};
 inline constexpr NumericControl kNumericEdgeJaControls[] = {
     {-1, 3, 3, 40, 12, NumericControlKind::Static, "dialog.numeric.edge.control.0"},
     {646, 112, 15, 15, 12, NumericControlKind::Edit, ""},
@@ -139,7 +141,7 @@ inline constexpr NumericControl kNumericEdgeJaControls[] = {
     {-1, 3, 30, 120, 12, NumericControlKind::Static, "dialog.numeric.edge.control.3"},
 };
 inline constexpr NumericTemplate kNumericEdgeJa = {
-    645, 135, 40, 9, "dialog.numeric.edge.title", kNumericEdgeJaControls, 4};
+    645, 135, 40, 9, "MS PGothic", "dialog.numeric.edge.title", kNumericEdgeJaControls, 4};
 inline constexpr NumericControl kNumericGravityEnControls[] = {
     {1, 30, 81, 40, 15, NumericControlKind::Button, "dialog.numeric.gravity.control.0"},
     {2, 90, 81, 40, 15, NumericControlKind::Button, "dialog.numeric.gravity.control.1"},
@@ -159,7 +161,7 @@ inline constexpr NumericControl kNumericGravityEnControls[] = {
     {-1, 32, 66, 99, 9, NumericControlKind::Static, "dialog.numeric.gravity.control.15"},
 };
 inline constexpr NumericTemplate kNumericGravityEn = {
-    803, 160, 102, 9, "dialog.numeric.gravity.title", kNumericGravityEnControls, 16};
+    803, 160, 102, 9, "Arial", "dialog.numeric.gravity.title", kNumericGravityEnControls, 16};
 inline constexpr NumericControl kNumericGravityJaControls[] = {
     {1, 30, 81, 40, 15, NumericControlKind::Button, "dialog.numeric.gravity.control.0"},
     {2, 90, 81, 40, 15, NumericControlKind::Button, "dialog.numeric.gravity.control.1"},
@@ -179,7 +181,7 @@ inline constexpr NumericControl kNumericGravityJaControls[] = {
     {-1, 32, 66, 99, 9, NumericControlKind::Static, "dialog.numeric.gravity.control.15"},
 };
 inline constexpr NumericTemplate kNumericGravityJa = {
-    802, 160, 102, 9, "dialog.numeric.gravity.title", kNumericGravityJaControls, 16};
+    802, 160, 102, 9, "MS PGothic", "dialog.numeric.gravity.title", kNumericGravityJaControls, 16};
 inline constexpr NumericControl kNumericMorphScaleEnControls[] = {
     {-1, 6, 8, 80, 12, NumericControlKind::Static, "dialog.numeric.morph_scale.control.0"},
     {686, 37, 5, 30, 12, NumericControlKind::Edit, ""},
@@ -189,7 +191,7 @@ inline constexpr NumericControl kNumericMorphScaleEnControls[] = {
     {2, 65, 25, 30, 14, NumericControlKind::Button, "dialog.numeric.morph_scale.control.5"},
 };
 inline constexpr NumericTemplate kNumericMorphScaleEn = {
-    661, 120, 45, 9, "dialog.numeric.morph_scale.title", kNumericMorphScaleEnControls, 6};
+    661, 120, 45, 9, "Arial", "dialog.numeric.morph_scale.title", kNumericMorphScaleEnControls, 6};
 inline constexpr NumericControl kNumericMorphScaleJaControls[] = {
     {-1, 10, 8, 80, 12, NumericControlKind::Static, "dialog.numeric.morph_scale.control.0"},
     {686, 37, 5, 30, 12, NumericControlKind::Edit, ""},
@@ -199,7 +201,7 @@ inline constexpr NumericControl kNumericMorphScaleJaControls[] = {
     {2, 65, 25, 30, 14, NumericControlKind::Button, "dialog.numeric.morph_scale.control.5"},
 };
 inline constexpr NumericTemplate kNumericMorphScaleJa = {
-    643, 120, 45, 9, "dialog.numeric.morph_scale.title", kNumericMorphScaleJaControls, 6};
+    643, 120, 45, 9, "MS PGothic", "dialog.numeric.morph_scale.title", kNumericMorphScaleJaControls, 6};
 inline constexpr NumericControl kNumericCameraScaleEnControls[] = {
     {-1, 8, 5, 80, 12, NumericControlKind::Static, "dialog.numeric.camera_scale.control.0"},
     {-1, 26, 17, 80, 12, NumericControlKind::Static, "dialog.numeric.camera_scale.control.1"},
@@ -239,7 +241,7 @@ inline constexpr NumericControl kNumericCameraScaleEnControls[] = {
     {2, 65, 170, 30, 14, NumericControlKind::Button, "dialog.numeric.camera_scale.control.35"},
 };
 inline constexpr NumericTemplate kNumericCameraScaleEn = {
-    657, 120, 190, 9, "dialog.numeric.camera_scale.title", kNumericCameraScaleEnControls, 36};
+    657, 120, 190, 9, "Arial", "dialog.numeric.camera_scale.title", kNumericCameraScaleEnControls, 36};
 inline constexpr NumericControl kNumericCameraScaleJaControls[] = {
     {-1, 8, 5, 80, 12, NumericControlKind::Static, "dialog.numeric.camera_scale.control.0"},
     {-1, 26, 17, 80, 12, NumericControlKind::Static, "dialog.numeric.camera_scale.control.1"},
@@ -279,7 +281,7 @@ inline constexpr NumericControl kNumericCameraScaleJaControls[] = {
     {2, 65, 170, 30, 14, NumericControlKind::Button, "dialog.numeric.camera_scale.control.35"},
 };
 inline constexpr NumericTemplate kNumericCameraScaleJa = {
-    623, 120, 190, 9, "dialog.numeric.camera_scale.title", kNumericCameraScaleJaControls, 36};
+    623, 120, 190, 9, "MS PGothic", "dialog.numeric.camera_scale.title", kNumericCameraScaleJaControls, 36};
 inline constexpr NumericControl kNumericBoneScaleEnControls[] = {
     {-1, 8, 5, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.0"},
     {-1, 26, 17, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.1"},
@@ -311,7 +313,7 @@ inline constexpr NumericControl kNumericBoneScaleEnControls[] = {
     {2, 65, 130, 30, 14, NumericControlKind::Button, "dialog.numeric.bone_scale.control.27"},
 };
 inline constexpr NumericTemplate kNumericBoneScaleEn = {
-    660, 120, 150, 9, "dialog.numeric.bone_scale.title", kNumericBoneScaleEnControls, 28};
+    660, 120, 150, 9, "Arial", "dialog.numeric.bone_scale.title", kNumericBoneScaleEnControls, 28};
 inline constexpr NumericControl kNumericBoneScaleJaControls[] = {
     {-1, 8, 5, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.0"},
     {-1, 26, 17, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.1"},
@@ -343,5 +345,25 @@ inline constexpr NumericControl kNumericBoneScaleJaControls[] = {
     {2, 65, 130, 30, 14, NumericControlKind::Button, "dialog.numeric.bone_scale.control.27"},
 };
 inline constexpr NumericTemplate kNumericBoneScaleJa = {
-    636, 120, 150, 9, "dialog.numeric.bone_scale.title", kNumericBoneScaleJaControls, 28};
+    636, 120, 150, 9, "MS PGothic", "dialog.numeric.bone_scale.title", kNumericBoneScaleJaControls, 28};
+inline constexpr NumericControl kNumericPhysicsKeysEnControls[] = {
+    {-1, 5, 15, 170, 12, NumericControlKind::Static, "dialog.numeric.physics_keys.control.0"},
+    {-1, 5, 28, 60, 12, NumericControlKind::Static, "dialog.numeric.physics_keys.control.1"},
+    {-1, 101, 28, 60, 12, NumericControlKind::Static, "dialog.numeric.physics_keys.control.2"},
+    {669, 40, 27, 60, 148, NumericControlKind::Combobox, ""},
+    {1, 50, 50, 30, 14, NumericControlKind::Button, "dialog.numeric.physics_keys.control.4"},
+    {2, 100, 50, 30, 14, NumericControlKind::Button, "dialog.numeric.physics_keys.control.5"},
+};
+inline constexpr NumericTemplate kNumericPhysicsKeysEn = {
+    813, 170, 70, 9, "Arial", "dialog.numeric.physics_keys.title", kNumericPhysicsKeysEnControls, 6};
+inline constexpr NumericControl kNumericPhysicsKeysJaControls[] = {
+    {-1, 10, 15, 160, 12, NumericControlKind::Static, "dialog.numeric.physics_keys.control.0"},
+    {-1, 5, 28, 60, 12, NumericControlKind::Static, "dialog.numeric.physics_keys.control.1"},
+    {-1, 115, 28, 50, 12, NumericControlKind::Static, "dialog.numeric.physics_keys.control.2"},
+    {669, 65, 26, 45, 148, NumericControlKind::Combobox, ""},
+    {1, 50, 50, 30, 14, NumericControlKind::Button, "dialog.numeric.physics_keys.control.4"},
+    {2, 100, 50, 30, 14, NumericControlKind::Button, "dialog.numeric.physics_keys.control.5"},
+};
+inline constexpr NumericTemplate kNumericPhysicsKeysJa = {
+    812, 170, 70, 9, "MS UI Gothic", "dialog.numeric.physics_keys.title", kNumericPhysicsKeysJaControls, 6};
 }

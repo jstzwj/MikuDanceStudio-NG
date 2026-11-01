@@ -34,6 +34,7 @@
 #include "mikudancestudio/panel_controls.hpp"
 #include "mikudancestudio/key_scale.hpp"
 #include "mikudancestudio/bone_key_scale.hpp"
+#include "mikudancestudio/physics_key_edit.hpp"
 
 namespace mikudancestudio {
 
@@ -529,26 +530,13 @@ void ApplyPhysicsOnOff(int on) { // VA 0x004403C0
         std::memcpy(&entry.key, &model->boneKeys[boneIndex], sizeof(entry.key));
         ++undo.recordCount;
     };
-    for (int i = 0; i < boneCount; ++i) {
-        if (bones[i].hasRigidBody == 0)
-            continue;
-        if (keys[i].allocated != 0) {
-            appendAux(i);
-            keys[i].physicsDisabled = physicsOff;
-        }
-        int cur = i;
-        while (keys[cur].next > 0) {
-            if (keys[cur].allocated != 0) {
-                appendAux(cur);
-                keys[cur].physicsDisabled = physicsOff;
-            }
-            cur = static_cast<int>(keys[cur].next);
-        }
-        if (keys[cur].allocated != 0) {
-            appendAux(cur);
-            keys[cur].physicsDisabled = physicsOff;
-        }
-    }
+    keyframe_edit::VisitSelectedPhysicsKeys(
+        unsigned(boneCount), [&](unsigned i) { return bones[i].hasRigidBody != 0; },
+        [&](unsigned i) -> mdl::BoneKey& { return keys[i]; },
+        [&](unsigned i, auto& key) {
+            appendAux(int(i));
+            key.physicsDisabled = physicsOff;
+        });
     PanelPaint(app); // 0x414610 (x64 sub_7FF7CB480EA0)
     SeekModelFrame(*model, app->state.currentFrame,
                    app->state.playbackPhysicsMode); // 0x4B4260 (x64 0x4EBD90)

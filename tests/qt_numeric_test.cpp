@@ -9,6 +9,7 @@
 #include "editor_morph_scale_fixture.hpp"
 #include "editor_camera_scale_fixture.hpp"
 #include "editor_bone_scale_fixture.hpp"
+#include "editor_physics_key_fixture.hpp"
 #include <QApplication>
 #include <QFile>
 #include <QJsonArray>
@@ -909,6 +910,90 @@ int main(int argc, char** argv) {
               owner.Session().Document().models[0].boneKeys.sparse[0].value.position[0] == 3);
         CHECK(owner.Session().Redo(reason) &&
               owner.Session().Document().models[0].boneKeys.sparse[0].value.position[0] == 6.5f);
+        CHECK(owner.Session().Play(reason));
+        owner.Refresh();
+        CHECK(!action->isEnabled());
+        owner.Session().Pause();
+        CHECK(owner.Session().SelectModel(255, reason));
+        owner.Refresh();
+        CHECK(!action->isEnabled() && !owner.isVisible());
+    }
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(language.Set(code));
+        qt::PhysicsKeysDialog form(language);
+        const auto expected =
+            reference[QString("physics_keys.") + (language.Code() == "en" ? "en" : "ja")]
+                .toObject();
+        const auto controls = expected["controls"].toArray();
+        const int unitY = language.Code() == "en" ? 15 : 12;
+        CHECK(form.Template().id == expected["id"].toInt() &&
+              form.size() == QSize(298, (70 * unitY + 4) / 8));
+        CHECK(form.font().families().front() == QString::fromUtf8(form.Template().fontFamily));
+        if (language.Code() != "zh_CN")
+            CHECK(form.windowTitle() == expected["title"].toString());
+        for (int i = 0; i < controls.size(); ++i) {
+            const auto control = controls[i].toObject();
+            const auto r = control["rect"].toArray();
+            auto* widget = form.findChild<QWidget*>(QString("numeric.control.%1").arg(i));
+            CHECK(widget &&
+                  widget->geometry() ==
+                      QRect((r[0].toInt() * 7 + 2) / 4, (r[1].toInt() * unitY + 4) / 8,
+                            (r[2].toInt() * 7 + 2) / 4,
+                            control["kind"] == "Combobox" ? unitY + 8
+                                                          : (r[3].toInt() * unitY + 4) / 8));
+            if (language.Code() != "zh_CN") {
+                if (auto* label = qobject_cast<QLabel*>(widget))
+                    CHECK(label->text() == control["text"].toString());
+                if (auto* button = qobject_cast<QPushButton*>(widget))
+                    CHECK(button->text() == control["text"].toString());
+            }
+        }
+        CHECK(form.Choice()->count() == 2 && form.Choice()->currentIndex() == 0 &&
+              form.PhysicsEnabled());
+        CHECK(form.Choice()->focusPolicy() == Qt::ClickFocus);
+        CHECK(form.Choice()->itemText(0) == language.Text("dialog.numeric.physics_keys.on"));
+        if (language.Code() != "zh_CN") {
+            CHECK(form.Choice()->itemText(0) == (language.Code() == "en"
+                                                     ? "ON (X mark)"
+                                                     : QString::fromUtf8("ON (X\xe5\x8d\xb0)")));
+            CHECK(form.Choice()->itemText(1) == "OFF");
+        }
+        form.Choice()->setCurrentIndex(1);
+        CHECK(!form.PhysicsEnabled());
+        QTest::keyClick(form.Choice(), Qt::Key_Up);
+        CHECK(form.PhysicsEnabled());
+
+        qt::EditorWindow owner(std::filesystem::absolute(argv[2]), true);
+        CHECK(PhysicsKeyFixture(owner.Session(), root, "articulated.pmx", false, 1, reason));
+        CHECK(owner.SetLanguage(code) && owner.Save(root / "physics-dialog.pmm"));
+        QAction* action = nullptr;
+        for (auto* item : owner.findChildren<QAction*>())
+            if (item->property("mmdCommandId").toInt() == MDS_CMD_TOGGLE_FRAME_PHYSICS)
+                action = item;
+        CHECK(action && action->isEnabled());
+        const auto revision = owner.Session().Revision();
+        for (bool accept : {false, true}) {
+            bool interacted = false;
+            QTimer::singleShot(0, &owner, [&] {
+                auto* dialog =
+                    dynamic_cast<qt::PhysicsKeysDialog*>(QApplication::activeModalWidget());
+                if (!dialog) {
+                    QApplication::closeAllWindows();
+                    return;
+                }
+                interacted = dialog->PhysicsEnabled();
+                dialog->Choice()->setCurrentIndex(1);
+                if (accept)
+                    dialog->accept();
+                else
+                    dialog->reject();
+            });
+            action->trigger();
+            CHECK(interacted && owner.LastError().isEmpty() && !owner.Session().Dirty());
+            CHECK((owner.Session().Revision() != revision) == accept);
+        }
+        CHECK(owner.Session().CanUndo() && owner.Session().Undo(reason) &&
+              owner.Session().Redo(reason));
         CHECK(owner.Session().Play(reason));
         owner.Refresh();
         CHECK(!action->isEnabled());

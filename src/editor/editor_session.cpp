@@ -12,6 +12,7 @@
 #include "mikudancestudio/key_reduction.hpp"
 #include "mikudancestudio/key_scale.hpp"
 #include "mikudancestudio/bone_key_scale.hpp"
+#include "mikudancestudio/physics_key_edit.hpp"
 #include <fstream>
 #include <cmath>
 #include <cstring>
@@ -1185,6 +1186,82 @@ bool EditorSession::ScaleBoneKeys(const std::array<float, 12>& values, std::stri
     EndGesture();
     next.document.timeline.editMode = Document().timeline.editMode;
     return Commit(std::move(next), reason, history, false);
+}
+bool EditorSession::SetSelectedKeyPhysics(bool enabled, std::string& reason) {
+    if (playing_ || selection_.model == 255) {
+        reason = "physics-key-edit-unavailable";
+        return false;
+    }
+    auto next = Current();
+    auto* model = Model(next.document, selection_.model);
+    const auto resource = runtime_->Resource(selection_.model);
+    if (!model || !resource ||
+        !SetPmmSelectedKeys(next.document, selection_.model, selection_.keys)) {
+        reason = "physics-key-edit-selection-expired";
+        return false;
+    }
+    const auto roots = unsigned(model->boneKeys.dense.size());
+    std::vector<std::uint8_t> physical(roots);
+    for (unsigned bone = 0; bone < roots; ++bone) {
+        int index;
+        if (!runtime_->DocumentBoneIndex(selection_.model, int(bone), index, reason))
+            return false;
+        physical[bone] = resource->EditingBones()[std::size_t(index)].hasRigidBody;
+    }
+    auto entry =
+        CaptureHistory(*model, HistoryKind::Keys, unsigned(next.document.timeline.currentFrame));
+    entry.partialKeys = true;
+    entry.keys = {};
+    std::map<unsigned, PmmBoneKey*> records;
+    for (unsigned i = 0; i < roots; ++i)
+        records.emplace(i, &model->boneKeys.dense[i]);
+    for (auto& key : model->boneKeys.sparse)
+        records.emplace(unsigned(key.index), &key.value);
+    keyframe_edit::VisitSelectedPhysicsKeys(
+        roots, [&](unsigned i) { return physical[i] != 0; },
+        [&](unsigned i) -> PmmBoneKey& { return *records.at(i); },
+        [&](unsigned i, auto& key) {
+            entry.keyRecords.emplace(i, key);
+            entry.selectedKeyRecords.insert(i);
+            key.physicsDisabled = !enabled;
+        });
+    if (entry.keyRecords.empty()) {
+        reason.clear();
+        return true;
+    }
+    for (auto& saved : entry.poses) {
+        PmmEvaluatedBone live;
+        bool physics;
+        if (!runtime_->BoneRegistrationPose(selection_.model, saved.index, 0, live, physics,
+                                            reason))
+            return false;
+        std::copy(live.translation.begin(), live.translation.end(), saved.components.begin());
+        std::copy(live.rotation.begin(), live.rotation.end(), saved.components.begin() + 3);
+    }
+    SceneSession evaluated;
+    if (!SceneSession::Create(next.document, evaluated, reason) ||
+        !evaluated.Seek(unsigned(next.document.timeline.currentFrame))) {
+        if (reason.empty())
+            reason = "physics-key-edit-evaluation-failed";
+        return false;
+    }
+    for (const auto& value : evaluated.Document().models)
+        if (value.slot == selection_.model)
+            *model = value;
+    HistoryBatch history;
+    for (const auto& value : next.document.models)
+        history.emplace(value.slot, value.slot == selection_.model
+                                        ? entry
+                                        : CaptureHistory(value, HistoryKind::None, 0));
+    EndGesture();
+    next.document.timeline.editMode = Document().timeline.editMode;
+    const bool clean = !Dirty();
+    if (!Commit(std::move(next), reason, history, false))
+        return false;
+    // Native apply changes keys and history without writing SceneModified.
+    if (clean)
+        savedRevision_ = revision_;
+    return true;
 }
 bool EditorSession::ResetRotation(std::string& reason) {
     if (playing_) {

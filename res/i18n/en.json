@@ -564,5 +564,13 @@
   "dialog.numeric.bone_scale.control.22": "Z *",
   "dialog.numeric.bone_scale.control.24": "+",
   "dialog.numeric.bone_scale.control.26": "OK",
-  "dialog.numeric.bone_scale.control.27": "cancel"
+  "dialog.numeric.bone_scale.control.27": "cancel",
+  "dialog.numeric.physics_keys.title": "change physics ON/OFF frame",
+  "dialog.numeric.physics_keys.control.0": "Change all selected frame point(under physics)",
+  "dialog.numeric.physics_keys.control.1": "to physics",
+  "dialog.numeric.physics_keys.control.2": ".",
+  "dialog.numeric.physics_keys.control.4": "OK",
+  "dialog.numeric.physics_keys.control.5": "cancel",
+  "dialog.numeric.physics_keys.on": "ON (X mark)",
+  "dialog.numeric.physics_keys.off": "OFF"
 }

@@ -2129,4 +2129,40 @@ scene-runtime regression (1.98 seconds), and rebuilt Win32 session/history/
 frame-line tests (21.54 seconds). Qt and legacy Win32 application builds both
 pass; the legacy host explicitly links the shared CPU math library. The native
 oracle remained exact after adding selection changes between apply and undo.
-Three-platform CI for this batch remains required. P4 and C1 have not been accepted.
+All three editor jobs passed in
+[run 41361587306](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41361587306).
+P4 and C1 have not been accepted.
+
+## Selected physics-key conversion
+
+Menu 275 uses original templates 813/812 in all three languages. The generator
+now verifies eighteen binary templates and carries each template's font family,
+including the physics dialog's Japanese MS UI Gothic. The dropdown starts at
+ON, uses the original ON/OFF labels, skips Tab navigation, and uses its measured
+closed height rather than the expanded resource height. Cancellation leaves the
+session unchanged; playback and camera mode disable the command.
+
+The shared Win32/portable traversal visits selected records on physical bones'
+forward chains once. Detached records, unused marked slots and nonphysical bones
+are excluded. A nonempty conversion captures touched keys and live poses for
+native partial Undo/Redo, including an identity conversion. No affected record
+means a complete no-op. Conversion preserves the existing dirty flag, matching
+the original command's lack of a SceneModified write; subsequent Undo/Redo keeps
+the normal history behavior. Only the active model is reevaluated, retaining
+foreign selection, live state, frame watermarks and runtime resources.
+
+The optional `editor_physics_key_oracle_test <original.exe> <fixture>` executes
+original **9ED40** and **CEF90/CFB80** with only paint/evaluation tails replaced.
+It passed **48 PMD/PMX cases** comparing the complete 600000-record pool and two
+Undo/Redo cycles: both ON/OFF values, clean/dirty documents, reordered document
+bones, physical/nonphysical selection, detached records and unused marks. It also
+executes original dialog procedure **9EC00** using actual never-shown templates
+813/812 and controls, checking labels, initial choice, closed geometry, Tab style,
+cancel/accept, dirty flag and resulting keys. All compared values are exact.
+The bone-scale oracle shares the native fixture and still passes its 64 cases
+with zero observed quaternion error.
+
+The rebuilt x64 session test passed (15.39 seconds), three-language offscreen
+numeric/menu tests passed (8.81 seconds), and the rebuilt Win32 session test
+passed (8.07 seconds). Qt and legacy Win32 applications both build successfully.
+Three-platform CI for this batch remains required. P4 remains in progress.

@@ -564,5 +564,13 @@
   "dialog.numeric.bone_scale.control.22": "Z *",
   "dialog.numeric.bone_scale.control.24": "+",
   "dialog.numeric.bone_scale.control.26": "确定",
-  "dialog.numeric.bone_scale.control.27": "取消"
+  "dialog.numeric.bone_scale.control.27": "取消",
+  "dialog.numeric.physics_keys.title": "物理开关帧转换",
+  "dialog.numeric.physics_keys.control.0": "将所选物理骨骼关键帧",
+  "dialog.numeric.physics_keys.control.1": "设为物理",
+  "dialog.numeric.physics_keys.control.2": "状态。",
+  "dialog.numeric.physics_keys.control.4": "确定",
+  "dialog.numeric.physics_keys.control.5": "取消",
+  "dialog.numeric.physics_keys.on": "开 (X标记)",
+  "dialog.numeric.physics_keys.off": "关"
 }

@@ -5,6 +5,7 @@
 #include "editor_morph_scale_fixture.hpp"
 #include "editor_camera_scale_fixture.hpp"
 #include "editor_bone_scale_fixture.hpp"
+#include "editor_physics_key_fixture.hpp"
 #include <fstream>
 #include <iostream>
 #include <cmath>
@@ -42,6 +43,56 @@ int main(int argc, char** argv) {
     CHECK(format::EncodeVmdBoneInterpolation(curve.data(), 1.1f, true) == expected);
     CHECK(format::DecodeVmdBoneInterpolation(expected) == curve);
     const auto root = std::filesystem::absolute(argv[1]);
+    for (const char* file : {"articulated.pmd", "articulated.pmx"})
+        for (bool reverse : {false, true})
+            for (unsigned variant = 0; variant < 3; ++variant) {
+                EditorSession physics;
+                CHECK(PhysicsKeyFixture(physics, root, file, reverse, variant, reason));
+                CHECK(physics.Save(root / "physics-keys.pmm", Write, reason));
+                const auto revision = physics.Revision();
+                const auto frames = physics.Runtime().Counters().frames;
+                const auto* runtime = &physics.Runtime();
+                const auto before = physics.Document().models[0];
+                const auto selection = physics.Selected().keys;
+                CHECK(physics.SetSelectedKeyPhysics(false, reason));
+                const auto& model = physics.Document().models[0];
+                CHECK(!physics.Dirty() && physics.Selected().keys == selection &&
+                      &physics.Runtime() == runtime &&
+                      physics.Runtime().Counters().frames == frames);
+                for (unsigned i = 0; i < model.boneKeys.dense.size(); ++i) {
+                    int mapped;
+                    CHECK(physics.Runtime().DocumentBoneIndex(0, int(i), mapped, reason));
+                    const bool affected =
+                        variant != 2 &&
+                        physics.Runtime().Resource(0)->EditingBones()[mapped].hasRigidBody;
+                    CHECK(model.boneKeys.dense[i].physicsDisabled ==
+                          (affected ? 1 : before.boneKeys.dense[i].physicsDisabled));
+                }
+                CHECK(model.boneKeys.sparse.back().value.physicsDisabled == 1 &&
+                      model.boneKeys.unused.at(32).physicsDisabled == 1 &&
+                      model.boneKeys.unused.at(32).allocated);
+                CHECK(model.morphKeys.dense[0].allocated == before.morphKeys.dense[0].allocated &&
+                      physics.Document().models[1].boneKeys.dense[0].allocated);
+                if (variant == 2)
+                    CHECK(physics.Revision() == revision);
+                else {
+                    CHECK(physics.Revision() != revision && physics.CanUndo());
+                    for (unsigned cycle = 0; cycle < 2; ++cycle) {
+                        CHECK(physics.Undo(reason));
+                        CHECK(physics.Document().models[0].boneKeys.dense[0].physicsDisabled ==
+                              before.boneKeys.dense[0].physicsDisabled);
+                        CHECK(physics.Redo(reason));
+                    }
+                    CHECK(physics.Dirty());
+                    CHECK(physics.SetSelectedKeyPhysics(true, reason) && physics.Dirty());
+                }
+                CHECK(physics.Save(root / "physics-keys.pmm", Write, reason));
+                CHECK(physics.Open(root / "physics-keys.pmm", reason));
+                CHECK(physics.Play(reason) && !physics.SetSelectedKeyPhysics(false, reason));
+                physics.Pause();
+                CHECK(physics.SelectModel(255, reason) &&
+                      !physics.SetSelectedKeyPhysics(false, reason));
+            }
     for (const char* file : {"facial.pmd", "articulated.pmx"}) {
         EditorSession bone;
         CHECK(BoneScaleFixture(bone, root, file, {0, 0, 0, 1}, reason));

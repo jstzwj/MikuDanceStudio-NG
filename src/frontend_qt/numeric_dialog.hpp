@@ -5,6 +5,7 @@
 #include <QLineEdit>
 #include <QSlider>
 #include <QCheckBox>
+#include <QComboBox>
 #include "mikudancestudio/pmm_scene_evaluation.hpp"
 #include <array>
 #include <functional>
@@ -19,6 +20,7 @@ protected:
     QLineEdit* Edit(int id) const { return edits_.at(id); }
     QSlider* Slider(int id) const { return sliders_.at(id); }
     QCheckBox* Checkbox(int id) const { return checkboxes_.at(id); }
+    QComboBox* Combo(int id) const { return combos_.at(id); }
     void Prefill(int id, const QString&);
 
 private:
@@ -27,6 +29,7 @@ private:
     std::map<int, QLineEdit*> edits_;
     std::map<int, QSlider*> sliders_;
     std::map<int, QCheckBox*> checkboxes_;
+    std::map<int, QComboBox*> combos_;
 };
 class NumericDialog final : public TemplateDialog {
 public:
@@ -91,6 +94,12 @@ public:
 
 private:
     std::array<float, 12> values_{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0};
+};
+class PhysicsKeysDialog final : public TemplateDialog {
+public:
+    PhysicsKeysDialog(const Language&, QWidget* parent = nullptr);
+    QComboBox* Choice() const { return Combo(669); }
+    bool PhysicsEnabled() const { return Choice()->currentIndex() == 0; }
 };
 class GravityDialog final : public TemplateDialog {
 public:

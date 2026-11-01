@@ -1115,6 +1115,14 @@ void EditorWindow::BoneScale() {
     Result(session_.ScaleBoneKeys(dialog.Values(), reason), reason);
     Refresh();
 }
+void EditorWindow::PhysicsKeys() {
+    PhysicsKeysDialog dialog(language_, this);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    std::string reason;
+    Result(session_.SetSelectedKeyPhysics(dialog.PhysicsEnabled(), reason), reason);
+    Refresh();
+}
 void EditorWindow::GravitySettings() {
     if (gravityDialog_)
         return;
