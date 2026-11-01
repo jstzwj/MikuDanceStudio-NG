@@ -248,9 +248,11 @@ bool ModelEvaluation::Solve(bool afterPhysics, cpu_model::Model* const* slots, i
         const auto& bone = bones_[n];
         std::copy_n(bone.matLocal, 16, pose.local.begin());
         std::copy_n(bone.matInit, 16, pose.skin.begin());
+        std::copy_n(bone.matWorld, 16, pose.world.begin());
         pose.worldPosition = cpu_math::TransformPoint(
             {bone.position[0], bone.position[1], bone.position[2]}, pose.skin);
-        if (!Finite(pose.local) || !Finite(pose.skin) || !Finite(pose.worldPosition)) {
+        if (!Finite(pose.local) || !Finite(pose.skin) || !Finite(pose.world) ||
+            !Finite(pose.worldPosition)) {
             reason = "nonfinite-bone-output:" + std::to_string(n);
             return false;
         }

@@ -51,6 +51,11 @@ private:
     int ToolAt(QPoint);
     bool frameCached_ = false;
     bool loadedAssets_ = false, pressed_ = false;
+    int boneDragMode_ = 0;
+    std::uint8_t dragModel_ = 255;
+    std::shared_ptr<const runtime::ModelResource> dragResource_;
+    editor::BoneDragInput boneDrag_;
+    void FinishBoneDrag();
     bool box_ = false;
     QPoint anchor_;
     std::vector<cpu_bone::ScreenPoint> bonePoints_;

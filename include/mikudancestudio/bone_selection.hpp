@@ -5,6 +5,7 @@
 namespace mikudancestudio::cpu_bone {
 struct ScreenPoint {
     int x = 393939, y = 393939;
+    float clipW = 0;
 };
 // Both hosts supply their own storage. Selection is separate from pending pose
 // edits, and picking/box selection deliberately have different eligibility.

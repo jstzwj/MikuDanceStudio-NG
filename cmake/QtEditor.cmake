@@ -53,6 +53,11 @@ function(mds_add_qt_editor)
         add_test(NAME portable_uv_render COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"
             --passes $<TARGET_FILE:portable_uv_render_test> --assets "${root}/res/assets")
         set_tests_properties(portable_uv_render PROPERTIES LABELS "p4;offscreen;gpu" TIMEOUT 120)
+        qt_add_executable(qt_bone_drag_test "${root}/tests/qt_bone_drag_test.cpp")
+        target_link_libraries(qt_bone_drag_test PRIVATE mikudancestudio_frontend_qt)
+        add_test(NAME qt_bone_drag COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"
+            --passes $<TARGET_FILE:qt_bone_drag_test> --assets "${root}/res/assets")
+        set_tests_properties(qt_bone_drag PROPERTIES LABELS "p4;offscreen;qt" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_audio_test "${root}/tests/qt_audio_test.cpp")
         target_link_libraries(qt_audio_test PRIVATE mikudancestudio_frontend_qt)
         add_test(NAME qt_audio COMMAND qt_audio_test "${root}/res/assets")

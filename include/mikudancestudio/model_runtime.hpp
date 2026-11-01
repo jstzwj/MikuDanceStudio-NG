@@ -115,6 +115,7 @@ struct BonePose {
     cpu_math::Vec3 translation{}, worldPosition{};
     cpu_math::Quaternion rotation{0, 0, 0, 1};
     cpu_math::Matrix local{}, skin{};
+    cpu_math::Matrix world{}; // Published parent-space basis for editor transforms.
 };
 struct VertexPose {
     cpu_math::Vec3 position{}, normal{};

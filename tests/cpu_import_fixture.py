@@ -21,7 +21,7 @@ class Bytes(bytearray):
 POSITIONS = ((-10, -8, 0), (0, 10, 0), (10, -8, 0))
 
 
-def pmd(texture='checker.bmp', alpha=1, bones=None, bone_types=None):
+def pmd(texture='checker.bmp', alpha=1, bones=None, bone_types=None, bone_parents=None):
     b = Bytes(b'Pmd'); b.f(1); b.fixed('CPU triangle', 20); b.zero(256)
     b.u32(3)
     for index, p in enumerate(POSITIONS):
@@ -34,7 +34,7 @@ def pmd(texture='checker.bmp', alpha=1, bones=None, bone_types=None):
     bones = bones or ('B',)
     b.u16(len(bones))
     for index, name in enumerate(bones):
-        b.fixed(name, 20); b.u16(0 if index else 65535); b.u16(0)
+        b.fixed(name, 20); b.u16(bone_parents[index] if bone_parents else (0 if index else 65535)); b.u16(0)
         b.u8(bone_types[index] if bone_types else 0); b.u16(0); b.f(0, index, 0)
     b.u16(0)  # no IK
     b.u16(1); b.fixed('F', 20); b.u32(3); b.u8(0)  # base morph
@@ -266,6 +266,9 @@ def write(directory):
     (root / 'triangle.pmx').write_bytes(pmx())
     (root / 'overlay-offset.pmx').write_bytes(pmx(tail_offset=True))
     (root / 'overlay-types.pmd').write_bytes(pmd(bones=tuple('T%d' % n for n in range(10)), bone_types=tuple(range(10))))
+    (root / 'drag-roots.pmd').write_bytes(pmd(bones=('root', 'child', 'other'), bone_types=(1, 1, 1), bone_parents=(65535, 0, 65535)))
+    (root / 'drag-axes.pmd').write_bytes(pmd(bones=('root', '\u53f3\u8155', '\u5de6\u8155', '\u6307', 'tail'), bone_types=(1, 1, 1, 1, 1)))
+    (root / 'drag.pmd').write_bytes(pmd(bones=('root', 'child', 'other'), bone_types=(1, 1, 1)))
     (root / 'pose.pmd').write_bytes(pmd(bones=('center', 'A\u5de6arm', 'B\u53f3arm',
         'C\u53f3arm', '\u5de6leg', 'neutral', 'tail', 'unused')))
     (root / 'grouped.pmx').write_bytes(pmx(display_groups=True))

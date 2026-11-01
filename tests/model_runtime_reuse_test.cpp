@@ -148,7 +148,8 @@ bool Same(const runtime::ModelSnapshot& a, const runtime::ModelSnapshot& b) {
             return false;
     }
     for (std::size_t i = 0; i < a.bones.size(); ++i)
-        if (a.bones[i].local != b.bones[i].local || a.bones[i].skin != b.bones[i].skin)
+        if (a.bones[i].local != b.bones[i].local || a.bones[i].skin != b.bones[i].skin ||
+            a.bones[i].world != b.bones[i].world)
             return false;
     for (std::size_t i = 0; i < a.materials.size(); ++i) {
         const auto& x = a.materials[i];

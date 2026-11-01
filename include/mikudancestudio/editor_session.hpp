@@ -66,6 +66,13 @@ struct EditorAssets {
     std::filesystem::path picturePath;
     std::shared_ptr<const rhi::RgbaImage> picture;
 };
+struct BoneDragInput {
+    int mode = 0; // 1..6 rotation, 7..9 view plane, 10..12 local/world translation.
+    int x = 0, y = 0, previousX = 0, previousY = 0, originX = 0, originY = 0;
+    int viewWidth = 0, viewHeight = 0;
+    float clipW = 1, viewScale = 1;
+    bool shift = false, control = false;
+};
 // No window/GPU objects in documents, commands, selection or undo history.
 // Hosts supply the atomic disk replacement policy (QSaveFile in the Qt host).
 class EditorSession final {
@@ -97,6 +104,10 @@ public:
     bool SetMorph(std::uint8_t, std::uint32_t, float, std::string&);
     bool SetAccessory(std::uint8_t, const format::PmmAccessoryState&, std::string&);
     bool SetCamera(const format::PmmEvaluatedCamera&, std::string&);
+    bool DragBones(const BoneDragInput&, std::string&);
+    bool BeginBoneDrag(unsigned mode, std::string&);
+    void EndBoneDrag();
+    unsigned BoneDragMode() const { return boneDragMode_; }
     bool DragView(bool middleButton, int dx, int dy, bool shift, bool control, std::string&);
     bool WheelView(int delta, std::string&);
     bool PrepareView(std::string&);
@@ -201,7 +212,7 @@ private:
     std::filesystem::path path_;
     std::uint64_t revision_ = 0, savedRevision_ = 0, nextRevision_ = 1;
     bool playing_ = false;
-    unsigned coordinateSystem_ = 0;
+    unsigned coordinateSystem_ = 0, boneDragMode_ = 0;
     double cursorSeconds_ = 0;
     std::uint32_t playOrigin_ = 0;
     std::uint64_t playbackEpoch_ = 0;

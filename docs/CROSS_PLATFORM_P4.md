@@ -624,3 +624,48 @@ controls, and the compatibility host rebuilt with its playback/physics check
 passing. The previous 1800-case original bone oracle still passed. This adds
 the operation controls' presentation and coordinate selection; bone/axis drag
 execution, cursor capture/restoration and 3D axis geometry remain pending.
+
+
+The operation-control batch at `ceb6199` passed on Windows, macOS and Linux
+([run 41304858919](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41304858919)).
+
+Bone dragging now shares the native algorithm kernel with the Qt host. The
+portable model snapshot publishes the solved `matWorld` basis as well as skin
+matrices; screen movement converts through each selected root's parent-space
+rows. Selected children inherit a selected parent's change once. The twelve
+rotation/movement modes retain native full-angle quaternion construction,
+local/world axes, PMX fixed/local-axis handling and Shift/Ctrl precision rules.
+Portable arithmetic follows the x64 binary32 boundary; the compatibility x86
+adapter retains its existing wider intermediates and math functions.
+
+Qt operation controls and cursor handles execute these commands. Press saves
+selected poses, including a click with no movement; subsequent movement merges
+into one undo entry. Direct handles enter temporary edit mode 5 and return to
+Rotate/Move on release. Focus loss, surface teardown, backend replacement and
+interrupted editor gestures release the active gesture. Axis controls do not
+require positive clip depth; screen-plane handles require a valid projection.
+Export remains independent from editor overlays.
+
+Local validation passed all 21 P4 regressions, the 99 scene-runtime checkpoints,
+Qt synthetic gestures at scale factors 1, 1.5 and 2, and never-shown presentation
+on DX11/DX12/Vulkan. The compatibility core built and its model playback/physics
+regression passed. The application was built without being launched.
+
+The opt-in Windows x64 `editor_bone_drag_oracle_test <original.exe> <fixture>`
+uses the hash-verified original frame-driver block `[32F41,35EEB)`. A small ABI
+adapter supplies its register/scratch context and returns at the continuation;
+the block's own instructions are preserved. No original executable entrypoint,
+window, message pump or GPU device is used. The oracle supplies raw original
+application offsets independently from this port's compatibility state layout.
+All 1296 cases passed across PMD/PMX, independent selected roots, selected
+parent/child pairs, native Japanese arm/finger axes, rotated parent poses,
+camera rotations, perspective modes, both coordinate modes, three precision
+settings and all twelve drag modes. Maximum absolute translation error was
+`9.53674316e-7`; rotation error was `8.94069672e-8`, within the preselected
+`2e-5` translation / `2e-6` quaternion limits. Pending-edit flags matched exactly.
+This checks drag operations with supplied published matrices, not independent
+pose production or the complete native UI loop.
+
+Centered cursor warping/hiding/restoration, complete 3D axis drawing, box
+selection feedback, physical input and the complete original UI/DPI/font/audio
+acceptance gates remain open. P4/C1 is not yet accepted.

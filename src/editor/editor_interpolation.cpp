@@ -155,6 +155,13 @@ bool EditorSession::BeginGesture() {
     return true;
 }
 void EditorSession::EndGesture() {
+    if (boneDragMode_ && Document().timeline.editMode == 5) {
+        if (boneDragMode_ <= 3)
+            runtime_->SetEditMode(3);
+        else if (boneDragMode_ >= 7 && boneDragMode_ <= 9)
+            runtime_->SetEditMode(4);
+    }
+    boneDragMode_ = 0;
     gesture_ = false;
     gestureModels_.clear();
 }

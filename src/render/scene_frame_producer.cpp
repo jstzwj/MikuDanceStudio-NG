@@ -275,6 +275,7 @@ bool SceneBoneScreenPoints(const runtime::SceneRuntime& scene, std::uint8_t slot
         point = transform(point, pipeline.shader.view);
         point = transform(point, pipeline.shader.projection);
         cpu_bone::ScreenPoint screen;
+        screen.clipW = point[3];
         if (point[3] > 0) {
             const double x = point[0] / point[3] * double(width) * .5 + width / 2;
             const double y = height / 2 - point[1] / point[3] * double(height) * .5;
