@@ -102,4 +102,24 @@ inline constexpr NumericControl kNumericCameraJaControls[] = {
 };
 inline constexpr NumericTemplate kNumericCameraJa = {
     649, 82, 166, 9, "dialog.numeric.camera.title", kNumericCameraJaControls, 18};
+inline constexpr NumericControl kNumericScreenEnControls[] = {
+    {-1, 13, 5, 35, 10, NumericControlKind::Static, "dialog.numeric.screen.control.0"},
+    {-1, 58, 5, 35, 10, NumericControlKind::Static, "dialog.numeric.screen.control.1"},
+    {621, 10, 15, 36, 12, NumericControlKind::Edit, ""},
+    {622, 55, 15, 36, 12, NumericControlKind::Edit, ""},
+    {1, 16, 32, 30, 14, NumericControlKind::Button, "dialog.numeric.screen.control.4"},
+    {2, 55, 32, 30, 14, NumericControlKind::Button, "dialog.numeric.screen.control.5"},
+};
+inline constexpr NumericTemplate kNumericScreenEn = {
+    653, 100, 50, 9, "dialog.numeric.screen.title", kNumericScreenEnControls, 6};
+inline constexpr NumericControl kNumericScreenJaControls[] = {
+    {-1, 13, 5, 35, 10, NumericControlKind::Static, "dialog.numeric.screen.control.0"},
+    {-1, 58, 5, 35, 10, NumericControlKind::Static, "dialog.numeric.screen.control.1"},
+    {621, 10, 15, 36, 12, NumericControlKind::Edit, ""},
+    {622, 55, 15, 36, 12, NumericControlKind::Edit, ""},
+    {1, 16, 32, 30, 14, NumericControlKind::Button, "dialog.numeric.screen.control.4"},
+    {2, 55, 32, 30, 14, NumericControlKind::Button, "dialog.numeric.screen.control.5"},
+};
+inline constexpr NumericTemplate kNumericScreenJa = {
+    607, 100, 50, 9, "dialog.numeric.screen.title", kNumericScreenJaControls, 6};
 }

@@ -281,6 +281,10 @@ struct Capabilities {
     bool textureRenderTargets = false;
     bool deviceLoss = false;
 };
+struct RenderTargetLimits {
+    // Zero means unknown/unsupported. Limits do not promise available memory.
+    unsigned width = 0, height = 0;
+};
 inline constexpr unsigned GraphicsTextureSlots = 16;
 struct ShaderCapabilities {
     bool programs = false, hlsl = false, spirv = false;
@@ -469,6 +473,7 @@ public:
     virtual ~Device() = default;
     virtual Backend BackendType() const = 0;
     virtual Capabilities Features() const = 0;
+    virtual RenderTargetLimits TargetLimits() const { return {}; }
     virtual ShaderCapabilities ShaderFeatures() const { return {}; }
     virtual TextureFormatCapabilities FormatFeatures(TextureFormat) const { return {}; }
     // CPU/native shader creation and reflection before any frame is submitted.

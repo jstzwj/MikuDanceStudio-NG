@@ -1665,3 +1665,36 @@ reload and unchanged CPU runtime/frame count. Actual Qt buttons run in all three
 languages under `offscreen`. All 30 local P4 checks passed (the existing scope
 test now explicitly clears registration marks before testing additive range
 selection), and the three touched Win32 editor tests passed. P4/C1 remains open.
+
+## Screen size dialog and output bounds
+
+The screen-size menu command uses original English/Japanese dialog templates
+653/607, checked against independent `RT_DIALOG` bytes by the same generator as
+the bone/camera forms. A shared template widget preserves control IDs/order,
+geometry, fonts, default button and focus while each form owns its own parsing
+and publication. Chinese has a separate catalog. Width/height use original
+`%3d` initialization, 19-byte integer-prefix input, cancellation and the
+floating-window dialog topmost rule. Nonpositive/overflow input is rejected
+before resource creation; the native dialog's acceptance of nonpositive values
+is deliberately outside the valid render-size contract.
+
+The RHI exposes render-target dimension limits for DX11, DX12 and Vulkan.
+The Qt viewport reuses its active device or queries a 1x1 offscreen device before
+first presentation. The dialog intersects those limits with the existing 4096
+per-dimension portable output bound. This is an implementation bound, not a
+claim that the GPU cannot create larger attachments. Allocation may still fail
+within the reported limits, and the existing renderer reports that failure.
+Changing output size updates docked/floating viewport aspect, retires GPU
+targets/history for recreation, and persists through PMM saving. CPU world,
+poses and per-model history remain owned by the editor session. The dedicated
+`SetRenderSize` command preserves retained model/global maximum-frame bounds,
+including after key deletion, rather than recalculating them as a document edit.
+
+Local validation passed **30 P4 tests** (46.49 seconds), the rebuilt Win32
+editor-session regression, and the Qt application build. The expanded offscreen
+editor/render test passed on DX11, DX12 and Vulkan; all three never-shown Windows
+native viewport runs passed aspect changes, resource recreation and repeat
+submission. The tests compare all six dialog templates, exercise screen-size
+cancel/accept in three languages and both window layouts, compare repeated
+offscreen images strictly, and check PMM persistence and unchanged bone history.
+Three-platform CI for this batch remains required. Full P4/C1 acceptance remains open.

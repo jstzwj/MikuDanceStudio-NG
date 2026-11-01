@@ -9,14 +9,16 @@ from dialog_rc import parse_res
 ROOT = Path(__file__).resolve().parents[1]
 HEADER = ROOT / 'include/mikudancestudio/mmd_numeric_dialogs.hpp'
 NAMES = [('bone', 'en', 663), ('bone', 'ja', 648),
-         ('camera', 'en', 664), ('camera', 'ja', 649)]
+         ('camera', 'en', 664), ('camera', 'ja', 649),
+         ('screen', 'en', 653), ('screen', 'ja', 607)]
 
 
 def source_dialogs():
     source = (ROOT / 'res/templates/dialog/dialogs.rc').read_text(encoding='utf-16')
     result = {}
     for kind, language, ident in NAMES:
-        tag = f'MDS_DLG_{kind.upper()}_NUMERIC_INPUT_{"EN" if language == "en" else "JP"}'
+        command = 'SCREEN_SIZE' if kind == 'screen' else kind.upper() + '_NUMERIC_INPUT'
+        tag = f'MDS_DLG_{command}_{"EN" if language == "en" else "JP"}'
         block = source.split(tag + ' DIALOGEX ', 1)[1].split('\n  END', 1)[0]
         geometry = list(map(int, block.splitlines()[0].split(', ')))
         style = int(re.search(r'STYLE (0x[0-9A-F]+)', block)[1], 16)
@@ -122,11 +124,12 @@ def run(check):
           'position': '\u4f4d\u7f6e', 'center position': '\u4e2d\u5fc3\u4f4d\u7f6e',
           'pos X ': '\u4f4d\u7f6eX ', 'pos Y ': '\u4f4d\u7f6eY ', 'pos Z ': '\u4f4d\u7f6eZ ',
           'degree': '\u89d2\u5ea6(\u00b0)', 'axis X': 'X\u8f74', 'axis Y': 'Y\u8f74', 'axis Z': 'Z\u8f74',
-          'distance': '\u8ddd\u79bb', 'OK': '\u786e\u5b9a', 'cancel': '\u53d6\u6d88'}
+          'distance': '\u8ddd\u79bb', 'OK': '\u786e\u5b9a', 'cancel': '\u53d6\u6d88',
+          'screen size': '\u5c4f\u5e55\u5c3a\u5bf8', 'width': '\u5bbd\u5ea6', 'height': '\u9ad8\u5ea6'}
     for language in ('en', 'ja', 'zh_CN'):
         path = ROOT / 'res/i18n' / (language + '.json')
         catalog = json.loads(path.read_text(encoding='utf-8'))
-        for kind in ('bone', 'camera'):
+        for kind in ('bone', 'camera', 'screen'):
             dialog = source[(kind, 'ja' if language == 'ja' else 'en')]
             labels = {message(kind): dialog['title']}
             labels.update({message(kind, i): control['text']
@@ -139,7 +142,7 @@ def run(check):
             assert path.read_text(encoding='utf-8') == content, f'Stale generated file: {path}'
         else:
             path.write_text(content, encoding='utf-8', newline='\n')
-    print('Original numeric dialogs: four binary templates, control order/geometry and three catalogs verified')
+    print('Original numeric dialogs: six binary templates, control order/geometry and three catalogs verified')
 
 
 if __name__ == '__main__':

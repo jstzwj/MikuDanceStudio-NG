@@ -3,15 +3,12 @@
 #include <QLocale>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <charconv>
 #include <cmath>
 namespace mikudancestudio::qt {
-NumericDialog::NumericDialog(bool camera, const Language& language,
-                             const std::array<float, 7>& values, QWidget* parent)
-    : QDialog(parent),
-      template_(camera ? (language.Code() == "en" ? ui::kNumericCameraEn : ui::kNumericCameraJa)
-                       : (language.Code() == "en" ? ui::kNumericBoneEn : ui::kNumericBoneJa)),
-      values_(values) {
-    setObjectName(camera ? "mmd.numeric.camera" : "mmd.numeric.bone");
+TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Language& language,
+                               QWidget* parent)
+    : QDialog(parent), template_(description) {
     setWindowTitle(language.Text(template_.title));
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     QFont font;
@@ -32,10 +29,8 @@ NumericDialog::NumericDialog(bool camera, const Language& language,
         const auto& control = template_.controls[i];
         QWidget* widget = nullptr;
         if (control.kind == ui::NumericControlKind::Edit) {
-            const auto index = control.id == 644 ? 6 : control.id - 637;
             auto* field = new QLineEdit(this);
-            field->setText(QString::asprintf("%7.3f", double(values[index])));
-            fields_[index] = field;
+            edits_[control.id] = field;
             widget = field;
         } else if (control.kind == ui::NumericControlKind::Static) {
             auto* label = new QLabel(language.Text(control.message), this);
@@ -57,6 +52,19 @@ NumericDialog::NumericDialog(bool camera, const Language& language,
                 setTabOrder(previous, widget);
             previous = widget;
         }
+    }
+}
+NumericDialog::NumericDialog(bool camera, const Language& language,
+                             const std::array<float, 7>& values, QWidget* parent)
+    : TemplateDialog(camera
+                         ? (language.Code() == "en" ? ui::kNumericCameraEn : ui::kNumericCameraJa)
+                         : (language.Code() == "en" ? ui::kNumericBoneEn : ui::kNumericBoneJa),
+                     language, parent),
+      values_(values) {
+    setObjectName(camera ? "mmd.numeric.camera" : "mmd.numeric.bone");
+    for (unsigned i = 0; i < (camera ? 7u : 6u); ++i) {
+        fields_[i] = Edit(i == 6 ? 644 : 637 + i);
+        fields_[i]->setText(QString::asprintf("%7.3f", double(values[i])));
     }
     fields_[0]->setFocus(Qt::OtherFocusReason);
     fields_[0]->selectAll();
@@ -94,6 +102,44 @@ void NumericDialog::accept() {
         next[i] = float(parsed);
     }
     values_ = next;
+    QDialog::accept();
+}
+ScreenSizeDialog::ScreenSizeDialog(const Language& language, QSize value, QSize maximum,
+                                   QWidget* parent)
+    : TemplateDialog(language.Code() == "en" ? ui::kNumericScreenEn : ui::kNumericScreenJa,
+                     language, parent),
+      value_(value), maximum_(maximum) {
+    setObjectName("mmd.screenSize");
+    Field(0)->setText(QString::asprintf("%3d", value.width()));
+    Field(1)->setText(QString::asprintf("%3d", value.height()));
+    Field(0)->setFocus(Qt::OtherFocusReason);
+    Field(0)->selectAll();
+}
+void ScreenSizeDialog::accept() {
+    int values[2]{};
+    for (unsigned i = 0; i < 2; ++i) {
+        const auto bytes = Field(i)->text().toUtf8().left(19);
+        const char* begin = bytes.constData();
+        const char* end = begin + bytes.size();
+        while (begin < end && (*begin == ' ' || (*begin >= '\t' && *begin <= '\r')))
+            ++begin;
+        if (begin < end && *begin == '+') {
+            ++begin;
+            if (begin < end && (*begin == '+' || *begin == '-'))
+                begin = end;
+        }
+        const auto parsed = std::from_chars(begin, end, values[i]);
+        const int limit = i ? maximum_.height() : maximum_.width();
+        const bool tooLarge = parsed.ec == std::errc::result_out_of_range || values[i] > limit;
+        if (parsed.ec != std::errc{} || values[i] <= 0 || tooLarge) {
+            if (invalid)
+                invalid(tooLarge);
+            Field(i)->setFocus(Qt::OtherFocusReason);
+            Field(i)->selectAll();
+            return;
+        }
+    }
+    value_ = QSize(values[0], values[1]);
     QDialog::accept();
 }
 }

@@ -33,6 +33,8 @@ const char* FileCommand(int command) {
         return "file.image";
     case MDS_CMD_NUMERIC_INPUT:
         return "edit.numeric";
+    case MDS_CMD_SCREEN_SIZE:
+        return "view.screen_size";
     case MDS_CMD_LOAD_BACKGROUND_IMAGE:
         return "background.load";
     case MDS_CMD_TOGGLE_BACKGROUND_IMAGE:

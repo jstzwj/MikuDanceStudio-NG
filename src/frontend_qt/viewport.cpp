@@ -51,6 +51,33 @@ bool Viewport::Reset(std::string& reason) {
     }
     return true;
 }
+bool Viewport::OutputLimits(QSize& output, std::string& reason) const {
+    // Reuse the active device where possible. Before first presentation, query
+    // a tiny offscreen device without creating a surface or touching the desktop.
+    auto* device = controller_.GetDevice();
+    rhi::OffscreenBackendDevice probe;
+    if (!device) {
+        auto options = options_;
+        options.surface.reset();
+        probe = rhi::CreateOffscreenBackendDevice(1, 1, options);
+        if (!probe) {
+            reason = probe.reason;
+            return false;
+        }
+        device = probe.device.get();
+    }
+    const auto limits = device->TargetLimits();
+    if (!limits.width || !limits.height || limits.width > 0x7fffffffu ||
+        limits.height > 0x7fffffffu) {
+        reason = "render-target-limits-unavailable";
+        return false;
+    }
+    // The portable offscreen factory and sequence exporter currently bound
+    // each dimension to 4096, independently of a larger native GPU limit.
+    output = QSize(int(std::min(4096u, limits.width)), int(std::min(4096u, limits.height)));
+    reason.clear();
+    return true;
+}
 bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
     if ((!isExposed() && !hiddenAcceptance) || width() < 1 || height() < 1)
         return true;

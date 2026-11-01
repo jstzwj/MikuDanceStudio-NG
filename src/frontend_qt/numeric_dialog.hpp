@@ -4,19 +4,43 @@
 #include <QDialog>
 #include <QLineEdit>
 #include <array>
+#include <functional>
+#include <map>
 namespace mikudancestudio::qt {
-class NumericDialog final : public QDialog {
+class TemplateDialog : public QDialog {
+public:
+    const ui::NumericTemplate& Template() const { return template_; }
+
+protected:
+    TemplateDialog(const ui::NumericTemplate&, const Language&, QWidget*);
+    QLineEdit* Edit(int id) const { return edits_.at(id); }
+
+private:
+    const ui::NumericTemplate& template_;
+    std::map<int, QLineEdit*> edits_;
+};
+class NumericDialog final : public TemplateDialog {
 public:
     NumericDialog(bool camera, const Language&, const std::array<float, 7>&,
                   QWidget* parent = nullptr);
     const std::array<float, 7>& Values() const { return values_; }
     QLineEdit* Field(unsigned index) const { return fields_.at(index); }
-    const ui::NumericTemplate& Template() const { return template_; }
     void accept() override;
 
 private:
-    const ui::NumericTemplate& template_;
     std::array<QLineEdit*, 7> fields_{};
     std::array<float, 7> values_{};
+};
+class ScreenSizeDialog final : public TemplateDialog {
+public:
+    ScreenSizeDialog(const Language&, QSize value, QSize maximum, QWidget* parent = nullptr);
+    QLineEdit* Field(unsigned index) const { return Edit(index ? 622 : 621); }
+    QSize Value() const { return value_; }
+    void accept() override;
+    // Host supplies localized reporting; failed validation leaves this dialog open.
+    std::function<void(bool tooLarge)> invalid;
+
+private:
+    QSize value_, maximum_;
 };
 }

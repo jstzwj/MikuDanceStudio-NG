@@ -26,6 +26,7 @@ public:
     void SetOptions(const rhi::BackendOptions&);
     const rhi::BackendOptions& Options() const { return options_; }
     bool Reset(std::string&);
+    bool OutputLimits(QSize&, std::string&) const;
     std::function<void(QPoint, Qt::MouseButtons, Qt::KeyboardModifiers)> drag;
     std::function<void(int)> zoom;
     std::function<void(bool, const std::string&)> changed;

@@ -498,5 +498,12 @@
   "dialog.numeric.camera.control.12": "Z轴",
   "dialog.numeric.camera.control.14": "距离",
   "dialog.numeric.camera.control.16": "确定",
-  "dialog.numeric.camera.control.17": "取消"
+  "dialog.numeric.camera.control.17": "取消",
+  "dialog.numeric.screen.title": "屏幕尺寸",
+  "dialog.numeric.screen.control.0": "宽度",
+  "dialog.numeric.screen.control.1": "高度",
+  "dialog.numeric.screen.control.4": "确定",
+  "dialog.numeric.screen.control.5": "取消",
+  "dialog.screen.too_big": "超出当前设备支持的尺寸！",
+  "dialog.screen.positive": "宽度和高度必须是正整数。"
 }

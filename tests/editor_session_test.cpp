@@ -38,6 +38,32 @@ int main(int argc, char** argv) {
     CHECK(format::DecodeVmdBoneInterpolation(expected) == curve);
     const auto root = std::filesystem::absolute(argv[1]);
     {
+        EditorSession size;
+        CHECK(size.ImportModel(root / "articulated.pmx", reason));
+        CHECK(size.Register({{Track::Bone, 0, 0, 60}}, reason));
+        CHECK(size.Delete({{Track::Bone, 0, 0, 60}}, reason));
+        CHECK(size.Document().models[0].selection.maxFrame == 60);
+        const auto revision = size.Revision(), frames = size.Runtime().Counters().frames;
+        const auto* runtime = &size.Runtime();
+        CHECK(!size.SetRenderSize(0, 480, reason));
+        CHECK(!size.SetRenderSize(640, 16385, reason));
+        CHECK(size.Revision() == revision);
+        CHECK(size.SetRenderSize(1001, 717, reason));
+        CHECK(size.Document().models[0].selection.maxFrame == 60 &&
+              size.Document().timeline.lastRegisteredFrame == 60);
+        CHECK(&size.Runtime() == runtime && frames == runtime->Counters().frames);
+        CHECK(size.Undo(reason));
+        CHECK(size.Document().models[0].boneKeys.sparse.size() == 1);
+        CHECK(size.Document().envelope.settings.renderWidth == 1001);
+        CHECK(size.Redo(reason));
+        CHECK(size.Document().models[0].boneKeys.sparse.empty());
+        CHECK(size.Document().envelope.settings.renderHeight == 717);
+        CHECK(size.Save(root / "output-size.pmm", Write, reason));
+        CHECK(size.Open(root / "output-size.pmm", reason));
+        CHECK(size.Document().envelope.settings.renderWidth == 1001 &&
+              size.Document().envelope.settings.renderHeight == 717);
+    }
+    {
         // Original image fixture, top-origin TGA; no GUI or GPU decoder.
         std::vector<std::uint8_t> tga(18);
         tga[2] = 2;

@@ -1,6 +1,9 @@
 #include "export.hpp"
 #include "mikudancestudio/rhi_screen_texture.hpp"
 #include "editor_window.hpp"
+#include "numeric_dialog.hpp"
+#include "mikudancestudio/menu_commands.h"
+#include <QTimer>
 #include "portable_material_history_fixture.hpp"
 #include <QApplication>
 #include <QFile>
@@ -17,6 +20,7 @@ std::string reason;
     } while (false)
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
+    CHECK(QGuiApplication::platformName() == "offscreen");
     CHECK(argc == 3);
     const auto root = std::filesystem::absolute(argv[1]),
                assets = std::filesystem::absolute(argv[2]);
@@ -36,6 +40,96 @@ int main(int argc, char** argv) {
     options.vulkanLibrary = qEnvironmentVariable("MDS_TEST_VULKAN_LIBRARY").toStdString();
     if (qEnvironmentVariable("MDS_GPU_DRIVER") == "software")
         options.driver = rhi::BackendDriver::Software;
+    {
+        qt::EditorWindow sizing(assets, true);
+        auto& editor = sizing.Session();
+        CHECK(editor.ImportModel(root / "articulated.pmx", reason));
+        CHECK(editor.SetBone(0, 0, {2, 3, 4}, {0, 0, 0, 1}, reason));
+        sizing.RenderWindow()->SetOptions(options);
+        sizing.centralWidget()->resize(1024, 700);
+        sizing.Refresh();
+        QSize limits;
+        CHECK(sizing.RenderWindow()->OutputLimits(limits, reason));
+        CHECK(limits.width() >= 2048 && limits.height() >= 2048);
+        CHECK(limits.width() <= 4096 && limits.height() <= 4096);
+        const auto* runtime = &editor.Runtime();
+        const auto frames = runtime->Counters().frames;
+        const auto command = [&](int id) -> QAction* {
+            for (auto* action : sizing.findChildren<QAction*>())
+                if (action->property("mmdCommandId").toInt() == id)
+                    return action;
+            return nullptr;
+        };
+        for (bool separate : {false, true}) {
+            if (separate)
+                command(MDS_CMD_TOGGLE_SEPARATE_WINDOW)->trigger();
+            for (const char* language : {"en", "ja", "zh_CN"}) {
+                CHECK(sizing.SetLanguage(language));
+                for (bool commit : {false, true}) {
+                    const auto before = editor.Document().envelope.settings;
+                    const auto revision = editor.Revision();
+                    bool dialogVisited = false, topmost = false;
+                    QTimer::singleShot(0, &sizing, [&] {
+                        auto* dialog =
+                            dynamic_cast<qt::ScreenSizeDialog*>(QApplication::activeModalWidget());
+                        if (!dialog) {
+                            QApplication::closeAllWindows();
+                            return;
+                        }
+                        dialogVisited = true;
+                        topmost = dialog->windowFlags().testFlag(Qt::WindowStaysOnTopHint);
+                        dialog->Field(0)->setText(separate ? "161" : "97");
+                        dialog->Field(1)->setText(separate ? "97" : "73");
+                        if (commit)
+                            dialog->accept();
+                        else
+                            dialog->reject();
+                    });
+                    command(MDS_CMD_SCREEN_SIZE)->trigger();
+                    CHECK(dialogVisited && topmost == separate && sizing.LastError().isEmpty());
+                    const auto& settings = editor.Document().envelope.settings;
+                    if (!commit) {
+                        CHECK(editor.Revision() == revision &&
+                              settings.renderWidth == before.renderWidth &&
+                              settings.renderHeight == before.renderHeight);
+                        continue;
+                    }
+                    CHECK(settings.renderWidth == (separate ? 161 : 97) &&
+                          settings.renderHeight == (separate ? 97 : 73));
+                    const auto expected =
+                        separate
+                            ? ui::MmdSeparateViewport(sizing.SeparateWindow()->width(),
+                                                      sizing.SeparateWindow()->height(),
+                                                      settings.renderWidth, settings.renderHeight)
+                            : ui::MmdViewport(sizing.centralWidget()->width(),
+                                              sizing.centralWidget()->height(),
+                                              settings.editPanelWidth, settings.renderWidth,
+                                              settings.renderHeight);
+                    CHECK(sizing.RenderWindow()->size() == QSize(expected.width, expected.height));
+                    QImage first, repeated;
+                    CHECK(qt::RenderImage(editor.Runtime(), editor.Assets(), assets, options,
+                                          settings.renderWidth, settings.renderHeight, first,
+                                          reason));
+                    CHECK(qt::RenderImage(editor.Runtime(), editor.Assets(), assets, options,
+                                          settings.renderWidth, settings.renderHeight, repeated,
+                                          reason));
+                    CHECK(first.size() == QSize(settings.renderWidth, settings.renderHeight) &&
+                          first == repeated);
+                    CHECK(&editor.Runtime() == runtime && runtime->Counters().frames == frames &&
+                          editor.CanUndo());
+                    CHECK(!sizing.isVisible() &&
+                          (!sizing.SeparateWindow() || !sizing.SeparateWindow()->isVisible()));
+                }
+            }
+        }
+        CHECK(sizing.Save(root / "screen-size.pmm"));
+        CHECK(editor.Undo(reason));
+        CHECK(editor.Document().envelope.settings.renderWidth == 161);
+        CHECK(editor.Document().models[0].bonePose[0].components[0] == 0);
+        CHECK(sizing.Open(root / "screen-size.pmm"));
+        CHECK(editor.Document().envelope.settings.renderWidth == 161 &&
+              editor.Document().envelope.settings.renderHeight == 97);
+    }
     {
         QImage picture(79, 43, QImage::Format_RGBA8888);
         for (int y = 0; y < picture.height(); ++y)

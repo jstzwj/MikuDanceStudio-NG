@@ -822,6 +822,21 @@ bool EditorSession::SetAccessory(std::uint8_t slot, const PmmAccessoryState& pos
         },
         reason);
 }
+bool EditorSession::SetRenderSize(unsigned width, unsigned height, std::string& reason) {
+    if (!width || !height || width > 16384 || height > 16384) {
+        reason = "render-size-out-of-range";
+        return false;
+    }
+    auto next = Current();
+    next.document.envelope.settings.renderWidth = width;
+    next.document.envelope.settings.renderHeight = height;
+    // Changing an output property does not recompute retained registration
+    // watermarks or create bone history. The host validates device limits.
+    HistoryBatch history;
+    for (const auto& model : next.document.models)
+        history.emplace(model.slot, CaptureHistory(model, HistoryKind::None, 0));
+    return Commit(std::move(next), reason, history, false);
+}
 bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::string& reason) {
     EndGesture();
     if (addresses.empty()) {

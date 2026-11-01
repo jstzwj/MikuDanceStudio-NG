@@ -335,6 +335,9 @@ public:
     }
     Backend BackendType() const override { return Backend::D3D12; }
     Capabilities Features() const override { return {true, false, true, true}; }
+    RenderTargetLimits TargetLimits() const override {
+        return {D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION, D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION};
+    }
     DeviceStatus Status() const override {
         return {identity, epoch,
                 native && native->GetDeviceRemovedReason() != S_OK ? DeviceState::Removed

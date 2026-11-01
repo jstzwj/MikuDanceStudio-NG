@@ -92,6 +92,7 @@ private:
     bool PanelCombo(int, int);
     void FileAction(const QString&);
     void Numeric();
+    void ScreenSize();
     bool Result(bool, const std::string&);
     bool ConfirmUnsaved();
     void CreateViewport(const rhi::BackendOptions&);

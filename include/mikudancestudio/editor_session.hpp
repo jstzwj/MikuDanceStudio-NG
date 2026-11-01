@@ -104,6 +104,7 @@ public:
     bool SetMorph(std::uint8_t, std::uint32_t, float, std::string&);
     bool SetAccessory(std::uint8_t, const format::PmmAccessoryState&, std::string&);
     bool SetCamera(const format::PmmEvaluatedCamera&, std::string&);
+    bool SetRenderSize(unsigned width, unsigned height, std::string&);
     bool DragBones(const BoneDragInput&, std::string&);
     bool BeginBoneDrag(unsigned mode, std::string&);
     void EndBoneDrag();

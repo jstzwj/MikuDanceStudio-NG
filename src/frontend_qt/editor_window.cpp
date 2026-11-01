@@ -775,6 +775,10 @@ void EditorWindow::closeEvent(QCloseEvent* e) {
         e->ignore();
 }
 void EditorWindow::FileAction(const QString& id) {
+    if (id == "view.screen_size") {
+        ScreenSize();
+        return;
+    }
     if (id == "background.load") {
         const auto path =
             QFileDialog::getOpenFileName(this, language_.Text("background.load_title"), {},
@@ -957,6 +961,35 @@ void EditorWindow::FileAction(const QString& id) {
         }
         std::fclose(stream);
         Result(ok, r.empty() ? "motion-or-pose-file-invalid" : r);
+        Refresh();
+    }
+}
+void EditorWindow::ScreenSize() {
+    std::string reason;
+    QSize maximum;
+    if (!Result(viewport_->OutputLimits(maximum, reason), reason))
+        return;
+    const auto& settings = session_.Document().envelope.settings;
+    ScreenSizeDialog dialog(language_, QSize(settings.renderWidth, settings.renderHeight), maximum,
+                            this);
+    dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    dialog.invalid = [&](bool tooLarge) {
+        QMessageBox::information(
+            &dialog, QString(),
+            language_.Text(tooLarge ? "dialog.screen.too_big" : "dialog.screen.positive"));
+    };
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    const auto value = dialog.Value();
+    viewport_->CancelInput();
+    if (Result(session_.SetRenderSize(unsigned(value.width()), unsigned(value.height()), reason),
+               reason)) {
+        // The next frame rebuilds size-dependent targets/history, retaining
+        // CPU poses, the physical world and per-model command history.
+        auto options = viewport_->Options();
+        options.surface.reset();
+        viewport_->SetOptions(options);
+        Layout();
         Refresh();
     }
 }

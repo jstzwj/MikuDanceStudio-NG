@@ -356,6 +356,12 @@ public:
     bool Live() const { return native && !lost && !pending && !retired; }
     Backend BackendType() const override { return Backend::Vulkan; }
     Capabilities Features() const override { return {true, false, true, true}; }
+    RenderTargetLimits TargetLimits() const override {
+        return {(std::min)({16384u, properties.limits.maxImageDimension2D,
+                            properties.limits.maxFramebufferWidth}),
+                (std::min)({16384u, properties.limits.maxImageDimension2D,
+                            properties.limits.maxFramebufferHeight})};
+    }
     DeviceStatus Status() const override {
         return {identity, epoch,
                 lost     ? DeviceState::Removed

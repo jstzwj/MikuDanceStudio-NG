@@ -209,6 +209,22 @@ int main(int argc, char** argv) {
         pump();
 #endif
         CHECK(editor.RenderWindow()->Render(reason, true));
+        QSize outputLimits;
+        CHECK(editor.RenderWindow()->OutputLimits(outputLimits, reason));
+        CHECK(outputLimits.width() >= 2048 && outputLimits.width() <= 4096);
+        const auto* sizeRuntime = &live.Runtime();
+        const auto sizeFrames = live.Runtime().Counters().frames;
+        for (const auto size : {QSize(1001, 717), QSize(1280, 720), QSize(640, 480)}) {
+            CHECK(live.SetRenderSize(unsigned(size.width()), unsigned(size.height()), reason));
+            auto resetOptions = editor.RenderWindow()->Options();
+            resetOptions.surface.reset();
+            editor.RenderWindow()->SetOptions(resetOptions);
+            editor.Refresh();
+            pump();
+            CHECK(editor.RenderWindow()->Render(reason, true));
+            CHECK(editor.RenderWindow()->Render(reason, true));
+            CHECK(sizeRuntime == &live.Runtime() && sizeFrames == live.Runtime().Counters().frames);
+        }
         const auto* liveRuntime = &live.Runtime();
         const auto* liveSnapshot = live.Runtime().Snapshot(0);
         const auto liveBodies = live.Runtime().Bodies(0);

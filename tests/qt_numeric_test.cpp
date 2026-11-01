@@ -151,6 +151,58 @@ int main(int argc, char** argv) {
         }
     }
     std::uint64_t hash = 14695981039346656037ull;
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(language.Set(code));
+        qt::ScreenSizeDialog dialog(language, {640, 480}, {2048, 1024});
+        const auto expected =
+            reference[QString("screen.") + (language.Code() == "en" ? "en" : "ja")].toObject();
+        CHECK(dialog.Template().id == expected["id"].toInt());
+        const auto controls = expected["controls"].toArray();
+        const int unitY = language.Code() == "en" ? 15 : 12;
+        for (int i = 0; i < controls.size(); ++i) {
+            auto* widget = dialog.findChild<QWidget*>(QString("numeric.control.%1").arg(i));
+            CHECK(widget);
+            const auto control = controls[i].toObject();
+            const auto r = control["rect"].toArray();
+            CHECK(widget->geometry() ==
+                  QRect((r[0].toInt() * 7 + 2) / 4, (r[1].toInt() * unitY + 4) / 8,
+                        (r[2].toInt() * 7 + 2) / 4, (r[3].toInt() * unitY + 4) / 8));
+            CHECK(widget->property("mmdControlId").toInt() == control["id"].toInt());
+            if (language.Code() != "zh_CN") {
+                if (auto* label = qobject_cast<QLabel*>(widget))
+                    CHECK(label->text() == control["text"].toString());
+                if (auto* button = qobject_cast<QPushButton*>(widget))
+                    CHECK(button->text() == control["text"].toString());
+            }
+        }
+        CHECK(dialog.Field(0)->text() == "640" && dialog.Field(1)->text() == "480");
+        CHECK(dialog.focusWidget() == dialog.Field(0) && dialog.Field(0)->selectedText() == "640");
+        unsigned errors = 0;
+        bool tooLarge = false;
+        dialog.invalid = [&](bool large) {
+            ++errors;
+            tooLarge = large;
+        };
+        dialog.Field(0)->setText("2049");
+        dialog.accept();
+        CHECK(errors == 1 && tooLarge && dialog.Value() == QSize(640, 480));
+        dialog.Field(0)->setText(" +1024.75ignored");
+        for (const char* invalid : {"0", "-2", "oops", "+-32", "99999999999999999"}) {
+            const auto before = errors;
+            dialog.Field(1)->setText(invalid);
+            dialog.accept();
+            CHECK(errors == before + 1 && dialog.Value() == QSize(640, 480));
+        }
+        dialog.Field(1)->setText("512pixels");
+        dialog.reject();
+        CHECK(dialog.Value() == QSize(640, 480));
+        dialog.accept();
+        CHECK(dialog.result() == QDialog::Accepted && dialog.Value() == QSize(1024, 512));
+        dialog.Field(0)->setText(QString(18, ' ') + "9.5");
+        dialog.accept();
+        CHECK(dialog.Value() == QSize(9, 512));
+        CHECK(!dialog.isVisible());
+    }
     for (unsigned i = 0; i < 256; ++i) {
         const auto input = NumericCameraInput(i), edited = NumericCameraEdited(i);
         NumericHash(hash, editor::CameraNumericValues({input[0], input[1], input[2]},

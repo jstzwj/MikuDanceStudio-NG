@@ -498,5 +498,12 @@
   "dialog.numeric.camera.control.12": "Z軸 ",
   "dialog.numeric.camera.control.14": "距離",
   "dialog.numeric.camera.control.16": "OK",
-  "dialog.numeric.camera.control.17": "ｷｬﾝｾﾙ"
+  "dialog.numeric.camera.control.17": "ｷｬﾝｾﾙ",
+  "dialog.numeric.screen.title": "出力画面サイズ変更",
+  "dialog.numeric.screen.control.0": "幅",
+  "dialog.numeric.screen.control.1": "高さ",
+  "dialog.numeric.screen.control.4": "OK",
+  "dialog.numeric.screen.control.5": "ｷｬﾝｾﾙ",
+  "dialog.screen.too_big": "このPCで処理できる大きさを超えています",
+  "dialog.screen.positive": "幅と高さは正の整数で指定してください。"
 }

@@ -11,6 +11,13 @@ The portable scene subset, CPU performance budget and remaining C1 rendering
 work are explicit in that record; the Qt editor and independent MME frontend
 remain P4 and P5 work.
 
+`Device::TargetLimits()` reports implemented two-dimensional attachment limits
+for DX11, DX12 and Vulkan (zero means unsupported/unknown). Vulkan intersects
+native image/framebuffer limits with the common 16384 attachment bound. These
+are dimension limits, not a memory reservation guarantee. The Qt output-size
+dialog additionally respects the existing 4096-per-dimension offscreen/export
+bound; it can query a 1x1 offscreen device before a native viewport exists.
+
 Current status (2026-10-30): the live editor supports DX11, DX12 and Vulkan
 through the **Renderer** menu. The old **Renderer Preview** menu/window has been
 removed; shared controllers remain. See [editor integration](RHI_EDITOR_VIEWPORT.md),
