@@ -119,10 +119,15 @@ int main(int argc, char** argv) {
             }
         }
         command(MDS_CMD_TOGGLE_ALWAYS_ON_TOP)->trigger();
+        CHECK(detached.SeparateWindow() != floating);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        CHECK(floating.isNull());
+        floating = detached.SeparateWindow();
         CHECK(floating->windowFlags().testFlag(Qt::WindowStaysOnTopHint));
         CHECK(command(MDS_CMD_TOGGLE_ALWAYS_ON_TOP)->isChecked());
         CHECK(!floating->isVisible());
         command(MDS_CMD_TOGGLE_ALWAYS_ON_TOP)->trigger();
+        floating = detached.SeparateWindow();
         CHECK(!floating->windowFlags().testFlag(Qt::WindowStaysOnTopHint));
         detached.centralWidget()->resize(1280, 700);
         detached.Refresh();

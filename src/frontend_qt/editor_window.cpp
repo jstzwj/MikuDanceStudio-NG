@@ -413,15 +413,12 @@ void EditorWindow::ToggleSeparateOnTop() {
     separateOnTop_ = !separateOnTop_;
     if (separate_) {
         const bool visible = separate_->isVisible();
-        auto options = viewport_->Options();
-        options.surface.reset();
-        viewport_->CancelInput();
-        viewport_->SetOptions(options);
-        separate_->setWindowFlag(Qt::WindowStaysOnTopHint, separateOnTop_);
-        // X11 recreates native parents for this flag change. Reacquire a fresh
-        // child surface rather than presenting through the previous XID.
-        CreateViewport(options);
-        if (visible && !testing_)
+        // Changing QWidget flags in place invalidates X11 native ancestry even
+        // when the embedded QWindow is replaced. Retire the complete parent
+        // hierarchy through the same ownership path as ordinary detach/dock.
+        SetSeparateWindow(false);
+        SetSeparateWindow(true);
+        if (visible)
             separate_->show();
     }
     RefreshMenus();
