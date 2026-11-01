@@ -50,6 +50,8 @@ private:
     QWidget* viewportContainer_ = nullptr;
     QWidget* separate_ = nullptr;
     QPointer<EdgeThicknessDialog> edgeDialog_;
+    std::uint8_t edgeModel_ = 255;
+    std::weak_ptr<const runtime::ModelResource> edgeResource_;
     QByteArray separateGeometry_;
     QSize separateSize_{800, 657};
     int dockedSidebarWidth_ = 250;

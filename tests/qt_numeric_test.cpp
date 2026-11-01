@@ -14,6 +14,7 @@
 #include <QTest>
 #include <QTimer>
 #include <QInputMethodEvent>
+#include <QComboBox>
 #include <iostream>
 #include <limits>
 using namespace mikudancestudio;
@@ -390,18 +391,36 @@ int main(int argc, char** argv) {
         live->Field()->setText("0.57"); // WM_SETTEXT can bypass the native insertion width limit.
         QTest::keyClick(live->Field(), Qt::Key_Return);
         CHECK(editor.Dirty()); // Even an accepted unchanged value sets the native modified flag.
-        CHECK(editor.SelectModel(1, reason));
+        auto* modelCombo = static_cast<QComboBox*>(owner.Control(panel::kMainComboModel));
+        const auto selectModel = [&](unsigned slot) {
+            const int index = modelCombo->findData(slot);
+            modelCombo->setCurrentIndex(index);
+            QMetaObject::invokeMethod(modelCombo, "activated", Qt::DirectConnection,
+                                      Q_ARG(int, index));
+        };
+        live->Field()->setText("uncommitted");
+        selectModel(1);
+        CHECK(editor.Selected().model == 1 && live && live->Field()->text() == "1.0" &&
+              live->Trackbar()->value() == 100);
+        live->Field()->setText("uncommitted");
+        selectModel(1);
+        CHECK(live->Field()->text() == "1.0" && live->Trackbar()->value() == 100);
         live->Field()->setText("2.50");
         QTest::keyClick(live->Field(), Qt::Key_Return);
         CHECK(editor.Document().models[0].edgeScale == .57f &&
               editor.Document().models[1].edgeScale == 2.5f);
-        CHECK(editor.SelectModel(255, reason));
-        owner.Refresh();
+        live->Field()->setText("uncommitted");
+        selectModel(255);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        CHECK(live.isNull());
         CHECK(!action(MDS_CMD_EDGE_THICKNESS)->isEnabled());
         const auto revision = editor.Revision();
-        live->Trackbar()->setValue(17);
+        CHECK(editor.SetEdgeThickness(.17f, reason));
         CHECK(editor.Revision() == revision && editor.Document().models[1].edgeScale == 2.5f);
-        CHECK(editor.SelectModel(0, reason));
+        selectModel(0);
+        action(MDS_CMD_EDGE_THICKNESS)->trigger();
+        live = findDialog();
+        CHECK(live && live->Field()->text() == "0.5" && live->Trackbar()->value() == 57);
         CHECK(editor.Play(reason));
         owner.Refresh();
         const auto epoch = editor.PlaybackEpoch();
@@ -437,6 +456,9 @@ int main(int argc, char** argv) {
         CHECK(live && live->Field()->text() == "2.5" &&
               live->windowFlags().testFlag(Qt::WindowStaysOnTopHint));
         CHECK(owner.Save(root / "edge.pmm"));
+        live->Field()->setText("pending reopen");
+        CHECK(owner.Open(root / "edge.pmm"));
+        CHECK(live && live->Field()->text() == "2.5" && live->Trackbar()->value() == 200);
         const auto savedRevision = editor.Revision();
         CHECK(!editor.SetEdgeThickness(std::numeric_limits<float>::infinity(), reason));
         CHECK(editor.Revision() == savedRevision && !editor.Dirty());

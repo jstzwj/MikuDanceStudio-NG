@@ -171,12 +171,11 @@ EdgeThicknessDialog::EdgeThicknessDialog(const Language& language, float value, 
     : TemplateDialog(language.Code() == "en" ? ui::kNumericEdgeEn : ui::kNumericEdgeJa, language,
                      parent) {
     setObjectName("mmd.edgeThickness");
-    Prefill(646, QString::asprintf("%3.2f", double(value)));
-    Field()->setFocus(Qt::OtherFocusReason);
-    Field()->selectAll();
     Trackbar()->setRange(0, 200);
     Trackbar()->setTickInterval(100);
-    Trackbar()->setValue(EdgePosition(value));
+    Reset(value);
+    Field()->setFocus(Qt::OtherFocusReason);
+    Field()->selectAll();
     connect(Field(), &QLineEdit::returnPressed, this, [this] {
         float value;
         if (!FloatPrefix(Field()->text(), 7, value)) {
@@ -194,5 +193,10 @@ EdgeThicknessDialog::EdgeThicknessDialog(const Language& language, float value, 
             changed(value);
         Prefill(646, QString::asprintf("%3.2f", double(value)));
     });
+}
+void EdgeThicknessDialog::Reset(float value) {
+    const QSignalBlocker blocked(Trackbar());
+    Prefill(646, QString::asprintf("%3.2f", double(value)));
+    Trackbar()->setValue(EdgePosition(value));
 }
 }

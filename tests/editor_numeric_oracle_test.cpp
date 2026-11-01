@@ -156,6 +156,35 @@ BOOL WINAPI EdgeDestroy(HWND) {
     edgeDestroyed = true;
     return TRUE;
 }
+void EdgeHostBranch(OriginalPhysicsModule& original, unsigned entry, unsigned tail) {
+    // RDI=app, RSI=0, 256-byte printf buffer at RSP+E0. Preserve touched
+    // nonvolatile registers and give the original calls their own shadow area.
+    std::vector<unsigned char> code{0x53, 0x56, 0x57, 0x48, 0x81, 0xec, 0,    2,   0,
+                                    0,    0x48, 0x8b, 0xf9, 0x33, 0xf6, 0x48, 0xb8};
+    const auto target = reinterpret_cast<std::uintptr_t>(original.Function<void*>(entry));
+    for (unsigned shift = 0; shift < 64; shift += 8)
+        code.push_back(std::uint8_t(target >> shift));
+    code.insert(code.end(), {0xff, 0xe0});
+    const auto resume = code.size();
+    code.insert(code.end(), {0x48, 0x81, 0xc4, 0, 2, 0, 0, 0x5f, 0x5e, 0x5b, 0xc3});
+    auto* memory = static_cast<unsigned char*>(
+        VirtualAlloc(nullptr, code.size(), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+    Check(memory != nullptr, "edge host branch allocation");
+    std::memcpy(memory, code.data(), code.size());
+    DWORD protection;
+    Check(VirtualProtect(memory, code.size(), PAGE_EXECUTE_READ, &protection),
+          "edge host branch protection");
+    FlushInstructionCache(GetCurrentProcess(), memory, code.size());
+    std::vector<unsigned char> jump{0xff, 0x25, 0, 0, 0, 0};
+    const auto returnTo = reinterpret_cast<std::uintptr_t>(memory + resume);
+    for (unsigned shift = 0; shift < 64; shift += 8)
+        jump.push_back(std::uint8_t(returnTo >> shift));
+    {
+        Patch continuation(original.Function<void*>(tail), jump.data(), jump.size());
+        reinterpret_cast<void (*)(void*)>(memory)(app.data());
+    }
+    VirtualFree(memory, 0, MEM_RELEASE);
+}
 void EdgeOracle(OriginalPhysicsModule& original) {
     std::vector<std::unique_ptr<Patch>> patches;
     const auto patch = [&](unsigned offset, auto replacement) {
@@ -241,6 +270,21 @@ void EdgeOracle(OriginalPhysicsModule& original) {
     Check(edgeDestroyed && !stored && get(1) == 2, "original edge close discards pending text");
     std::puts(
         "Original edge dialog: 213 initialization/message/text/slider/model/close checkpoints; no windows");
+    std::memcpy(app.data() + 0xa1b80, &window, sizeof window);
+    app[0xa1b31] = app[0xa1e18] = 0;
+    for (unsigned slot = 0; slot < 2; ++slot) {
+        app[0x13e0] = std::uint8_t(slot);
+        edgeText = "uncommitted";
+        EdgeHostBranch(original, 0x677b6, 0x678bb);
+        Check(edgeText == (slot ? "2.00" : "1.00") && edgeSlider == (slot ? 200 : 100),
+              "original model-combo refresh replaces pending edge text");
+        Check(!app[0xa1b31] && !app[0xa1e18], "original edge host refresh does not publish edits");
+    }
+    edgeDestroyed = false;
+    EdgeHostBranch(original, 0x671c3, 0x671dc);
+    std::memcpy(&stored, app.data() + 0xa1b80, sizeof stored);
+    Check(edgeDestroyed && !stored, "original camera-combo refresh destroys edge dialog");
+    std::puts("Original edge host: two model refreshes and camera-mode destruction; no windows");
 }
 }
 int wmain(int argc, wchar_t** argv) try {

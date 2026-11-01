@@ -591,6 +591,21 @@ void EditorWindow::Refresh() {
     if (!session_.Playing())
         audio_.Stop();
     const auto& doc = session_.Document();
+    if (edgeDialog_) {
+        const auto slot = session_.Selected().model;
+        const auto resource = session_.Runtime().Resource(slot);
+        if (slot == 255 || !resource)
+            edgeDialog_->close();
+        else if (slot != edgeModel_ || resource != edgeResource_.lock()) {
+            // Native model-combo refresh replaces pending text for the new
+            // model. Camera mode destroys this modeless window instead.
+            for (const auto& model : doc.models)
+                if (model.slot == slot)
+                    edgeDialog_->Reset(model.edgeScale);
+            edgeModel_ = slot;
+            edgeResource_ = resource;
+        }
+    }
     setWindowTitle(
         language_.Text("app.title") + " - " +
         (session_.Path().empty() ? QString("untitled.pmm") : Path(session_.Path().filename())) +
@@ -1044,6 +1059,8 @@ void EditorWindow::EdgeThickness() {
         if (model.slot != session_.Selected().model)
             continue;
         edgeDialog_ = new EdgeThicknessDialog(language_, model.edgeScale, this);
+        edgeModel_ = model.slot;
+        edgeResource_ = session_.Runtime().Resource(model.slot);
         edgeDialog_->setAttribute(Qt::WA_DeleteOnClose);
         edgeDialog_->setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
         edgeDialog_->changed = [this](float value) {
@@ -1400,7 +1417,8 @@ void EditorWindow::Combo(int id, int index) {
     }
     if (id == kMainComboModel) {
         std::string reason;
-        Result(session_.SelectModel(std::uint8_t(c->itemData(index).toUInt()), reason), reason);
+        if (Result(session_.SelectModel(std::uint8_t(c->itemData(index).toUInt()), reason), reason))
+            edgeResource_.reset(); // Native combo activation refills even the same model.
     }
     if (id == kAccessoryCombo)
         session_.Selected().accessory = std::uint8_t(c->itemData(index).toUInt());

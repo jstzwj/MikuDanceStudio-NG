@@ -53,6 +53,7 @@ public:
     EdgeThicknessDialog(const Language&, float value, QWidget* parent = nullptr);
     QLineEdit* Field() const { return Edit(646); }
     QSlider* Trackbar() const { return Slider(647); }
+    void Reset(float value);
     // Modeless: Enter applies the field; closing discards uncommitted text.
     void accept() override {}
     std::function<void(float)> changed;

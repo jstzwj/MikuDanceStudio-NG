@@ -1794,6 +1794,9 @@ The live-property path updates model metadata and publication revision without
 seeking, pausing playback, resetting physics, evaluating CPU poses, recalculating
 key watermarks or consuming bone Undo/Redo. Camera-mode interaction is a no-op;
 changing the selected model while the dialog is open redirects subsequent edits.
+The host's model-combo refresh replaces pending text and slider position with the
+new model's saved edge value (including reselecting the same model). Camera-combo
+selection closes the dialog. The low-level camera-mode setter remains a no-op.
 Save/reopen preserves the accepted value. Detached viewports make newly opened
 dialogs topmost, following the original rule.
 
@@ -1854,3 +1857,17 @@ portable selection and scene-runtime tests passed (10.75 seconds); the legacy
 model-key-selection test and Qt application build also passed. The rebuilt Win32
 portable selection test passed (4.10 seconds). No window is shown. Three-platform
 CI for this selection batch remains required.
+
+## Edge-window model-combo integration
+
+The numeric oracle additionally executes original model/camera combo branches
+**677B6..678BB** and **671C3..671DC**, with recorded control calls and an adapted
+branch continuation. Two model refreshes replace pending text and slider position
+without publishing an edit; the camera branch destroys and clears the window.
+These checks create no window. Qt regression now activates the actual model combo
+under all three languages, including same-model reactivation, camera closure,
+reopening, resource replacement on project load and playback after reopening.
+Ordinary frame/dirty-state refreshes retain uncommitted text.
+The rebuilt Qt numeric/menu/channel-binding tests passed (5.54 seconds), as did
+the extended original numeric oracle. The application builds. Three-platform CI
+for this host follow-up remains required.
