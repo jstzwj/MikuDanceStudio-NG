@@ -216,12 +216,14 @@ private:
                              const std::function<void(unsigned, InterpolationCurve&)>&,
                              std::string&);
     bool ApplyView(const format::PmmEvaluatedCamera&, const std::array<float, 2>&, std::string&);
-    bool ReanchorModelView(format::PmmEvaluatedCamera&, std::array<float, 2>&,
+    bool RestoreModelSelection(std::uint8_t, std::string&);
+    int ActiveBone(std::uint8_t) const;
+    bool ReanchorModelView(std::uint8_t, format::PmmEvaluatedCamera&, std::array<float, 2>&,
                            cpu_math::Matrix& basis, std::string&) const;
     bool AppliesGlobalTracks() const;
     format::PmmSceneApplication PlaybackApplication() const;
     bool RefreshTrackedView(bool reanchor, std::string&);
-    bool ViewReferencePoint(unsigned mode, bool fallbackToRoot, cpu_math::Vec3&,
+    bool ViewReferencePoint(std::uint8_t, unsigned mode, bool fallbackToRoot, cpu_math::Vec3&,
                             std::string&) const;
 };
 }

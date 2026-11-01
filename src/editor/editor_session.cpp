@@ -295,6 +295,8 @@ EditorSession::State EditorSession::Current() const {
     State out = state_;
     out.document = Document();
     out.document.envelope.settings.options[0] = selection_.model == 255;
+    if (selection_.model != 255)
+        out.document.envelope.selectedModelSlot = selection_.model;
     out.selection = selection_;
     out.revision = revision_;
     return out;
@@ -506,9 +508,11 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     state_ = std::move(next);
     path_ = absolute;
     selection_ = {};
-    selection_.model = Document().models.empty() ? 255 : Document().envelope.selectedModelSlot;
-    if (!SelectModel(selection_.model, reason))
-        SelectModel(255, reason);
+    selection_.model = Document().models.empty() || Document().envelope.settings.options[0]
+                           ? 255
+                           : Document().envelope.selectedModelSlot;
+    if (!RestoreModelSelection(selection_.model, reason))
+        RestoreModelSelection(255, reason);
     histories_.clear();
     clipboard_.clear();
     playing_ = false;

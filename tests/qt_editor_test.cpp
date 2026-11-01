@@ -56,6 +56,60 @@ int main(int argc, char** argv) {
     CHECK(!window.isVisible());
     CHECK(window.SetLanguage("en"));
     {
+        qt::EditorWindow modes(std::filesystem::absolute(argv[2]), true);
+        auto& s = modes.Session();
+        CHECK(s.ImportModel(root / "pose.pmd", reason));
+        CHECK(s.ImportModel(root / "pose.pmd", reason));
+        CHECK(s.Edit(
+            "mode-camera",
+            [](auto& d, auto&) {
+                d.cameraKeys.dense[0].eye = {20, 0, 0};
+                d.cameraKeys.dense[0].target = {};
+                d.cameraKeys.dense[0].parentModel = -1;
+                d.cameraState[0] = 123;
+                d.lightState[0] = .875f;
+                return true;
+            },
+            reason));
+        CHECK(s.SetBone(1, 3, {9, 0, 0}, {0, 0, 0, 1}, reason));
+        const auto* live = &s.Runtime();
+        const auto* snapshot = live->Snapshot(1);
+        const auto frames = live->Counters().frames;
+        const int active = s.ActiveBone();
+        modes.Refresh();
+        auto* combo = static_cast<QComboBox*>(modes.Control(panel::kMainComboModel));
+        combo->setCurrentIndex(combo->findData(0));
+        combo->activated(combo->currentIndex());
+        CHECK(s.Selected().model == 0);
+        combo->setCurrentIndex(combo->findData(1));
+        combo->activated(combo->currentIndex());
+        CHECK(s.Selected().model == 1);
+        combo->setCurrentIndex(0);
+        combo->activated(0);
+        CHECK(s.Selected().model == 255 && s.Document().cameraState[0] == 20);
+        CHECK(s.Document().timeline.editMode == 2);
+        modes.Dispatch(panel::kModelEditToggle);
+        CHECK(s.Selected().model == 1 && s.Document().timeline.editMode == 0);
+        CHECK(s.Document().lightState[0] == .602f);
+        CHECK(s.ActiveBone() == active && s.Document().models[1].bonePose[3].components[0] == 9);
+        CHECK(s.CanUndo());
+        const auto state = s.Document().cameraState;
+        const auto revision = s.Revision();
+        for (const char* language : {"zh_CN", "ja", "en"}) {
+            CHECK(modes.SetLanguage(language));
+            CHECK(s.Selected().model == 1 && s.Document().cameraState == state);
+            CHECK(s.Revision() == revision);
+        }
+        CHECK(&s.Runtime() == live && s.Runtime().Snapshot(1) == snapshot);
+        CHECK(s.Runtime().Counters().frames == frames && modes.LastError().isEmpty());
+        CHECK(s.Play(reason));
+        modes.Refresh();
+        CHECK(!combo->isEnabled() && !modes.Control(panel::kModelEditToggle)->isEnabled());
+        s.Pause();
+        modes.Refresh();
+        CHECK(combo->isEnabled() && modes.Control(panel::kModelEditToggle)->isEnabled());
+    }
+    {
         qt::EditorWindow picking(std::filesystem::absolute(argv[2]), true);
         auto& s = picking.Session();
         CHECK(s.ImportModel(root / "pose.pmd", reason));

@@ -288,11 +288,28 @@ bool SceneSession::SetViewBasis(const std::array<float, 16>& basis, bool suppres
 bool SceneSession::SetFollowCamera(bool enabled, const PmmEvaluatedCamera& camera,
                                    const std::array<float, 2>& offsets,
                                    const std::array<float, 16>& basis, bool suppressed) {
+    PmmViewRefresh refresh;
+    refresh.camera = camera;
+    refresh.offsets = offsets;
+    refresh.basis = basis;
+    refresh.suppressed = suppressed;
+    refresh.reloadGlobals = enabled;
+    if (!RefreshEditorView(refresh))
+        return false;
+    scene_.appearance.followCamera = enabled;
+    return true;
+}
+bool SceneSession::RefreshEditorView(const PmmViewRefresh& refresh) {
+    const auto& basis = refresh.basis;
     if (!loaded_ ||
         !std::all_of(basis.begin(), basis.end(), [](float v) { return std::isfinite(v); }))
         return false;
+    if (refresh.editorModel && *refresh.editorModel != 255 &&
+        std::none_of(scene_.models.begin(), scene_.models.end(),
+                     [&](const auto& m) { return m.slot == *refresh.editorModel; }))
+        return false;
     PmmSceneEvaluation global;
-    if (enabled) {
+    if (refresh.reloadGlobals) {
         const auto frame = scene_.timeline.currentFrame;
         if (frame < 0 ||
             !EvaluatePmmLightTrack(scene_.lightKeys, frame, PmmLightInterpolation::FrameSeek,
@@ -311,18 +328,27 @@ bool SceneSession::SetFollowCamera(bool enabled, const PmmEvaluatedCamera& camer
     }
     // SetViewCamera validates parent references and every camera component
     // before mutation. All other fallible work above has already completed.
-    if (!SetViewCamera(camera, offsets))
+    if (!SetViewCamera(refresh.camera, refresh.offsets))
         return false;
-    scene_.appearance.followCamera = enabled;
     scene_.appearance.cameraAttachmentBasis = basis;
-    scene_.appearance.suppressCameraTransform = suppressed;
-    if (enabled) {
+    scene_.appearance.suppressCameraTransform = refresh.suppressed;
+    if (refresh.reloadGlobals) {
         pose_.lightState = global.lightState;
         pose_.selfShadowMode = global.selfShadowMode;
         pose_.selfShadowDistance = global.selfShadowDistance;
         pose_.gravity = global.gravity;
         pose_.accessories = std::move(global.accessories);
         StoreGlobalPose(scene_, pose_);
+    } else if (refresh.defaultLight) {
+        pose_.lightState = {.602f, .602f, .602f, -.5f, -1, .5f};
+        StoreGlobalPose(scene_, pose_);
+    }
+    if (refresh.editorModel) {
+        const auto slot = *refresh.editorModel;
+        scene_.envelope.settings.options[0] = slot == 255;
+        if (slot != 255)
+            scene_.envelope.selectedModelSlot = slot;
+        scene_.timeline.editMode = slot == 255 ? 2 : 0;
     }
     if (playing_) {
         playback_.pose.camera = pose_.camera;

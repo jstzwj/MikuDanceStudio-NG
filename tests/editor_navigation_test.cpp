@@ -257,15 +257,17 @@ int main(int argc, char** argv) {
         CHECK(!reference.SetCameraReference(3, reason));
         CHECK(reference.Document().cameraState == changed && reference.Revision() == revision);
         CHECK(reference.SelectModel(255, reason));
+        const auto cameraView = reference.Document().cameraState;
         CHECK(reference.SetCameraReference(1, reason));
-        CHECK(reference.Document().cameraState == changed); // camera mode only changes metadata
+        CHECK(reference.Document().cameraState == cameraView); // reference command: metadata only
         CHECK(reference.Runtime().Counters().frames == frames &&
               reference.Runtime().Snapshot(0) == snapshot);
         CHECK(reference.SelectModel(0, reason));
+        const auto modelView = reference.Document().cameraState;
         CHECK(reference.Undo(reason)); // view changes do not consume bone history
         CHECK(reference.Document().models[0].bonePose[0].components[0] == 0);
         CHECK(reference.Document().timeline.cameraReferenceMode == 1 &&
-              reference.Document().cameraState == changed);
+              reference.Document().cameraState == modelView);
     }
     {
         editor::EditorSession follow;

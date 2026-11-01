@@ -40,6 +40,55 @@ bool Projected(const EditorSession& session, const std::vector<cpu_bone::ScreenP
 }
 }
 bool EditorSession::SelectModel(std::uint8_t slot, std::string& reason) {
+    if (playing_) {
+        reason = "model-selection-during-playback";
+        return false;
+    }
+    if (slot != 255 && !runtime_->Resource(slot)) {
+        reason = "model-selection-expired";
+        return false;
+    }
+    const auto previous = selection_.model;
+    if (previous == slot && slot == 255) {
+        reason.clear();
+        return true;
+    }
+    const bool cameraMode = slot == 255, wasCamera = previous == 255;
+    const bool follow = Document().appearance.followCamera;
+    format::PmmViewRefresh refresh;
+    refresh.camera = runtime_->Session()->Pose().camera;
+    refresh.offsets = {Document().cameraState[3], Document().cameraState[4]};
+    refresh.basis = Document().appearance.cameraAttachmentBasis;
+    refresh.suppressed = Document().appearance.suppressCameraTransform;
+    refresh.editorModel = slot;
+    refresh.reloadGlobals = cameraMode || (wasCamera && follow);
+    refresh.defaultLight = wasCamera && !follow;
+    const bool trackedSwitch =
+        !cameraMode && !wasCamera && follow && refresh.camera.parentModel >= 0 &&
+        (previous == refresh.camera.parentModel || slot == refresh.camera.parentModel);
+    if (refresh.reloadGlobals || trackedSwitch) {
+        if (!format::EvaluatePmmCameraTrack(Document().cameraKeys, Document().timeline.currentFrame,
+                                            format::PmmCameraInterpolation::Seek, refresh.camera)) {
+            reason = "camera-track-reload-failed";
+            return false;
+        }
+        refresh.offsets = {};
+    }
+    if (cameraMode)
+        refresh.basis = cpu_math::Identity();
+    else if (wasCamera || trackedSwitch) {
+        if (!ReanchorModelView(slot, refresh.camera, refresh.offsets, refresh.basis, reason))
+            return false;
+        refresh.suppressed = false;
+    }
+    if (!runtime_->RefreshEditorView(refresh, reason))
+        return false;
+    EndGesture();
+    RestoreModelSelection(slot, reason);
+    revision_ = nextRevision_++;
+    return true;
+}
+bool EditorSession::RestoreModelSelection(std::uint8_t slot, std::string& reason) {
     if (slot != 255 && !runtime_->Resource(slot)) {
         reason = "model-selection-expired";
         return false;
@@ -55,8 +104,11 @@ bool EditorSession::SelectModel(std::uint8_t slot, std::string& reason) {
     return true;
 }
 int EditorSession::ActiveBone() const {
+    return ActiveBone(selection_.model);
+}
+int EditorSession::ActiveBone(std::uint8_t slot) const {
     for (const auto& model : Document().models)
-        if (model.slot == selection_.model && model.selection.selectedBone >= 0 &&
+        if (model.slot == slot && model.selection.selectedBone >= 0 &&
             std::size_t(model.selection.selectedBone) < model.bonePose.size())
             return model.selection.selectedBone;
     return -1;

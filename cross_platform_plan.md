@@ -10,7 +10,9 @@
 
 **P2 已完成**：独立 CPU 场景运行时已接通 PMD／PMX、CP932、IK／SDEF／Morph、统一物理调度、静态 `.x` 附件及 PMM 会话。三平台同一公开生成场景门禁、Windows x64／x86 原生 CPU 对照和本地 Sour Miku 的动画、生命周期及 PMM 保存重载验收均通过。支持范围和真实模型动态 D3DX 数值差异单独记录在 [P2 实施与验收记录](docs/CROSS_PLATFORM_P2.md)。
 
-**P3 已完成**：生产 Vulkan 加载器、Surface、运行时 SPIR-V 编译与 P2 快照的共享 RHI 消费链路已接通。Windows 隐藏窗口、macOS Cocoa、Linux X11／Wayland 呈现及三平台离屏门禁均实际通过，常规呈现帧没有图像回读；Sour Miku 静态／动画的 DX11／DX12／Vulkan 最终输出逐字节一致。验收证据、CPU 性能基线与基础场景支持边界见 [P3 实施记录](docs/CROSS_PLATFORM_P3.md)。下一阶段为 P4；macOS／Linux 完整编辑器尚未交付。
+**P3 已完成**：生产 Vulkan 加载器、Surface、运行时 SPIR-V 编译与 P2 快照的共享 RHI 消费链路已接通。Windows 隐藏窗口、macOS Cocoa、Linux X11／Wayland 呈现及三平台离屏门禁均实际通过，常规呈现帧没有图像回读；Sour Miku 静态／动画的 DX11／DX12／Vulkan 最终输出逐字节一致。验收证据、CPU 性能基线与基础场景支持边界见 [P3 实施记录](docs/CROSS_PLATFORM_P3.md)。
+
+**P4 实施中，尚未验收 C1**：共享编辑命令、PMM 编辑保存、骨骼选择与历史、Qt 三语言界面、视口呈现、WAV 时钟与图像序列导出已有三平台回归证据。正在补齐原版模式切换、视口骨骼覆盖层与变换工具，以及完整输入／DPI／字体、独立整帧输出和音频设备验收。当前完成范围、原版对照的具体边界及未关闭门禁见 [P4 实施与验收记录](docs/CROSS_PLATFORM_P4.md)；macOS／Linux 完整编辑器尚未交付。
 
 本文是后续实施与验收计划。除“当前状态”明确列出的能力外，目标模块、接口、构建选项和里程碑均为规划，不代表已经实现。现有三平台 CI 配置也不代表完整编辑器已在三平台构建或运行通过。
 

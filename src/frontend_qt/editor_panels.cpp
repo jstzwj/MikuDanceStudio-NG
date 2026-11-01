@@ -111,6 +111,8 @@ void EditorWindow::RefreshPanels() {
     check(kCameraRefBoneCheckbox, d.timeline.cameraReferenceMode == 2);
     slider(kFrameVolumeSlider, 0, 100, 100 - frameNormalization_);
     const bool model = session_.Selected().model != 255;
+    Control(kMainComboModel)->setEnabled(!session_.Playing());
+    Control(kModelEditToggle)->setEnabled(!session_.Playing());
     static_cast<QAbstractButton*>(Control(kModelEditToggle))
         ->setText(language_.Text(model ? "mode.to_camera" : "mode.to_model"));
     for (int id = kDeleteModelButton; id <= kIkOffRadio; ++id)
@@ -192,11 +194,10 @@ bool EditorWindow::PanelCommand(int id) {
     if (id == kModelEditToggle) {
         auto target = session_.Selected().model;
         if (session_.Selected().model != 255) {
-            previousModel_ = session_.Selected().model;
             target = 255;
         } else {
             for (const auto& m : session_.Document().models)
-                if (m.slot == previousModel_)
+                if (m.slot == session_.Document().envelope.selectedModelSlot)
                     target = m.slot;
             if (target == 255 && !session_.Document().models.empty())
                 target = session_.Document().models.front().slot;

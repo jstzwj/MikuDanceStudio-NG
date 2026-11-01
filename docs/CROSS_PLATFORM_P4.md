@@ -525,3 +525,39 @@ compatibility core rebuilt and its model playback/physics regression passed.
 The export path then rebuilt and passed strict repeated image output and
 cancellation. The application built without being launched. Mode-switch
 initialization and the remaining UI/output gates are still open.
+
+[Run 41300134678](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41300134678)
+at `0301404` passed native-float editor timing on Windows, macOS and Linux.
+
+Model/camera selection is now an editor command with explicit refresh semantics.
+Entering camera mode reloads globals and accessories, clears view offsets and
+restores the identity attachment basis. Entering model mode reanchors against
+the selected model; following reloads globals, while following off restores the
+native default light. Switching between models reloads only the camera when
+leaving or entering its followed parent. Other model switches preserve the view.
+The command restores each model's bone selection and resets the native edit mode
+without rebuilding models, physics or undo history. Playback rejects mode
+switches and disables both Qt mode controls.
+
+The shared view-refresh transaction validates all global/accessory evaluation,
+camera parent references and basis values before publishing. Follow-toggle
+refresh uses the same operation. PMM saves retain the selected model even while
+in camera mode, and opening respects the saved camera-mode flag without invoking
+an interactive mode change or discarding an unregistered camera pose. Qt's
+viewport toggle uses that document selection instead of a stale window-local
+slot.
+
+The new public three-model regression covers these gates, non-parent and parent
+switches, default lighting, current poses, history/runtime identity, atomic
+rejection and save/reopen of both modes. Qt offscreen tests activate the real
+model combo, invoke the mode button and switch all three languages while checking
+state preservation. Existing navigation assertions now isolate reference-change
+commands from the newly implemented mode-change effects. The opt-in original
+camera math oracle still passed 972 reference and 648 follow cases exactly;
+this is kernel evidence, not an independent full original UI-event oracle.
+
+All 18 local P4 regressions and the 99 scene-runtime checkpoints passed after
+the mode-change rebuild. Never-shown Qt presentation passed on DX11, DX12 and
+Vulkan, and the application built without being launched. Bone overlays,
+manipulation tools and the remaining complete UI/output gates are still open;
+this batch does not close P4.

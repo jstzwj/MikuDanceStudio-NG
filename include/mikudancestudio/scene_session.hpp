@@ -10,6 +10,16 @@ namespace mikudancestudio::format {
 using ResolveSceneModel = bool (*)(void* context, std::uint8_t slot,
                                    const std::array<char, 256>& path, ModelDocument& model);
 
+// A view refresh applies evaluated globals without seeking models, rebuilding
+// physics or consuming playback cursors. The host supplies the reanchored camera.
+struct PmmViewRefresh {
+    PmmEvaluatedCamera camera;
+    std::array<float, 2> offsets{};
+    std::array<float, 16> basis{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+    bool suppressed = false, reloadGlobals = false, defaultLight = false;
+    std::optional<std::uint8_t> editorModel;
+};
+
 // Owns a PMM scene, optional parsed model resources, and its evaluated pose.
 // V1 requires a host model resolver for PMD layout; v2 can omit it. Paths
 // remain byte strings and are never resolved by this library.
@@ -45,6 +55,7 @@ public:
     bool SetFollowCamera(bool enabled, const PmmEvaluatedCamera&,
                          const std::array<float, 2>& offsets, const std::array<float, 16>& basis,
                          bool suppressed);
+    bool RefreshEditorView(const PmmViewRefresh&);
     bool SetCameraReference(unsigned mode) {
         if (!loaded_ || mode > 2)
             return false;

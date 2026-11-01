@@ -51,7 +51,6 @@ private:
     bool testing_ = false, refreshing_ = false;
     int side_ = 250;
     int frameNormalization_ = 100;
-    std::uint8_t previousModel_ = 255;
     std::map<std::uint8_t, int> scopeSelections_;
     std::map<std::uint8_t, std::weak_ptr<const runtime::ModelResource>> scopeResources_;
     std::vector<editor::KeyScope> scopes_;

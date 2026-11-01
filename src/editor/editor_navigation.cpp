@@ -48,7 +48,7 @@ bool EditorSession::RefreshTrackedView(bool reanchor, std::string& reason) {
     auto camera = runtime_->Session()->Pose().camera;
     std::array<float, 2> offsets{};
     auto basis = Document().appearance.cameraAttachmentBasis;
-    if (reanchor && !ReanchorModelView(camera, offsets, basis, reason))
+    if (reanchor && !ReanchorModelView(selection_.model, camera, offsets, basis, reason))
         return false;
     if (!ApplyView(camera, offsets, reason))
         return false;
@@ -69,13 +69,13 @@ bool EditorSession::PrepareView(std::string& reason) {
     reason.clear();
     return true;
 }
-bool EditorSession::ViewReferencePoint(unsigned mode, bool fallbackToRoot, cpu_math::Vec3& out,
-                                       std::string& reason) const {
+bool EditorSession::ViewReferencePoint(std::uint8_t slot, unsigned mode, bool fallbackToRoot,
+                                       cpu_math::Vec3& out, std::string& reason) const {
     out = {};
     if (mode != 1 && mode != 2)
         return true;
-    const auto resource = runtime_->Resource(selection_.model);
-    const auto snapshot = runtime_->Snapshot(selection_.model);
+    const auto resource = runtime_->Resource(slot);
+    const auto snapshot = runtime_->Snapshot(slot);
     if (!resource || !snapshot) {
         reason = "editor-view-reference-expired";
         return false;
@@ -84,12 +84,12 @@ bool EditorSession::ViewReferencePoint(unsigned mode, bool fallbackToRoot, cpu_m
         const auto& skin = snapshot->bones[resource->CameraCenterBone()].skin;
         std::copy_n(skin.begin() + 12, 3, out.begin());
     } else {
-        int bone = ActiveBone();
+        int bone = ActiveBone(slot);
         if (fallbackToRoot)
             bone = std::max(0, bone);
         if (bone >= 0) {
             int index;
-            if (!runtime_->DocumentBoneIndex(selection_.model, bone, index, reason))
+            if (!runtime_->DocumentBoneIndex(slot, bone, index, reason))
                 return false;
             out = snapshot->bones[std::size_t(index)].worldPosition;
         }
@@ -117,8 +117,8 @@ bool EditorSession::SetCameraReference(unsigned mode, std::string& reason) {
         if (camera.parentModel >= 0)
             rotation = Multiply(Document().appearance.cameraAttachmentBasis, rotation);
         Vec3 oldPoint, newPoint;
-        if (!ViewReferencePoint(previous, true, oldPoint, reason) ||
-            !ViewReferencePoint(mode, true, newPoint, reason))
+        if (!ViewReferencePoint(selection_.model, previous, true, oldPoint, reason) ||
+            !ViewReferencePoint(selection_.model, mode, true, newPoint, reason))
             return false;
         const auto oldOrigin =
             Multiply(Translation({-oldPoint[0], -oldPoint[1], -oldPoint[2]}), rotation);
@@ -139,14 +139,14 @@ bool EditorSession::SetCameraReference(unsigned mode, std::string& reason) {
     reason.clear();
     return true;
 }
-bool EditorSession::ReanchorModelView(format::PmmEvaluatedCamera& camera,
+bool EditorSession::ReanchorModelView(std::uint8_t slot, format::PmmEvaluatedCamera& camera,
                                       std::array<float, 2>& offsets, cpu_math::Matrix& basis,
                                       std::string& reason) const {
     using namespace cpu_math;
     auto rotation = Multiply(Multiply(RotationY(camera.rotation[1]), RotationX(camera.rotation[0])),
                              RotationZ(camera.rotation[2]));
     Vec3 reference;
-    if (!ViewReferencePoint(Document().timeline.cameraReferenceMode, camera.parentModel >= 0,
+    if (!ViewReferencePoint(slot, Document().timeline.cameraReferenceMode, camera.parentModel >= 0,
                             reference, reason))
         return false;
     if (camera.parentModel >= 0) {
@@ -198,7 +198,7 @@ bool EditorSession::SetFollowCamera(bool enabled, std::string& reason) {
         selection_.model != 255 &&
         (enabled || (camera.parentModel >= 0 && camera.parentModel == selection_.model));
     if (reanchor) {
-        if (!ReanchorModelView(camera, offsets, basis, reason))
+        if (!ReanchorModelView(selection_.model, camera, offsets, basis, reason))
             return false;
         suppressed = false;
     }
@@ -230,7 +230,7 @@ bool EditorSession::ViewPreset(unsigned number, std::string& reason) {
         }
         offsets = {};
         auto basis = Document().appearance.cameraAttachmentBasis;
-        if (!ReanchorModelView(camera, offsets, basis, reason))
+        if (!ReanchorModelView(selection_.model, camera, offsets, basis, reason))
             return false;
         if (!ApplyView(camera, offsets, reason) || !runtime_->SetViewBasis(basis, false))
             return false;
