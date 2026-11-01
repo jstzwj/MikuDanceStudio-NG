@@ -93,6 +93,45 @@ int main(int argc, char** argv) {
         CHECK(!curves.PasteInterpolation(6, reason));
     }
     EditorSession editor;
+    {
+        EditorSession selection;
+        CHECK(selection.ImportModel(root / "grouped.pmx", reason));
+        CHECK(selection.Register(
+            {{Track::Bone, 0, 0, 10}, {Track::Morph, 0, 0, 10}, {Track::Display, 0, 0, 10}},
+            reason));
+        selection.Selected().bones = {0};
+        const auto revision = selection.Revision(), updates = selection.Runtime().Counters().frames;
+        selection.SelectKeys(10, 10, {KeyScopeKind::SelectedBones, {}});
+        CHECK(selection.Selected().keys.size() == 1);
+        selection.SelectKeys(0, 0, {KeyScopeKind::Track, {Track::Morph, 0, 0, 0}});
+        CHECK(selection.Selected().keys.size() == 2);
+        selection.SelectKeys(0, 0, {KeyScopeKind::SelectedBones, {}});
+        CHECK(selection.Selected().keys.count({Track::Bone, 0, 0, 10}));
+        selection.SelectKeys(10, 10, {KeyScopeKind::Bones, {}});
+        CHECK(selection.Selected().keys.size() == 2);
+        CHECK(!selection.Selected().keys.count({Track::Bone, 0, 0, 0}));
+        selection.ExtendSelectedColumns();
+        CHECK(selection.Selected().keys.size() == 6);
+        CHECK(selection.Revision() == revision && selection.Runtime().Counters().frames == updates);
+        selection.SelectKeys(20, 10, {KeyScopeKind::Morphs, {}});
+        CHECK(selection.Selected().keys.size() == 4);
+        selection.Selected().model = 255;
+        CHECK(
+            selection.Register({{Track::Camera, 255, 0, 10}, {Track::Light, 255, 0, 10}}, reason));
+        selection.Selected().keys.clear();
+        selection.SelectKeys(0, 10, {KeyScopeKind::Track, {Track::Camera, 255, 0, 0}});
+        CHECK(selection.Selected().keys.size() == 2);
+        selection.SelectKeys(10, 10, {KeyScopeKind::Track, {Track::Light, 255, 0, 0}});
+        CHECK(selection.Selected().keys.size() == 3);
+        selection.SelectKeys(10, 10, {KeyScopeKind::Track, {Track::Camera, 255, 0, 0}});
+        CHECK(selection.Selected().keys.size() == 2);
+        CHECK(selection.Seek(99, reason));
+        selection.ExtendSelectedColumns();
+        CHECK(selection.Selected().keys.size() == 2); // selected columns, not cursor 99
+        selection.Selected().keys.insert({Track::Camera, 255, 0, 0});
+        selection.ExtendSelectedColumns();
+        CHECK(selection.Selected().keys.size() == 6);
+    }
     CHECK(!editor.Dirty());
     CHECK(editor.Document().models.empty());
     CHECK(editor.ImportModel(root / "bone-only.pmd", reason));

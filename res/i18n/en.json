@@ -351,5 +351,10 @@
   "interpolation.3": "rotation",
   "interpolation.4": "distance",
   "interpolation.5": "view angle",
-  "interpolation.all": "all"
+  "interpolation.all": "all",
+  "scope.all": "All frame",
+  "scope.selected_bones": "Sel Bone",
+  "scope.selected_morphs": "Sel facial",
+  "scope.morphs": "All facial",
+  "scope.bones": "All bone"
 }

@@ -310,18 +310,12 @@ void Timeline::SelectAll() {
     SelectRange(0, 0x7fffffff);
 }
 void Timeline::SelectRange(unsigned first, unsigned last) {
-    auto& selected = session_.Selected().keys;
-    selected.clear();
-    for (const auto& key : session_.Keys())
-        for (const auto& r : rows_) {
-            if (Matches(r, key) && key.frame >= first && key.frame <= last)
-                selected.insert(key);
-        }
+    session_.SelectKeys(first, last, {});
     update();
 }
 void Timeline::SelectColumn() {
-    const auto f = unsigned(session_.Document().timeline.currentFrame);
-    SelectRange(f, f);
+    session_.ExtendSelectedColumns();
+    update();
 }
 void Timeline::SelectTrack(Track track) {
     SelectAll();

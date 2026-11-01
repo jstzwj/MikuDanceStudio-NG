@@ -16,6 +16,68 @@ QString Label(const std::vector<char>& bytes) {
 }
 constexpr double kPi = 3.141592025756836;
 }
+void EditorWindow::RefreshScopes() {
+    using namespace editor;
+    auto* combo = static_cast<QComboBox*>(Control(kRegisterScopeCombo));
+    combo->clear();
+    scopes_.clear();
+    const auto add = [&](const QString& label, KeyScope scope) {
+        combo->addItem(label);
+        scopes_.push_back(scope);
+    };
+    const auto kind = [&](const char* id, KeyScopeKind scope) {
+        add(language_.Text(id), {scope, {}});
+    };
+    const auto model = session_.Selected().model;
+    if (model == 255) {
+        const std::pair<Track, const char*> names[]{{Track::Camera, "camera"},
+                                                    {Track::Light, "light"},
+                                                    {Track::Shadow, "shadow"},
+                                                    {Track::Gravity, "gravity"}};
+        for (const auto& name : names)
+            add(language_.Text(name.second), {KeyScopeKind::Track, {name.first, 255, 0, 0}});
+        std::vector<const format::PmmSceneAccessory*> ordered;
+        for (const auto& a : session_.Document().accessories)
+            ordered.push_back(&a);
+        std::stable_sort(ordered.begin(), ordered.end(),
+                         [](auto* a, auto* b) { return a->order < b->order; });
+        for (const auto* a : ordered)
+            add(Label({a->name.begin(), std::find(a->name.begin(), a->name.end(), 0)}),
+                {KeyScopeKind::Track, {Track::Accessory, a->slot, 0, 0}});
+    } else if (const auto resource = session_.Runtime().Resource(model)) {
+        if (scopeResources_[model].lock() != resource) {
+            scopeSelections_[model] = 3;
+            scopeResources_[model] = resource;
+        }
+        const auto entry = [&](bool morph, unsigned index) {
+            const auto& names = morph ? resource->Document().morphs[index].names
+                                      : resource->Document().bones[index].names;
+            const auto& bytes = names[language_.Code() == "en" && !names[1].empty() ? 1 : 0];
+            std::string text;
+            text::DecodeUtf16Le(bytes.data(), bytes.size(), text);
+            add(QString::fromUtf8(text.c_str()),
+                {KeyScopeKind::Track, {morph ? Track::Morph : Track::Bone, model, index, 0}});
+        };
+        kind("scope.all", KeyScopeKind::All);
+        if (!resource->BoneNames().empty())
+            entry(false, resource->DisplayRootBone());
+        add(language_.Text("display"), {KeyScopeKind::Track, {Track::Display, model, 0, 0}});
+        kind("scope.selected_bones", KeyScopeKind::SelectedBones);
+        kind("scope.selected_morphs", KeyScopeKind::SelectedMorphs);
+        kind("scope.morphs", KeyScopeKind::Morphs);
+        for (const auto& group : resource->DisplayGroups())
+            if (group.role == 2)
+                for (const auto& child : group.entries)
+                    entry(true, child.index);
+        kind("scope.bones", KeyScopeKind::Bones);
+        for (const auto& group : resource->DisplayGroups())
+            if (group.role == 3)
+                for (const auto& child : group.entries)
+                    entry(false, child.index);
+    }
+    const auto [selection, inserted] = scopeSelections_.emplace(model, model == 255 ? 0 : 3);
+    combo->setCurrentIndex(std::clamp(selection->second, 0, std::max(0, combo->count() - 1)));
+}
 void EditorWindow::RefreshPanels() {
     const auto& d = session_.Document();
     const auto edit = [&](int id, double value) {

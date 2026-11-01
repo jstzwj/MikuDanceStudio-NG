@@ -52,6 +52,9 @@ private:
     int side_ = 250;
     int frameNormalization_ = 100;
     std::uint8_t previousModel_ = 255;
+    std::map<std::uint8_t, int> scopeSelections_;
+    std::map<std::uint8_t, std::weak_ptr<const runtime::ModelResource>> scopeResources_;
+    std::vector<editor::KeyScope> scopes_;
     QString lastError_;
     format::VpdDocument poseClipboard_;
     AudioTransport audio_;
@@ -62,6 +65,7 @@ private:
     void Slider(int, int);
     void Combo(int, int);
     void RefreshPanels();
+    void RefreshScopes();
     bool PanelCommand(int);
     bool PanelEdit(int, double);
     bool PanelSlider(int, int);

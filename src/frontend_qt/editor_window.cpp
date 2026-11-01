@@ -545,6 +545,7 @@ void EditorWindow::Refresh() {
         session_.Selected().accessory = doc.accessories[0].slot;
     accessories->setCurrentIndex(accessories->findData(session_.Selected().accessory));
     RefreshPanels();
+    RefreshScopes();
     timeline_->Refresh();
     auto* curves = static_cast<QComboBox*>(Control(kInterpCurveCombo));
     const unsigned curveCount = session_.Selected().model == 255 ? 6 : 4;
@@ -911,11 +912,14 @@ void EditorWindow::Dispatch(int id) {
     case kSelectRangeButton: {
         auto* a = static_cast<QLineEdit*>(Control(kRangeStartEdit));
         auto* b = static_cast<QLineEdit*>(Control(kRangeStopEdit));
-        timeline_->SelectRange(a->text().toUInt(), b->text().toUInt());
+        const auto* scope = static_cast<QComboBox*>(Control(kRegisterScopeCombo));
+        const int index = scope->currentIndex();
+        if (index >= 0 && unsigned(index) < scopes_.size())
+            session_.SelectKeys(a->text().toUInt(), b->text().toUInt(), scopes_[index]);
         break;
     }
     case kShowCurrentFrameButton:
-        timeline_->SetFrameScroll(int(current));
+        timeline_->SetFrameScroll(std::max(0, int(current) - (side_ - 84) / 26));
         break;
     case kGoToFrameButton:
         ok = session_.Seek(static_cast<QLineEdit*>(Control(kGotoFrameEdit))->text().toUInt(), r);
@@ -1163,6 +1167,8 @@ void EditorWindow::Combo(int id, int index) {
     }
     if (id == kAccessoryCombo)
         session_.Selected().accessory = std::uint8_t(c->itemData(index).toUInt());
+    if (id == kRegisterScopeCombo)
+        scopeSelections_[session_.Selected().model] = index;
     Refresh();
 }
 bool EditorWindow::eventFilter(QObject* object, QEvent* event) {

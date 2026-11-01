@@ -351,5 +351,10 @@
   "interpolation.3": "旋转",
   "interpolation.4": "距离",
   "interpolation.5": "视角",
-  "interpolation.all": "全部"
+  "interpolation.all": "全部",
+  "scope.all": "全部帧",
+  "scope.selected_bones": "选定骨骼",
+  "scope.selected_morphs": "选定表情",
+  "scope.morphs": "全部表情帧",
+  "scope.bones": "全部骨骼帧"
 }

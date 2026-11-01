@@ -30,6 +30,18 @@ struct Selection {
     std::set<KeyAddress> keys;
     std::set<KeyAddress> tracks; // frame-independent row selections use frame zero
 };
+enum class KeyScopeKind {
+    All,
+    Bones,
+    Morphs,
+    SelectedBones,
+    SelectedMorphs,
+    Track
+};
+struct KeyScope {
+    KeyScopeKind kind = KeyScopeKind::All;
+    KeyAddress track;
+};
 using Key = std::variant<format::PmmBoneKey, format::PmmMorphKey, format::PmmDisplayKey,
                          format::PmmCameraKey, format::PmmLightKey, format::PmmSelfShadowKey,
                          format::PmmGravityKey, format::PmmAccessoryKey>;
@@ -111,6 +123,8 @@ public:
     Selection& Selected() { return selection_; }
     const Selection& Selected() const { return selection_; }
     std::vector<KeyAddress> Keys() const;
+    void SelectKeys(std::uint32_t first, std::uint32_t last, const KeyScope&);
+    void ExtendSelectedColumns();
 
 private:
     struct State {

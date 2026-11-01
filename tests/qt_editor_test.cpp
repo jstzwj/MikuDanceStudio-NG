@@ -215,6 +215,33 @@ int main(int argc, char** argv) {
     CHECK(window.Save(root / "qt-groups.pmm") && window.Open(root / "qt-groups.pmm"));
     CHECK(window.Session().Document().models[0].selection.groupFlags[3] == 1);
     QStringList catalogKeys;
+    CHECK(window.SetLanguage("en"));
+    auto* scope = static_cast<QComboBox*>(window.Control(panel::kRegisterScopeCombo));
+    CHECK(scope->itemText(0) == "All frame");
+    CHECK(scope->itemText(3) == "Sel Bone");
+    CHECK(scope->findText("All facial") == 5);
+    CHECK(scope->findText("All bone") == 7);
+    CHECK(window.Session().Register(
+        {{editor::Track::Bone, 0, 0, 10}, {editor::Track::Morph, 0, 0, 10}}, reason));
+    window.Session().Selected().keys.clear();
+    static_cast<QLineEdit*>(window.Control(panel::kRangeStartEdit))->setText("10");
+    static_cast<QLineEdit*>(window.Control(panel::kRangeStopEdit))->setText("10");
+    scope->setCurrentIndex(5);
+    scope->activated(5);
+    window.Dispatch(panel::kSelectRangeButton);
+    CHECK(window.Session().Selected().keys.size() == 1);
+    CHECK(window.Session().Selected().keys.count({editor::Track::Morph, 0, 0, 10}));
+    CHECK(window.Session().Seek(99, reason));
+    window.Dispatch(panel::kShowCurrentFrameButton);
+    CHECK(timeline->FrameScroll() == 99 - (250 - 84) / 26);
+    window.Dispatch(panel::kSelectColumnButton);
+    CHECK(window.Session().Selected().keys.size() == 2);
+    window.Dispatch(panel::kModelEditToggle);
+    CHECK(scope->count() == 4 && scope->currentIndex() == 0);
+    window.Dispatch(panel::kModelEditToggle);
+    CHECK(scope->currentIndex() == 5);
+    CHECK(window.SetLanguage("ja"));
+    CHECK(scope->currentIndex() == 5);
     for (const char* language : {"en", "ja", "zh_CN"}) {
         QFile catalog(QString(":/i18n/%1.json").arg(language));
         CHECK(catalog.open(QIODevice::ReadOnly));

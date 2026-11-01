@@ -6,6 +6,7 @@ function(mds_add_editor_core)
     add_library(mikudancestudio_editor_core STATIC
         "${root}/src/editor/editor_session.cpp" "${root}/src/editor/editor_motion.cpp"
         "${root}/src/editor/editor_interpolation.cpp")
+    target_sources(mikudancestudio_editor_core PRIVATE "${root}/src/editor/editor_selection.cpp")
     target_link_libraries(mikudancestudio_editor_core PUBLIC mikudancestudio_scene_runtime)
     target_compile_features(mikudancestudio_editor_core PUBLIC cxx_std_17)
     if(MSVC)

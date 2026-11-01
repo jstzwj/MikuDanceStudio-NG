@@ -351,5 +351,10 @@
   "interpolation.3": "回　転",
   "interpolation.4": "距　離",
   "interpolation.5": "視野角",
-  "interpolation.all": "すべて"
+  "interpolation.all": "すべて",
+  "scope.all": "全ﾌﾚｰﾑ",
+  "scope.selected_bones": "選択ﾎﾞｰﾝ",
+  "scope.selected_morphs": "選択表情",
+  "scope.morphs": "全表情ﾌﾚｰﾑ",
+  "scope.bones": "全ボーンﾌﾚｰﾑ"
 }

@@ -142,3 +142,11 @@ the actual controls. The Windows memory-DIB oracle matches all 128x128 pixels fo
 266 curve/highlight cases, including signed control bytes; ten independent GDI
 hashes also gate the Qt raster on other systems. This does not close the broader
 per-model versus camera history, input, font or dialog parity requirements.
+
+Range-selection scopes now cover global/accessory tracks, all model keys,
+all/selected bone and morph tracks, and named display rows. Native bulk scopes
+replace marks in the addressed tracks; selected/named model scopes add marks.
+The column button extends every selected column across the active model or global
+tracks, independently of the playhead. Qt retains each loaded model's scope while
+switching models/languages and centers the playhead using the original sidebar
+formula. Generated core/Qt tests cover these distinctions without scene evaluation.
