@@ -204,6 +204,14 @@ bool ModelResource::Create(const format::ModelDocument& source,
                        resource->boneNames_, resource->skeleton_, resource->chains_, reason))
         return false;
     resource->sourceKind_ = source.kind;
+    bool operationCenter = false;
+    for (unsigned i = 0; i < resource->boneNames_.size(); ++i) {
+        if (resource->boneNames_[i] == u8"\u64cd\u4f5c\u4e2d\u5fc3") {
+            resource->cameraCenter_ = i;
+            operationCenter = true;
+        } else if (!operationCenter && resource->boneNames_[i] == u8"\u30bb\u30f3\u30bf\u30fc")
+            resource->cameraCenter_ = i;
+    }
     for (const auto& bone : resource->skeleton_) {
         resource->layers_.push_back(bone.layer);
         resource->editingBones_.push_back({bone.type, bone.flags, bone.hasRigidBody});

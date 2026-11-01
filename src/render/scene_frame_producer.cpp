@@ -70,7 +70,8 @@ ModelInputMath ShadowMath() {
     };
     return math;
 }
-bool Camera(const runtime::SceneRuntime& scene, ModelFrameInputs& f, std::string& reason) {
+bool Camera(const runtime::SceneRuntime& scene, ModelFrameInputs& f, std::string& reason,
+            std::optional<std::uint8_t> editorModel = std::nullopt) {
     f.world = f.lightRotation = Identity();
     f.scene.camera.distance = -45;
     f.scene.camera.fov = 45;
@@ -84,6 +85,62 @@ bool Camera(const runtime::SceneRuntime& scene, ModelFrameInputs& f, std::string
         auto& c = f.scene.camera;
         if (doc.envelope.header.version == format::PmmVersion::V1 && c.parentModel >= 0)
             return Fail(reason, "v1_camera_parent_requires_explicit_import");
+        if (editorModel) {
+            const bool cameraMode = *editorModel == 255;
+            const bool cameraView =
+                cameraMode ||
+                (doc.appearance.followCamera &&
+                 (scene.Playing() || (c.parentModel >= 0 && *editorModel == c.parentModel)));
+            Vec3 focus{};
+            Matrix parent = Identity(), attachment = Identity();
+            if (c.parentModel >= 0 &&
+                !scene.BoneAttachment(c.parentModel, std::max(0, c.parentBone), parent, reason))
+                return false;
+            f.view.editorNavigation = true;
+            f.view.editorEye = {doc.cameraState[3], doc.cameraState[4], c.distance};
+            f.view.editorFov = c.fov;
+            f.view.editorPerspective = c.perspective;
+            if (cameraView) {
+                if (c.parentModel < 0)
+                    focus = c.position;
+                else {
+                    std::copy_n(parent.begin() + 12, 3, focus.begin());
+                    f.view.editorEye = c.position;
+                }
+            } else if (doc.timeline.cameraReferenceMode != 0) {
+                const auto snapshot = scene.Snapshot(*editorModel);
+                const auto resource = scene.Resource(*editorModel);
+                if (!snapshot || !resource)
+                    return Fail(reason, "editor_camera_model_expired");
+                if (doc.timeline.cameraReferenceMode == 1) {
+                    const auto& skin = snapshot->bones[resource->CameraCenterBone()].skin;
+                    std::copy_n(skin.begin() + 12, 3, focus.begin());
+                } else if (doc.timeline.cameraReferenceMode == 2) {
+                    for (const auto& model : doc.models)
+                        if (model.slot == *editorModel && model.selection.selectedBone >= 0) {
+                            const auto i = std::size_t(model.selection.selectedBone);
+                            if (i >= snapshot->bones.size())
+                                return Fail(reason, "editor_camera_bone_expired");
+                            focus = snapshot->bones[i].worldPosition;
+                        }
+                }
+            }
+            if (doc.appearance.followCamera || cameraMode) {
+                if (c.parentModel >= 0 && !doc.appearance.suppressCameraTransform)
+                    for (unsigned r = 0; r < 3; ++r)
+                        for (unsigned col = 0; col < 3; ++col)
+                            attachment[r * 4 + col] = parent[col * 4 + r];
+            } else if (std::any_of(doc.appearance.cameraAttachmentBasis.begin(),
+                                   doc.appearance.cameraAttachmentBasis.end(),
+                                   [](float v) { return v != 0; }))
+                attachment = doc.appearance.cameraAttachmentBasis;
+            const auto rotation =
+                Multiply(Multiply(RotationY(c.rotation[1]), RotationX(c.rotation[0])),
+                         RotationZ(c.rotation[2]));
+            f.lightRotation = Multiply(attachment, rotation);
+            f.world = Multiply(Translation({-focus[0], -focus[1], -focus[2]}), f.lightRotation);
+            return true;
+        }
         Vec3 focus = c.position;
         Matrix attachment = Identity();
         if (c.parentModel >= 0) {
@@ -158,9 +215,22 @@ void InstallShadow(ModelPipeline& p, const BuiltinShadowState& shared,
     p.shadow.specular[3] = material.shininess == 0 ? .1f : material.shininess;
 }
 }
+bool SceneViewInputs(const runtime::SceneRuntime& scene, const SceneRenderSettings& settings,
+                     ModelFrameInputs& frame, std::string& reason) {
+    if (!settings.width || !settings.height)
+        return Fail(reason, "scene_viewport_invalid");
+    ModelFrameInputs result;
+    result.view.aspect = float(settings.width) / settings.height;
+    result.view.viewport = {0, 0, settings.width, settings.height, 0, 1};
+    if (!Camera(scene, result, reason, settings.editorModel))
+        return false;
+    frame = std::move(result);
+    reason.clear();
+    return true;
+}
 bool SceneBoneScreenPoints(const runtime::SceneRuntime& scene, std::uint8_t slot, unsigned width,
                            unsigned height, std::vector<cpu_bone::ScreenPoint>& output,
-                           std::string& reason) {
+                           std::string& reason, std::optional<std::uint8_t> editorModel) {
     const auto resource = scene.Resource(slot);
     const auto snapshot = scene.Snapshot(slot);
     if (!scene.Session() || !resource || !snapshot || !width || !height || width > 0x7fffffffu ||
@@ -172,9 +242,11 @@ bool SceneBoneScreenPoints(const runtime::SceneRuntime& scene, std::uint8_t slot
     if (model == models.end())
         return Fail(reason, "bone_projection_model_unavailable");
     ModelFrameInputs frame;
-    frame.view.aspect = float(width) / height;
-    frame.view.viewport = {0, 0, width, height, 0, 1};
-    if (!Camera(scene, frame, reason))
+    SceneRenderSettings settings;
+    settings.width = width;
+    settings.height = height;
+    settings.editorModel = editorModel;
+    if (!SceneViewInputs(scene, settings, frame, reason))
         return false;
     ModelPipeline pipeline;
     if (!BuildModelInputs(frame, {}, {}, pipeline))
@@ -437,9 +509,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         settings.shadow.mapSize < 16 || settings.shadow.mapSize > 4096)
         return Fail(reason, "scene_render_settings");
     ModelFrameInputs frame;
-    frame.view.aspect = float(settings.width) / settings.height;
-    frame.view.viewport = {0, 0, settings.width, settings.height, 0, 1};
-    if (!Camera(scene, frame, reason))
+    if (!SceneViewInputs(scene, settings, frame, reason))
         return false;
     const auto* session = scene.Session();
     const auto* doc = session ? &session->Document() : nullptr;
@@ -463,8 +533,10 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         return Fail(reason, "scene_camera");
     shadow.worldViewProjection =
         Multiply(Multiply(camera.shader.world, camera.shader.view), camera.shader.projection);
-    const Vec3 eye = frame.scene.camera.parentModel >= 0 ? frame.scene.camera.position
-                                                         : Vec3{0, 0, frame.scene.camera.distance};
+    const Vec3 eye = frame.view.editorNavigation ? frame.view.editorEye
+                     : frame.scene.camera.parentModel >= 0
+                         ? frame.scene.camera.position
+                         : Vec3{0, 0, frame.scene.camera.distance};
     Matrix inverse;
     if (!Inverse(frame.world, inverse))
         return Fail(reason, "scene_camera_inverse");

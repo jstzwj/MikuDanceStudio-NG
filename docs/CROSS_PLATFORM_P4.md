@@ -361,3 +361,39 @@ box and unregistered selection. All 14 local P4 tests passed. The Windows pickin
 regression and application build also passed. Projection currently follows the
 shared producer's camera; independent native editor-camera comparison, visible
 bone overlays and transform tools remain open P4 work.
+
+[Run 41293720992](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41293720992)
+at `6fb8d2a` passed the selection batch on Windows, macOS and Linux.
+
+Viewport right/middle dragging and wheel input now use the Windows pump's shared
+arithmetic. Model Shift-right drag pans the independent view offsets, Ctrl-right
+drag changes distance, and ordinary right drag subtracts yaw/pitch. Camera-mode
+middle drag follows either the rotated free camera basis or the parented
+depth/FOV rule. Modifier precedence, signed wheel payloads and the followed-model
+gate are explicit. Current camera changes preserve the runtime, published model
+snapshots, physics world and active playback instead of rebuilding the scene.
+
+Editor view production now distinguishes model reference pivots from the timeline
+camera. Model-center/active-bone pivots, independent view offsets, transposed
+parent rotation, suppression and the editor orthographic eye enter the shared
+RHI input contract. Model/active-bone/playback changes also invalidate the
+viewport cache. Export retains its existing explicit timeline convention.
+
+The headless navigation regression checks modifier branches, parent depth
+boundaries, follow gates, invalid values, history isolation and zero scene
+updates. Qt offscreen tests send actual right-drag and wheel events. The explicit
+Windows `editor_view_test <fixture> --d3dx` additionally passed 48 independent
+D3DX rotation/free-pan cases within the fixed absolute `2e-5` matrix/position
+tolerance; ordinary geometry assertions run on every platform. This is a math
+comparison, not an original executable/event-loop or full scene-output oracle.
+Saved attachment-basis transitions, camera application during model-mode
+playback, view presets, bone overlays and transform tools remain open.
+
+All 16 local P4 tests passed after this change. The never-shown native Qt viewport
+also passed on DX11, DX12 and Vulkan, including cached navigation frames, model
+switching, device replacement and preservation of the same CPU snapshot. The
+application built; it was not launched on the desktop.
+
+The rebuilt Windows `model_viewport_test`, `bone_pick_test` and
+`input_sequence_test` also passed, as did the rebuilt portable `scene_runtime`
+regression after sharing camera-center selection with the physics host.

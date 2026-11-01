@@ -22,6 +22,7 @@
 // =========================================================================//
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#include "mikudancestudio/camera_navigation.hpp"
 #include <Windows.h>
 #include <commctrl.h>
 
@@ -176,7 +177,7 @@ void HandleMouseWheel(int delta) {
     if ((mode & (axis >= 0 ? 1u : 0u)) != 0) {
         // camera distance: this+828 (float) += wheel * 0.05
         // (x64 0x7FF7CB45F340: cvtdq2ps/mulss 0.05f/addss/movss)
-        app->CameraPosition()[2] = static_cast<float>(wheel) * 0.05f + app->CameraPosition()[2];
+        navigation::Wheel(app->CameraPosition(), app->CameraDistance(), wheel, true, axis);
         if (app->GlobalTrackSelected(GlobalTimelineTrack::Camera) == 0) {
             // switch the edit selection to the camera row (x64 0x7FF7CB45F36F:
             // DWORD store - camera 656356 = 1, light / self-shadow / gravity
@@ -206,7 +207,7 @@ void HandleMouseWheel(int delta) {
         }
         // view angle: this+657628 (float) += wheel * 0.05
         // (x64 0x7FF7CB45F410: same single-precision chain)
-        app->CameraDistance() = static_cast<float>(wheel) * 0.05f + app->CameraDistance();
+        navigation::Wheel(app->CameraPosition(), app->CameraDistance(), wheel, mode != 0, axis);
         if (app->GlobalTrackSelected(GlobalTimelineTrack::Camera) == 0) {
             // same camera-row switch on the angle branch (x64 DWORD store
             // 0x7FF7CB45F434, slot loop 0x7FF7CB45F43E)

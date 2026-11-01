@@ -34,6 +34,9 @@ public:
         return runtimeAppliedLight_;
     }
     bool SetRuntimeAppliedCamera(const PmmEvaluatedCamera&);
+    // Current view only: no track evaluation or physics reset. Playback cursors
+    // continue to own subsequent animated camera values.
+    bool SetViewCamera(const PmmEvaluatedCamera&, const std::array<float, 2>& offsets);
     const std::optional<PmmEvaluatedCamera>& RuntimeAppliedCamera() const {
         return runtimeAppliedCamera_;
     }

@@ -747,27 +747,6 @@ bool EditorSession::SetMorph(std::uint8_t slot, std::uint32_t morph, float value
         },
         reason);
 }
-bool EditorSession::SetCamera(const PmmEvaluatedCamera& c, std::string& reason) {
-    return Edit(
-        "camera-transform",
-        [&](auto& d, auto& error) {
-            if (!std::isfinite(c.fov) || c.fov < 1 || c.fov > 179) {
-                error = "camera-fov-out-of-range";
-                return false;
-            }
-            for (int i = 0; i < 3; ++i) {
-                d.cameraState[i] = c.position[i];
-                d.cameraState[6 + i] = c.rotation[i];
-            }
-            d.cameraState[5] = c.distance;
-            d.envelope.settings.cameraFov = c.fov;
-            d.cameraPerspective = c.perspective;
-            d.appearance.cameraParentModel = c.parentModel;
-            d.appearance.cameraParentBone = c.parentBone;
-            return true;
-        },
-        reason);
-}
 bool EditorSession::SetAccessory(std::uint8_t slot, const PmmAccessoryState& pose,
                                  std::string& reason) {
     return Edit(

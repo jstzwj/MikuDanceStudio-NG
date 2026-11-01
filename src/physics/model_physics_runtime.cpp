@@ -74,14 +74,7 @@ bool ModelPhysics::Create(std::shared_ptr<const ModelResource> resource,
     backup_.resize(model.bones.size());
     for (auto& backup : backup_)
         backup[6] = 1;
-    bool operationCenter = false;
-    for (std::size_t n = 0; n < resource_->BoneNames().size(); ++n) {
-        if (resource_->BoneNames()[n] == u8"\u64cd\u4f5c\u4e2d\u5fc3") {
-            centerBone_ = int(n);
-            operationCenter = true;
-        } else if (!operationCenter && resource_->BoneNames()[n] == u8"\u30bb\u30f3\u30bf\u30fc")
-            centerBone_ = int(n);
-    }
+    centerBone_ = int(resource_->CameraCenterBone());
     World target{world, id};
     for (std::size_t n = 0; n < rigids_.size(); ++n) {
         const auto& source = model.rigids[n].fields;

@@ -76,10 +76,12 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
     render::SceneRenderSettings settings;
     settings.width = w;
     settings.height = h;
+    settings.editorModel = session_.Selected().model;
     const auto revision = session_.Revision(), updates = session_.Runtime().Counters().frames;
     const bool history = session_.Document().view.captureMode != 0;
     if (!frameCached_ || history || cachedRevision_ != revision || cachedUpdates_ != updates ||
-        cachedWidth_ != w || cachedHeight_ != h) {
+        cachedWidth_ != w || cachedHeight_ != h || cachedModel_ != session_.Selected().model ||
+        cachedBone_ != ActiveBone() || cachedPlaying_ != session_.Playing()) {
         frameCached_ = false;
         if (!producer_.Build(session_.Runtime(), settings, cachedFrame_, reason))
             return false;
@@ -88,6 +90,9 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         cachedUpdates_ = updates;
         cachedWidth_ = w;
         cachedHeight_ = h;
+        cachedModel_ = session_.Selected().model;
+        cachedBone_ = ActiveBone();
+        cachedPlaying_ = session_.Playing();
         frameCached_ = !history;
     }
     const auto submissions = Submissions();
@@ -100,6 +105,12 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         frameCached_ = false;
     reason.clear();
     return true;
+}
+int Viewport::ActiveBone() const {
+    for (const auto& model : session_.Document().models)
+        if (model.slot == session_.Selected().model)
+            return model.selection.selectedBone;
+    return -1;
 }
 std::uint64_t Viewport::Submissions() const {
     const auto* renderer = const_cast<rhi::ScenePreviewController&>(controller_).GetRenderer();
@@ -123,7 +134,7 @@ void Viewport::mousePressEvent(QMouseEvent* e) {
         std::string reason;
         if (!render::SceneBoneScreenPoints(session_.Runtime(), session_.Selected().model,
                                            unsigned(width()), unsigned(height()), bonePoints_,
-                                           reason)) {
+                                           reason, session_.Selected().model)) {
             if (changed)
                 changed(false, reason);
             return;

@@ -263,29 +263,23 @@ void EditorWindow::CreateViewport(const rhi::BackendOptions& options) {
         Refresh();
     };
     viewport_->zoom = [this](int delta) {
-        auto camera = session_.Runtime().Session()->Pose().camera;
-        if (session_.Selected().model == 255 && camera.parentModel >= 0)
-            camera.position[2] = float(delta) * .05f + camera.position[2];
-        else
-            camera.distance = float(delta) * .05f + camera.distance;
         std::string r;
-        Result(session_.SetCamera(camera, r), r);
+        Result(session_.WheelView(delta, r), r);
         Refresh();
     };
     viewport_->drag = [this](QPoint delta, Qt::MouseButtons buttons,
                              Qt::KeyboardModifiers modifiers) {
         if (!(buttons & Qt::RightButton) && !(buttons & Qt::MiddleButton))
             return;
-        auto camera = session_.Runtime().Session()->Pose().camera;
-        if ((buttons & Qt::MiddleButton) || (modifiers & Qt::ShiftModifier)) {
-            camera.position[0] -= delta.x() * .1f;
-            camera.position[1] += delta.y() * .1f;
-        } else {
-            camera.rotation[0] += delta.y() * .01f;
-            camera.rotation[1] += delta.x() * .01f;
-        }
         std::string r;
-        Result(session_.SetCamera(camera, r), r);
+        bool ok = true;
+        if (buttons & Qt::RightButton)
+            ok = session_.DragView(false, delta.x(), delta.y(), modifiers & Qt::ShiftModifier,
+                                   modifiers & Qt::ControlModifier, r);
+        if (ok && (buttons & Qt::MiddleButton))
+            ok = session_.DragView(true, delta.x(), delta.y(), modifiers & Qt::ShiftModifier,
+                                   modifiers & Qt::ControlModifier, r);
+        Result(ok, r);
         Refresh();
     };
     Layout();

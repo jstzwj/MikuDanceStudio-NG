@@ -58,6 +58,7 @@ public:
     const std::vector<ModelDisplayGroup>& DisplayGroups() const { return displayGroups_; }
     const std::vector<BoneEditingInfo>& EditingBones() const { return editingBones_; }
     std::uint32_t DisplayRootBone() const { return displayRoot_; }
+    std::uint32_t CameraCenterBone() const { return cameraCenter_; }
     std::vector<std::int32_t> IkBoneIndices() const {
         std::vector<std::int32_t> result;
         for (const auto& chain : chains_)
@@ -81,6 +82,7 @@ private:
     std::vector<ModelDisplayGroup> displayGroups_;
     std::vector<BoneEditingInfo> editingBones_;
     std::uint32_t displayRoot_ = 0;
+    std::uint32_t cameraCenter_ = 0;
     std::vector<std::size_t> order_;
     std::vector<int> layers_;
     ModelResource() = default;

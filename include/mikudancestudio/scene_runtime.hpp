@@ -27,6 +27,7 @@ public:
     bool Reset(std::string&);
     bool StartPlayback(std::string&);
     void Pause();
+    bool Playing() const;
     bool Advance(float absoluteSeconds, float deltaSeconds, std::string&);
     bool Tick(float deltaSeconds, std::string&);
     bool Edit(const std::function<void(format::PmmSceneDocument&)>&, std::string&);
@@ -35,6 +36,7 @@ public:
     void ClearPoseEditMarkers();
     void SetBoneSelection(std::uint8_t, const std::vector<std::uint32_t>&, int active);
     void SetEditMode(std::int32_t);
+    bool SetViewCamera(const format::PmmEvaluatedCamera&, const std::array<float, 2>&);
     bool UnloadModel(std::uint8_t, std::string&);
     bool AttachAccessory(std::uint8_t, std::shared_ptr<const AccessoryResource>, std::string&);
     bool UnloadAccessory(std::uint8_t, std::string&);

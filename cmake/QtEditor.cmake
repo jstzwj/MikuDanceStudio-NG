@@ -39,6 +39,10 @@ function(mds_add_qt_editor)
     add_custom_command(TARGET MikuDanceStudioNG POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${root}/res/assets" "$<TARGET_FILE_DIR:MikuDanceStudioNG>/assets")
     if(BUILD_TESTING)
+        add_executable(editor_view_test "${root}/tests/editor_view_test.cpp")
+        target_link_libraries(editor_view_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render)
+        add_test(NAME editor_view COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py" --test $<TARGET_FILE:editor_view_test>)
+        set_tests_properties(editor_view PROPERTIES LABELS "p4;headless;portable" TIMEOUT 120)
         add_executable(portable_uv_render_test "${root}/tests/portable_uv_render_test.cpp")
         target_link_libraries(portable_uv_render_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render)
         add_test(NAME portable_uv_render COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"

@@ -77,6 +77,29 @@ int main(int argc, char** argv) {
             if (i == 2)
                 CHECK(viewport.Reset(reason));
         }
+        const auto navigationFrames = session.Runtime().Counters().frames;
+        const auto* snapshot = session.Runtime().Snapshot(0);
+        const auto beforeNavigation = viewport.FrameBuilds();
+        CHECK(session.DragView(false, 13, -7, false, false, reason));
+        CHECK(session.DragView(true, -5, 11, true, false, reason));
+        CHECK(session.WheelView(-120, reason));
+        const auto cameraState = session.Document().cameraState;
+        CHECK(session.Runtime().Counters().frames == navigationFrames);
+        CHECK(session.Runtime().Snapshot(0) == snapshot);
+        CHECK(viewport.Render(reason, true));
+        CHECK(viewport.FrameBuilds() == beforeNavigation + 1);
+        CHECK(viewport.Render(reason, true));
+        CHECK(viewport.FrameBuilds() == beforeNavigation + 1);
+        CHECK(viewport.Reset(reason));
+        CHECK(viewport.Render(reason, true));
+        CHECK(session.Document().cameraState == cameraState);
+        CHECK(session.Runtime().Counters().frames == navigationFrames);
+        CHECK(session.Runtime().Snapshot(0) == snapshot);
+        CHECK(session.SelectModel(255, reason));
+        CHECK(viewport.Render(reason, true));
+        CHECK(session.SelectModel(0, reason));
+        CHECK(viewport.Render(reason, true));
+        CHECK(session.Runtime().Counters().frames == navigationFrames);
         // Destroy the actual native surface, then recreate it on the same Qt
         // object. No GPU ownership may survive SurfaceAboutToBeDestroyed.
         viewport.destroy();

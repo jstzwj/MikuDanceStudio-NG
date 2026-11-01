@@ -65,7 +65,8 @@ int main(int argc, char** argv) {
         view->resize(640, 480); // hidden window containers have no exposed surface layout
         std::vector<cpu_bone::ScreenPoint> points;
         CHECK(render::SceneBoneScreenPoints(s.Runtime(), 0, unsigned(view->width()),
-                                            unsigned(view->height()), points, reason));
+                                            unsigned(view->height()), points, reason,
+                                            s.Selected().model));
         CHECK(points.size() == 8 && points[3].x != 393939);
         const QPointF hit(points[3].x, points[3].y);
         const auto click = [&](QEvent::Type type, QPointF point,
@@ -98,6 +99,37 @@ int main(int argc, char** argv) {
         CHECK(s.Document().models[0].selection.selectedBone == -1);
         CHECK(s.Runtime().Counters().frames == updates);
         CHECK(!picking.isVisible() && !view->isVisible());
+        const auto* liveRuntime = &s.Runtime();
+        const auto* liveSnapshot = s.Runtime().Snapshot(0);
+        const auto offsets = s.Document().cameraState;
+        const auto dragView = [&](Qt::MouseButton button, Qt::KeyboardModifiers modifiers) {
+            QMouseEvent press(QEvent::MouseButtonPress, QPointF(100, 100), QPointF(100, 100),
+                              button, button, modifiers);
+            QApplication::sendEvent(view, &press);
+            QMouseEvent move(QEvent::MouseMove, QPointF(120, 90), QPointF(120, 90), Qt::NoButton,
+                             button, modifiers);
+            QApplication::sendEvent(view, &move);
+            QMouseEvent release(QEvent::MouseButtonRelease, QPointF(120, 90), QPointF(120, 90),
+                                button, Qt::NoButton, modifiers);
+            QApplication::sendEvent(view, &release);
+        };
+        dragView(Qt::RightButton, Qt::ShiftModifier);
+        CHECK(s.Document().cameraState[3] == offsets[3] - 2);
+        CHECK(s.Document().cameraState[4] == offsets[4] - 1);
+        const auto distance = s.Document().cameraState[5];
+        dragView(Qt::RightButton, Qt::ControlModifier);
+        CHECK(s.Document().cameraState[5] == distance + 1);
+        const auto pitch = s.Document().cameraState[6], yaw = s.Document().cameraState[7];
+        dragView(Qt::RightButton, Qt::NoModifier);
+        CHECK(std::abs(s.Document().cameraState[6] - (pitch + .1f)) < 1e-6f);
+        CHECK(std::abs(s.Document().cameraState[7] - (yaw - .2f)) < 1e-6f);
+        QWheelEvent wheel(QPointF(100, 100), QPointF(100, 100), QPoint(), QPoint(0, -120),
+                          Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+        QApplication::sendEvent(view, &wheel);
+        CHECK(s.Document().cameraState[5] == distance - 5);
+        CHECK(&s.Runtime() == liveRuntime && s.Runtime().Snapshot(0) == liveSnapshot);
+        CHECK(s.Runtime().Counters().frames == updates);
+        CHECK(picking.LastError().isEmpty());
     }
     {
         qt::EditorWindow backgrounds(std::filesystem::absolute(argv[2]), true);

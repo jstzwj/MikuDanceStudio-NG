@@ -241,6 +241,37 @@ bool SceneSession::SetRuntimeAppliedCamera(const PmmEvaluatedCamera& camera) {
     return true;
 }
 
+bool SceneSession::SetViewCamera(const PmmEvaluatedCamera& camera,
+                                 const std::array<float, 2>& offsets) {
+    if (!loaded_ || !std::isfinite(camera.distance) || !std::isfinite(camera.fov) ||
+        camera.fov < 1 || camera.fov > 179 || camera.perspective > 1 || camera.parentModel < -1 ||
+        camera.parentModel > 254 ||
+        !std::all_of(camera.position.begin(), camera.position.end(),
+                     [](float v) { return std::isfinite(v); }) ||
+        !std::all_of(camera.rotation.begin(), camera.rotation.end(),
+                     [](float v) { return std::isfinite(v); }) ||
+        !std::isfinite(offsets[0]) || !std::isfinite(offsets[1]))
+        return false;
+    if (camera.parentModel >= 0) {
+        const auto model =
+            std::find_if(scene_.models.begin(), scene_.models.end(),
+                         [&](const auto& m) { return m.slot == camera.parentModel; });
+        if (model == scene_.models.end() || camera.parentBone < -1 ||
+            std::size_t(std::max(0, camera.parentBone)) >= model->bonePose.size())
+            return false;
+    }
+    pose_.camera = camera;
+    std::copy(camera.position.begin(), camera.position.end(), scene_.cameraState.begin());
+    std::copy(camera.rotation.begin(), camera.rotation.end(), scene_.cameraState.begin() + 6);
+    std::copy(offsets.begin(), offsets.end(), scene_.cameraState.begin() + 3);
+    scene_.cameraState[5] = camera.distance;
+    scene_.envelope.settings.cameraFov = camera.fov;
+    scene_.cameraPerspective = camera.perspective;
+    scene_.appearance.cameraParentModel = camera.parentModel;
+    scene_.appearance.cameraParentBone = camera.parentBone;
+    return true;
+}
+
 bool SceneSession::Seek(std::uint32_t frame) {
     if (!loaded_ || frame > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max()))
         return false;

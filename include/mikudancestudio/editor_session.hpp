@@ -97,6 +97,8 @@ public:
     bool SetMorph(std::uint8_t, std::uint32_t, float, std::string&);
     bool SetAccessory(std::uint8_t, const format::PmmAccessoryState&, std::string&);
     bool SetCamera(const format::PmmEvaluatedCamera&, std::string&);
+    bool DragView(bool middleButton, int dx, int dy, bool shift, bool control, std::string&);
+    bool WheelView(int delta, std::string&);
     bool Register(const std::vector<KeyAddress>&, std::string&);
     bool Delete(const std::set<KeyAddress>&, std::string&);
     bool Copy(const std::set<KeyAddress>&, std::string&);
@@ -208,5 +210,6 @@ private:
     bool ChangeInterpolation(unsigned channel,
                              const std::function<void(unsigned, InterpolationCurve&)>&,
                              std::string&);
+    bool ApplyView(const format::PmmEvaluatedCamera&, const std::array<float, 2>&, std::string&);
 };
 }

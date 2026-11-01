@@ -566,6 +566,9 @@ void SceneRuntime::Pause() {
     if (impl_)
         impl_->playing = false;
 }
+bool SceneRuntime::Playing() const {
+    return impl_ && impl_->playing;
+}
 bool SceneRuntime::Advance(float target, float delta, std::string& reason) {
     double evaluatedFrame;
     if (!impl_ || impl_->failed || !impl_->playing || !std::isfinite(target) ||
@@ -611,6 +614,11 @@ void SceneRuntime::SetBoneSelection(std::uint8_t slot, const std::vector<std::ui
 void SceneRuntime::SetEditMode(std::int32_t mode) {
     if (impl_->session)
         impl_->session->SetEditMode(mode);
+}
+bool SceneRuntime::SetViewCamera(const format::PmmEvaluatedCamera& camera,
+                                 const std::array<float, 2>& offsets) {
+    return impl_ && impl_->session && !impl_->failed &&
+           impl_->session->SetViewCamera(camera, offsets);
 }
 bool SceneRuntime::Edit(const std::function<void(format::PmmSceneDocument&)>& change,
                         std::string& reason) {

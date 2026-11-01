@@ -38,6 +38,10 @@ private:
     rhi::RenderFrame cachedFrame_;
     std::uint64_t cachedRevision_ = 0, cachedUpdates_ = 0, frameBuilds_ = 0;
     unsigned cachedWidth_ = 0, cachedHeight_ = 0;
+    std::uint8_t cachedModel_ = 255;
+    int cachedBone_ = -1;
+    bool cachedPlaying_ = false;
+    int ActiveBone() const;
     bool frameCached_ = false;
     bool loadedAssets_ = false, pressed_ = false;
     bool box_ = false;

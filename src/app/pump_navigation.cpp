@@ -75,6 +75,7 @@
 #include "mikudancestudio/d3dx_dyn.hpp"
 #include "mikudancestudio/mmd_app.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
+#include "mikudancestudio/camera_navigation.hpp"
 
 #include "pump_input.hpp"
 
@@ -165,9 +166,6 @@ void ApplyNumpadModelPreset(MMDApp* app, float pitch, float yaw, float distance,
 // into the camera target (0x334/0x338/0x33C; x64 0x36C/0x370/0x374).
 // Twin of frame_modes.cpp's internal PanCameraPosition (file-local there).
 void PanCameraPosition(MMDApp* app, int dx, int dy) {
-    const float scale = app->ShiftModifierActive()  ? 0.5f   // 0x52B8F0
-                        : app->CtrlModifierActive() ? 0.005f // 0x52E9C0
-                                                    : 0.05f; // 0x52D738
     auto& api = d3dx::Get();
     d3dx::D3DXMATRIXF pitch{}, yaw{}, roll{}, rotation{};
     api.rotY(&yaw, app->CameraYaw());
@@ -178,30 +176,16 @@ void PanCameraPosition(MMDApp* app, int dx, int dy) {
 
     // x86 0x470EB8+: rx = prevX - curX, ry = curY - prevY; each product is
     // scaled after the matrix multiply (x64 0x44DD73..0x44DD8E order).
-    const float rx = -static_cast<float>(dx);
-    const float ry = static_cast<float>(dy);
-    app->CameraPositionX() +=
-        rx * rotation.m[0][0] * scale + ry * rotation.m[1][0] * scale + rotation.m[3][0];
-    app->CameraPositionY() +=
-        rx * rotation.m[0][1] * scale + ry * rotation.m[1][1] * scale + rotation.m[3][1];
-    app->CameraPositionZ() -=
-        rx * rotation.m[0][2] * scale + ry * rotation.m[1][2] * scale + rotation.m[3][2];
+    navigation::PanFreeCamera(app->CameraPosition(), &rotation.m[0][0], dx, dy,
+                              app->ShiftModifierActive(), app->CtrlModifierActive());
 }
 
 // x64 0x44DAFF..0x44DCA7 (x86 0x4711xx): MMB pan while the camera key is
 // parented to a model - the delta is scaled by pixel size, view depth and
 // FOV.  Twin of frame_modes.cpp's internal PanSelectedCameraKey.
 void PanSelectedCameraKey(MMDApp* app, int dx, int dy) {
-    const float pixelScale = app->ShiftModifierActive()  ? 2e-4f  // 0x52D18
-                             : app->CtrlModifierActive() ? 2e-6f  // 0x52D14
-                                                         : 2e-5f; // 0x52D10
-    const float depth = std::fabs(app->CameraPositionZ());
-    const float depthFactor = depth <= 0.3f                // 0x7FF7CB552C54
-                                  ? 10.0f                  // 0x7FF7CB552980
-                                  : std::max(depth, 1.0f); // 0x7FF7CB552984
-    const float fov = app->CameraFov();                    // 0x9E1E8 / 0x9F0B4
-    app->CameraPositionX() -= static_cast<float>(dx) * pixelScale * depthFactor * fov;
-    app->CameraPositionY() += static_cast<float>(dy) * pixelScale * depthFactor * fov;
+    navigation::PanParentedCamera(app->CameraPosition(), app->CameraFov(), dx, dy,
+                                  app->ShiftModifierActive(), app->CtrlModifierActive());
 }
 
 } // namespace
@@ -319,28 +303,15 @@ void ConsumeRightButtonDrag(MMDApp* app) {
     const bool modelMode = app->CameraMode() == 0;            // 0x2F8/0x328
     const int dx = app->MouseX() - app->PreviousMouseX();     // +8/+4 diff
     const int dy = app->MouseY() - app->PreviousMouseY();
-    constexpr float kPanScale = 0.1f;     // x64 0x7FF7CB552B38 / x86 0x52BEA8
-    constexpr float kRotateScale = 0.01f; // x64 0x7FF7CB552C28 / x86 0x52E9C8
 
     if (state.rightMouseButtonState == 3 && inputActive) { // 0x470BF5
         if (modelMode && BoneEditPathActive(app)) {        // 0x470C15..
             EnterBoneEditRefresh(app, /*hold=*/true);      // 0x470C57..
             return;                                        // bone path skips PostViewRefresh
         }
-        if (modelMode && app->ShiftModifierActive()) { // 0x470C7A
-            app->ViewOffsetY() = app->ViewOffsetY() +  // 0x30C
-                                 static_cast<float>(dy) * kPanScale;
-            app->ViewOffsetX() = app->ViewOffsetX() - // 0x308
-                                 static_cast<float>(dx) * kPanScale;
-        } else if (app->CtrlModifierActive()) {             // 0x470CD4
-            app->CameraDistance() = app->CameraDistance() - // 0xA08DC
-                                    static_cast<float>(dy) * kPanScale;
-        } else {                                  // 0x470D02
-            app->CameraYaw() = app->CameraYaw() - // 0x314
-                               static_cast<float>(dx) * kRotateScale;
-            app->CameraPitch() = app->CameraPitch() - // 0x310
-                                 static_cast<float>(dy) * kRotateScale;
-        }
+        navigation::RightDrag(&app->CameraPitch(), app->CameraDistance(), &app->ViewOffsetX(),
+                              modelMode, dx, dy, app->ShiftModifierActive(),
+                              app->CtrlModifierActive());
         if (!modelMode && state.coordinateSystem != 2)        // 0x470D3C
             SelectTimelineTrack(GlobalTimelineTrack::Camera); // 0x440AC0
         PostViewRefresh(app);                                 // 0x40D130
@@ -371,17 +342,14 @@ void ConsumeMiddleButtonPan(MMDApp* app) {
     const int dx = app->MouseX() - app->PreviousMouseX();
     const int dy = app->MouseY() - app->PreviousMouseY();
 
-    if (state.middleMouseButtonState == 3 && inputActive) {                           // 0x470DD5
-        if (modelMode) {                                                              // 0x44D995
-            const float scale = app->ShiftModifierActive()  ? 0.5f                    //0x52B8F0
-                                : app->CtrlModifierActive() ? 0.005f                  //0x52E9C0
-                                                            : 0.05f;                  //0x52D738
-            app->ViewOffsetY() = app->ViewOffsetY() + static_cast<float>(dy) * scale; // 0x30C
-            app->ViewOffsetX() = app->ViewOffsetX() - static_cast<float>(dx) * scale; // 0x308
-            if (BoneEditPathActive(app))                                              // 0x44DA78..
-                EnterBoneEditRefresh(app, /*hold=*/true);                             // 0x44DAC8..
-        } else if (app->CameraParentModel() >= 0) {                                   // 0x44DAF0
-            PanSelectedCameraKey(app, dx, dy);                                        // 0x44DAFF..
+    if (state.middleMouseButtonState == 3 && inputActive) { // 0x470DD5
+        if (modelMode) {                                    // 0x44D995
+            navigation::PanOffsets(&app->ViewOffsetX(), dx, dy, app->ShiftModifierActive(),
+                                   app->CtrlModifierActive());
+            if (BoneEditPathActive(app))                  // 0x44DA78..
+                EnterBoneEditRefresh(app, /*hold=*/true); // 0x44DAC8..
+        } else if (app->CameraParentModel() >= 0) {       // 0x44DAF0
+            PanSelectedCameraKey(app, dx, dy);            // 0x44DAFF..
         } else {
             PanCameraPosition(app, dx, dy); // 0x44DCAC..
         }
