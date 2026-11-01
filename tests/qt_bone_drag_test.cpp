@@ -98,6 +98,30 @@ int main(int argc, char** argv) {
     mouse(QEvent::MouseButtonRelease, near, Qt::LeftButton, Qt::NoButton);
     CHECK(ok && session.Selected().bones == (std::vector<std::uint32_t>{0}));
     CHECK(session.ActiveBone() == 0);
+    CHECK(session.SelectModel(255, reason));
+    auto camera = session.Runtime().Session()->Pose().camera;
+    camera.position = {0, 0, -45};
+    camera.rotation = {};
+    CHECK(session.SetCamera(camera, reason));
+    const auto frames = session.Runtime().Counters().frames;
+    const auto cameraX = axis(0, false); // camera position controls occupy the lower row
+    mouse(QEvent::MouseButtonPress, cameraX, Qt::LeftButton, Qt::LeftButton);
+    CHECK(viewport.cursor().shape() == Qt::BlankCursor);
+    mouse(QEvent::MouseMove, cameraX - QPointF(0, 10), Qt::NoButton, Qt::LeftButton);
+    mouse(QEvent::MouseButtonRelease, cameraX - QPointF(0, 10), Qt::LeftButton, Qt::NoButton);
+    CHECK(ok && viewport.cursor().shape() != Qt::BlankCursor);
+    CHECK(std::abs(session.Document().cameraState[0] + .5f * ratio) < 1e-6f);
+    CHECK(session.Runtime().Counters().frames == frames && !session.CanUndo());
+    const auto cameraAngle = axis(2, true);
+    mouse(QEvent::MouseButtonPress, cameraAngle, Qt::LeftButton, Qt::LeftButton);
+    mouse(QEvent::MouseMove, cameraAngle - QPointF(0, 10), Qt::NoButton, Qt::LeftButton,
+          Qt::ControlModifier);
+    QCoreApplication::sendEvent(&viewport, &focus);
+    CHECK(ok && viewport.cursor().shape() != Qt::BlankCursor);
+    CHECK(std::abs(session.Document().cameraState[8] + .02f * ratio) < 1e-6f);
+    const auto stopped = session.Document().cameraState;
+    mouse(QEvent::MouseMove, cameraAngle - QPointF(0, 30), Qt::NoButton, Qt::LeftButton);
+    CHECK(session.Document().cameraState == stopped);
     CHECK(!viewport.isVisible() && viewport.Submissions() == 0);
     std::cout
         << "Qt synthetic bone gestures, axis hit, selection inheritance, focus loss, undo and DPR passed without a surface\n";

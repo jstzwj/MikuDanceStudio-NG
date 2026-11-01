@@ -746,3 +746,36 @@ reuse. Ordinary polling stays nonblocking and profiling remains opt-in. A local
 never-shown Vulkan presentation test retained all 90 timestamp samples with no
 new image readbacks. The Paravirtual driver's zero durations remain recorded as
 unavailable; budgets and image comparison criteria are unchanged.
+
+The depth-format and completed-query fixes passed all three editor/rendering
+platform jobs at `8d6daec`, including macOS operation-axis rendering and the
+unchanged 90-sample performance gate
+([editor](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41311149790),
+[rendering](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41311149708)).
+The Windows x64/x86, Linux and macOS foundation matrix also passed.
+
+Camera/accessory operation rows now execute native drag modes 13..18 in Qt.
+The compatibility and portable hosts share position/angle arithmetic, retaining
+the native x86 intermediate policy. Camera-relative translation, parent/world
+translation, accessory targeting and Shift-before-Control precision keep their
+distinct rules. Camera-only edits retain published model snapshots without CPU
+scene evaluation or bone history. Model switches preserve the independent
+accessory selection; clearing it had prevented accessory-axis editing after
+returning to camera mode. Focus loss, surface teardown and backend replacement
+finish the gesture and restore the cursor shape.
+
+The opt-in Windows x64 `editor_scene_axis_oracle_test <original.exe> <fixture>`
+executes the hash-verified original frame block `[35EEB,36B66)` with independently
+constructed application/accessory offsets. Only edit-control lookup/echo imports
+are intercepted; no native window, entrypoint or GPU runs. All **2160 cases**
+passed with maximum absolute error **zero**, across three coordinate modes,
+parented/free cameras, rotated views, all modifier combinations, positive/zero/
+negative motion and six drag modes. This compares supplied camera/accessory
+states, not the complete original input loop or attachment evaluation.
+
+Local validation passed all 21 P4 regressions, the full 75-test Win32 foundation
+suite (one explicitly external PMM asset case skipped), 99 scene-runtime
+checkpoints and never-shown native Qt presentation on DX11/DX12/Vulkan. Qt
+synthetic gestures passed at scale factors 1, 1.5 and 2. The compatibility drag
+precision, accessory drag and model viewport regressions also passed. This
+batch does not close the remaining exposed input, full UI or C1 output gates.

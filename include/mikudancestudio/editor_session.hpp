@@ -109,6 +109,7 @@ public:
     void EndBoneDrag();
     unsigned BoneDragMode() const { return boneDragMode_; }
     bool DragView(bool middleButton, int dx, int dy, bool shift, bool control, std::string&);
+    bool DragSceneAxis(unsigned mode, int dy, bool shift, bool control, std::string&);
     bool WheelView(int delta, std::string&);
     bool PrepareView(std::string&);
     bool ViewPreset(unsigned numpadKey, std::string&);

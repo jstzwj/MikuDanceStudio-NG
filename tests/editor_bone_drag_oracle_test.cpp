@@ -21,84 +21,7 @@ using namespace mikudancestudio;
 // The one outgoing continuation is replaced by our ABI-restoring epilogue.
 // No original instruction inside the tested block is replaced. Inputs supply
 // published pose matrices; matrix production and cursor/UI handling are separate gates.
-class OriginalDragBlock {
-    unsigned char* memory_ = nullptr;
-    unsigned char* continuation_ = nullptr;
-    std::array<unsigned char, 14> saved_{};
-    std::vector<unsigned char> bytes_;
-    void Emit(std::initializer_list<unsigned char> b) { bytes_.insert(bytes_.end(), b); }
-    template <class T> void Value(T value) {
-        const auto* p = reinterpret_cast<const unsigned char*>(&value);
-        bytes_.insert(bytes_.end(), p, p + sizeof value);
-    }
-    void Xmm(unsigned index, bool load) {
-        Emit({0xf3});
-        if (index >= 8)
-            Emit({0x44});
-        Emit({0x0f, static_cast<unsigned char>(load ? 0x6f : 0x7f),
-              static_cast<unsigned char>(0x84 | ((index & 7) << 3)), 0x24});
-        Value(std::uint32_t(0x2000 + (index - 6) * 16));
-    }
-
-public:
-    explicit OriginalDragBlock(const OriginalPhysicsModule& original) {
-        memory_ = static_cast<unsigned char*>(
-            VirtualAlloc(nullptr, 4096, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
-        Check(memory_ != nullptr, "allocate original drag trampoline");
-        Emit({0x53, 0x55, 0x56, 0x57, 0x41, 0x54, 0x41, 0x55, 0x41, 0x56, 0x41, 0x57});
-        Emit({0x48, 0x81, 0xec});
-        Value(std::uint32_t(0x2208));
-        for (unsigned n = 6; n <= 15; ++n)
-            Xmm(n, false);
-        Emit({0x48, 0x8d, 0xac, 0x24});
-        Value(std::uint32_t(0x80));                                   // frame scratch base
-        Emit({0x49, 0x89, 0xcc, 0x45, 0x31, 0xff, 0x45, 0x31, 0xed}); // r12=app,r15=0
-        Emit({0x66, 0x45, 0x0f, 0xef, 0xed});                         // xmm13=0
-        Emit({0xb8});
-        Value(std::uint32_t(0x3ba3d70a));     // .005f
-        Emit({0x66, 0x44, 0x0f, 0x6e, 0xf8}); // xmm15
-        Emit({0xb8});
-        Value(std::uint32_t(0x40a00000));     // 5.f
-        Emit({0x66, 0x44, 0x0f, 0x6e, 0xe0}); // xmm12
-        Emit({0x48, 0xb8});
-        Value(original.Function<std::uintptr_t>(0x32f41));
-        Emit({0xff, 0xe0});
-        const auto epilogue = reinterpret_cast<std::uintptr_t>(memory_ + bytes_.size());
-        for (unsigned n = 6; n <= 15; ++n)
-            Xmm(n, true);
-        Emit({0x48, 0x81, 0xc4});
-        Value(std::uint32_t(0x2208));
-        Emit({0x41, 0x5f, 0x41, 0x5e, 0x41, 0x5d, 0x41, 0x5c, 0x5f, 0x5e, 0x5d, 0x5b, 0xc3});
-        std::memcpy(memory_, bytes_.data(), bytes_.size());
-        DWORD old;
-        Check(VirtualProtect(memory_, 4096, PAGE_EXECUTE_READ, &old) != 0,
-              "protect drag trampoline");
-        FlushInstructionCache(GetCurrentProcess(), memory_, bytes_.size());
-        continuation_ = original.Function<unsigned char*>(0x35eeb);
-        const unsigned char expected[]{0x41, 0x83, 0xbc, 0x24, 0x84, 0x03, 0, 0, 0x0d};
-        Check(std::memcmp(continuation_, expected, sizeof expected) == 0,
-              "original drag continuation signature");
-        std::copy_n(continuation_, saved_.size(), saved_.begin());
-        Check(VirtualProtect(continuation_, saved_.size(), PAGE_EXECUTE_READWRITE, &old) != 0,
-              "patch drag continuation");
-        const unsigned char jump[]{0xff, 0x25, 0, 0, 0, 0};
-        std::memcpy(continuation_, jump, sizeof jump);
-        std::memcpy(continuation_ + 6, &epilogue, 8);
-        VirtualProtect(continuation_, saved_.size(), old, &old);
-        FlushInstructionCache(GetCurrentProcess(), continuation_, saved_.size());
-    }
-    ~OriginalDragBlock() {
-        if (continuation_) {
-            DWORD old;
-            VirtualProtect(continuation_, saved_.size(), PAGE_EXECUTE_READWRITE, &old);
-            std::copy(saved_.begin(), saved_.end(), continuation_);
-            VirtualProtect(continuation_, saved_.size(), old, &old);
-        }
-        if (memory_)
-            VirtualFree(memory_, 0, MEM_RELEASE);
-    }
-    void Run(void* app) const { reinterpret_cast<void (*)(void*)>(memory_)(app); }
-};
+#include "original_frame_slice.hpp"
 struct NativeDrag {
     std::vector<unsigned char> app = std::vector<unsigned char>(0xA6000, 0);
     std::vector<unsigned char> renderer = std::vector<unsigned char>(0x3AA00, 0);
@@ -175,7 +98,9 @@ int wmain(int argc, wchar_t** argv) try {
     if (argc != 3)
         return 2;
     OriginalPhysicsModule original(argv[1]);
-    OriginalDragBlock block(original);
+    OriginalFrameSlice block(original, 0x32f41, 0x35eeb,
+                             {0x41, 0x83, 0xbc, 0x24, 0x84, 0x03, 0, 0, 0x0d},
+                             {{13, 0.f}, {15, .005f}, {12, 5.f}});
     std::string reason;
     const auto root = std::filesystem::absolute(argv[2]);
     unsigned cases = 0;

@@ -26,12 +26,12 @@ Viewport::Viewport(editor::EditorSession& session, const std::filesystem::path& 
 }
 Viewport::~Viewport() {
     changed = {};
-    FinishBoneDrag();
+    FinishToolDrag();
     FinishBoxSelection();
     controller_.Close();
 }
 void Viewport::SetOptions(const rhi::BackendOptions& options) {
-    FinishBoneDrag();
+    FinishToolDrag();
     FinishBoxSelection();
     frameCached_ = false;
     controller_.Close();
@@ -39,7 +39,7 @@ void Viewport::SetOptions(const rhi::BackendOptions& options) {
     options_ = options;
 }
 bool Viewport::Reset(std::string& reason) {
-    FinishBoneDrag();
+    FinishToolDrag();
     FinishBoxSelection();
     frameCached_ = false;
     producer_.ResetHistory();
@@ -208,11 +208,12 @@ void Viewport::BeginCenteredCursor(int operation) {
         QCursor::setPos(mapToGlobal(previous_));
     }
 }
-void Viewport::FinishBoneDrag(bool restorePosition) {
-    if (!boneDragMode_)
+void Viewport::FinishToolDrag(bool restorePosition) {
+    if (!boneDragMode_ && !sceneDragMode_)
         return;
     session_.EndBoneDrag();
     boneDragMode_ = 0;
+    sceneDragMode_ = 0;
     dragResource_.reset();
     pressed_ = false;
     toolOperation_ = 0;
@@ -229,16 +230,17 @@ void Viewport::FinishBoneDrag(bool restorePosition) {
 bool Viewport::event(QEvent* event) {
     if (event->type() == QEvent::FocusOut || event->type() == QEvent::Hide ||
         event->type() == QEvent::UngrabMouse) {
-        const bool active = boneDragMode_ != 0;
-        FinishBoneDrag();
+        const bool active = boneDragMode_ != 0 || sceneDragMode_ != 0;
+        FinishToolDrag();
         FinishBoxSelection();
+        pressed_ = false;
         if (active && changed)
             changed(true, {});
     }
     if (event->type() == QEvent::PlatformSurface &&
         static_cast<QPlatformSurfaceEvent*>(event)->surfaceEventType() ==
             QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
-        FinishBoneDrag();
+        FinishToolDrag();
         FinishBoxSelection();
         frameCached_ = false;
         controller_.Close();
@@ -248,13 +250,24 @@ bool Viewport::event(QEvent* event) {
     return QWindow::event(event);
 }
 void Viewport::mousePressEvent(QMouseEvent* e) {
-    if (boneDragMode_)
+    if (boneDragMode_ || sceneDragMode_)
         return;
     pressed_ = true;
     previous_ = e->position().toPoint();
     const int operation = e->button() == Qt::LeftButton ? ToolAt(previous_) : 0;
     if (operation == 21) {
         session_.CycleCoordinateSystem();
+        if (changed)
+            changed(true, {});
+        return;
+    }
+    if (operation >= 15 && operation <= 20 && session_.Selected().model == 255 &&
+        !session_.Playing()) {
+        sceneDragMode_ = unsigned(operation - 2);
+        toolOperation_ = operation;
+        BeginCenteredCursor(operation);
+        if (isExposed())
+            setMouseGrabEnabled(true);
         if (changed)
             changed(true, {});
         return;
@@ -350,12 +363,32 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
     }
     auto point = e->position().toPoint();
     auto delta = point - previous_;
+    if (sceneDragMode_) {
+        if (session_.Playing() || session_.Selected().model != 255 ||
+            !(e->buttons() & Qt::LeftButton)) {
+            FinishToolDrag();
+            if (changed)
+                changed(true, {});
+            return;
+        }
+        const auto dy = DevicePoint(point).y() - DevicePoint(previous_).y();
+        std::string reason;
+        const bool ok =
+            session_.DragSceneAxis(sceneDragMode_, dy, e->modifiers() & Qt::ShiftModifier,
+                                   e->modifiers() & Qt::ControlModifier, reason);
+        previous_ = point;
+        if (!ok)
+            FinishToolDrag();
+        if (changed)
+            changed(ok, reason);
+        return;
+    }
     if (boneDragMode_) {
         std::string reason;
         if (session_.BoneDragMode() != unsigned(boneDragMode_) ||
             session_.Selected().model != dragModel_ || session_.Playing() ||
             session_.Runtime().Resource(dragModel_) != dragResource_) {
-            FinishBoneDrag();
+            FinishToolDrag();
             if (changed)
                 changed(true, {});
             return;
@@ -365,7 +398,7 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
                 session_.Runtime(), dragModel_, unsigned(boneDrag_.viewWidth),
                 unsigned(boneDrag_.viewHeight), bonePoints_, reason, dragModel_) ||
             ActiveBone() < 0 || unsigned(ActiveBone()) >= bonePoints_.size()) {
-            FinishBoneDrag();
+            FinishToolDrag();
             if (changed)
                 changed(false, reason);
             return;
@@ -381,7 +414,7 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
         const bool ok = (e->buttons() & Qt::LeftButton) && session_.DragBones(boneDrag_, reason);
         previous_ = point;
         if (!ok)
-            FinishBoneDrag();
+            FinishToolDrag();
         if (changed)
             changed(ok, reason);
         return;
@@ -407,8 +440,8 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
         drag(delta, e->buttons(), e->modifiers());
 }
 void Viewport::mouseReleaseEvent(QMouseEvent* e) {
-    if (boneDragMode_ && e->button() == Qt::LeftButton) {
-        FinishBoneDrag(true);
+    if ((boneDragMode_ || sceneDragMode_) && e->button() == Qt::LeftButton) {
+        FinishToolDrag(true);
         if (changed)
             changed(true, {});
         return;

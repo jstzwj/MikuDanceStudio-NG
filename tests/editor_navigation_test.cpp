@@ -2,6 +2,7 @@
 #include <cmath>
 #include <iostream>
 #include <limits>
+#include <cstring>
 using namespace mikudancestudio;
 std::string reason;
 #define CHECK(x)                                                                                   \
@@ -342,6 +343,57 @@ int main(int argc, char** argv) {
             !candidate.SetFollowCamera(false, candidate.Pose().camera, {1, 2}, invalidBasis, true));
         CHECK(candidate.Document().appearance.followCamera &&
               candidate.Document().cameraState == state);
+    }
+    {
+        editor::EditorSession axes;
+        CHECK(axes.ImportModel(std::filesystem::absolute(argv[1]) / "pose.pmd", reason));
+        CHECK(axes.SelectModel(255, reason));
+        auto camera = axes.Runtime().Session()->Pose().camera;
+        camera.position = {1, 2, 3};
+        camera.rotation = {0, 1.5707963267948966f, 0};
+        camera.parentModel = -1;
+        CHECK(axes.SetCamera(camera, reason));
+        const auto frames = axes.Runtime().Counters().frames;
+        const auto* snapshot = axes.Runtime().Snapshot(0);
+        CHECK(axes.DragSceneAxis(13, -10, false, false, reason));
+        CHECK(std::abs(axes.Document().cameraState[0] - 1) < 1e-6f);
+        CHECK(axes.Document().cameraState[1] == 2 && axes.Document().cameraState[2] == 2.5f);
+        axes.CycleCoordinateSystem();
+        CHECK(axes.SetCamera(camera, reason));
+        CHECK(axes.DragSceneAxis(13, -10, false, false, reason));
+        CHECK(axes.Document().cameraState[0] == .5f && axes.Document().cameraState[2] == 3);
+        CHECK(axes.DragSceneAxis(14, -10, true, true, reason));
+        CHECK(axes.Document().cameraState[1] == -3); // Shift takes precedence
+        CHECK(axes.DragSceneAxis(15, -10, false, true, reason));
+        CHECK(axes.Document().cameraState[2] == 2.95f);
+        CHECK(axes.DragSceneAxis(16, -10, false, false, reason));
+        const float angle = axes.Document().cameraState[6];
+        std::uint32_t bits;
+        std::memcpy(&bits, &angle, 4);
+        CHECK(bits == 0xbe4cccccu); // native x64 MULSS of -10 and .02f
+        CHECK(axes.Runtime().Counters().frames == frames && axes.Runtime().Snapshot(0) == snapshot);
+        CHECK(!axes.CanUndo());
+        axes.CycleCoordinateSystem(); // accessory target with no selected object is a no-op
+        const auto revision = axes.Revision();
+        CHECK(axes.DragSceneAxis(13, -10, false, false, reason));
+        CHECK(axes.DragSceneAxis(18, -10, false, false, reason));
+        CHECK(axes.Revision() == revision);
+        CHECK(!axes.DragSceneAxis(19, 5, false, false, reason));
+        CHECK(!axes.DragSceneAxis(13, 1000001, false, false, reason));
+        CHECK(axes.Revision() == revision);
+        CHECK(axes.ImportAccessory(std::filesystem::absolute(argv[1]) / "bound.x", reason));
+        const auto state = axes.Document().accessories[0].state;
+        const auto view = axes.Document().cameraState;
+        CHECK(axes.DragSceneAxis(13, -10, false, false, reason));
+        CHECK(axes.Document().accessories[0].state.position[0] == state.position[0] + .5f);
+        CHECK(axes.DragSceneAxis(18, 10, false, false, reason));
+        CHECK(std::abs(axes.Document().accessories[0].state.rotation[2] - state.rotation[2] - .2f) <
+              3e-8f);
+        CHECK(axes.Document().cameraState == view && !axes.CanUndo());
+        CHECK(axes.SelectModel(0, reason));
+        CHECK(axes.Selected().accessory == 0);
+        CHECK(!axes.DragSceneAxis(13, 1, false, false, reason));
+        CHECK(axes.SelectModel(255, reason) && axes.Selected().accessory == 0);
     }
     std::cout
         << "View navigation: native modifiers, parent/follow gates and zero scene updates passed\n";

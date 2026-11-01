@@ -1,5 +1,6 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/camera_navigation.hpp"
+#include "mikudancestudio/scene_axis_drag.hpp"
 #include <cmath>
 
 namespace mikudancestudio::editor {
@@ -308,5 +309,41 @@ bool EditorSession::WheelView(int delta, std::string& reason) {
         selection_.tracks.insert(row);
     }
     return true;
+}
+bool EditorSession::DragSceneAxis(unsigned mode, int dy, bool shift, bool control,
+                                  std::string& reason) {
+    if (playing_ || selection_.model != 255 || mode < 13 || mode > 18 || dy < -1000000 ||
+        dy > 1000000) {
+        reason = "scene-axis-drag-input-invalid";
+        return false;
+    }
+    reason.clear();
+    if (!dy)
+        return true;
+    auto camera = runtime_->Session()->Pose().camera;
+    const auto coordinate = int(coordinateSystem_);
+    const auto found = std::find_if(Document().accessories.begin(), Document().accessories.end(),
+                                    [&](const auto& a) { return a.slot == selection_.accessory; });
+    format::PmmAccessoryState accessory;
+    const bool hasAccessory = found != Document().accessories.end();
+    if (hasAccessory)
+        accessory = found->state;
+    if (mode <= 15)
+        navigation::PositionAxis(
+            camera.position.data(), hasAccessory ? accessory.position.data() : nullptr, true,
+            coordinate, camera.parentModel, mode - 13, dy, shift, control, [&](const float* local) {
+                using namespace cpu_math;
+                const auto rotation = Multiply(
+                    Multiply(RotationZ(-camera.rotation[2]), RotationX(-camera.rotation[0])),
+                    RotationY(-camera.rotation[1]));
+                return TransformPoint({local[0], local[1], local[2]}, rotation);
+            });
+    else
+        navigation::AngleAxis(camera.rotation.data(),
+                              hasAccessory ? accessory.rotation.data() : nullptr, coordinate,
+                              mode - 16, dy, shift, control);
+    if (coordinate == 2)
+        return !hasAccessory || SetAccessory(selection_.accessory, accessory, reason);
+    return SetCamera(camera, reason);
 }
 }

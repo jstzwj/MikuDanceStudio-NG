@@ -95,7 +95,10 @@ bool EditorSession::RestoreModelSelection(std::uint8_t slot, std::string& reason
         reason = "model-selection-expired";
         return false;
     }
+    const auto accessory = selection_.accessory;
     selection_ = {};
+    if (state_.assets.accessories.count(accessory))
+        selection_.accessory = accessory;
     selection_.model = slot;
     for (const auto& model : Document().models)
         if (model.slot == slot)

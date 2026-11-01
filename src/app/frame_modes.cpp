@@ -23,6 +23,7 @@
 #include "bone_selection.hpp"
 #include "mikudancestudio/bone_selection.hpp"
 #include "mikudancestudio/viewport_tools.hpp"
+#include "mikudancestudio/scene_axis_drag.hpp"
 
 namespace mikudancestudio {
 
@@ -486,12 +487,6 @@ using PanelDragScalar = float;
 #else
 using PanelDragScalar = double;
 #endif
-constexpr PanelDragScalar kPositionDragCoarse = 0.5f;
-constexpr PanelDragScalar kPositionDragFine = 0.005f;
-constexpr PanelDragScalar kPositionDragNormal = 0.05f;
-constexpr PanelDragScalar kAngleDragCoarse = 0.2f;
-constexpr PanelDragScalar kAngleDragFine = 0.002f;
-constexpr PanelDragScalar kAngleDragNormal = 0.02f;
 constexpr PanelDragScalar kDisplayPi = 3.141592025756836f;
 constexpr PanelDragScalar kHalfTurnDegrees = 180.0f;
 
@@ -523,42 +518,29 @@ void ModeCameraAdjust(MMDApp* app, int axis) {
     }
     const int target = app->state.coordinateSystem;
     const int dy = DyOf(app);
-    PanelDragScalar scale;
-    if (SelA3(app))
-        scale = kPositionDragCoarse;
-    else if (SelB3(app))
-        scale = kPositionDragFine;
-    else
-        scale = kPositionDragNormal;
+    auto* accessory = target == 2 ? app->AccessorySlot(app->state.selectedObjectSlot) : nullptr;
+    navigation::PositionAxis<PanelDragScalar>(
+        app->CameraPosition(), accessory ? accessory->position : nullptr, app->CameraMode() != 0,
+        target, app->state.cameraParentModel, unsigned(axis), dy, SelA3(app), SelB3(app),
+        [&](const float* local) {
+            auto& api = d3dx::Get();
+            d3dx::D3DXMATRIXF rx{}, ry{}, rz{}, rotation{};
+            api.rotZ(&rz, -app->CameraRoll());
+            api.rotX(&rx, -app->CameraPitch());
+            api.multiply(&rotation, &rz, &rx);
+            api.rotY(&ry, -app->CameraYaw());
+            api.multiply(&rotation, &rotation, &ry);
+            std::array<float, 4> world{};
+            api.vec3Transform(world.data(), local, &rotation);
+            return world;
+        });
     if (target == 2 && app->CameraMode() != 0) {
-        auto* accessory = app->AccessorySlot(app->state.selectedObjectSlot);
         if (accessory != nullptr) {
             float& value = accessory->position[axis];
-            value = static_cast<float>(static_cast<PanelDragScalar>(value) -
-                                       static_cast<PanelDragScalar>(dy) * scale);
             char buf[0x100];
             sprintf_s(buf, 0x100, "%3.4f", value);
             EchoEdit(app, kEdit[axis], buf);
         }
-    } else if (app->state.cameraParentModel >= 0 || target == 1) {
-        app->CameraPosition()[axis] =
-            static_cast<float>(static_cast<PanelDragScalar>(app->CameraPosition()[axis]) +
-                               static_cast<PanelDragScalar>(dy) * scale);
-    } else {
-        auto& api = d3dx::Get();
-        d3dx::D3DXMATRIXF rx{}, ry{}, rz{}, rotation{};
-        api.rotZ(&rz, -app->CameraRoll());
-        api.rotX(&rx, -app->CameraPitch());
-        api.multiply(&rotation, &rz, &rx);
-        api.rotY(&ry, -app->CameraYaw());
-        api.multiply(&rotation, &rotation, &ry);
-        float local[3]{};
-        local[axis] = static_cast<float>(static_cast<PanelDragScalar>(dy) * scale);
-        float world[4]{};
-        api.vec3Transform(world, local, &rotation);
-        app->CameraPositionX() += world[0];
-        app->CameraPositionY() += world[1];
-        app->CameraPositionZ() += world[2];
     }
     ViewRefreshGate(app);
 }
@@ -573,29 +555,19 @@ void ModeAngleAdjust(MMDApp* app, int axis) {
     }
     const int target = app->state.coordinateSystem;
     const int dy = DyOf(app);
-    PanelDragScalar scale;
-    if (SelA3(app))
-        scale = kAngleDragCoarse;
-    else if (SelB3(app))
-        scale = kAngleDragFine;
-    else
-        scale = kAngleDragNormal;
+    auto* accessory = target == 2 ? app->AccessorySlot(app->state.selectedObjectSlot) : nullptr;
+    navigation::AngleAxis<PanelDragScalar>(app->CameraRotation(),
+                                           accessory ? accessory->rotation : nullptr, target,
+                                           unsigned(axis), dy, SelA3(app), SelB3(app));
     // Unlike position dragging, the angle target does not depend on the
     // camera radio flag (x64 456788/456933/456A78; x86 479153).
     if (target == 2) {
-        auto* accessory = app->AccessorySlot(app->state.selectedObjectSlot);
         if (accessory != nullptr) {
             float& value = accessory->rotation[axis];
-            value = static_cast<float>(static_cast<PanelDragScalar>(value) +
-                                       static_cast<PanelDragScalar>(dy) * scale);
             char buf[0x100];
             sprintf_s(buf, 0x100, "%3.4f", value / kDisplayPi * kHalfTurnDegrees);
             EchoEdit(app, kEdit[axis], buf);
         }
-    } else {
-        app->CameraRotation()[axis] =
-            static_cast<float>(static_cast<PanelDragScalar>(app->CameraRotation()[axis]) +
-                               static_cast<PanelDragScalar>(dy) * scale);
     }
     ViewRefreshGate(app);
 }
