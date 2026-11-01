@@ -200,6 +200,104 @@ int main(int argc, char** argv) {
     auto bad = merged;
     bad.unused[4].frame = 1;
     CHECK(!PmmTrackChains(bad, chains));
+    for (const auto kind : {Track::Morph, Track::Display}) {
+        EditorSession auxiliary;
+        CHECK(auxiliary.ImportModel(root / "triangle.pmx", reason));
+        CHECK(auxiliary.ImportModel(root / "triangle.pmx", reason));
+        CHECK(auxiliary.SelectModel(0, reason));
+        CHECK(auxiliary.Edit(
+            "seed-key-marks",
+            [&](auto& d, auto&) {
+                for (auto& model : d.models) {
+                    const auto mark = [](auto& track) {
+                        track.dense[0].allocated = 1;
+                        auto key = track.dense[0];
+                        key.frame = 30;
+                        if (!RegisterPmmKey(track, 0, key))
+                            return false;
+                        key.frame = key.previous = key.next = 0;
+                        track.unused[32] = key;
+                        return true;
+                    };
+                    if (!mark(model.boneKeys) || !mark(model.morphKeys) || !mark(model.displayKeys))
+                        return false;
+                    model.morphPose[0] = .625f;
+                    model.selection.loadComplete = 0;
+                }
+                d.cameraKeys.dense[0].selected = 1;
+                return true;
+            },
+            reason));
+        CHECK(auxiliary.SetBone(0, 0, {2, 3, 4}, {0, 0, 0, 1}, reason));
+        CHECK(auxiliary.Undo(reason) && auxiliary.CanRedo());
+        auxiliary.Selected().keys = {{Track::Bone, 0, 0, 0},
+                                     {Track::Morph, 0, 0, 30},
+                                     {Track::Display, 0, 0, 30},
+                                     {Track::Bone, 1, 0, 0},
+                                     {Track::Camera, 255, 0, 0}};
+        const auto revision = auxiliary.Revision();
+        const auto frames = auxiliary.Runtime().Counters().frames;
+        const auto* runtime = &auxiliary.Runtime();
+        CHECK(!auxiliary.Register({{kind, 0, 0, 20}, {kind, 254, 0, 20}}, reason));
+        CHECK(auxiliary.Revision() == revision && auxiliary.Selected().keys.size() == 5 &&
+              auxiliary.CanRedo());
+        CHECK(auxiliary.Register({{kind, 0, 0, 20}}, reason));
+        CHECK(auxiliary.CanRedo());
+        CHECK(auxiliary.Selected().keys.size() == 3);
+        CHECK(auxiliary.Selected().keys.count({kind, 0, 0, 20}));
+        CHECK(auxiliary.Selected().keys.count({Track::Bone, 1, 0, 0}));
+        CHECK(auxiliary.Selected().keys.count({Track::Camera, 255, 0, 0}));
+        const auto verifyMarks = [&](const auto& track, Track table) {
+            for (const auto& key : track.dense)
+                if (key.allocated)
+                    return false;
+            for (const auto& record : track.sparse)
+                if (bool(record.value.allocated) != (table == kind && record.value.frame == 20))
+                    return false;
+            return !track.unused.at(32).allocated;
+        };
+        const auto& model = auxiliary.Document().models[0];
+        CHECK(verifyMarks(model.boneKeys, Track::Bone));
+        CHECK(verifyMarks(model.morphKeys, Track::Morph));
+        CHECK(verifyMarks(model.displayKeys, Track::Display));
+        const auto& other = auxiliary.Document().models[1];
+        CHECK(other.boneKeys.dense[0].allocated && other.morphKeys.dense[0].allocated &&
+              other.displayKeys.dense[0].allocated && other.boneKeys.unused.at(32).allocated);
+        CHECK(auxiliary.Document().cameraKeys.dense[0].selected);
+        CHECK(model.selection.maxFrame == 30 &&
+              auxiliary.Document().timeline.lastRegisteredFrame == 30);
+        const auto verifyPayload = [&] {
+            const auto& m = auxiliary.Document().models[0];
+            if (kind == Track::Morph) {
+                for (const auto& key : m.morphKeys.sparse)
+                    if (key.value.frame == 20)
+                        return key.value.value == .625f;
+            } else {
+                for (const auto& key : m.displayKeys.sparse)
+                    if (key.value.frame == 20)
+                        return !key.value.visible;
+            }
+            return false;
+        };
+        CHECK(verifyPayload());
+        CHECK(&auxiliary.Runtime() == runtime && auxiliary.Runtime().Counters().frames == frames);
+        CHECK(auxiliary.Redo(reason));
+        CHECK(auxiliary.Document().models[0].bonePose[0].components[0] == 2 && verifyPayload());
+        CHECK(auxiliary.Save(root / "auxiliary-registration.pmm", writer, reason));
+        CHECK(auxiliary.Open(root / "auxiliary-registration.pmm", reason) && verifyPayload());
+    }
+    EditorSession mixed;
+    CHECK(mixed.ImportModel(root / "triangle.pmx", reason));
+    CHECK(mixed.Register({{Track::Display, 0, 0, 5},
+                          {Track::Morph, 0, 0, 5},
+                          {Track::Bone, 0, 0, 5},
+                          {Track::Morph, 0, 0, 5}},
+                         reason));
+    CHECK(mixed.Selected().keys.size() == 3);
+    CHECK(mixed.Undo(reason) && !mixed.CanUndo());
+    CHECK(mixed.Document().models[0].boneKeys.sparse.empty());
+    CHECK(mixed.Document().models[0].morphKeys.sparse.size() == 1 &&
+          mixed.Document().models[0].displayKeys.sparse.size() == 1);
     std::cout
         << cases
         << " PMD/PMX physics registration cases, history, persistence and name mapping passed\n";

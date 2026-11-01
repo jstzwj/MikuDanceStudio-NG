@@ -1627,4 +1627,41 @@ X11's in-place QWidget topmost change still failed after child-only replacement
 in `2a76407`. Commit `b92b790` instead retires the entire parent hierarchy using
 the existing detach/dock ownership path, preserving controls and session state.
 Local menu/editor/numeric and three-backend hidden-window tests passed; the
-corresponding isolated Linux rerun is pending.
+corresponding isolated rerun [41344081405](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41344081405)
+passed Windows, macOS, and both Linux X11/Wayland paths.
+
+The initial numeric-dialog commit exposed a macOS libc++ limitation: floating
+`from_chars` is unavailable on the supported baseline. Commit `814da78` uses an
+explicit decimal-prefix grammar and C-locale Qt conversion, preserving the
+19-byte read limit and rejection of nonfinite/overflow values. Regression cases
+cover exponents, incomplete exponents, malformed signs, suffixes, underflow,
+and a German default locale. [Run 41344709113](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41344709113)
+passed all three editor jobs, including native viewport lifecycles.
+
+## Morph and display registration command state
+
+Morph/display registration now clears all bone, Morph and display marks in the
+target model, including retained free slots, and selects the newly registered
+keys. Other models and global tracks retain their marks. Mixed command batches
+clear each model once and append only bone history. Auxiliary registration
+explicitly suppresses implicit bone history from selection-byte changes, so
+existing Undo/Redo remains available. Display registration captures current
+visibility, IK and external-parent values rather than reusing root visibility.
+The global last-registration bound includes the model's retained maximum frame.
+
+The optional `editor_auxiliary_oracle_test <original.exe> <fixture>` maps the
+hash-verified original and executes its Morph (RVA **`CA9C0`**) and display
+(RVA **`CAF80`**) registrars without windows.
+It passed **72 exact checkpoints** across PMD/PMX display and PMX Morph root
+overwrites, inserts, appends and repeated overwrites, comparing physical slots,
+links, weights, visibility, IK and maximum-frame state. The harness performs
+the dispatcher's mark clearing itself; it does not claim independent execution
+of the entire command dispatcher, free-slot exhaustion, or external-parent
+registration. The PMD fixture has only a base Morph and excludes it from edits.
+
+Shared regression checks cover free-slot marks, unrelated model/global marks,
+failed-command atomicity, mixed duplicate addresses, redo preservation, saved
+reload and unchanged CPU runtime/frame count. Actual Qt buttons run in all three
+languages under `offscreen`. All 30 local P4 checks passed (the existing scope
+test now explicitly clears registration marks before testing additive range
+selection), and the three touched Win32 editor tests passed. P4/C1 remains open.

@@ -57,6 +57,34 @@ int main(int argc, char** argv) {
             CHECK(hash == kCurveRasterHashes[rasterCase++]);
         }
     const auto root = std::filesystem::absolute(argv[1]);
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        qt::EditorWindow auxiliary(std::filesystem::absolute(argv[2]), true);
+        CHECK(auxiliary.SetLanguage(language));
+        auto& session = auxiliary.Session();
+        CHECK(session.ImportModel(root / "articulated.pmx", reason));
+        CHECK(session.Seek(10, reason));
+        CHECK(session.SetMorph(0, 0, .375f, reason));
+        auxiliary.Refresh();
+        const auto* runtime = &session.Runtime();
+        const auto frames = runtime->Counters().frames;
+        session.Selected().keys.insert({editor::Track::Bone, 0, 0, 0});
+        static_cast<QAbstractButton*>(auxiliary.Control(panel::kModelVisibleCheckbox))->click();
+        CHECK(!session.Document().models[0].selection.loadComplete);
+        static_cast<QAbstractButton*>(auxiliary.Control(panel::kRegisterModelDisplayButton))
+            ->click();
+        CHECK(session.Document().models[0].displayKeys.sparse.size() == 1);
+        CHECK(!session.Document().models[0].displayKeys.sparse[0].value.visible);
+        CHECK(session.Selected().keys.size() == 1 &&
+              session.Selected().keys.count({editor::Track::Display, 0, 0, 10}));
+        static_cast<QAbstractButton*>(auxiliary.Control(panel::kRegisterMorphButton3))->click();
+        CHECK(session.Document().models[0].morphKeys.sparse.size() == 1);
+        CHECK(session.Document().models[0].morphKeys.sparse[0].value.value == .375f);
+        CHECK(session.Selected().keys.size() == 1 &&
+              session.Selected().keys.count({editor::Track::Morph, 0, 0, 10}));
+        CHECK(!session.CanUndo() && !session.CanRedo());
+        CHECK(runtime == &session.Runtime() && frames == runtime->Counters().frames);
+        CHECK(!auxiliary.isVisible());
+    }
     qt::EditorWindow window(std::filesystem::absolute(argv[2]), true);
     CHECK(QFontMetrics(window.font()).inFont(QChar('A')));
     CHECK(QFontMetrics(window.font()).inFont(QChar('0')));

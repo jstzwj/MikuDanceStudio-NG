@@ -237,6 +237,10 @@ int main(int argc, char** argv) {
         CHECK(selection.Register(
             {{Track::Bone, 0, 0, 10}, {Track::Morph, 0, 0, 10}, {Track::Display, 0, 0, 10}},
             reason));
+        CHECK(selection.Selected().keys.size() == 3);
+        // Range selection preserves unrelated tracks; start this independent
+        // scope test with no marks left by the three registration commands.
+        selection.Selected().keys.clear();
         selection.Selected().bones = {0};
         const auto revision = selection.Revision(), updates = selection.Runtime().Counters().frames;
         selection.SelectKeys(10, 10, {KeyScopeKind::SelectedBones, {}});

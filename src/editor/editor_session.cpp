@@ -215,6 +215,7 @@ bool Pose(PmmSceneDocument& d, const KeyAddress& a, Key& key) {
     }
     if (a.track == Track::Display) {
         auto k = m->displayKeys.dense.at(0);
+        k.visible = m->selection.loadComplete;
         k.ikEnabled = m->ikPose;
         k.allocated = 1;
         for (std::size_t i = 0; i < k.rigidStates.size(); ++i) {
@@ -829,21 +830,27 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
     }
     auto next = Current();
     HistoryBatch history;
-    // The native register button visits selected bones in index order, clears
-    // this model's key marks before capture, and retains marks in other models.
+    // Every model registration button clears this model's key marks. Only
+    // bone registration appends history; auxiliary commands must also suppress
+    // automatic bone history caused by clearing those selection bytes.
     const std::set<KeyAddress> ordered(addresses.begin(), addresses.end());
-    for (const auto& address : addresses) {
-        if (address.track == Track::Bone && !history.count(address.slot)) {
+    for (const auto& address : ordered) {
+        if ((address.track == Track::Bone || address.track == Track::Morph ||
+             address.track == Track::Display) &&
+            !history.count(address.slot)) {
             auto* model = Model(next.document, address.slot);
             if (!model) {
                 reason = "key-registration-failed";
                 return false;
             }
+            const bool bone = std::any_of(ordered.begin(), ordered.end(), [&](const auto& a) {
+                return a.slot == address.slot && a.track == Track::Bone;
+            });
             history.emplace(address.slot,
-                            CaptureHistory(*model, HistoryKind::Keys,
+                            CaptureHistory(*model, bone ? HistoryKind::Keys : HistoryKind::None,
                                            std::uint32_t(next.document.timeline.currentFrame)));
             auto& entry = history.at(address.slot);
-            entry.partialKeys = true;
+            entry.partialKeys = bone;
             entry.keys = {};
             // Native SnapshotPose reads the live editable bone transforms,
             // including the last completed IK solve, before choosing backups.
@@ -906,11 +913,13 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
             if (physics)
                 current.flags[0] = *pose.physicsDisabled;
             current.flags[1] = 0;
-            next.selection.keys.insert(address);
         } else if (!Put(next.document, address, key)) {
             reason = "key-registration-failed";
             return false;
         }
+        if (address.track == Track::Bone || address.track == Track::Morph ||
+            address.track == Track::Display)
+            next.selection.keys.insert(address);
     }
     for (const auto& address : ordered) {
         next.document.timeline.lastRegisteredFrame =
@@ -919,6 +928,8 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
             address.track == Track::Display) {
             auto* model = Model(next.document, address.slot);
             model->selection.maxFrame = std::max(model->selection.maxFrame, address.frame);
+            next.document.timeline.lastRegisteredFrame = std::max(
+                next.document.timeline.lastRegisteredFrame, int(model->selection.maxFrame));
         }
     }
     return Commit(std::move(next), reason, history, false);
