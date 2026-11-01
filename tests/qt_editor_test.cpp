@@ -1,5 +1,6 @@
 #include "editor_window.hpp"
 #include "mikudancestudio/panel_controls.hpp"
+#include "mikudancestudio/editor_rotation.hpp"
 #include <QApplication>
 #include <QTest>
 #include <QPushButton>
@@ -51,6 +52,29 @@ int main(int argc, char** argv) {
     CHECK(window.Session().Document().models[0].bonePose[0].components[1] == 2);
     window.Dispatch(panel::kUndoButton);
     CHECK(window.Session().Document().models[0].bonePose[0].components[1] == 5);
+    window.Session().Selected().model = 0;
+    window.Session().Selected().bones = {0};
+    window.Refresh();
+    const auto cameraBefore = window.Session().Runtime().Session()->Pose().camera;
+    auto* position = qobject_cast<QLineEdit*>(window.Control(panel::kReadoutPosXEdit));
+    position->selectAll();
+    QTest::keyClicks(position, "12.5");
+    QTest::keyClick(position, Qt::Key_Return);
+    CHECK(window.Session().Document().models[0].bonePose[0].components[0] == 12.5f);
+    CHECK(window.Session().Runtime().Session()->Pose().camera.position == cameraBefore.position);
+    auto* rotation = qobject_cast<QLineEdit*>(window.Control(panel::kReadoutRotYEdit));
+    rotation->selectAll();
+    QTest::keyClicks(rotation, "30");
+    QTest::keyClick(rotation, Qt::Key_Return);
+    const auto rotated = window.Session().Document().models[0].bonePose[0].components;
+    CHECK(rotated[4] < 0 && rotated[6] > 0);
+    const auto degrees =
+        editor::BoneRotationDegrees({rotated[3], rotated[4], rotated[5], rotated[6]});
+    CHECK(std::abs(degrees[1] - 30) < 1e-4f);
+    CHECK(window.Session().Runtime().Session()->Pose().camera.rotation == cameraBefore.rotation);
+    window.Dispatch(panel::kUndoButton);
+    CHECK(window.Session().Document().models[0].bonePose[0].components[4] == 0);
+    CHECK(window.Session().Document().models[0].bonePose[0].components[0] == 12.5f);
     CHECK(window.Save(root / "qt-save.pmm"));
     CHECK(window.Open(root / "qt-save.pmm"));
     CHECK(window.Session().Document().models[0].bonePose[0].components[1] == 5);

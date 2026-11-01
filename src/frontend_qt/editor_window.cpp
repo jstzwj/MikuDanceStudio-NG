@@ -2,6 +2,7 @@
 #include "export.hpp"
 #include "mikudancestudio/mmd_control_specs.hpp"
 #include "mikudancestudio/text_encoding.hpp"
+#include "mikudancestudio/editor_rotation.hpp"
 #include <QApplication>
 #include <QAbstractButton>
 #include <QPushButton>
@@ -72,14 +73,7 @@ public:
     }
 };
 std::array<float, 4> Quaternion(float x, float y, float z) {
-    constexpr float r = 3.14159265358979323846f / 360;
-    x *= r;
-    y *= r;
-    z *= r;
-    const float sx = std::sin(x), cx = std::cos(x), sy = std::sin(y), cy = std::cos(y),
-                sz = std::sin(z), cz = std::cos(z);
-    return {sx * cy * cz + cx * sy * sz, cx * sy * cz - sx * cy * sz, cx * cy * sz + sx * sy * cz,
-            cx * cy * cz - sx * sy * sz};
+    return BoneRotationFromDegrees({x, y, z});
 }
 }
 EditorWindow::EditorWindow(std::filesystem::path assets, bool testing)
@@ -146,7 +140,8 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing)
         controls_[spec.id] = widget;
     }
     rhi::BackendOptions options;
-    options.backend = rhi::Backend::Vulkan;
+    options.backend =
+        rhi::BackendAvailable(rhi::Backend::Vulkan) ? rhi::Backend::Vulkan : rhi::Backend::D3D11;
     options.vulkanLibrary = qEnvironmentVariable("MDS_TEST_VULKAN_LIBRARY").toStdString();
     if (qEnvironmentVariable("MDS_GPU_DRIVER") == "software")
         options.driver = rhi::BackendDriver::Software;
@@ -419,16 +414,20 @@ void EditorWindow::Refresh() {
     edit(kFovEdit, camera.fov);
     check(kPerspectiveCheckbox, !camera.perspective);
     if (auto* s = qobject_cast<QSlider*>(Control(kFovSlider))) {
-        s->setRange(1, 179);
+        s->setRange(1, 125);
         s->setValue(int(camera.fov));
     }
     const int pos[]{kReadoutPosXEdit, kReadoutPosYEdit, kReadoutPosZEdit};
     const int rot[]{kReadoutRotXEdit, kReadoutRotYEdit, kReadoutRotZEdit};
     for (int i = 0; i < 3; ++i) {
-        edit(pos[i], camera.position[i]);
-        edit(rot[i], camera.rotation[i] * 180 / 3.14159265358979323846f);
+        edit(pos[i], i == 2 && camera.parentModel >= 0 ? -camera.position[i] : camera.position[i]);
+        edit(rot[i], float(camera.rotation[i] / (i == 0 ? -3.141592f : 3.141592f)) * 180.f);
     }
-    edit(kReadoutDistEdit, camera.distance);
+    edit(kReadoutDistEdit, camera.parentModel < 0 ? -camera.distance : 0);
+    if (session_.Selected().model != 255)
+        for (int id = kReadoutPosXEdit; id <= kReadoutDistEdit; ++id)
+            if (auto* e = qobject_cast<QLineEdit*>(Control(id)); e && !e->hasFocus())
+                e->setText("-----");
     for (const auto& m : doc.models)
         if (m.slot == session_.Selected().model) {
             check(kModelVisibleCheckbox, m.selection.loadComplete);
@@ -453,8 +452,12 @@ void EditorWindow::Refresh() {
             if (!session_.Selected().bones.empty() &&
                 session_.Selected().bones[0] < m.bonePose.size()) {
                 const auto& p = m.bonePose[session_.Selected().bones[0]];
+                const auto degrees = BoneRotationDegrees(
+                    {p.components[3], p.components[4], p.components[5], p.components[6]});
                 for (int i = 0; i < 3; ++i)
                     edit(pos[i], p.components[i]);
+                for (int i = 0; i < 3; ++i)
+                    edit(rot[i], degrees[i]);
             }
         }
     for (unsigned i = 0; i < 4; ++i)
@@ -678,16 +681,22 @@ void EditorWindow::Numeric() {
         value->setDecimals(4);
         value->setRange(-100000, 100000);
         value->setValue(i < 3 ? camera.position[i]
-                              : camera.rotation[i - 3] * 180 / 3.14159265358979323846);
+                              : float(camera.rotation[i - 3] / (i == 3 ? -3.141592f : 3.141592f)) *
+                                    180.f);
         values[i] = value;
         layout.addRow(QString(i < 3 ? "%1" : "R%1").arg("XYZ"[i % 3]), value);
     }
     for (const auto& m : session_.Document().models)
         if (m.slot == session_.Selected().model && !session_.Selected().bones.empty()) {
             auto bone = session_.Selected().bones[0];
-            if (bone < m.bonePose.size())
-                for (int i = 0; i < 3; ++i)
-                    values[i]->setValue(m.bonePose[bone].components[i]);
+            if (bone < m.bonePose.size()) {
+                const auto& p = m.bonePose[bone].components;
+                const auto degrees = BoneRotationDegrees({p[3], p[4], p[5], p[6]});
+                for (int i = 0; i < 3; ++i) {
+                    values[i]->setValue(p[i]);
+                    values[i + 3]->setValue(degrees[i]);
+                }
+            }
         }
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     layout.addRow(buttons);
@@ -700,7 +709,8 @@ void EditorWindow::Numeric() {
         auto next = camera;
         for (int i = 0; i < 3; ++i) {
             next.position[i] = float(values[i]->value());
-            next.rotation[i] = float(values[i + 3]->value() * 3.14159265358979323846 / 180);
+            next.rotation[i] = float(values[i + 3]->value() *
+                                     (i == 0 ? -3.141592025756836 : 3.141592025756836) / 180);
         }
         Result(session_.SetCamera(next, r), r);
     } else if (!session_.Selected().bones.empty())
@@ -846,7 +856,10 @@ void EditorWindow::Dispatch(int id) {
     case kRegisterMorphButton1:
     case kRegisterMorphButton2:
     case kRegisterMorphButton3: {
-        const int index = id - kRegisterMorphButton0;
+        const int registers[]{kRegisterMorphButton0, kRegisterMorphButton1, kRegisterMorphButton2,
+                              kRegisterMorphButton3};
+        const int index =
+            int(std::find(std::begin(registers), std::end(registers), id) - std::begin(registers));
         const int combos[]{kMorphCombo0, kMorphCombo1, kMorphCombo2, kMorphCombo3};
         auto* c = static_cast<QComboBox*>(Control(combos[index]));
         ok = session_.Register(
@@ -879,10 +892,10 @@ void EditorWindow::Dispatch(int id) {
         break;
     }
     case kResetCameraButton: {
-        format::PmmEvaluatedCamera c;
-        c.position = {0, 10, 0};
-        c.distance = -45;
-        c.fov = 45;
+        auto c = session_.Runtime().Session()->Pose().camera;
+        c.position = {0, c.parentModel < 0 ? 10.f : 0.f, 0};
+        c.distance = c.parentModel < 0 ? -45.f : 0.f;
+        c.rotation = {};
         ok = session_.SetCamera(c, r);
         break;
     }
@@ -953,18 +966,44 @@ void EditorWindow::EditField(int id) {
         c.fov = float(value);
         ok = session_.SetCamera(c, r);
     } else if (id >= kReadoutPosXEdit && id <= kReadoutDistEdit) {
-        auto c = session_.Runtime().Session()->Pose().camera;
         const int pos[]{kReadoutPosXEdit, kReadoutPosYEdit, kReadoutPosZEdit},
             rot[]{kReadoutRotXEdit, kReadoutRotYEdit, kReadoutRotZEdit};
-        for (int i = 0; i < 3; ++i) {
-            if (id == pos[i])
-                c.position[i] = float(value);
-            if (id == rot[i])
-                c.rotation[i] = float(value * 3.14159265358979323846 / 180);
+        if (session_.Selected().model == 255) {
+            auto c = session_.Runtime().Session()->Pose().camera;
+            for (int i = 0; i < 3; ++i) {
+                if (id == pos[i])
+                    c.position[i] = float(i == 2 && c.parentModel >= 0 ? -value : value);
+                if (id == rot[i])
+                    c.rotation[i] =
+                        float(value * (i == 0 ? -3.141592025756836 : 3.141592025756836) / 180);
+            }
+            if (id == kReadoutDistEdit)
+                c.distance = float(-value);
+            ok = session_.SetCamera(c, r);
+        } else if (!session_.Selected().bones.empty() && id != kReadoutDistEdit) {
+            for (const auto& model : session_.Document().models)
+                if (model.slot == session_.Selected().model) {
+                    const auto bone = session_.Selected().bones.front();
+                    if (bone >= model.bonePose.size()) {
+                        ok = false;
+                        break;
+                    }
+                    const auto p = model.bonePose[bone].components;
+                    cpu_math::Vec3 position{p[0], p[1], p[2]};
+                    cpu_math::Quaternion rotation{p[3], p[4], p[5], p[6]};
+                    auto degrees = BoneRotationDegrees(rotation);
+                    for (int i = 0; i < 3; ++i) {
+                        if (id == pos[i])
+                            position[i] = float(value);
+                        if (id == rot[i]) {
+                            degrees[i] = float(value);
+                            rotation = BoneRotationFromDegrees(degrees);
+                        }
+                    }
+                    ok = session_.SetBone(model.slot, bone, position, rotation, r);
+                    break;
+                }
         }
-        if (id == kReadoutDistEdit)
-            c.distance = float(value);
-        ok = session_.SetCamera(c, r);
     }
     Result(ok, r);
     Refresh();

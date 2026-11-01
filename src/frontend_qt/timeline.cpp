@@ -105,13 +105,13 @@ void Timeline::paintEvent(QPaintEvent*) {
     if (dragging_) {
         p.setPen(QPen(QColor(100, 100, 100), 1, Qt::DashLine));
         p.setBrush(Qt::NoBrush);
-        p.drawRect(QRect(press_, mapFromGlobal(QCursor::pos())).normalized());
+        p.drawRect(QRect(press_, pointer_).normalized());
     }
 }
 void Timeline::mousePressEvent(QMouseEvent* e) {
     if (e->button() != Qt::LeftButton)
         return;
-    press_ = e->position().toPoint();
+    press_ = pointer_ = e->position().toPoint();
     setFocus();
     auto& selection = session_.Selected();
     const int row = RowAt(press_.y());
@@ -144,7 +144,8 @@ void Timeline::mousePressEvent(QMouseEvent* e) {
         changed();
     update();
 }
-void Timeline::mouseMoveEvent(QMouseEvent*) {
+void Timeline::mouseMoveEvent(QMouseEvent* event) {
+    pointer_ = event->position().toPoint();
     if (dragging_)
         update();
 }

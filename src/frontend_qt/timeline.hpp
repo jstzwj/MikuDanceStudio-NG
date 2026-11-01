@@ -35,7 +35,7 @@ private:
     Language& language_;
     std::vector<Row> rows_;
     int frameScroll_ = 0, rowScroll_ = 0;
-    QPoint press_;
+    QPoint press_, pointer_;
     bool dragging_ = false;
     int FrameAt(int x) const;
     int RowAt(int y) const;

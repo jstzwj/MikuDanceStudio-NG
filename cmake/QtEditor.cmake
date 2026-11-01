@@ -43,5 +43,9 @@ function(mds_add_qt_editor)
         add_test(NAME qt_editor_render COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"
             --passes $<TARGET_FILE:qt_editor_render_test> --assets "${root}/res/assets")
         set_tests_properties(qt_editor_render PROPERTIES LABELS "p4;offscreen;qt;gpu" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+        qt_add_executable(qt_presentation_test "${root}/tests/qt_presentation_test.cpp")
+        target_link_libraries(qt_presentation_test PRIVATE mikudancestudio_frontend_qt)
+        # Native platform tests are invoked explicitly in isolated CI displays;
+        # the normal p4 suite must remain safe for a developer's desktop.
     endif()
 endfunction()
