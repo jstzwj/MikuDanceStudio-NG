@@ -1,8 +1,14 @@
 #include <Windows.h>
+#include <commctrl.h>
 #include "mikudancestudio/model.hpp"
+#include "mikudancestudio/global_key_layout.hpp"
+#include "mikudancestudio/accessory_layout.hpp"
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/menu_commands.h"
 #include "editor_physics_selection_fixture.hpp"
+#include "gravity_edit_reference.hpp"
+#include "mikudancestudio/gravity_edit.hpp"
+#include "mikudancestudio/cpu_model_state.hpp"
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -546,6 +552,288 @@ unsigned RangeCommands(OriginalPhysicsModule& original, const std::filesystem::p
     }
     return cases;
 }
+std::array<float, 3> nativeGravityVector;
+unsigned nativeGravityWrites = 0;
+void CaptureGravity(void*, const float* value) {
+    std::copy_n(value, 3, nativeGravityVector.begin());
+    ++nativeGravityWrites;
+}
+void WriteGravity(std::vector<unsigned char>& app, const PmmEvaluatedGravity& value) {
+    std::memcpy(app.data() + 0x9fcc4, value.direction.data(), 12);
+    std::memcpy(app.data() + 0x9fcd0, &value.acceleration, 4);
+    std::memcpy(app.data() + 0x9fcd4, &value.noise, 4);
+    app[0xa1d68] = value.noiseEnabled;
+}
+unsigned GravityChannels(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    const unsigned char ret = 0xc3;
+    Patch paint(original.Function<void*>(0x5f7f0), &ret, 1);
+    std::vector<unsigned char> app(0xa3000), physics(0x88);
+    auto* pointer = app.data();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    std::array<void*, 14> vtable{};
+    vtable[13] = reinterpret_cast<void*>(&CaptureGravity);
+    auto* table = vtable.data();
+    auto* world = &table;
+    auto* scene = physics.data();
+    std::memcpy(physics.data() + 0x80, &world, sizeof world);
+    std::memcpy(app.data() + 0x9fcb8, &scene, sizeof scene);
+    const auto execute = original.Function<void (*)(int, float)>(0x95b40);
+    EditorSession portable;
+    std::string reason;
+    Check(portable.ImportModel(root / "articulated.pmx", reason), "gravity fixture import");
+    unsigned count = 0;
+    const auto revision = portable.Revision(), frames = portable.Runtime().Counters().frames;
+    const bool undo = portable.CanUndo();
+    for (unsigned channel : {0, 1, 2, 3, 4, 2, 0})
+        for (float value : {0.f, -.75f, -2.f, .57f, 2.f, 10.125f, 1000000.f}) {
+            WriteGravity(app, portable.Runtime().Session()->Pose().gravity);
+            app[0xa137b] = 0;
+            nativeGravityWrites = 0;
+            execute(int(channel), value);
+            Check(portable.SetGravityChannel(channel, value, reason), "portable gravity edit");
+            const auto& result = portable.Runtime().Session()->Pose().gravity;
+            Check(!std::memcmp(app.data() + 0x9fcc4, result.direction.data(), 12) &&
+                      !std::memcmp(app.data() + 0x9fcd0, &result.acceleration, 4) &&
+                      !std::memcmp(app.data() + 0x9fcd4, &result.noise, 4),
+                  "native gravity channel state");
+            Check(nativeGravityWrites == unsigned(channel < 4),
+                  "native immediate gravity update gate");
+            if (channel < 4) {
+                std::array<float, 3> vector;
+                cpu_model::Math{}.normalize(vector.data(), result.direction.data());
+                for (unsigned i = 0; i < 3; ++i) {
+                    vector[i] = (vector[i] * result.acceleration) * 10.f;
+                    Check(std::abs(vector[i] - nativeGravityVector[i]) <=
+                              2e-5f * std::max(1.f, std::abs(nativeGravityVector[i])),
+                          "native gravity vector within portable normalization budget");
+                }
+            }
+            Check(app[0xa137b] == 1 && !app[0xa1b31] && portable.Revision() == revision &&
+                      portable.Runtime().Counters().frames == frames &&
+                      portable.CanUndo() == undo &&
+                      portable.Selected().tracks.count({Track::Gravity, 255, 0, 0}),
+                  "gravity preview preserves history/physics and selects row");
+            ++count;
+        }
+    return count;
+}
+unsigned GravityRegistration(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    EditorSession portable;
+    std::string reason;
+    Check(portable.ImportModel(root / "articulated.pmx", reason), "gravity registration fixture");
+    Check(portable.SelectModel(255, reason), "gravity camera context");
+    std::vector<unsigned char> app(0xa3000);
+    std::vector<mdl::GravityKey> native(10000);
+    auto* pool = native.data();
+    std::memcpy(app.data() + 0x3e8, &pool, sizeof pool);
+    const auto execute = original.Function<void (*)(void*, unsigned)>(0x5da60);
+    unsigned count = 0;
+    const auto copy = [](const auto& key, auto& result) {
+        result.frame = key.frame;
+        result.previous = key.previous;
+        result.next = key.next;
+        result.acceleration = key.acceleration;
+        std::copy(key.direction.begin(), key.direction.end(), result.direction);
+        result.noise = key.noise;
+        result.noiseEnabled = key.noiseEnabled;
+        result.selected = key.selected;
+    };
+    for (unsigned cycle = 0; cycle < 3; ++cycle)
+        for (unsigned frame : {0, 10, 4, 20, 10, 0, 60, 30}) {
+            Check(portable.Seek(frame, reason), "gravity registration seek");
+            Check(portable.SetGravityChannel(0, float(count) * .375f - 3.f, reason) &&
+                      portable.SetGravityChannel(1, -.5f, reason) &&
+                      portable.SetGravityChannel(2, float(cycle) * .25f, reason) &&
+                      portable.SetGravityChannel(3, .75f, reason) &&
+                      portable.SetGravityChannel(4, float(count) - 10.5f, reason) &&
+                      portable.SetGravityNoise(count % 2 != 0, reason),
+                  "gravity registration values");
+            std::fill(native.begin(), native.end(), mdl::GravityKey{});
+            const auto& source = portable.Document().gravityKeys;
+            copy(source.dense[0], native[0]);
+            for (const auto& key : source.sparse)
+                copy(key.value, native[unsigned(key.index)]);
+            for (const auto& key : source.unused)
+                copy(key.second, native[key.first]);
+            for (auto& key : native)
+                key.selected = 0; // original dialog's caller sweep
+            WriteGravity(app, portable.Runtime().Session()->Pose().gravity);
+            auto maximum = portable.Document().timeline.lastRegisteredFrame;
+            std::memcpy(app.data() + 0x9f038, &maximum, 4);
+            execute(app.data(), frame);
+            const auto updates = portable.Runtime().Counters().frames;
+            const auto physics = portable.Runtime().Simulation().cursorSeconds;
+            Check(portable.RegisterGravity(reason), "portable gravity registration");
+            const auto& result = portable.Document().gravityKeys;
+            std::vector<mdl::GravityKey> actual(10000);
+            copy(result.dense[0], actual[0]);
+            for (const auto& key : result.sparse)
+                copy(key.value, actual[unsigned(key.index)]);
+            for (const auto& key : result.unused)
+                copy(key.second, actual[key.first]);
+            Check(!std::memcmp(actual.data(), native.data(), actual.size() * sizeof(actual[0])),
+                  "native gravity registration pool bytes");
+            Check(!std::memcmp(app.data() + 0x9f038,
+                               &portable.Document().timeline.lastRegisteredFrame, 4),
+                  "native gravity registration watermark");
+            Check(portable.Runtime().Counters().frames == updates &&
+                      portable.Runtime().Simulation().cursorSeconds == physics,
+                  "gravity registration never evaluates or steps physics");
+            ++count;
+        }
+    return count;
+}
+void GravityHiddenControls(OriginalPhysicsModule& original, const wchar_t* path) {
+    const unsigned char ret = 0xc3;
+    Patch paint(original.Function<void*>(0x5f7f0), &ret, 1);
+    std::vector<unsigned char> app(0xa3000), physics(0x88);
+    auto* pointer = app.data();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    std::array<void*, 14> vtable{};
+    vtable[13] = reinterpret_cast<void*>(&CaptureGravity);
+    auto* table = vtable.data();
+    auto* world = &table;
+    auto* scene = physics.data();
+    std::memcpy(physics.data() + 0x80, &world, sizeof world);
+    std::memcpy(app.data() + 0x9fcb8, &scene, sizeof scene);
+    HMODULE controls = LoadLibraryW(L"comctl32.dll");
+    const auto init = reinterpret_cast<BOOL(WINAPI*)(const INITCOMMONCONTROLSEX*)>(
+        GetProcAddress(controls, "InitCommonControlsEx"));
+    INITCOMMONCONTROLSEX config{sizeof config, ICC_BAR_CLASSES};
+    Check(init && init(&config), "hidden gravity common controls");
+    HMODULE resources =
+        LoadLibraryExW(path, nullptr, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+    Check(resources != nullptr, "hidden gravity resource module");
+    const auto resource = FindResourceW(resources, MAKEINTRESOURCEW(803), MAKEINTRESOURCEW(5));
+    const auto* bytes =
+        static_cast<const unsigned char*>(LockResource(LoadResource(resources, resource)));
+    DWORD style;
+    Check(bytes && SizeofResource(resources, resource) >= 26, "gravity dialog resource");
+    std::memcpy(&style, bytes + 12, 4);
+    Check(!(style & WS_VISIBLE), "gravity resource must never show automatically");
+    WriteGravity(app, {0, 3, 9.8f, {0, -1, 0}});
+    HWND dialog = CreateDialogParamA(resources, MAKEINTRESOURCEA(803), nullptr,
+                                     original.Function<DLGPROC>(0x94e80), 0);
+    Check(dialog && !IsWindowVisible(dialog), "original gravity dialog stays hidden");
+    std::memcpy(app.data() + 0xa1d58, &dialog, sizeof dialog);
+    const auto mirror = original.Function<void (*)(HWND)>(0x95f00);
+    for (const auto& sample : kGravityMirrorReference) {
+        WriteGravity(app, {0, 3, sample.input, {0, -1, 0}});
+        mirror(dialog);
+        char text[256];
+        GetWindowTextA(GetDlgItem(dialog, 709), text, 256);
+        float live;
+        std::memcpy(&live, app.data() + 0x9fcd0, 4);
+        Check(std::strcmp(text, sample.text) == 0 && live == sample.output,
+              "original gravity formatting and EDIT feedback");
+        Check(!IsWindowVisible(dialog), "original gravity mirror must stay hidden");
+    }
+    const auto slider = GetDlgItem(dialog, 637);
+    Check(SendMessageW(slider, TBM_GETPAGESIZE, 0, 0) == 40 &&
+              SendMessageW(slider, TBM_GETLINESIZE, 0, 0) == 1,
+          "native dialog trackbar steps");
+    for (const auto& key : std::vector<std::pair<int, int>>{{VK_LEFT, -1},
+                                                            {VK_UP, -1},
+                                                            {VK_RIGHT, 1},
+                                                            {VK_DOWN, 1},
+                                                            {VK_PRIOR, -40},
+                                                            {VK_NEXT, 40},
+                                                            {VK_HOME, -100},
+                                                            {VK_END, 100}}) {
+        SendMessageW(slider, TBM_SETPOS, 0, 0);
+        SendMessageW(slider, WM_KEYDOWN, key.first, 0);
+        Check(SendMessageW(slider, TBM_GETPOS, 0, 0) == key.second,
+              "native dialog trackbar keyboard");
+    }
+    SendMessageW(slider, TBM_SETPOS, 0, 0);
+    for (unsigned i = 0; i < kDialogWheelDeltas.size(); ++i) {
+        const auto delta = kDialogWheelDeltas[i];
+        SendMessageW(slider, WM_MOUSEWHEEL, WPARAM(WORD(delta)) << 16, 0);
+        Check(SendMessageW(slider, TBM_GETPOS, 0, 0) == kDialogWheelPositions[i],
+              "native dialog trackbar wheel accumulation");
+    }
+    DestroyWindow(dialog);
+    FreeLibrary(resources);
+    FreeLibrary(controls);
+    std::printf(
+        "8 original hidden gravity mirrors: real EDIT notifications and formatted values\n");
+}
+unsigned gravityCapacityMessages = 0;
+int WINAPI GravityCapacityMessage(HWND, LPCSTR text, LPCSTR, UINT) {
+    Check(std::strstr(text, "10000") != nullptr, "native gravity capacity message");
+    ++gravityCapacityMessages;
+    return IDOK;
+}
+void GravityCapacity(OriginalPhysicsModule& original) {
+    EditorSession portable;
+    std::string reason;
+    const bool edited = portable.Edit(
+        "gravity-capacity",
+        [](auto& d, auto&) {
+            FillGravityCapacity(d);
+            return true;
+        },
+        reason);
+    Check(edited, reason.c_str());
+    std::vector<unsigned char> app(0xa3000);
+    auto* pointer = app.data();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    const unsigned char ret = 0xc3;
+    Patch rebuild(original.Function<void*>(0x5f7f0), &ret, 1);
+    Patch paint(original.Function<void*>(0x60ea0), &ret, 1);
+    auto message = &GravityCapacityMessage;
+    Patch report(original.Function<void*>(0x128618), &message, sizeof message);
+    std::vector<mdl::CameraKey> camera(10000);
+    std::vector<mdl::LightKey> light(10000);
+    std::vector<mdl::SelfShadowKey> shadow(10000);
+    std::vector<mdl::GravityKey> gravity(10000);
+    std::vector<mdl::AccessoryKey> accessories(10000), lastAccessory(10000);
+    const auto bind = [&](unsigned offset, auto& pool) {
+        auto* data = pool.data();
+        std::memcpy(app.data() + offset, &data, sizeof data);
+        for (auto& key : pool)
+            key.selected = 1;
+    };
+    bind(0x3d0, camera);
+    bind(0x3d8, light);
+    bind(0x3e0, shadow);
+    bind(0x3e8, gravity);
+    for (unsigned slot = 0; slot < 255; ++slot)
+        bind(0x3f0 + slot * 8, slot == 254 ? lastAccessory : accessories);
+    for (unsigned i = 0; i < gravity.size(); ++i) {
+        gravity[i].frame = i;
+        gravity[i].previous = i ? i - 1 : 0;
+        gravity[i].next = i == 9999 ? 0 : i + 1;
+        gravity[i].acceleration = 9.8f;
+        gravity[i].direction[1] = -1;
+    }
+    WriteGravity(app, portable.Runtime().Session()->Pose().gravity);
+    const unsigned frame = 10000, maximum = 9999;
+    std::memcpy(app.data() + 0x1450, &frame, 4);
+    std::memcpy(app.data() + 0x9f038, &maximum, 4);
+    app[0xa1b90] = 1;
+    original.Function<void (*)()>(0x95dd0)();
+    Check(gravityCapacityMessages == 1 && app[0xa1b31] == 1,
+          "native full-pool command reports and dirties");
+    const auto cleared = [](const auto& pool) {
+        return std::all_of(pool.begin(), pool.end(), [](const auto& key) { return !key.selected; });
+    };
+    Check(cleared(camera) && cleared(light) && cleared(shadow) && cleared(gravity) &&
+              cleared(accessories) && cleared(lastAccessory),
+          "native full-pool command clears all marks");
+    const auto revision = portable.Revision(), frames = portable.Runtime().Counters().frames;
+    Check(!portable.RegisterGravity(reason) && reason == "gravity-key-capacity",
+          "portable capacity report");
+    Check(portable.Revision() != revision && portable.Runtime().Counters().frames == frames &&
+              portable.Document().gravityKeys.sparse.size() == 9999 &&
+              portable.Document().timeline.lastRegisteredFrame == 9999 &&
+              !portable.Document().gravityKeys.dense[0].selected,
+          "portable native capacity side effects");
+    for (const auto& key : portable.Document().gravityKeys.sparse)
+        Check(!key.value.selected, "portable full-pool marks");
+    std::puts(
+        "Original full gravity dialog registration: capacity, all track sweeps and dirty flag passed");
+}
 }
 int wmain(int argc, wchar_t** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
@@ -612,6 +900,13 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf(
         "%u original chained range commands: full pools, additive rows and detached records\n",
         RangeCommands(original, argv[2]));
+    std::printf(
+        "%u original gravity channel edits: values, row selection and immediate world vectors\n",
+        GravityChannels(original, argv[2]));
+    std::printf("%u original gravity registrations: complete pool bytes, payloads and watermarks\n",
+                GravityRegistration(original, argv[2]));
+    GravityHiddenControls(original, argv[1]);
+    GravityCapacity(original);
     return 0;
 } catch (const std::exception& e) {
     std::fprintf(stderr, "%s\n", e.what());

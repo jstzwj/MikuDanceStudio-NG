@@ -508,5 +508,16 @@
   "dialog.screen.positive": "Width and height must be positive integers.",
   "dialog.numeric.edge.title": "thickness of edge line",
   "dialog.numeric.edge.control.0": "thickness",
-  "dialog.numeric.edge.control.3": "0                     1                    2"
+  "dialog.numeric.edge.control.3": "0                     1                    2",
+  "dialog.key_capacity.title": "register frame",
+  "dialog.key_capacity.message": "You cannot regist over %1point.\nPlease execute 'delete unused frame'",
+  "dialog.numeric.gravity.title": "gravity setting",
+  "dialog.numeric.gravity.control.0": "register",
+  "dialog.numeric.gravity.control.1": "close",
+  "dialog.numeric.gravity.control.2": "acceleration",
+  "dialog.numeric.gravity.control.6": "dir x",
+  "dialog.numeric.gravity.control.9": "y",
+  "dialog.numeric.gravity.control.12": "z",
+  "dialog.numeric.gravity.control.13": "noize",
+  "dialog.numeric.gravity.control.15": "-1                    0                    1"
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 
 class btDefaultCollisionConfiguration;
 class btCollisionDispatcher;
@@ -26,5 +27,6 @@ void DestroyPhysicsWorld(PhysicsWorldState& state);
 // Native floor command and PMM loaders replace collision flags with 1/-1.
 // Preserve activation, material, velocities and the existing broadphase body.
 void SetPhysicsGroundEnabled(btRigidBody* ground, bool enabled);
+void SetPhysicsWorldGravity(PhysicsWorldState&, const std::array<float, 3>&);
 
 } // namespace mikudancestudio

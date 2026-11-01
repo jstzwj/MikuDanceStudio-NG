@@ -508,5 +508,16 @@
   "dialog.screen.positive": "宽度和高度必须是正整数。",
   "dialog.numeric.edge.title": "描边粗细",
   "dialog.numeric.edge.control.0": "粗细",
-  "dialog.numeric.edge.control.3": "0                     1                    2"
+  "dialog.numeric.edge.control.3": "0                     1                    2",
+  "dialog.key_capacity.title": "登记关键帧",
+  "dialog.key_capacity.message": "登记点数量超过 %1 个。\n无法继续登记。\n请执行“帧编辑”中的“删除无用帧”。",
+  "dialog.numeric.gravity.title": "重力设置",
+  "dialog.numeric.gravity.control.0": "登记",
+  "dialog.numeric.gravity.control.1": "关闭",
+  "dialog.numeric.gravity.control.2": "加速度",
+  "dialog.numeric.gravity.control.6": "方向 x",
+  "dialog.numeric.gravity.control.9": "y",
+  "dialog.numeric.gravity.control.12": "z",
+  "dialog.numeric.gravity.control.13": "噪声",
+  "dialog.numeric.gravity.control.15": "-1                    0                    1"
 }

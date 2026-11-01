@@ -85,6 +85,8 @@ bool EditorSession::SelectModel(std::uint8_t slot, std::string& reason) {
     }
     if (!runtime_->RefreshEditorView(refresh, reason))
         return false;
+    if (refresh.reloadGlobals)
+        ++gravityEpoch_;
     EndGesture();
     RestoreModelSelection(slot, reason);
     if (slot != 255 && coordinateSystem_ == 2)

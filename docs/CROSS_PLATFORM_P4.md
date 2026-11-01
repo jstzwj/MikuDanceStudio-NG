@@ -1909,7 +1909,59 @@ tests passed again after the overlapping-record follow-up (12.94 seconds) with
 no desktop interaction. The final revision passed all **31 P4 regressions**
 (59.21 seconds), the scene-runtime regression (1.77 seconds), and rebuilt Win32
 selection/session tests (8.31 seconds). The Qt application builds. Three-platform
-CI for this batch remains required.
+CI for this batch passed all three editor jobs in
+[run 41354546596](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41354546596).
 
 Broader chained clipboard, capacity, keyboard/IME/DPI and full C1 output gates
 remain open; this change is not P4 acceptance.
+
+## Modeless gravity settings and registration
+
+The gravity window now uses original binary templates 803/802, with English,
+Japanese and Simplified Chinese catalogs. Reopening retains the single modeless
+instance. Text changes immediately apply the original decimal-prefix conversion;
+Enter is consumed by the edit and does not register a key. Direction sliders use
+the native range, keyboard steps and accumulated wheel increments. These edits
+have auto-scroll and retain their full text, unlike the edge-thickness field.
+The noise checkbox enables its integer field; conversion preserves the native
+signed-overflow result. Setting all direction components to zero nudges Y to
+0.1. Nonfinite inputs are rejected before changing scene state.
+
+Live changes update the existing physics world without evaluating a CPU pose,
+recreating bodies, consuming bone history or marking the project modified.
+Registration clears global/accessory key selection, inserts or overwrites the
+current gravity key and marks the project modified; playback remains active.
+Win32 and portable sessions share the same registration kernel. Overwriting does
+not raise the timeline watermark, and a newly appended key retains the free
+slot's successor payload. A full 10000-record pool still clears selection and
+marks the project modified before reporting capacity, matching the original full
+dialog command. Invalid topology or out-of-pool references remain atomic errors.
+Closing restores the evaluated gravity at the current frame, including when a
+never-shown test dialog or its owner closes.
+
+The optional auxiliary oracle executes original routines **95B40**, **5DA60** and
+**95DD0**, with only rendering/control tails replaced as appropriate. It checks
+49 live channel changes, 24 complete gravity-pool registrations and the full-pool
+failure command. Native Bullet set-gravity vectors are captured through a fake
+world vtable; the portable normalizer retains a relative/absolute budget of
+`2e-5 * max(1, abs(native component))`. This CPU normalization budget does not
+change any image comparison threshold.
+
+A second probe creates the actual original gravity dialog and EDIT/trackbar
+controls without ever showing them. Eight frozen formatting cases execute real
+EDIT notifications: a frame refresh rounds each field to two decimal places and
+feeds that value back through the live setter, while first creation is quiet.
+Qt reproduces the sequential refresh, including same-frame seeks. Native and Qt
+also check eight keyboard steps and nine fractional/reversing wheel inputs.
+The complete auxiliary oracle passes 282 command/value checkpoints, with the
+trackbar checks additional. No DX9 device or desktop input is used.
+
+Three-language Qt regression covers geometry, labels, live changes, all 201
+direction slider positions, noise conversion, Enter, repeated opening, close,
+playback, same-frame refresh, registration, bone Undo/Redo preservation and PMM
+save/reopen. The portable session regression additionally checks full-pool
+overwrite and invalid-index rejection. The final revision passed all **31 local
+P4 tests** (61.69 seconds), scene runtime (1.85 seconds), rebuilt Win32 session
+and physics-continuity tests (3.68 seconds), and the legacy global registrar
+regression. The Qt application builds. Three-platform CI for this batch remains
+required; P4 remains open.

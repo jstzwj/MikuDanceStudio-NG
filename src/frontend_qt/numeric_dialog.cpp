@@ -1,14 +1,58 @@
 #include "numeric_dialog.hpp"
 #include "mikudancestudio/mmd_dialog_edit_metrics.hpp"
+#include "mikudancestudio/gravity_edit.hpp"
 #include <QLabel>
 #include <QLocale>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QSignalBlocker>
+#include <QKeyEvent>
+#include <QCloseEvent>
+#include <QWheelEvent>
 #include <charconv>
 #include <cmath>
 namespace mikudancestudio::qt {
 namespace {
+class DialogTrackbar final : public QSlider {
+public:
+    explicit DialogTrackbar(QWidget* owner) : QSlider(Qt::Horizontal, owner) {
+        setSingleStep(1);
+        setPageStep(40);
+    }
+
+protected:
+    void wheelEvent(QWheelEvent* event) override {
+        const qint64 delta = qint64(wheelRemainder_) + event->angleDelta().y();
+        const auto steps = delta / 120;
+        wheelRemainder_ = int(delta % 120);
+        setValue(int(std::clamp(qint64(value()) - steps * std::max(1, pageStep() / 10),
+                                qint64(minimum()), qint64(maximum()))));
+        event->accept();
+    }
+    void keyPressEvent(QKeyEvent* event) override {
+        switch (event->key()) {
+        case Qt::Key_Up:
+            triggerAction(SliderSingleStepSub);
+            break;
+        case Qt::Key_Down:
+            triggerAction(SliderSingleStepAdd);
+            break;
+        case Qt::Key_PageUp:
+            triggerAction(SliderPageStepSub);
+            break;
+        case Qt::Key_PageDown:
+            triggerAction(SliderPageStepAdd);
+            break;
+        default:
+            QSlider::keyPressEvent(event);
+            return;
+        }
+        event->accept();
+    }
+
+private:
+    int wheelRemainder_ = 0;
+};
 bool FloatPrefix(const QString& text, int limit, float& result) {
     const auto bytes = text.toUtf8().left(limit);
     const char* begin = bytes.constData();
@@ -69,10 +113,15 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
             label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
             widget = label;
         } else if (control.kind == ui::NumericControlKind::Slider) {
-            auto* slider = new QSlider(Qt::Horizontal, this);
+            auto* slider = new DialogTrackbar(this);
             slider->setFocusPolicy(Qt::ClickFocus);
             sliders_[control.id] = slider;
             widget = slider;
+        } else if (control.kind == ui::NumericControlKind::Checkbox) {
+            auto* check = new QCheckBox(language.Text(control.message), this);
+            check->setFocusPolicy(Qt::ClickFocus);
+            checkboxes_[control.id] = check;
+            widget = check;
         } else {
             auto* button = new QPushButton(language.Text(control.message), this);
             button->setAutoDefault(false);
@@ -198,5 +247,120 @@ void EdgeThicknessDialog::Reset(float value) {
     const QSignalBlocker blocked(Trackbar());
     Prefill(646, QString::asprintf("%3.2f", double(value)));
     Trackbar()->setValue(EdgePosition(value));
+}
+namespace {
+QString GravityText(const format::PmmEvaluatedGravity& value, unsigned channel) {
+    return channel == 4
+               ? QString::number(value.noise)
+               : QString::asprintf("%3.2f", double(channel == 0 ? value.acceleration
+                                                                : value.direction[channel - 1]));
+}
+int GravityPosition(float value) {
+    return std::clamp(editor::GravityInteger(value * 100.f), -100, 100);
+}
+}
+GravityDialog::GravityDialog(const Language& language, const format::PmmEvaluatedGravity& value,
+                             QWidget* parent)
+    : TemplateDialog(language.Code() == "en" ? ui::kNumericGravityEn : ui::kNumericGravityJa,
+                     language, parent) {
+    setObjectName("mmd.gravity");
+    for (unsigned axis = 0; axis < 3; ++axis) {
+        Trackbar(axis)->setRange(-100, 100);
+        Trackbar(axis)->setTickInterval(1000);
+        Trackbar(axis)->setTickPosition(QSlider::TicksBelow);
+    }
+    Reset(value);
+    for (unsigned channel = 0; channel < 5; ++channel) {
+        Field(channel)->installEventFilter(this);
+        connect(Field(channel), &QLineEdit::textChanged, this, [this, channel] {
+            if (!resetting_)
+                Apply(channel);
+        });
+    }
+    for (unsigned axis = 0; axis < 3; ++axis)
+        connect(Trackbar(axis), &QSlider::valueChanged, this, [this, axis](int position) {
+            if (resetting_)
+                return;
+            const float value = float(double(position) / 100.);
+            {
+                const QSignalBlocker blocked(Field(axis + 1));
+                Field(axis + 1)->setText(QString::asprintf("%3.2f", double(value)));
+            }
+            if (changed)
+                changed(axis + 1, value);
+        });
+    connect(Noise(), &QCheckBox::toggled, this, [this](bool checked) {
+        Field(4)->setEnabled(checked);
+        if (!resetting_ && noiseChanged)
+            noiseChanged(checked);
+    });
+}
+void GravityDialog::Apply(unsigned channel) {
+    float value;
+    if (!FloatPrefix(Field(channel)->text(), 255, value))
+        return;
+    if (channel >= 1 && channel <= 3) {
+        const QSignalBlocker blocked(Trackbar(channel - 1));
+        Trackbar(channel - 1)->setValue(GravityPosition(value));
+    }
+    if (changed)
+        changed(channel, value);
+}
+bool GravityDialog::eventFilter(QObject* watched, QEvent* event) {
+    if (event->type() == QEvent::KeyPress) {
+        auto* key = static_cast<QKeyEvent*>(event);
+        if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter)
+            for (unsigned channel = 0; channel < 5; ++channel)
+                if (watched == Field(channel)) {
+                    Apply(channel);
+                    event->accept();
+                    return true; // The native edit subclass consumes Enter before the default button.
+                }
+    }
+    return TemplateDialog::eventFilter(watched, event);
+}
+void GravityDialog::Reset(const format::PmmEvaluatedGravity& value) {
+    resetting_ = true;
+    // These EDITs have ES_AUTOHSCROLL; WM_SETTEXT does not width-truncate.
+    for (unsigned channel = 0; channel < 5; ++channel)
+        Field(channel)->setText(GravityText(value, channel));
+    for (unsigned axis = 0; axis < 3; ++axis)
+        Trackbar(axis)->setValue(GravityPosition(value.direction[axis]));
+    Noise()->setChecked(value.noiseEnabled != 0);
+    Field(4)->setEnabled(value.noiseEnabled != 0);
+    resetting_ = false;
+}
+void GravityDialog::Mirror(const std::function<format::PmmEvaluatedGravity()>& current) {
+    resetting_ = true;
+    // Native track refresh uses WM_SETTEXT, which sends EN_UPDATE even for
+    // hidden EDITs. Each setter can change the next field (zero-vector nudge).
+    for (unsigned channel = 0; channel < 5; ++channel) {
+        Field(channel)->setText(GravityText(current(), channel));
+        Apply(channel);
+    }
+    const auto value = current();
+    for (unsigned axis = 0; axis < 3; ++axis)
+        Trackbar(axis)->setValue(GravityPosition(value.direction[axis]));
+    Noise()->setChecked(value.noiseEnabled != 0);
+    Field(4)->setEnabled(value.noiseEnabled != 0);
+    resetting_ = false;
+}
+void GravityDialog::accept() {
+    if (registered)
+        registered(); // Modeless register button keeps the dialog open.
+}
+void GravityDialog::reject() {
+    if (closing_)
+        return;
+    closing_ = true;
+    if (closed)
+        closed();
+    QDialog::reject();
+}
+void GravityDialog::closeEvent(QCloseEvent* event) {
+    // QDialog skips reject()/finished() when a never-shown window is closed.
+    // Keep cancellation semantics identical for offscreen and visible hosts.
+    reject();
+    event->accept();
 }
 }

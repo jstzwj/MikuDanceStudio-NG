@@ -42,6 +42,10 @@ void SetPhysicsGroundEnabled(btRigidBody* ground, bool enabled) {
     if (ground)
         ground->setCollisionFlags(enabled ? 1 : -1);
 }
+void SetPhysicsWorldGravity(PhysicsWorldState& state, const std::array<float, 3>& gravity) {
+    if (state.world)
+        state.world->setGravity(btVector3(gravity[0], gravity[1], gravity[2]));
+}
 
 // Reference: MMD x64 sub_7FF7CB422580. Keep reverse traversal and
 // destruction order while using Bullet interfaces rather than byte offsets.

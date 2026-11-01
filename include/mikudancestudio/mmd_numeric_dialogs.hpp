@@ -6,7 +6,8 @@ enum class NumericControlKind {
     Static,
     Edit,
     Button,
-    Slider
+    Slider,
+    Checkbox
 };
 struct NumericControl {
     int id, x, y, width, height;
@@ -139,4 +140,44 @@ inline constexpr NumericControl kNumericEdgeJaControls[] = {
 };
 inline constexpr NumericTemplate kNumericEdgeJa = {
     645, 135, 40, 9, "dialog.numeric.edge.title", kNumericEdgeJaControls, 4};
+inline constexpr NumericControl kNumericGravityEnControls[] = {
+    {1, 30, 81, 40, 15, NumericControlKind::Button, "dialog.numeric.gravity.control.0"},
+    {2, 90, 81, 40, 15, NumericControlKind::Button, "dialog.numeric.gravity.control.1"},
+    {-1, 13, 6, 40, 8, NumericControlKind::Static, "dialog.numeric.gravity.control.2"},
+    {709, 53, 4, 20, 12, NumericControlKind::Edit, ""},
+    {637, 31, 26, 97, 10, NumericControlKind::Slider, ""},
+    {710, 128, 25, 21, 12, NumericControlKind::Edit, ""},
+    {-1, 13, 26, 21, 8, NumericControlKind::Static, "dialog.numeric.gravity.control.6"},
+    {638, 31, 40, 97, 10, NumericControlKind::Slider, ""},
+    {711, 128, 39, 21, 12, NumericControlKind::Edit, ""},
+    {-1, 23, 40, 8, 8, NumericControlKind::Static, "dialog.numeric.gravity.control.9"},
+    {639, 31, 54, 97, 10, NumericControlKind::Slider, ""},
+    {712, 128, 53, 21, 12, NumericControlKind::Edit, ""},
+    {-1, 23, 54, 8, 8, NumericControlKind::Static, "dialog.numeric.gravity.control.12"},
+    {731, 100, 6, 42, 8, NumericControlKind::Checkbox, "dialog.numeric.gravity.control.13"},
+    {713, 128, 4, 26, 12, NumericControlKind::Edit, ""},
+    {-1, 32, 66, 99, 9, NumericControlKind::Static, "dialog.numeric.gravity.control.15"},
+};
+inline constexpr NumericTemplate kNumericGravityEn = {
+    803, 160, 102, 9, "dialog.numeric.gravity.title", kNumericGravityEnControls, 16};
+inline constexpr NumericControl kNumericGravityJaControls[] = {
+    {1, 30, 81, 40, 15, NumericControlKind::Button, "dialog.numeric.gravity.control.0"},
+    {2, 90, 81, 40, 15, NumericControlKind::Button, "dialog.numeric.gravity.control.1"},
+    {-1, 7, 6, 24, 8, NumericControlKind::Static, "dialog.numeric.gravity.control.2"},
+    {709, 33, 4, 20, 12, NumericControlKind::Edit, ""},
+    {637, 31, 26, 97, 10, NumericControlKind::Slider, ""},
+    {710, 128, 25, 21, 12, NumericControlKind::Edit, ""},
+    {-1, 8, 26, 21, 8, NumericControlKind::Static, "dialog.numeric.gravity.control.6"},
+    {638, 31, 40, 97, 10, NumericControlKind::Slider, ""},
+    {711, 128, 39, 21, 12, NumericControlKind::Edit, ""},
+    {-1, 23, 40, 8, 8, NumericControlKind::Static, "dialog.numeric.gravity.control.9"},
+    {639, 31, 54, 97, 10, NumericControlKind::Slider, ""},
+    {712, 128, 53, 21, 12, NumericControlKind::Edit, ""},
+    {-1, 23, 54, 8, 8, NumericControlKind::Static, "dialog.numeric.gravity.control.12"},
+    {731, 80, 6, 42, 8, NumericControlKind::Checkbox, "dialog.numeric.gravity.control.13"},
+    {713, 124, 4, 26, 12, NumericControlKind::Edit, ""},
+    {-1, 32, 66, 99, 9, NumericControlKind::Static, "dialog.numeric.gravity.control.15"},
+};
+inline constexpr NumericTemplate kNumericGravityJa = {
+    802, 160, 102, 9, "dialog.numeric.gravity.title", kNumericGravityJaControls, 16};
 }

@@ -1,9 +1,11 @@
 #include "numeric_dialog.hpp"
 #include "editor_window.hpp"
+#include "mikudancestudio/gravity_edit.hpp"
 #include "mikudancestudio/editor_numeric.hpp"
 #include "mikudancestudio/editor_rotation.hpp"
 #include "mikudancestudio/menu_commands.h"
 #include "editor_numeric_fixture.hpp"
+#include "gravity_edit_reference.hpp"
 #include <QApplication>
 #include <QFile>
 #include <QJsonArray>
@@ -15,6 +17,7 @@
 #include <QTimer>
 #include <QInputMethodEvent>
 #include <QComboBox>
+#include <QWheelEvent>
 #include <iostream>
 #include <limits>
 using namespace mikudancestudio;
@@ -467,6 +470,180 @@ int main(int argc, char** argv) {
         CHECK(owner.close());
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         CHECK(live.isNull() && editor.Document().models[1].edgeScale == 2.5f);
+    }
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(language.Set(code));
+        format::PmmEvaluatedGravity value{0, 3, 9.8f, {0, -1, 0}};
+        qt::GravityDialog form(language, value);
+        const auto expected =
+            reference[QString("gravity.") + (language.Code() == "en" ? "en" : "ja")].toObject();
+        const auto controls = expected["controls"].toArray();
+        const int unitY = language.Code() == "en" ? 15 : 12;
+        CHECK(form.Template().id == expected["id"].toInt() && controls.size() == 16);
+        CHECK(form.size() == QSize(280, (102 * unitY + 4) / 8));
+        for (int i = 0; i < controls.size(); ++i) {
+            auto* widget = form.findChild<QWidget*>(QString("numeric.control.%1").arg(i));
+            CHECK(widget);
+            const auto control = controls[i].toObject();
+            const auto r = control["rect"].toArray();
+            CHECK(widget->geometry() ==
+                  QRect((r[0].toInt() * 7 + 2) / 4, (r[1].toInt() * unitY + 4) / 8,
+                        (r[2].toInt() * 7 + 2) / 4, (r[3].toInt() * unitY + 4) / 8));
+            CHECK(widget->property("mmdControlId").toInt() == control["id"].toInt());
+            if (language.Code() != "zh_CN") {
+                if (auto* label = qobject_cast<QLabel*>(widget))
+                    CHECK(label->text() == control["text"].toString());
+                if (auto* button = qobject_cast<QAbstractButton*>(widget))
+                    CHECK(button->text() == control["text"].toString());
+            }
+        }
+        CHECK(!form.Field(4)->isEnabled());
+        CHECK(form.Trackbar(0)->pageStep() == 40 && form.Trackbar(0)->singleStep() == 1);
+        for (const auto& key : std::vector<std::pair<Qt::Key, int>>{{Qt::Key_Left, -1},
+                                                                    {Qt::Key_Up, -1},
+                                                                    {Qt::Key_Right, 1},
+                                                                    {Qt::Key_Down, 1},
+                                                                    {Qt::Key_PageUp, -40},
+                                                                    {Qt::Key_PageDown, 40},
+                                                                    {Qt::Key_Home, -100},
+                                                                    {Qt::Key_End, 100}}) {
+            form.Trackbar(0)->setValue(0);
+            QTest::keyClick(form.Trackbar(0), key.first);
+            CHECK(form.Trackbar(0)->value() == key.second);
+        }
+        unsigned edits = 0, registrations = 0;
+        form.changed = [&](unsigned channel, float number) {
+            if (editor::EditGravityChannel(value, channel, number))
+                ++edits;
+        };
+        form.registered = [&] { ++registrations; };
+        for (int position = -100; position <= 100; ++position) {
+            form.Trackbar(0)->setValue(position);
+            CHECK(value.direction[0] == float(double(position) / 100.));
+        }
+        form.Field(0)->setText("123456789.25tail");
+        CHECK(value.acceleration == 123456789.25f && form.Field(0)->text() == "123456789.25tail");
+        const auto beforeEnter = edits;
+        QTest::keyClick(form.Field(0), Qt::Key_Return);
+        CHECK(edits == beforeEnter + 1 && registrations == 0);
+        form.Field(1)->setText("2.75");
+        CHECK(value.direction[0] == 2.75f && form.Trackbar(0)->value() == 100);
+        form.Field(4)->setText("-3.9noise");
+        CHECK(value.noise == -3);
+        form.Field(4)->setText("2147483648");
+        CHECK(value.noise == std::numeric_limits<std::int32_t>::min());
+        form.accept();
+        CHECK(registrations == 1);
+        form.Trackbar(0)->setValue(0);
+        for (unsigned i = 0; i < kDialogWheelDeltas.size(); ++i) {
+            QWheelEvent event(QPointF(10, 5), QPointF(10, 5), {}, QPoint(0, kDialogWheelDeltas[i]),
+                              Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+            QCoreApplication::sendEvent(form.Trackbar(0), &event);
+            CHECK(form.Trackbar(0)->value() == kDialogWheelPositions[i]);
+        }
+        for (const auto& sample : kGravityMirrorReference) {
+            value.acceleration = sample.input;
+            form.Mirror([&] { return value; });
+            CHECK(form.Field(0)->text() == sample.text && value.acceleration == sample.output);
+        }
+
+        qt::EditorWindow owner(std::filesystem::absolute(argv[2]), true);
+        CHECK(owner.SetLanguage(code));
+        auto& editor = owner.Session();
+        CHECK(editor.ImportModel(root / "articulated.pmx", reason));
+        CHECK(editor.ImportAccessory(root / "bound.x", reason));
+        CHECK(editor.SetBone(0, 0, {1, 0, 0}, {0, 0, 0, 1}, reason));
+        CHECK(editor.SetBone(0, 0, {2, 0, 0}, {0, 0, 0, 1}, reason));
+        CHECK(editor.Undo(reason));
+        CHECK(owner.Save(root / "gravity.pmm"));
+        owner.Refresh();
+        QAction* action = nullptr;
+        for (auto* entry : owner.findChildren<QAction*>())
+            if (entry->property("mmdCommandId").toInt() == MDS_CMD_GRAVITY_SETTINGS)
+                action = entry;
+        CHECK(action && action->isEnabled());
+        action->trigger();
+        QPointer<qt::GravityDialog> live;
+        for (auto* dialog : owner.findChildren<QDialog*>())
+            if (auto* gravity = dynamic_cast<qt::GravityDialog*>(dialog))
+                live = gravity;
+        CHECK(live && !live->isVisible() && !owner.isVisible());
+        action->trigger();
+        CHECK(owner.findChildren<QDialog*>().size() == 1);
+        const auto revision = editor.Revision(), frames = editor.Runtime().Counters().frames;
+        const auto updates = editor.Runtime().Counters().editorUpdates;
+        const bool undo = editor.CanUndo(), redo = editor.CanRedo();
+        live->Field(0)->setText(".375preview");
+        QTest::keyClick(live->Field(0), Qt::Key_Return);
+        CHECK(editor.Document().physics.gravityMagnitude == .375f && !editor.Dirty());
+        CHECK(editor.Document().gravityKeys.sparse.empty());
+        live->Field(1)->setText("0");
+        live->Field(2)->setText("0");
+        live->Field(3)->setText("0");
+        CHECK(editor.Document().physics.gravityDirection[1] == .1f);
+        live->Noise()->click();
+        CHECK(editor.Document().physics.gravityNoiseEnabled && live->Field(4)->isEnabled());
+        live->Field(4)->setText("-3.9");
+        CHECK(editor.Document().physics.gravityNoise == -3);
+        live->Trackbar(0)->setValue(57);
+        CHECK(editor.Document().physics.gravityDirection[0] == .57f);
+        CHECK(editor.Revision() == revision && editor.Runtime().Counters().frames == frames &&
+              editor.Runtime().Counters().editorUpdates == updates);
+        CHECK(editor.CanUndo() == undo && editor.CanRedo() == redo);
+        live->close();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        CHECK(live.isNull() && editor.Document().physics.gravityMagnitude == 9.8f);
+        CHECK(editor.SelectModel(255, reason) && editor.Seek(10, reason));
+        owner.Refresh();
+        action->trigger();
+        for (auto* dialog : owner.findChildren<QDialog*>())
+            if (auto* gravity = dynamic_cast<qt::GravityDialog*>(dialog))
+                live = gravity;
+        CHECK(live);
+        live->Field(0)->setText("3.125");
+        CHECK(editor.SetSelectedKeys(
+            {{editor::Track::Camera, 255, 0, 0}, {editor::Track::Accessory, 0, 0, 0}}, reason));
+        live->accept();
+        CHECK(live && editor.Dirty() && editor.Document().gravityKeys.sparse.size() == 1);
+        CHECK(editor.Document().gravityKeys.sparse[0].value.acceleration == 3.125f);
+        CHECK(!editor.Document().cameraKeys.dense[0].selected &&
+              !editor.Document().accessories[0].keyRecords.dense[0].selected);
+        CHECK(editor.Play(reason));
+        owner.Refresh();
+        live->Field(0)->setText("1.5");
+        const auto playFrames = editor.Runtime().Counters().frames;
+        live->accept();
+        CHECK(editor.Playing() && editor.Runtime().Playing() &&
+              editor.Runtime().Session()->Playing());
+        CHECK(editor.Runtime().Counters().frames == playFrames);
+        editor.Pause();
+        CHECK(editor.Seek(5, reason));
+        CHECK(editor.Document().physics.gravityMagnitude == 2.3125f);
+        const auto seekFrames = editor.Runtime().Counters().frames;
+        owner.Refresh();
+        CHECK(live->Field(0)->text() == "2.31" &&
+              editor.Document().physics.gravityMagnitude == 2.31f);
+        CHECK(editor.Runtime().Counters().frames == seekFrames);
+        live->Field(0)->setText("9.25pending");
+        CHECK(editor.Seek(5, reason)); // same-frame track refresh still replaces pending text
+        owner.Refresh();
+        CHECK(live->Field(0)->text() == "2.31");
+        live->close();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        CHECK(live.isNull() && editor.Document().physics.gravityMagnitude == 2.3125f);
+        CHECK(owner.Save(root / "gravity.pmm") && owner.Open(root / "gravity.pmm"));
+        CHECK(editor.Document().gravityKeys.dense[0].acceleration == 1.5f &&
+              editor.Document().gravityKeys.sparse[0].value.acceleration == 3.125f);
+        CHECK(editor.SelectModel(0, reason));
+        CHECK(!editor.CanUndo()); // Opening intentionally starts fresh history.
+        owner.Refresh();
+        for (auto* entry : owner.findChildren<QAction*>())
+            if (entry->property("mmdCommandId").toInt() == MDS_CMD_GRAVITY_SETTINGS)
+                action = entry;
+        action->trigger();
+        CHECK(owner.close());
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        CHECK(owner.findChildren<QDialog*>().empty() && owner.LastError().isEmpty());
     }
     std::cout
         << "Numeric dialogs: binary geometry/labels, tab order, formatting, cancel and editor publication passed\n";

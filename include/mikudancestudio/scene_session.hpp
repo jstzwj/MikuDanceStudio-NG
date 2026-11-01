@@ -116,6 +116,8 @@ public:
                 pose.flags[1] = 0;
     }
     bool SelectPhysicsOnKeys(std::uint8_t slot, const std::vector<std::uint8_t>& physical);
+    bool SetGravity(const PmmEvaluatedGravity&);
+    bool RegisterGravity(std::string& reason);
     bool SetSelectedKeys(std::uint8_t slot, const std::set<PmmKeyAddress>& selected,
                          const PmmKeyPools& clearUnused) {
         return loaded_ && SetPmmSelectedKeys(scene_, slot, selected, clearUnused);

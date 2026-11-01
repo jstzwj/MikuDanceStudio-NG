@@ -9,6 +9,7 @@
 
 #include "mikudancestudio/accessory_layout.hpp"
 #include "mikudancestudio/global_key_layout.hpp"
+#include "mikudancestudio/gravity_registration.hpp"
 #include "mikudancestudio/mmd_app.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
 #include "mikudancestudio/model.hpp"
@@ -248,87 +249,35 @@ void RegisterGravityKeyCurrent(MMDApp* app, std::int32_t frame) { // VA 0x00412B
     mdl::GravityKey* keys = app->GravityKeys();
     const std::uint32_t target = static_cast<std::uint32_t>(frame);
 
-    // Walk the chain from record 0 for the first frame >= target; a dead
-    // end leaves `current` on the chain's last record (append there).
-    std::uint32_t current = 0;
-    bool spliceBefore = keys[0].frame >= target;
-    if (!spliceBefore) {
-        std::uint32_t node = 0;
-        for (;;) {
-            const std::uint32_t next = keys[node].next;
-            if (next == 0)
-                break;
-            current = next;
-            node = next;
-            if (keys[current].frame >= target) {
-                spliceBefore = true;
-                break;
-            }
-        }
-    }
-
-    // Exact hit: overwrite the live cluster into the record.
-    if (spliceBefore && keys[current].frame == target) {
-        mdl::GravityKey& key = keys[current];
-        key.acceleration = app->state.gravityMagnitude;
-        key.direction[0] = app->state.gravityX;
-        key.direction[1] = app->state.gravityY;
-        key.direction[2] = app->state.gravityZ;
-        key.noise = app->state.gravityNoise;
-        key.noiseEnabled = app->GravityNoiseEnabled();
-        key.selected = 1;
+    auto maximum = app->state.lastRegisteredFrame;
+    const bool registered = cpu_keyframe::RegisterGravityCurrent(
+        target, [&](unsigned i) { return keys[i].frame; },
+        [&](unsigned i) -> auto& { return keys[i]; },
+        [&](auto& key) {
+            key.acceleration = app->state.gravityMagnitude;
+            key.direction[0] = app->state.gravityX;
+            key.direction[1] = app->state.gravityY;
+            key.direction[2] = app->state.gravityZ;
+            key.noise = app->state.gravityNoise;
+            key.noiseEnabled = app->GravityNoiseEnabled();
+            key.selected = 1;
+        },
+        maximum);
+    if (registered) {
+        app->state.lastRegisteredFrame = maximum;
         return;
     }
-
-    // Fresh slot from the frame == 0 holes (record 1 first, then 2..).
-    std::uint32_t freeIndex = 1;
-    if (keys[1].frame != 0) {
-        bool freeFound = false;
-        for (std::uint32_t index = 2; index < mdl::kTimelineKeyCapacity; ++index) {
-            if (keys[index].frame == 0) {
-                freeIndex = index;
-                freeFound = true;
-                break;
-            }
-        }
-        if (!freeFound) {
-            char text[256];
-            if (app->EnglishUI() != 0) {
-                sprintf_s(text, 0x100,
-                          "You cannot regist over %dpoint.\n"
-                          "Please execute 'delete unused frame'",
-                          static_cast<int>(mdl::kTimelineKeyCapacity));
-                MessageBoxA(static_cast<HWND>(app->Hwnd()), text, "register frame", 0);
-            } else {
-                sprintf_s(text, 0x100, kJpOverflow, static_cast<int>(mdl::kTimelineKeyCapacity));
-                MessageBoxA(static_cast<HWND>(app->Hwnd()), text, kJpFrameRegTitle, 0);
-            }
-            return;
-        }
-    }
-
-    mdl::GravityKey& added = keys[freeIndex];
-    if (spliceBefore) {
-        const std::uint32_t previous = keys[current].previous;
-        keys[previous].next = freeIndex;
-        added.previous = previous;
-        keys[current].previous = freeIndex;
-        added.next = current;
+    char text[256];
+    if (app->EnglishUI() != 0) {
+        sprintf_s(text, 0x100,
+                  "You cannot regist over %dpoint.\n"
+                  "Please execute 'delete unused frame'",
+                  static_cast<int>(mdl::kTimelineKeyCapacity));
+        MessageBoxA(static_cast<HWND>(app->Hwnd()), text, "register frame", 0);
     } else {
-        keys[current].next = freeIndex;
-        added.previous = current;
-        // added.next keeps the zeroed hole's value, as the original does.
+        sprintf_s(text, 0x100, kJpOverflow, static_cast<int>(mdl::kTimelineKeyCapacity));
+        MessageBoxA(static_cast<HWND>(app->Hwnd()), text, kJpFrameRegTitle, 0);
     }
-    added.frame = target;
-    added.acceleration = app->state.gravityMagnitude;
-    added.direction[0] = app->state.gravityX;
-    added.direction[1] = app->state.gravityY;
-    added.direction[2] = app->state.gravityZ;
-    added.noise = app->state.gravityNoise;
-    added.noiseEnabled = app->GravityNoiseEnabled();
-    added.selected = 1;
-    if (target > app->state.lastRegisteredFrame)
-        app->state.lastRegisteredFrame = target;
 }
 
 } // namespace mikudancestudio

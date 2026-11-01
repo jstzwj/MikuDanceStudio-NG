@@ -1,5 +1,6 @@
 #include "mikudancestudio/scene_session.hpp"
 #include "mikudancestudio/pmm_edit.hpp"
+#include "mikudancestudio/gravity_registration.hpp"
 #include "mikudancestudio/bone_key_selection.hpp"
 #include <algorithm>
 #include <cmath>
@@ -675,6 +676,89 @@ bool SceneSession::SelectPhysicsOnKeys(std::uint8_t slot,
         return true;
     }
     return false;
+}
+
+bool SceneSession::SetGravity(const PmmEvaluatedGravity& value) {
+    if (!loaded_ || value.noiseEnabled > 1 || !std::isfinite(value.acceleration) ||
+        !std::all_of(value.direction.begin(), value.direction.end(),
+                     [](float f) { return std::isfinite(f); }))
+        return false;
+    scene_.physics.gravityMagnitude = value.acceleration;
+    scene_.physics.gravityDirection = value.direction;
+    scene_.physics.gravityNoise = value.noise;
+    scene_.physics.gravityNoiseEnabled = value.noiseEnabled;
+    pose_.gravity = value;
+    playback_.pose.gravity = value;
+    return true;
+}
+
+bool SceneSession::RegisterGravity(std::string& reason) {
+    if (!loaded_ || runtimeTracksChanged_ || scene_.timeline.currentFrame < 0) {
+        reason = "gravity-registration-unavailable";
+        return false;
+    }
+    auto next = scene_;
+    PmmKeyPools pools{{PmmKeyKind::Camera, 255},
+                      {PmmKeyKind::Light, 255},
+                      {PmmKeyKind::Shadow, 255},
+                      {PmmKeyKind::Gravity, 255}};
+    for (const auto& accessory : next.accessories)
+        pools.emplace(PmmKeyKind::Accessory, accessory.slot);
+    if (!SetPmmSelectedKeys(next, 255, {}, pools) || next.gravityKeys.dense.size() != 1) {
+        reason = "gravity-registration-invalid-tracks";
+        return false;
+    }
+    auto& track = next.gravityKeys;
+    if (std::any_of(track.sparse.begin(), track.sparse.end(),
+                    [](const auto& key) { return key.index < 1 || key.index >= 10000; }) ||
+        (!track.unused.empty() && track.unused.rbegin()->first >= 10000)) {
+        reason = "gravity-registration-invalid-tracks";
+        return false;
+    }
+    std::map<unsigned, PmmGravityKey> records = track.unused;
+    records[0] = track.dense[0];
+    for (const auto& key : track.sparse)
+        records[unsigned(key.index)] = key.value;
+    const auto& gravity = pose_.gravity;
+    auto maximum = std::uint32_t(next.timeline.lastRegisteredFrame);
+    if (!cpu_keyframe::RegisterGravityCurrent(
+            unsigned(next.timeline.currentFrame),
+            [&](unsigned i) { return records.count(i) ? records.at(i).frame : 0u; },
+            [&](unsigned i) -> auto& { return records[i]; },
+            [&](auto& key) {
+                key.acceleration = gravity.acceleration;
+                key.direction = gravity.direction;
+                key.noise = gravity.noise;
+                key.noiseEnabled = gravity.noiseEnabled;
+                key.selected = 1;
+            },
+            maximum)) {
+        // The original dialog clears selection and dirties the scene before
+        // reporting a full pool. Preserve that completed part of the command.
+        scene_ = std::move(next);
+        reason = "gravity-key-capacity";
+        return false;
+    }
+    track.dense[0] = records.at(0);
+    track.sparse.clear();
+    track.unused.clear();
+    for (const auto& [index, key] : records)
+        if (index) {
+            if (key.frame)
+                track.sparse.push_back({std::int32_t(index), 0, key});
+            else
+                track.unused[index] = key;
+        }
+    next.timeline.lastRegisteredFrame = std::int32_t(maximum);
+    PmmSceneDocument rebuilt;
+    if (!RebuildPmmV2(next, rebuilt, reason))
+        return false;
+    scene_ = std::move(rebuilt);
+    // Insertion invalidates only the gravity track cursor. Retain playback,
+    // all evaluated poses and every unrelated cursor/physics object.
+    playback_.gravity = {};
+    reason.clear();
+    return true;
 }
 
 bool SceneSession::Save(WritePmmBytes write, void* context) const {

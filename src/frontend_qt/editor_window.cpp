@@ -284,6 +284,7 @@ EditorWindow::~EditorWindow() {
     timer_.stop();
     audio_.Stop();
     delete edgeDialog_.data();
+    delete gravityDialog_.data();
     if (!testing_) {
         QSettings settings;
         settings.setValue("viewport/separate", separate_ != nullptr || restoreSeparate_);
@@ -311,8 +312,15 @@ bool EditorWindow::Result(bool ok, const std::string& reason) {
         return true;
     }
     lastError_ = QString::fromUtf8(reason.c_str());
-    if (!testing_)
-        QMessageBox::warning(this, language_.Text("dialog.error"), lastError_);
+    if (!testing_) {
+        if (reason == "gravity-key-capacity") {
+            QMessageBox message(QMessageBox::NoIcon, language_.Text("dialog.key_capacity.title"),
+                                language_.Text("dialog.key_capacity.message").arg(10000),
+                                QMessageBox::Ok, this);
+            message.exec();
+        } else
+            QMessageBox::warning(this, language_.Text("dialog.error"), lastError_);
+    }
     return false;
 }
 void EditorWindow::CreateViewport(const rhi::BackendOptions& options) {
@@ -606,6 +614,10 @@ void EditorWindow::Refresh() {
             edgeResource_ = resource;
         }
     }
+    if (gravityDialog_ && gravityEpoch_ != session_.GravityEpoch()) {
+        gravityDialog_->Mirror([this] { return session_.Runtime().Session()->Pose().gravity; });
+        gravityEpoch_ = session_.GravityEpoch();
+    }
     setWindowTitle(
         language_.Text("app.title") + " - " +
         (session_.Path().empty() ? QString("untitled.pmm") : Path(session_.Path().filename())) +
@@ -791,6 +803,8 @@ void EditorWindow::closeEvent(QCloseEvent* e) {
     if (ConfirmUnsaved()) {
         if (edgeDialog_)
             edgeDialog_->close();
+        if (gravityDialog_)
+            gravityDialog_->close();
         if (separate_)
             separate_->hide();
         e->accept();
@@ -1072,6 +1086,42 @@ void EditorWindow::EdgeThickness() {
             edgeDialog_->show();
         break;
     }
+}
+void EditorWindow::GravitySettings() {
+    if (gravityDialog_)
+        return;
+    gravityDialog_ =
+        new GravityDialog(language_, session_.Runtime().Session()->Pose().gravity, this);
+    gravityEpoch_ = session_.GravityEpoch();
+    gravityDialog_->setAttribute(Qt::WA_DeleteOnClose);
+    gravityDialog_->setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    const auto refresh = [this] {
+        gravityEpoch_ = session_.GravityEpoch();
+        if (!refreshing_)
+            Refresh();
+    };
+    gravityDialog_->changed = [this, refresh](unsigned channel, float value) {
+        std::string reason;
+        if (Result(session_.SetGravityChannel(channel, value, reason), reason))
+            refresh();
+    };
+    gravityDialog_->noiseChanged = [this, refresh](bool value) {
+        std::string reason;
+        if (Result(session_.SetGravityNoise(value, reason), reason))
+            refresh();
+    };
+    gravityDialog_->registered = [this, refresh] {
+        std::string reason;
+        if (Result(session_.RegisterGravity(reason), reason) || reason == "gravity-key-capacity")
+            refresh();
+    };
+    gravityDialog_->closed = [this, refresh] {
+        std::string reason;
+        if (Result(session_.RestoreGravity(reason), reason))
+            refresh();
+    };
+    if (!testing_)
+        gravityDialog_->show();
 }
 void EditorWindow::Dispatch(int id) {
     if (PanelCommand(id)) {

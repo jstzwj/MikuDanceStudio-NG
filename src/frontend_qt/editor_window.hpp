@@ -13,6 +13,7 @@
 #include <map>
 namespace mikudancestudio::qt {
 class EdgeThicknessDialog;
+class GravityDialog;
 class EditorWindow final : public QMainWindow {
 public:
     explicit EditorWindow(std::filesystem::path assets, bool testing = false,
@@ -50,6 +51,8 @@ private:
     QWidget* viewportContainer_ = nullptr;
     QWidget* separate_ = nullptr;
     QPointer<EdgeThicknessDialog> edgeDialog_;
+    QPointer<GravityDialog> gravityDialog_;
+    std::uint64_t gravityEpoch_ = 0;
     std::uint8_t edgeModel_ = 255;
     std::weak_ptr<const runtime::ModelResource> edgeResource_;
     QByteArray separateGeometry_;
@@ -99,6 +102,7 @@ private:
     void Numeric();
     void ScreenSize();
     void EdgeThickness();
+    void GravitySettings();
     bool Result(bool, const std::string&);
     bool ConfirmUnsaved();
     void CreateViewport(const rhi::BackendOptions&);

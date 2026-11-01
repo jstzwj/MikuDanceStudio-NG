@@ -91,6 +91,11 @@ public:
     bool ResetMorphs(std::uint8_t, std::string&);
     bool ResetRotation(std::string&);
     void ResetPhysicsBodies();
+    bool SetGravityChannel(unsigned, float, std::string&);
+    bool SetGravityNoise(bool, std::string&);
+    bool RestoreGravity(std::string&);
+    bool RegisterGravity(std::string&);
+    std::uint64_t GravityEpoch() const { return gravityEpoch_; }
     bool SetAccessory(std::uint8_t, const format::PmmAccessoryState&, std::string&);
     bool SetCamera(const format::PmmEvaluatedCamera&, std::string&);
     bool SetRenderSize(unsigned width, unsigned height, std::string&);
@@ -185,6 +190,7 @@ private:
         std::uint64_t revision = 0;
     };
     State state_;
+    std::uint64_t gravityEpoch_ = 0;
     std::unique_ptr<runtime::SceneRuntime> runtime_;
     enum class HistoryKind {
         None,

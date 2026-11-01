@@ -26,6 +26,8 @@ public:
     bool Seek(std::uint32_t, std::string&, format::PmmSceneApplication = {});
     bool SetPhysicsMode(unsigned mode, std::string& reason);
     void SetPhysicsFloor(bool enabled);
+    bool SetGravity(const format::PmmEvaluatedGravity&, bool applyWorld);
+    bool RegisterGravity(std::string&);
     bool SetModelEdgeScale(std::uint8_t slot, float value);
     bool Reset(std::string&);
     bool StartPlayback(std::string&, format::PmmSceneApplication = {});

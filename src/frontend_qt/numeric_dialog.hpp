@@ -4,6 +4,8 @@
 #include <QDialog>
 #include <QLineEdit>
 #include <QSlider>
+#include <QCheckBox>
+#include "mikudancestudio/pmm_scene_evaluation.hpp"
 #include <array>
 #include <functional>
 #include <map>
@@ -16,6 +18,7 @@ protected:
     TemplateDialog(const ui::NumericTemplate&, const Language&, QWidget*);
     QLineEdit* Edit(int id) const { return edits_.at(id); }
     QSlider* Slider(int id) const { return sliders_.at(id); }
+    QCheckBox* Checkbox(int id) const { return checkboxes_.at(id); }
     void Prefill(int id, const QString&);
 
 private:
@@ -23,6 +26,7 @@ private:
     bool english_;
     std::map<int, QLineEdit*> edits_;
     std::map<int, QSlider*> sliders_;
+    std::map<int, QCheckBox*> checkboxes_;
 };
 class NumericDialog final : public TemplateDialog {
 public:
@@ -57,5 +61,29 @@ public:
     // Modeless: Enter applies the field; closing discards uncommitted text.
     void accept() override {}
     std::function<void(float)> changed;
+};
+class GravityDialog final : public TemplateDialog {
+public:
+    GravityDialog(const Language&, const format::PmmEvaluatedGravity&, QWidget* parent = nullptr);
+    QLineEdit* Field(unsigned channel) const { return Edit(709 + int(channel)); }
+    QSlider* Trackbar(unsigned axis) const { return Slider(637 + int(axis)); }
+    QCheckBox* Noise() const { return Checkbox(731); }
+    void Reset(const format::PmmEvaluatedGravity&);
+    void Mirror(const std::function<format::PmmEvaluatedGravity()>&);
+    void accept() override;
+    void reject() override;
+    std::function<void(unsigned, float)> changed;
+    std::function<void(bool)> noiseChanged;
+    std::function<void()> registered;
+    std::function<void()> closed;
+
+protected:
+    bool eventFilter(QObject*, QEvent*) override;
+    void closeEvent(QCloseEvent*) override;
+
+private:
+    void Apply(unsigned);
+    bool resetting_ = false;
+    bool closing_ = false;
 };
 }

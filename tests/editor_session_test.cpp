@@ -1,6 +1,7 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/vmd_bone_interpolation.hpp"
+#include "gravity_edit_reference.hpp"
 #include <fstream>
 #include <iostream>
 #include <cmath>
@@ -37,6 +38,63 @@ int main(int argc, char** argv) {
     CHECK(format::EncodeVmdBoneInterpolation(curve.data(), 1.1f, true) == expected);
     CHECK(format::DecodeVmdBoneInterpolation(expected) == curve);
     const auto root = std::filesystem::absolute(argv[1]);
+    for (bool occupied : {false, true}) {
+        EditorSession invalid;
+        CHECK(invalid.Edit(
+            "gravity-invalid-pool-index",
+            [occupied](auto& d, auto&) {
+                auto key = d.gravityKeys.dense[0];
+                key.frame = occupied ? 10 : 0;
+                key.next = 0;
+                if (occupied) {
+                    d.gravityKeys.dense[0].next = 10000;
+                    d.gravityKeys.sparse.push_back({10000, 0, key});
+                } else
+                    d.gravityKeys.unused[10000] = key;
+                d.cameraKeys.dense[0].selected = 1;
+                return true;
+            },
+            reason));
+        const auto revision = invalid.Revision();
+        CHECK(!invalid.RegisterGravity(reason) && reason == "gravity-registration-invalid-tracks");
+        CHECK(invalid.Revision() == revision && invalid.Document().cameraKeys.dense[0].selected);
+    }
+    {
+        EditorSession gravity;
+        CHECK(gravity.Edit(
+            "gravity-capacity",
+            [](auto& d, auto&) {
+                FillGravityCapacity(d);
+                return true;
+            },
+            reason));
+        const auto frames = gravity.Runtime().Counters().frames;
+        const auto updates = gravity.Runtime().Counters().editorUpdates;
+        const auto revision = gravity.Revision();
+        CHECK(!gravity.RegisterGravity(reason) && reason == "gravity-key-capacity");
+        CHECK(gravity.Revision() != revision && gravity.Dirty() && !gravity.CanUndo());
+        CHECK(gravity.Document().gravityKeys.sparse.size() == 9999 &&
+              gravity.Document().timeline.lastRegisteredFrame == 9999);
+        CHECK(!gravity.Document().cameraKeys.dense[0].selected &&
+              !gravity.Document().lightKeys.dense[0].selected &&
+              !gravity.Document().selfShadowKeys.dense[0].selected &&
+              !gravity.Document().gravityKeys.dense[0].selected);
+        for (const auto& key : gravity.Document().gravityKeys.sparse)
+            CHECK(!key.value.selected);
+        CHECK(gravity.Runtime().Counters().frames == frames &&
+              gravity.Runtime().Counters().editorUpdates == updates);
+        CHECK(gravity.Edit(
+            "gravity-overwrite-full-pool",
+            [](auto& d, auto&) {
+                d.timeline.currentFrame = 9999;
+                return true;
+            },
+            reason));
+        CHECK(gravity.SetGravityChannel(0, -2.5f, reason));
+        CHECK(gravity.RegisterGravity(reason));
+        CHECK(gravity.Document().gravityKeys.sparse.back().value.acceleration == -2.5f &&
+              gravity.Document().gravityKeys.sparse.back().value.selected);
+    }
     {
         EditorSession size;
         CHECK(size.ImportModel(root / "articulated.pmx", reason));

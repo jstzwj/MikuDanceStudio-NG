@@ -508,5 +508,16 @@
   "dialog.screen.positive": "幅と高さは正の整数で指定してください。",
   "dialog.numeric.edge.title": "エッジ太さ設定",
   "dialog.numeric.edge.control.0": "太さ",
-  "dialog.numeric.edge.control.3": "0                     1                    2"
+  "dialog.numeric.edge.control.3": "0                     1                    2",
+  "dialog.key_capacity.title": "ﾌﾚｰﾑ登録",
+  "dialog.key_capacity.message": "登録ポイント数が%1個を超えました\nこれ以上の登録は行えません\n「ﾌﾚｰﾑ編集」の「不用ﾌﾚｰﾑ削除」を実行して下さい",
+  "dialog.numeric.gravity.title": "重力設定",
+  "dialog.numeric.gravity.control.0": "登録",
+  "dialog.numeric.gravity.control.1": "閉じる",
+  "dialog.numeric.gravity.control.2": "加速度",
+  "dialog.numeric.gravity.control.6": "向き x",
+  "dialog.numeric.gravity.control.9": "y",
+  "dialog.numeric.gravity.control.12": "z",
+  "dialog.numeric.gravity.control.13": "ﾉｲｽﾞ付加",
+  "dialog.numeric.gravity.control.15": "-1                    0                    1"
 }

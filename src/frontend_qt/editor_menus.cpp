@@ -107,6 +107,7 @@ bool Implemented(int command) {
     case MDS_CMD_RESET_BONE_CAMERA_ROTATION:
     case MDS_CMD_RESET_PHYSICS_BODIES:
     case MDS_CMD_EDGE_THICKNESS:
+    case MDS_CMD_GRAVITY_SETTINGS:
         return true;
     default:
         return false;
@@ -247,6 +248,10 @@ void EditorWindow::RefreshMenus() {
 }
 
 void EditorWindow::MenuCommand(int command) {
+    if (command == MDS_CMD_GRAVITY_SETTINGS) {
+        GravitySettings();
+        return;
+    }
     const auto found = menuActions_.find(command);
     if (found == menuActions_.end() || !found->second->isEnabled())
         return;

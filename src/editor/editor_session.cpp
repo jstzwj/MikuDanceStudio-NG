@@ -8,6 +8,7 @@
 #include "mikudancestudio/wave_format.hpp"
 #include "mikudancestudio/background_placement.hpp"
 #include "mikudancestudio/bone_key_interpolation.hpp"
+#include "mikudancestudio/gravity_edit.hpp"
 #include <fstream>
 #include <cmath>
 #include <cstring>
@@ -97,6 +98,14 @@ void ClearModelKeyMarks(PmmSceneModel& model, Selection& selection) {
             it = selection.keys.erase(it);
         else
             ++it;
+}
+void SelectGravityRow(Selection& selection) {
+    for (auto it = selection.tracks.begin(); it != selection.tracks.end();)
+        if (!PmmModelKey(it->track))
+            it = selection.tracks.erase(it);
+        else
+            ++it;
+    selection.tracks.insert({Track::Gravity, 255, 0, 0});
 }
 template <class F> bool Visit(PmmSceneDocument& d, const KeyAddress& a, F&& f) {
     if (a.track == Track::Camera)
@@ -343,6 +352,59 @@ void EditorSession::SetSidebarWidth(int width) {
 void EditorSession::SetPhysicsFloor(bool enabled) {
     runtime_->SetPhysicsFloor(enabled);
 }
+bool EditorSession::SetGravityChannel(unsigned channel, float value, std::string& reason) {
+    auto gravity = runtime_->Session()->Pose().gravity;
+    if (!EditGravityChannel(gravity, channel, value) ||
+        !runtime_->SetGravity(gravity, channel < 4)) {
+        reason = "invalid-gravity-channel";
+        return false;
+    }
+    // Native channel edits select the gravity row without changing model mode.
+    SelectGravityRow(selection_);
+    ++gravityEpoch_;
+    reason.clear();
+    return true;
+}
+bool EditorSession::SetGravityNoise(bool enabled, std::string& reason) {
+    auto gravity = runtime_->Session()->Pose().gravity;
+    gravity.noiseEnabled = enabled;
+    if (!runtime_->SetGravity(gravity, false)) {
+        reason = "invalid-gravity-noise";
+        return false;
+    }
+    ++gravityEpoch_;
+    reason.clear();
+    return true;
+}
+bool EditorSession::RestoreGravity(std::string& reason) {
+    format::PmmEvaluatedGravity value;
+    if (!format::EvaluatePmmGravityTrack(Document().gravityKeys, Document().timeline.currentFrame,
+                                         value, true) ||
+        !runtime_->SetGravity(value, false)) {
+        reason = "gravity-track-evaluation-failed";
+        return false;
+    }
+    ++gravityEpoch_;
+    reason.clear();
+    return true;
+}
+bool EditorSession::RegisterGravity(std::string& reason) {
+    const bool registered = runtime_->RegisterGravity(reason);
+    if (!registered && reason != "gravity-key-capacity")
+        return false;
+    for (auto it = selection_.keys.begin(); it != selection_.keys.end();)
+        if (!format::PmmModelKey(it->track))
+            it = selection_.keys.erase(it);
+        else
+            ++it;
+    if (registered)
+        selection_.keys.insert(
+            {Track::Gravity, 255, 0, unsigned(Document().timeline.currentFrame)});
+    SelectGravityRow(selection_);
+    revision_ = nextRevision_++;
+    ++gravityEpoch_;
+    return registered;
+}
 void EditorSession::SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded) {
     runtime_->SetGroupExpanded(slot, group, expanded);
 }
@@ -392,6 +454,7 @@ bool EditorSession::New(std::string& reason) {
     coordinateSystem_ = 0;
     cursorSeconds_ = 0;
     revision_ = savedRevision_ = nextRevision_++;
+    ++gravityEpoch_;
     reason.clear();
     return true;
 }
@@ -592,6 +655,7 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
         clipboard.clear();
     playing_ = false;
     revision_ = savedRevision_ = nextRevision_++;
+    ++gravityEpoch_;
     cursorSeconds_ = Document().timeline.currentFrame / 30.;
     return true;
 }
@@ -1504,6 +1568,8 @@ bool EditorSession::Seek(std::uint32_t frame, std::string& reason) {
         return false;
     if (globals && !RefreshTrackedView(selection_.model != 255, reason))
         return false;
+    if (globals)
+        ++gravityEpoch_;
     runtime_->ClearPoseEditMarkers();
     for (auto& item : history)
         PushHistory(item.first, std::move(item.second));
@@ -1523,6 +1589,8 @@ bool EditorSession::Play(std::string& reason) {
         return false;
     if (globals && !RefreshTrackedView(false, reason))
         return false;
+    if (globals)
+        ++gravityEpoch_;
     runtime_->ClearPoseEditMarkers();
     for (auto& item : history)
         PushHistory(item.first, std::move(item.second));
@@ -1576,6 +1644,8 @@ bool EditorSession::Advance(double delta, std::string& reason) {
         return false;
     if (globals && cameraActive && !RefreshTrackedView(false, reason))
         return false;
+    if (globals)
+        ++gravityEpoch_;
     cursorSeconds_ = cursor;
     return true;
 }

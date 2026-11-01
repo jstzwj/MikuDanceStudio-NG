@@ -587,6 +587,26 @@ void SceneRuntime::SetPhysicsFloor(bool enabled) {
         impl_->session->SetPhysicsFloor(enabled);
     SetPhysicsGroundEnabled(impl_->world.groundBody, enabled);
 }
+bool SceneRuntime::SetGravity(const format::PmmEvaluatedGravity& value, bool applyWorld) {
+    if (!impl_ || impl_->failed || !impl_->session || !impl_->session->SetGravity(value))
+        return false;
+    impl_->Gravity();
+    if (applyWorld) {
+        std::array<float, 3> vector;
+        cpu_model::Math{}.normalize(vector.data(), value.direction.data());
+        for (auto& component : vector)
+            component = (component * value.acceleration) * 10.f;
+        SetPhysicsWorldGravity(impl_->world, vector);
+    }
+    return true;
+}
+bool SceneRuntime::RegisterGravity(std::string& reason) {
+    if (!impl_ || impl_->failed || !impl_->session) {
+        reason = "gravity-session-unavailable";
+        return false;
+    }
+    return impl_->session->RegisterGravity(reason);
+}
 bool SceneRuntime::StartPlayback(std::string& reason, format::PmmSceneApplication application) {
     double evaluatedFrame;
     if (!impl_ || impl_->failed ||
