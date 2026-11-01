@@ -14,6 +14,7 @@
 #include <cstdint>
 
 #include "mikudancestudio/mmd_app.hpp"
+#include "mikudancestudio/bone_overlay.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
 #include "mikudancestudio/model.hpp"
 #include "vb_dump.hpp"
@@ -254,127 +255,19 @@ void PrepareFrameSpriteOverlay(MMDApp* app) {
                 if (lineVb != nullptr && incomingLineCount < 5000 &&
                     SUCCEEDED(lineVb->Lock(40 * incomingLineCount, 40 * (5000 - incomingLineCount),
                                            reinterpret_cast<void**>(&lines), 0))) {
-                    const auto filtered = [&](mikudancestudio::mdl::BoneRecord* bone) -> bool {
-                        return (physMode == 1 && bone->hasRigidBody) ||
-                               (physMode == 2 && bone->hasRigidBody && bone->physicsDisabled == 0);
-                    };
-                    const auto endpoint = [&](mikudancestudio::mdl::BoneRecord* bone, int* x,
-                                              int* y) -> bool {
-                        const std::uint16_t flags = bone->flags;
-                        if (model->physicsMode == 2 && (flags & mdl::kBoneFlagTailIsBone) == 0) {
-                            *x = bone->tailScreenX;
-                            *y = bone->tailScreenY;
-                            return true;
-                        }
-                        const int linked = bone->tailBone;
-                        if (linked <= 0 || linked >= boneCount)
-                            return false;
-                        // The tail bone's projected screen coordinates (original x64 0x7FF7CB4E56xx reads
-                        // [linked]+460/+464 = screenX/screenY); typed member access
-                        // selects the correct offsets on both architectures. The previous hardcoded x86 byte offsets 452/456
-                        // read ikWorkingQuat floating-point bit patterns on x64, scattering the bone lines.
-                        *x = bones[linked].screenX;
-                        *y = bones[linked].screenY;
-                        return true;
-                    };
-                    const auto emitBone = [&](mikudancestudio::mdl::BoneRecord* bone,
-                                              D3DCOLOR color) -> bool {
-                        int endX = 393939;
-                        int endY = 393939;
-                        if (bone->screenX == 393939 || bone->screenY == 393939 ||
-                            !endpoint(bone, &endX, &endY) || endX == 393939 || endY == 393939)
-                            return false;
-                        return AppendBoneV(lines, bone->screenX, bone->screenY, endX, endY, scale,
-                                           color);
-                    };
-
-                    if (cursorKind < 2) {
-                        for (int index = 0; index < boneCount; ++index) {
-                            auto* bone = &bones[index];
-                            const std::uint16_t flags = bone->flags;
-                            const mdl::BoneType type = bone->type;
-                            if ((flags & mdl::kBoneFlagVisible) == 0 ||
-                                type >= mdl::BoneType::FixedAxis || filtered(bone) ||
-                                (bone->tailBone <= 0 && !(model->physicsMode == 2 &&
-                                                          (flags & mdl::kBoneFlagTailIsBone) == 0)))
-                                continue;
-
-                            bool inActiveRelationship = false;
-                            for (int relation = 0;
-                                 relationships != nullptr && relation < relationshipCount;
-                                 ++relation) {
-                                const mdl::IkChain& record = relationships[relation];
-                                if (record.enabled == 0)
-                                    continue;
-                                const std::uint8_t memberCount = record.linkCount;
-                                const std::uint16_t* members = record.links;
-                                for (int member = 0; members != nullptr && member < memberCount;
-                                     ++member) {
-                                    if (members[member] != index)
-                                        continue;
-                                    inActiveRelationship = true;
-                                    const D3DCOLOR color =
-                                        active != nullptr && active[index]
-                                            ? (index == selected ? 0xFFFF0000u : 0xFFC80000u)
-                                            : (secondary != nullptr && secondary[index]
-                                                   ? 0xFF64FF64u
-                                                   : 0xFFFF9B00u);
-                                    if (emitBone(bone, color))
-                                        boneResult.linePrimitiveCount += 2;
-                                }
-                            }
-                            if (!inActiveRelationship) {
-                                const D3DCOLOR color =
-                                    active != nullptr && active[index]
-                                        ? (index == selected ? 0xFFFF0000u : 0xFFC80000u)
-                                        : (secondary != nullptr && secondary[index] ? 0xFF64FF64u
-                                                                                    : 0xFF6464E6u);
-                                if (emitBone(bone, color))
-                                    boneResult.linePrimitiveCount += 2;
-                            }
-                        }
-
-                        // 0x49A9F9..0x49AB2B: one black centre line per
-                        // active relationship record, between +0 and +4.
-                        for (int relation = 0;
-                             relationships != nullptr && relation < relationshipCount; ++relation) {
-                            const mdl::IkChain& record = relationships[relation];
-                            if (record.enabled == 0)
-                                continue;
-                            const int first = record.boneIndex;
-                            const int second = record.targetBone;
-                            if (first < 0 || first >= boneCount || second < 0 ||
-                                second >= boneCount)
-                                continue;
-                            auto* a = &bones[first];
-                            auto* b = &bones[second];
-                            if ((a->flags & mdl::kBoneFlagVisible) == 0 ||
-                                (b->flags & mdl::kBoneFlagVisible) == 0 || a->screenX == 393939 ||
-                                a->screenY == 393939 || b->screenX == 393939 ||
-                                b->screenY == 393939)
-                                continue;
-                            AppendLine(lines, a->screenX, a->screenY, b->screenX, b->screenY,
-                                       0xFF000000u);
-                            ++boneResult.linePrimitiveCount;
-                        }
-                    }
-
-                    // 0x49AB4A..0x49AE33: the selected bone gets a second V
-                    // in every cursor mode except 2.
-                    if (cursorKind != 2 && selected >= 0 && selected < boneCount) {
-                        auto* bone = &bones[selected];
-                        const std::uint16_t flags = bone->flags;
-                        const int linked = bone->tailBone;
-                        if ((flags & mdl::kBoneFlagVisible) != 0 &&
-                            bone->type < mdl::BoneType::FixedAxis && !filtered(bone) &&
-                            linked > 0 && linked < boneCount && bone->screenX != 393939 &&
-                            bone->screenY != 393939 && bones[linked].screenX != 393939 &&
-                            bones[linked].screenY != 393939 &&
-                            AppendBoneV(lines, bone->screenX, bone->screenY, bones[linked].screenX,
-                                        bones[linked].screenY, scale, 0xFFFF3232u)) {
-                            boneResult.linePrimitiveCount += 2;
-                        }
-                    }
+                    boneResult.linePrimitiveCount += cpu_bone::OverlayLines(
+                        boneCount, [&](int i) -> const auto& { return bones[i]; },
+                        relationships ? relationshipCount : 0,
+                        [&](int i) -> const auto& { return relationships[i]; },
+                        [&](int i) { return active && active[i]; },
+                        [&](int i) { return secondary && secondary[i]; }, selected, cursorKind,
+                        physMode, model->physicsMode == 2, scale,
+                        [&](int x, int y, int ex, int ey, float size, std::uint32_t color) {
+                            return AppendBoneV(lines, x, y, ex, ey, size, color);
+                        },
+                        [&](int x, int y, int ex, int ey, std::uint32_t color) {
+                            AppendLine(lines, x, y, ex, ey, color);
+                        });
                     LineVertex* const lineBegin = lines - 2 * boneResult.linePrimitiveCount;
                     app->ViewportRenderer().CaptureOverlay(EditorOverlay::Lines, lineBegin,
                                                            boneResult.linePrimitiveCount * 2u,
@@ -387,155 +280,18 @@ void PrepareFrameSpriteOverlay(MMDApp* app) {
                 }
             }
 
-            // 0x49AE4C..0x49C1E5: exact common bone-marker atlas cells.
             if (bones != nullptr) {
-                for (int index = 0; index < boneCount; ++index) {
-                    auto* bone = &bones[index];
-                    const std::uint16_t flags = bone->flags;
-                    const mdl::BoneType type = bone->type;
-                    if ((flags & mdl::kBoneFlagVisible) == 0)
-                        continue;
-
-                    float v0 = 0.0f;
-                    float v1 = 0.0f;
-                    const bool isActive = active != nullptr && active[index] != 0;
-                    const bool isSecondary = secondary != nullptr && secondary[index] != 0;
-                    bool emit = false;
-                    if (cursorKind > 2) {
-                        if (index != selected && isActive &&
-                            (type == mdl::BoneType::Move || type == mdl::BoneType::Ik)) {
-                            v0 = type == mdl::BoneType::Move ? 0.034456f : 0.104768f;
-                            v1 = type == mdl::BoneType::Move ? 0.069058999f : 0.13937099f;
-                            emit = true;
-                        }
-                    } else if (cursorKind < 2 && !((physMode == 1 && bone->hasRigidBody) ||
-                                                   (physMode == 2 && bone->hasRigidBody &&
-                                                    bone->physicsDisabled == 0))) {
-                        const int state = isActive ? 0 : (isSecondary ? 1 : 2);
-                        switch (type) {
-                        case mdl::BoneType::RotateMove:
-                        case mdl::BoneType::RotateGrant:
-                        case mdl::BoneType::Effector: {
-                            const float starts[] = {0.0f, 0.17508f, 0.52664f};
-                            const float ends[] = {0.033902999f, 0.209683f, 0.561243f};
-                            v0 = starts[state];
-                            v1 = ends[state];
-                            emit = true;
-                            break;
-                        }
-                        case mdl::BoneType::Move: {
-                            const float starts[] = {0.034456f, 0.210236f, 0.56179601f};
-                            const float ends[] = {0.069058999f, 0.244839f, 0.59639901f};
-                            v0 = starts[state];
-                            v1 = ends[state];
-                            emit = true;
-                            break;
-                        }
-                        case mdl::BoneType::Ik: {
-                            const float starts[] = {0.104768f, 0.28054801f, 0.63210797f};
-                            const float ends[] = {0.13937099f, 0.31515101f, 0.66671097f};
-                            v0 = starts[state];
-                            v1 = ends[state];
-                            emit = true;
-                            break;
-                        }
-                        case mdl::BoneType::UnderIk: {
-                            const bool ik = (flags & mdl::kBoneFlagFixedAxis) != 0;
-                            const float startsIk[] = {0.77328497f, 0.73812902f, 0.70297301f};
-                            const float endsIk[] = {0.80788797f, 0.77273202f, 0.73757601f};
-                            const float starts[] = {0.069611996f, 0.24539199f, 0.59695202f};
-                            const float ends[] = {0.104215f, 0.27999499f, 0.63155502f};
-                            v0 = ik ? startsIk[state] : starts[state];
-                            v1 = ik ? endsIk[state] : ends[state];
-                            emit = true;
-                            break;
-                        }
-                        case mdl::BoneType::FixedAxis: {
-                            const float starts[] = {0.139924f, 0.31570399f, 0.66726398f};
-                            const float ends[] = {0.174527f, 0.35030699f, 0.70186698f};
-                            v0 = starts[state];
-                            v1 = ends[state];
-                            emit = true;
-                            break;
-                        }
-                        default:
-                            break;
-                        }
-                    }
-                    if (emit) {
-                        float left = 0.0f;
-                        float top = 0.0f;
-                        float right = 0.0f;
-                        float bottom = 0.0f;
-                        BoneMarkerBounds(bone->screenX, bone->screenY, scale, &left, &top, &right,
-                                         &bottom);
-                        append(left, top, right, bottom, 0.46414399f, v0, 0.49874699f, v1);
-                    }
-                }
-
-                // 0x49C1ED..0x49C80C: every mode except 2 appends one final
-                // selected marker from the dedicated atlas family.
-                if (cursorKind != 2 && selected >= 0 && selected < boneCount) {
-                    auto* bone = &bones[selected];
-                    const std::uint16_t flags = bone->flags;
-                    const bool filteredInMode2 =
-                        physMode == 2 && bone->hasRigidBody && bone->physicsDisabled == 0;
-                    float v0 = 0.0f;
-                    float v1 = 0.0f;
-                    bool emit = false;
-                    if ((flags & mdl::kBoneFlagVisible) != 0 && !filteredInMode2) {
-                        switch (bone->type) {
-                        case mdl::BoneType::RotateMove:
-                            v0 = 0.35086f;
-                            v1 = 0.385463f;
-                            emit = true;
-                            break;
-                        case mdl::BoneType::Move:
-                            v0 = 0.38601601f;
-                            v1 = 0.42061901f;
-                            emit = true;
-                            break;
-                        case mdl::BoneType::Ik:
-                        case mdl::BoneType::Unused3:
-                            v0 = 0.456328f;
-                            v1 = 0.490931f;
-                            emit = true;
-                            break;
-                        case mdl::BoneType::UnderIk:
-                            if ((flags & mdl::kBoneFlagFixedAxis) != 0) {
-                                v0 = 0.77328497f;
-                                v1 = 0.80788797f;
-                            } else {
-                                v0 = 0.42117199f;
-                                v1 = 0.45877501f;
-                            }
-                            emit = true;
-                            break;
-                        case mdl::BoneType::RotateGrant:
-                        case mdl::BoneType::Effector:
-                            v0 = 0.0f;
-                            v1 = 0.033902999f;
-                            emit = true;
-                            break;
-                        case mdl::BoneType::FixedAxis:
-                            v0 = 0.49148399f;
-                            v1 = 0.52608699f;
-                            emit = true;
-                            break;
-                        default:
-                            break;
-                        }
-                    }
-                    if (emit) {
-                        float left = 0.0f;
-                        float top = 0.0f;
-                        float right = 0.0f;
-                        float bottom = 0.0f;
-                        BoneMarkerBounds(boneResult.selectedX, boneResult.selectedY, scale, &left,
+                cpu_bone::OverlayMarkers(
+                    boneCount, [&](int i) -> const auto& { return bones[i]; },
+                    [&](int i) { return active && active[i]; },
+                    [&](int i) { return secondary && secondary[i]; }, selected, cursorKind,
+                    physMode,
+                    [&](int index, float v0, float v1) {
+                        float left, top, right, bottom;
+                        BoneMarkerBounds(bones[index].screenX, bones[index].screenY, scale, &left,
                                          &top, &right, &bottom);
                         append(left, top, right, bottom, 0.46414399f, v0, 0.49874699f, v1);
-                    }
-                }
+                    });
             }
 
             boneResult.spritePrimitiveCount =

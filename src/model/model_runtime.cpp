@@ -214,7 +214,11 @@ bool ModelResource::Create(const format::ModelDocument& source,
     }
     for (const auto& bone : resource->skeleton_) {
         resource->layers_.push_back(bone.layer);
-        resource->editingBones_.push_back({bone.type, bone.flags, bone.hasRigidBody});
+        const auto& source = model.bones[resource->editingBones_.size()].fields;
+        BoneEditingInfo edit{bone.type, bone.flags, bone.hasRigidBody, bone.tailBone};
+        for (unsigned c = 0; c < 3; ++c)
+            edit.tailPosition[c] = source.position[c] + source.tailOffset[c];
+        resource->editingBones_.push_back(edit);
     }
     for (const auto& rigid : model.rigids)
         if (rigid.fields.mode > 0 && rigid.fields.boneIndex >= 0)

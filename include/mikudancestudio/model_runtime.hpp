@@ -47,6 +47,8 @@ struct BoneEditingInfo {
     cpu_bone::BoneType type = cpu_bone::BoneType::RotateMove;
     std::uint16_t flags = 0;
     bool hasRigidBody = false;
+    int tailBone = -1;
+    cpu_math::Vec3 tailPosition{}; // Absolute rest-space PMX tail endpoint.
 };
 class ModelResource final {
 public:
@@ -57,6 +59,7 @@ public:
     const std::vector<std::string>& MorphNames() const { return morphNames_; }
     const std::vector<ModelDisplayGroup>& DisplayGroups() const { return displayGroups_; }
     const std::vector<BoneEditingInfo>& EditingBones() const { return editingBones_; }
+    const std::vector<cpu_model::IkChain>& EditingIkChains() const { return chains_; }
     std::uint32_t DisplayRootBone() const { return displayRoot_; }
     std::uint32_t CameraCenterBone() const { return cameraCenter_; }
     std::vector<std::int32_t> IkBoneIndices() const {

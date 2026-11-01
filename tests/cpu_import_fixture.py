@@ -21,7 +21,7 @@ class Bytes(bytearray):
 POSITIONS = ((-10, -8, 0), (0, 10, 0), (10, -8, 0))
 
 
-def pmd(texture='checker.bmp', alpha=1, bones=None):
+def pmd(texture='checker.bmp', alpha=1, bones=None, bone_types=None):
     b = Bytes(b'Pmd'); b.f(1); b.fixed('CPU triangle', 20); b.zero(256)
     b.u32(3)
     for index, p in enumerate(POSITIONS):
@@ -35,7 +35,7 @@ def pmd(texture='checker.bmp', alpha=1, bones=None):
     b.u16(len(bones))
     for index, name in enumerate(bones):
         b.fixed(name, 20); b.u16(0 if index else 65535); b.u16(0)
-        b.u8(0); b.u16(0); b.f(0, index, 0)
+        b.u8(bone_types[index] if bone_types else 0); b.u16(0); b.f(0, index, 0)
     b.u16(0)  # no IK
     b.u16(1); b.fixed('F', 20); b.u32(3); b.u8(0)  # base morph
     for index, p in enumerate(POSITIONS): b.u32(index); b.f(*p)
@@ -46,7 +46,7 @@ def pmd(texture='checker.bmp', alpha=1, bones=None):
     return b
 
 
-def pmx(material_flags=0x11, tint_morphs=False, display_groups=False, extra_uv=0, subtexture=False, base=True):
+def pmx(material_flags=0x11, tint_morphs=False, display_groups=False, extra_uv=0, subtexture=False, base=True, tail_offset=False):
     b = Bytes(b'PMX '); b.f(2); b.u8(8)
     b.extend(bytes((0, extra_uv, 2, 1, 1, 1, 1, 1)))
     for name in ('CPU triangle', '', '', ''): b.text(name)
@@ -65,7 +65,9 @@ def pmx(material_flags=0x11, tint_morphs=False, display_groups=False, extra_uv=0
     b.extend(bytes((0 if base else 255, 0 if subtexture else 255, 3 if subtexture else 0, 1, 0)))  # base, no sphere, shared Toon 1
     b.text(''); b.u32(3)
     b.u32(1); b.text('B'); b.text(''); b.f(0, 0, 0)
-    b.u8(255); b.u32(0); b.u16(9); b.u8(0)
+    b.u8(255); b.u32(0); b.u16(8 if tail_offset else 9)
+    if tail_offset: b.f(4, 2, 0)
+    else: b.u8(0)
     b.u32((3 if tint_morphs else 1) + (1 if extra_uv else 0)); b.text('F'); b.text(''); b.u8(4); b.u8(1)
     b.u32(1); b.u16(0); b.f(2, 0, 0)  # vertex morph
     if tint_morphs:
@@ -262,6 +264,8 @@ def write(directory):
     (root / 'triangle.pmd').write_bytes(pmd())
     (root / 'sphere.pmd').write_bytes(pmd('s.sph'))
     (root / 'triangle.pmx').write_bytes(pmx())
+    (root / 'overlay-offset.pmx').write_bytes(pmx(tail_offset=True))
+    (root / 'overlay-types.pmd').write_bytes(pmd(bones=tuple('T%d' % n for n in range(10)), bone_types=tuple(range(10))))
     (root / 'pose.pmd').write_bytes(pmd(bones=('center', 'A\u5de6arm', 'B\u53f3arm',
         'C\u53f3arm', '\u5de6leg', 'neutral', 'tail', 'unused')))
     (root / 'grouped.pmx').write_bytes(pmx(display_groups=True))

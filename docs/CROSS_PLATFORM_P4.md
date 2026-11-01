@@ -561,3 +561,45 @@ the mode-change rebuild. Never-shown Qt presentation passed on DX11, DX12 and
 Vulkan, and the application built without being launched. Bone overlays,
 manipulation tools and the remaining complete UI/output gates are still open;
 this batch does not close P4.
+
+[Run 41301962498](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41301962498)
+at `bf56cbe` passed editor mode switching on Windows, macOS and Linux.
+
+The Qt viewport now composes editor bone lines and atlas markers onto the final
+color target after scene history capture. Both Windows compatibility rendering
+and the portable producer use the same storage-independent marker/filter/IK
+rules. The portable producer consumes published skin matrices and immutable
+rest/tail metadata; selection changes never reevaluate animation or physics.
+It maps PMM selection, edit markers and IK selectors to resource bone indices.
+It preserves native per-type atlas cells, draw order, repeated IK-link Vs,
+physics filtering, the selected-marker exception and the unattached camera
+look-at marker. Coordinate-system strips, transform gizmos and drag behavior
+remain separate pending work.
+
+Overlay resource IDs stay stable when hidden, playing or resized. Pure clear-only
+frames release their leases and revival publishes higher versions. The viewport
+cache now also observes multi-selection and edit-mode changes, which may leave
+both the active bone and document revision unchanged. Export and `screen.bmp`
+capture precede editor composition and receive scene color only.
+
+The opt-in Windows x64 `editor_overlay_oracle_test <original.exe> <fixture> <assets>`
+calls the hash-verified original at RVA C4980. Its renderer and line-buffer COM
+objects are in-memory records; no original entrypoint, window, message loop or
+GPU device is used. All 1800 exact normalized vertex/count cases passed across
+PMD/PMX, ten PMD bone types, offset tails, single/multiple selection, pending
+edits, physics modes, disabled physics, camera rotations, odd/even viewport
+sizes and all five cursor modes. This independently checks overlay production
+with supplied model poses/camera matrices, not their full native production,
+GPU rasterization or the complete UI event loop.
+
+The public regression passed 30 mode cases on each of DX11, DX12 and Vulkan,
+with strict repeated image equality, playback hide/revival, resize, camera
+mode and pure-clear resource retirement. All 19 P4 regressions passed, the
+compatibility core rebuilt and its model playback/physics test passed, and
+the application built without being launched. The earlier rebuilt scene-runtime
+regression passed all 99 checkpoints. One combined local run exceeded the
+presentation wrapper's 60-second limit; the subsequent standalone never-shown
+presentation run passed all three backends, including selection/mode cache
+invalidation, replacement, recreation and unload. No comparison tolerance or
+wrapper limit was relaxed. Complete overlay raster/output comparison and the
+remaining P4 gates stay open.

@@ -95,6 +95,23 @@ int main(int argc, char** argv) {
         CHECK(session.Document().cameraState == cameraState);
         CHECK(session.Runtime().Counters().frames == navigationFrames);
         CHECK(session.Runtime().Snapshot(0) == snapshot);
+        // Selection and cursor mode do not change the document revision or
+        // deform the scene, but must invalidate editor overlay geometry.
+        const auto selectionRevision = session.Revision();
+        CHECK(session.SelectBones({}, 0, reason));
+        CHECK(viewport.Render(reason, true));
+        const auto selectionBuilds = viewport.FrameBuilds();
+        CHECK(session.SelectBones({0}, 0, reason));
+        CHECK(session.Revision() == selectionRevision);
+        CHECK(viewport.Render(reason, true));
+        CHECK(viewport.FrameBuilds() == selectionBuilds + 1);
+        session.SetEditMode(2);
+        CHECK(viewport.Render(reason, true));
+        CHECK(viewport.FrameBuilds() == selectionBuilds + 2);
+        session.SetEditMode(0);
+        CHECK(viewport.Render(reason, true));
+        CHECK(viewport.FrameBuilds() == selectionBuilds + 3);
+        CHECK(session.Runtime().Counters().frames == navigationFrames);
         CHECK(session.SelectModel(255, reason));
         CHECK(viewport.Render(reason, true));
         CHECK(session.SelectModel(0, reason));

@@ -2,6 +2,7 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/rhi_scene_preview.hpp"
 #include "mikudancestudio/scene_frame_producer.hpp"
+#include "mikudancestudio/scene_editor_overlay.hpp"
 #include <QWindow>
 #include <QImage>
 #include <functional>
@@ -33,6 +34,7 @@ private:
     rhi::BackendOptions options_;
     rhi::ScenePreviewController controller_;
     render::SceneFrameProducer producer_;
+    render::SceneEditorOverlay overlay_;
     rhi::FileAssetSource builtins_;
     editor::EditorAssets loaded_;
     rhi::RenderFrame cachedFrame_;
@@ -40,6 +42,8 @@ private:
     unsigned cachedWidth_ = 0, cachedHeight_ = 0;
     std::uint8_t cachedModel_ = 255;
     int cachedBone_ = -1;
+    std::vector<std::uint32_t> cachedSelectedBones_;
+    int cachedEditMode_ = -1;
     bool cachedPlaying_ = false;
     int ActiveBone() const;
     bool frameCached_ = false;

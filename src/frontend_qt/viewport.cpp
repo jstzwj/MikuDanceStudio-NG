@@ -44,6 +44,8 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         return true;
     if (!session_.PrepareView(reason))
         return false;
+    if (!overlay_.Load(builtins_, reason))
+        return false;
     const auto w = unsigned(std::max(1, qRound(width() * devicePixelRatio())));
     const auto h = unsigned(std::max(1, qRound(height() * devicePixelRatio())));
     if (controller_.State() == rhi::PreviewState::Closed) {
@@ -83,9 +85,14 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
     const bool history = session_.Document().view.captureMode != 0;
     if (!frameCached_ || history || cachedRevision_ != revision || cachedUpdates_ != updates ||
         cachedWidth_ != w || cachedHeight_ != h || cachedModel_ != session_.Selected().model ||
-        cachedBone_ != ActiveBone() || cachedPlaying_ != session_.Playing()) {
+        cachedBone_ != ActiveBone() || cachedPlaying_ != session_.Playing() ||
+        cachedSelectedBones_ != session_.Selected().bones ||
+        cachedEditMode_ != session_.Document().timeline.editMode) {
         frameCached_ = false;
         if (!producer_.Build(session_.Runtime(), settings, cachedFrame_, reason))
+            return false;
+        if (!overlay_.Append(session_.Runtime(), settings, session_.Selected().bones,
+                             session_.Playing(), cachedFrame_, reason))
             return false;
         ++frameBuilds_;
         cachedRevision_ = revision;
@@ -94,6 +101,8 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         cachedHeight_ = h;
         cachedModel_ = session_.Selected().model;
         cachedBone_ = ActiveBone();
+        cachedSelectedBones_ = session_.Selected().bones;
+        cachedEditMode_ = session_.Document().timeline.editMode;
         cachedPlaying_ = session_.Playing();
         frameCached_ = !history;
     }
