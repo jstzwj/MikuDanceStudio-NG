@@ -32,6 +32,7 @@ public:
     bool Edit(const std::function<void(format::PmmSceneDocument&)>&, std::string&);
     void SetPanelExpanded(unsigned option, bool expanded);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
+    void ClearPoseEditMarkers();
     bool UnloadModel(std::uint8_t, std::string&);
     bool AttachAccessory(std::uint8_t, std::shared_ptr<const AccessoryResource>, std::string&);
     bool UnloadAccessory(std::uint8_t, std::string&);

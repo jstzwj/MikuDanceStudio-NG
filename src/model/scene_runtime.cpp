@@ -599,6 +599,10 @@ void SceneRuntime::SetGroupExpanded(std::uint8_t slot, unsigned group, bool expa
     if (impl_ && impl_->session)
         impl_->session->SetGroupExpanded(slot, group, expanded);
 }
+void SceneRuntime::ClearPoseEditMarkers() {
+    if (impl_ && impl_->session)
+        impl_->session->ClearPoseEditMarkers();
+}
 bool SceneRuntime::Edit(const std::function<void(format::PmmSceneDocument&)>& change,
                         std::string& reason) {
     if (!impl_ || !impl_->session || impl_->failed) {

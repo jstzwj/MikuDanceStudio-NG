@@ -67,8 +67,9 @@ int main(int argc, char** argv) {
         CHECK(loaded.Assets().picturePath == root / "picture.tga");
         CHECK(loaded.Assets().picture->pixels == image->pixels);
         CHECK(loaded.ShowPicture(true, reason));
-        CHECK(loaded.Undo(reason) && !loaded.Document().picture.enabled);
-        CHECK(loaded.Redo(reason) && loaded.Document().picture.enabled);
+        CHECK(!loaded.CanUndo() && !loaded.CanRedo());
+        CHECK(loaded.ShowPicture(false, reason));
+        CHECK(loaded.ShowPicture(true, reason));
         const auto retained = loaded.Assets().picture;
         CHECK(!loaded.ImportPicture(root / "missing-picture.tga", 640, 480, reason));
         CHECK(loaded.Assets().picture == retained);
@@ -77,8 +78,9 @@ int main(int argc, char** argv) {
         CHECK(Write(root / "bad-picture.tga", {1, 2, 3}, reason));
         CHECK(!loaded.ImportPicture(root / "bad-picture.tga", 640, 480, reason));
         CHECK(!loaded.Assets().picture && loaded.Document().picture.enabled);
-        CHECK(loaded.Undo(reason) && loaded.Assets().picture == retained);
-        CHECK(loaded.Undo(reason) && loaded.Assets().picturePath == root / "picture.tga");
+        CHECK(!loaded.CanUndo());
+        CHECK(loaded.ImportPicture(root / "picture.tga", 640, 480, reason));
+        CHECK(loaded.Assets().picturePath == root / "picture.tga");
         const auto revision = loaded.Revision();
         CHECK(!loaded.ImportPicture(root / "picture.tga", 0, 480, reason));
         CHECK(loaded.Revision() == revision);
@@ -98,7 +100,7 @@ int main(int argc, char** argv) {
         curves.EndGesture();
         CHECK(curves.Document().models[0].boneKeys.dense[0].interpolation[0] == 42);
         CHECK(curves.Undo(reason));
-        CHECK(curves.Revision() == initialRevision);
+        CHECK(curves.Revision() > initialRevision);
         CHECK(curves.Document().models[0].boneKeys.dense[0].interpolation == original);
         CHECK(curves.Redo(reason));
         CHECK(curves.Interpolation(4).canCopy && !curves.Interpolation(4).uniform);
@@ -313,7 +315,8 @@ int main(int argc, char** argv) {
     CHECK(std::abs(reopened.Runtime().Snapshot(0)->bones[0].translation[1] - 5) < .001f);
     CHECK(reopened.UnloadModel(0, reason));
     CHECK(!reopened.Runtime().Snapshot(0));
-    CHECK(reopened.Undo(reason));
+    CHECK(!reopened.CanUndo() && !reopened.Undo(reason));
+    CHECK(reopened.Open(root / "editor.pmm", reason));
     CHECK(reopened.Runtime().Snapshot(0));
     CHECK(reopened.Play(reason));
     auto count = reopened.Runtime().Counters().frames;

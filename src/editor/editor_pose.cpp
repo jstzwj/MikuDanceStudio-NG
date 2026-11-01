@@ -55,12 +55,21 @@ bool EditorSession::PasteBonePose(bool mirrored, std::string& reason) {
         const auto& name = model->boneNames[i];
         return std::string_view(name.data(), name.size());
     };
+    HistoryEntry history;
+    history.frame = std::uint32_t(next.document.timeline.currentFrame);
     for (const auto& copied : poseClipboard_) {
         const auto index = FindBonePoseTarget({copied.name.data(), copied.name.size()},
                                               model->boneNames.size(), nameAt, mirrored);
-        if (index < 0)
+        if (index < 0) {
+            // Original allocates one zeroed undo record per clipboard item,
+            // including unmatched names. Preserve that observable behavior.
+            history.poses.emplace_back();
             continue;
+        }
         auto& pose = model->bonePose[std::size_t(index)];
+        auto displaced =
+            CaptureHistory(*model, HistoryKind::Pose, history.frame, {std::uint32_t(index)});
+        history.poses.push_back(displaced.poses.front());
         std::copy(copied.position.begin(), copied.position.end(), pose.components.begin());
         std::copy(copied.rotation.begin(), copied.rotation.end(), pose.components.begin() + 3);
         if (mirrored) {
@@ -74,7 +83,7 @@ bool EditorSession::PasteBonePose(bool mirrored, std::string& reason) {
     for (std::size_t i = 0; i < model->bonePose.size(); ++i)
         if (model->bonePose[i].flags[2])
             next.selection.bones.push_back(std::uint32_t(i));
-    return Commit(std::move(next), reason);
+    return Commit(std::move(next), reason, {{selection_.model, history}});
 }
 
 bool EditorSession::ResetSelectedBonePose(std::string& reason) {
@@ -95,6 +104,9 @@ bool EditorSession::ResetSelectedBonePose(std::string& reason) {
         reason = "bone-selection-expired";
         return false;
     }
+    const auto history = CaptureHistory(*model, HistoryKind::Pose,
+                                        std::uint32_t(next.document.timeline.currentFrame),
+                                        {selected.begin(), selected.end()});
     const auto& names = resource->second->BoneNames();
     for (auto index : selected) {
         std::string name;
@@ -118,6 +130,6 @@ bool EditorSession::ResetSelectedBonePose(std::string& reason) {
                       root.data() + 3, pose.components.data(), pose.components.data() + 3,
                       pose.flags[1]);
     }
-    return Commit(std::move(next), reason);
+    return Commit(std::move(next), reason, {{selection_.model, history}});
 }
 }

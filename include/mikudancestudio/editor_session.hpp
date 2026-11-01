@@ -123,8 +123,8 @@ public:
     double CursorSeconds() const { return cursorSeconds_; }
     std::uint64_t PlaybackEpoch() const { return playbackEpoch_; }
     bool Dirty() const { return revision_ != savedRevision_; }
-    bool CanUndo() const { return !undo_.empty(); }
-    bool CanRedo() const { return !redo_.empty(); }
+    bool CanUndo() const;
+    bool CanRedo() const;
     const format::PmmSceneDocument& Document() const;
     const runtime::SceneRuntime& Runtime() const { return *runtime_; }
     const EditorAssets& Assets() const { return state_.assets; }
@@ -145,7 +145,30 @@ private:
     };
     State state_;
     std::unique_ptr<runtime::SceneRuntime> runtime_;
-    std::vector<State> undo_, redo_;
+    enum class HistoryKind {
+        None,
+        Pose,
+        Keys,
+        PoseWithFrame
+    };
+    struct HistoryPose {
+        std::uint32_t index = 0;
+        std::array<float, 7> components{};
+        std::uint8_t edited = 0;
+    };
+    struct HistoryEntry {
+        HistoryKind kind = HistoryKind::Pose;
+        std::uint32_t frame = 0;
+        std::shared_ptr<const HistoryEntry> originalUndo;
+        std::vector<HistoryPose> poses;
+        format::PmmKeyTrack<format::PmmBoneKey> keys;
+    };
+    struct ModelHistory {
+        std::vector<HistoryEntry> undo, redo;
+    };
+    std::map<std::uint8_t, ModelHistory> histories_;
+    using HistoryBatch = std::map<std::uint8_t, HistoryEntry>;
+    std::set<std::uint8_t> gestureModels_;
     std::vector<ClipboardKey> clipboard_;
     struct CopiedBonePose {
         std::vector<char> name;
@@ -154,7 +177,7 @@ private:
     };
     std::vector<CopiedBonePose> poseClipboard_;
     std::array<InterpolationCurve, 6> interpolationClipboard_{};
-    bool interpolationCopied_ = false, gesture_ = false, gestureCommitted_ = false;
+    bool interpolationCopied_ = false, gesture_ = false;
     Selection selection_;
     std::filesystem::path path_;
     std::uint64_t revision_ = 0, savedRevision_ = 0, nextRevision_ = 1;
@@ -164,7 +187,14 @@ private:
     std::uint64_t playbackEpoch_ = 0;
     State Current() const;
     bool Prepare(State&, std::unique_ptr<runtime::SceneRuntime>&, std::string&) const;
-    bool Commit(State, std::string&);
+    bool Commit(State, std::string&, const HistoryBatch& forced = {});
+    void RecordHistory(const State& before, const State& after, const HistoryBatch& forced);
+    void PushHistory(std::uint8_t, HistoryEntry);
+    HistoryBatch FrameHistory() const;
+    bool ApplyHistory(bool redo, std::string&);
+    static HistoryEntry CaptureHistory(const format::PmmSceneModel&, HistoryKind,
+                                       std::uint32_t frame,
+                                       const std::vector<std::uint32_t>& indices = {});
     bool ChangeInterpolation(unsigned channel,
                              const std::function<void(unsigned, InterpolationCurve&)>&,
                              std::string&);

@@ -119,7 +119,7 @@ int main(int argc, char** argv) {
         window.Dispatch(panel::kCurveCopyButton);
         CHECK(window.Control(panel::kCurvePasteButton)->isEnabled());
         window.Dispatch(panel::kUndoButton);
-        CHECK(window.Session().Revision() == before);
+        CHECK(window.Session().Revision() > before);
         CHECK(window.Session().Interpolation(3).curves.front() ==
               (editor::InterpolationCurve{20, 20, 107, 107}));
         window.Dispatch(panel::kCurvePasteButton);

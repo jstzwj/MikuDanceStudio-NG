@@ -20,6 +20,27 @@ Unregistered current poses are retained through editing, saving and reopening.
 Model resources are shared across undo snapshots; GPU objects are never stored in
 history. V1 input is converted to typed V2 output for topology edits.
 
+The editor's initial global document undo stack has been replaced by native
+per-model bone history, with 30 entries per model. Undo does not undo loading,
+camera/Morph edits or panel/selection changes. Bone key edits retain the previous
+pose and edit markers; frame changes capture pending poses independently for
+each model. Pose-with-frame undo restores its recorded cursor, while its redo
+restores only the displaced pose. Repeated cycles retain the original undo
+payload. Failed edits preserve both stacks, and unloading expires only that
+model's history.
+
+The explicit Windows x64 `editor_history_oracle_test <original.exe> <fixture>`
+maps the hash-verified original without its entrypoint and calls its actual
+undo/redo and pre-frame pose snapshot routines. It passed 123 exact pose, edit
+marker, root-key and cursor checkpoints: ring wrap, 30-entry traversal, repeated
+pose-with-frame cycles and repeated root registration undo/redo. Fixture input
+snapshots are constructed independently; this is a kernel comparison, not an
+original UI event-loop or all timeline-topology acceptance. No window is created.
+The portable regression additionally checks model isolation, camera/Morph
+preservation, selection, failed edits, gesture grouping and unload invalidation.
+Touched-key identity, detached records and chained timeline operations remain
+part of the broader timeline gate.
+
 Local Windows x64 checks executed during implementation:
 
 - `pmm_edit_test`: generated linked tracks, overwrite/delete, interpolation,

@@ -30,11 +30,11 @@ int main(int argc, char** argv) {
     CHECK(session.Register({{editor::Track::Bone, 0, 0, 0}}, reason));
     CHECK(session.SetBone(0, 0, {3, 0, 0}, {0, 0, 0, 1}, reason));
     CHECK(session.Register({{editor::Track::Bone, 0, 0, 10}}, reason));
-    const auto revision = session.Revision();
     unsigned backends = 0;
     for (auto backend : {rhi::Backend::D3D11, rhi::Backend::D3D12, rhi::Backend::Vulkan}) {
         if (!rhi::BackendAvailable(backend))
             continue;
+        const auto revision = session.Revision();
         ++backends;
         qt::Viewport viewport(session, std::filesystem::absolute(argv[2]));
         rhi::BackendOptions options;
@@ -90,7 +90,8 @@ int main(int argc, char** argv) {
         CHECK(session.UnloadModel(0, reason));
         CHECK(viewport.Render(reason, true));
         CHECK(viewport.FrameBuilds() == recreated + 1);
-        CHECK(session.Undo(reason));
+        CHECK(!session.CanUndo());
+        CHECK(session.ImportModel(root / "triangle.pmx", reason));
         CHECK(viewport.Render(reason, true));
         CHECK(viewport.FrameBuilds() == recreated + 2);
         CHECK(session.Edit(
@@ -104,7 +105,13 @@ int main(int argc, char** argv) {
         const auto captured = viewport.FrameBuilds();
         CHECK(viewport.Render(reason, true));
         CHECK(viewport.FrameBuilds() == captured + 1);
-        CHECK(session.Undo(reason));
+        CHECK(session.Edit(
+            "capture-off",
+            [](auto& d, auto&) {
+                d.view.captureMode = 0;
+                return true;
+            },
+            reason));
         editor::EditorSession materialSession;
         CHECK(MaterialHistoryScene(materialSession, root, reason));
         qt::Viewport materialViewport(materialSession, std::filesystem::absolute(argv[2]));

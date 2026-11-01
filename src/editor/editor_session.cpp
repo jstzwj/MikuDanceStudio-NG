@@ -301,19 +301,9 @@ EditorSession::State EditorSession::Current() const {
 }
 void EditorSession::SetPanelExpanded(unsigned option, bool expanded) {
     runtime_->SetPanelExpanded(option, expanded);
-    // Panel layout is not a pose edit and must survive undo/redo unchanged.
-    for (auto* history : {&undo_, &redo_})
-        for (auto& state : *history)
-            if (option > 0 && option < state.document.envelope.settings.options.size())
-                state.document.envelope.settings.options[option] = expanded;
 }
 void EditorSession::SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded) {
     runtime_->SetGroupExpanded(slot, group, expanded);
-    for (auto* history : {&undo_, &redo_})
-        for (auto& state : *history)
-            for (auto& model : state.document.models)
-                if (model.slot == slot && group < model.selection.groupFlags.size())
-                    model.selection.groupFlags[group] = expanded;
 }
 bool EditorSession::Prepare(State& state, std::unique_ptr<runtime::SceneRuntime>& out,
                             std::string& reason) const try {
@@ -352,8 +342,7 @@ bool EditorSession::New(std::string& reason) {
     state_ = std::move(next);
     runtime_ = std::move(runtime);
     path_.clear();
-    undo_.clear();
-    redo_.clear();
+    histories_.clear();
     clipboard_.clear();
     interpolationCopied_ = false;
     selection_ = {};
@@ -363,7 +352,7 @@ bool EditorSession::New(std::string& reason) {
     reason.clear();
     return true;
 }
-bool EditorSession::Commit(State next, std::string& reason) {
+bool EditorSession::Commit(State next, std::string& reason, const HistoryBatch& forced) {
     const auto last = [](const auto& track) {
         std::uint32_t result = 0;
         for (const auto& k : track.dense)
@@ -389,13 +378,7 @@ bool EditorSession::Commit(State next, std::string& reason) {
     std::unique_ptr<runtime::SceneRuntime> runtime;
     if (!Prepare(next, runtime, reason))
         return false;
-    if (!gesture_ || !gestureCommitted_)
-        undo_.push_back(Current());
-    if (gesture_)
-        gestureCommitted_ = true;
-    if (undo_.size() > 100)
-        undo_.erase(undo_.begin());
-    redo_.clear();
+    RecordHistory(Current(), next, forced);
     runtime_ = std::move(runtime);
     state_ = std::move(next);
     selection_ = state_.selection;
@@ -524,8 +507,7 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     path_ = absolute;
     selection_ = {};
     selection_.model = Document().models.empty() ? 255 : Document().envelope.selectedModelSlot;
-    undo_.clear();
-    redo_.clear();
+    histories_.clear();
     clipboard_.clear();
     playing_ = false;
     revision_ = savedRevision_ = nextRevision_++;
@@ -721,27 +703,29 @@ bool EditorSession::ShowPicture(bool visible, std::string& reason) {
 bool EditorSession::SetBone(std::uint8_t slot, std::uint32_t bone,
                             const std::array<float, 3>& position,
                             const std::array<float, 4>& rotation, std::string& reason) {
-    return Edit(
-        "bone-transform",
-        [&](auto& d, auto& error) {
-            auto* m = Model(d, slot);
-            if (!m || bone >= m->bonePose.size()) {
-                error = "bone-selection-expired";
-                return false;
-            }
-            float length = 0;
-            for (float x : rotation)
-                length += x * x;
-            if (!std::isfinite(length) || std::abs(length - 1) > 1e-3f) {
-                error = "bone-rotation-not-unit";
-                return false;
-            }
-            std::copy(position.begin(), position.end(), m->bonePose[bone].components.begin());
-            std::copy(rotation.begin(), rotation.end(), m->bonePose[bone].components.begin() + 3);
-            return true;
-        },
-        reason);
+    auto next = Current();
+    auto* model = Model(next.document, slot);
+    if (!model || bone >= model->bonePose.size()) {
+        reason = "bone-selection-expired";
+        return false;
+    }
+    float length = 0;
+    for (float value : rotation)
+        length += value * value;
+    if (!std::isfinite(length) || std::abs(length - 1) > 1e-3f) {
+        reason = "bone-rotation-not-unit";
+        return false;
+    }
+    HistoryBatch history{
+        {slot, CaptureHistory(*model, HistoryKind::Pose,
+                              std::uint32_t(next.document.timeline.currentFrame), {bone})}};
+    auto& pose = model->bonePose[bone];
+    std::copy(position.begin(), position.end(), pose.components.begin());
+    std::copy(rotation.begin(), rotation.end(), pose.components.begin() + 3);
+    pose.flags[1] = 1;
+    return Commit(std::move(next), reason, history);
 }
+
 bool EditorSession::SetMorph(std::uint8_t slot, std::uint32_t morph, float value,
                              std::string& reason) {
     return Edit(
@@ -798,20 +782,34 @@ bool EditorSession::SetAccessory(std::uint8_t slot, const PmmAccessoryState& pos
         reason);
 }
 bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::string& reason) {
-    return Edit(
-        "register-keys",
-        [&](auto& d, auto& error) {
-            for (const auto& a : addresses) {
-                Key key;
-                if (!Pose(d, a, key) || !Put(d, a, key)) {
-                    error = "key-registration-failed";
-                    return false;
-                }
+    auto next = Current();
+    HistoryBatch history;
+    for (const auto& address : addresses) {
+        if (address.track == Track::Bone && !history.count(address.slot)) {
+            const auto* model = Model(next.document, address.slot);
+            if (!model) {
+                reason = "key-registration-failed";
+                return false;
             }
-            return !addresses.empty();
-        },
-        reason);
+            history.emplace(address.slot,
+                            CaptureHistory(*model, HistoryKind::Keys,
+                                           std::uint32_t(next.document.timeline.currentFrame)));
+        }
+        Key key;
+        if (!Pose(next.document, address, key) || !Put(next.document, address, key)) {
+            reason = "key-registration-failed";
+            return false;
+        }
+        if (address.track == Track::Bone)
+            Model(next.document, address.slot)->bonePose.at(address.channel).flags[1] = 0;
+    }
+    if (addresses.empty()) {
+        reason = "no-selected-keys";
+        return false;
+    }
+    return Commit(std::move(next), reason, history);
 }
+
 bool EditorSession::Delete(const std::set<KeyAddress>& addresses, std::string& reason) {
     EndGesture();
     if (addresses.empty()) {
@@ -820,6 +818,16 @@ bool EditorSession::Delete(const std::set<KeyAddress>& addresses, std::string& r
     }
     auto next = Current();
     auto& d = next.document;
+    HistoryBatch history;
+    for (const auto& model : d.models) {
+        const bool boneEdit = std::any_of(addresses.begin(), addresses.end(), [&](const auto& a) {
+            return a.track == Track::Bone && a.slot == model.slot;
+        });
+        history.emplace(model.slot,
+                        CaptureHistory(model, boneEdit ? HistoryKind::Keys : HistoryKind::None,
+                                       std::uint32_t(d.timeline.currentFrame)));
+    }
+
     for (const auto& a : addresses) {
         Key key;
         if (!Get(d, a, key)) {
@@ -926,7 +934,7 @@ bool EditorSession::Delete(const std::set<KeyAddress>& addresses, std::string& r
         for (const auto& model : evaluated.Document().models)
             if (models.count(model.slot))
                 *Model(d, model.slot) = model;
-    return Commit(std::move(next), reason);
+    return Commit(std::move(next), reason, history);
 }
 bool EditorSession::Copy(const std::set<KeyAddress>& addresses, std::string& reason) {
     auto d = Document();
@@ -1020,49 +1028,19 @@ bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason)
         reason);
 }
 bool EditorSession::Undo(std::string& reason) {
-    EndGesture();
-    if (undo_.empty()) {
-        reason = "undo-empty";
-        return false;
-    }
-    auto next = undo_.back();
-    std::unique_ptr<runtime::SceneRuntime> runtime;
-    if (!Prepare(next, runtime, reason))
-        return false;
-    redo_.push_back(Current());
-    undo_.pop_back();
-    state_ = std::move(next);
-    runtime_ = std::move(runtime);
-    selection_ = state_.selection;
-    revision_ = state_.revision;
-    playing_ = false;
-    cursorSeconds_ = Document().timeline.currentFrame / 30.;
-    return true;
+    return ApplyHistory(false, reason);
 }
 bool EditorSession::Redo(std::string& reason) {
-    EndGesture();
-    if (redo_.empty()) {
-        reason = "redo-empty";
-        return false;
-    }
-    auto next = redo_.back();
-    std::unique_ptr<runtime::SceneRuntime> runtime;
-    if (!Prepare(next, runtime, reason))
-        return false;
-    undo_.push_back(Current());
-    redo_.pop_back();
-    state_ = std::move(next);
-    runtime_ = std::move(runtime);
-    selection_ = state_.selection;
-    revision_ = state_.revision;
-    playing_ = false;
-    cursorSeconds_ = Document().timeline.currentFrame / 30.;
-    return true;
+    return ApplyHistory(true, reason);
 }
 bool EditorSession::Seek(std::uint32_t frame, std::string& reason) {
     EndGesture();
+    auto history = FrameHistory();
     if (!runtime_->Seek(frame, reason))
         return false;
+    runtime_->ClearPoseEditMarkers();
+    for (auto& item : history)
+        PushHistory(item.first, std::move(item.second));
     playing_ = false;
     cursorSeconds_ = frame / 30.;
     return true;
@@ -1073,8 +1051,12 @@ bool EditorSession::Play(std::string& reason) {
     playOrigin_ = std::uint32_t(settings.currentFrame);
     if (!settings.startAtCurrent && !Seek(std::uint32_t(settings.playStartFrame), reason))
         return false;
+    auto history = FrameHistory();
     if (!runtime_->StartPlayback(reason))
         return false;
+    runtime_->ClearPoseEditMarkers();
+    for (auto& item : history)
+        PushHistory(item.first, std::move(item.second));
     playing_ = true;
     ++playbackEpoch_;
     return true;

@@ -151,10 +151,11 @@ bool EditorSession::BeginGesture() {
     if (playing_ || gesture_)
         return false;
     gesture_ = true;
-    gestureCommitted_ = false;
+    gestureModels_.clear();
     return true;
 }
 void EditorSession::EndGesture() {
-    gesture_ = gestureCommitted_ = false;
+    gesture_ = false;
+    gestureModels_.clear();
 }
 }

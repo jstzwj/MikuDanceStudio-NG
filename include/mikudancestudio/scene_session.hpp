@@ -62,6 +62,11 @@ public:
             if (model.slot == slot && group < model.selection.groupFlags.size())
                 model.selection.groupFlags[group] = expanded;
     }
+    void ClearPoseEditMarkers() {
+        for (auto& model : scene_.models)
+            for (auto& pose : model.bonePose)
+                pose.flags[1] = 0;
+    }
     bool Save(WritePmmBytes write, void* context) const;
     bool KinematicWorld(std::uint8_t slot,
                         std::vector<std::optional<std::array<float, 16>>>& world) const;
