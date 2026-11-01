@@ -152,6 +152,10 @@ int main(int argc, char** argv) {
     window.Dispatch(panel::kBoneReversePasteButton);
     CHECK(window.Session().Document().models[0].bonePose[0].components[0] == -1);
     CHECK(window.Session().Document().models[0].bonePose[0].components[1] == 2);
+    window.Dispatch(panel::kResetBonePoseButton);
+    CHECK(window.Session().Document().models[0].bonePose[0].components[0] == -1);
+    CHECK(window.Session().Document().models[0].bonePose[0].components[1] == 0);
+    window.Dispatch(panel::kUndoButton);
     window.Dispatch(panel::kUndoButton);
     window.Session().Selected().model = 0;
     window.Session().Selected().bones = {0};

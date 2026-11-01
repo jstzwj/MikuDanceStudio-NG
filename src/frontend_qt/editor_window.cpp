@@ -1038,17 +1038,7 @@ void EditorWindow::Dispatch(int id) {
         ok = session_.PasteBonePose(id == kBoneReversePasteButton, r);
         break;
     case kResetBonePoseButton:
-        ok = session_.Edit(
-            "reset-bones",
-            [&](auto& d, auto&) {
-                for (auto& m : d.models)
-                    if (m.slot == session_.Selected().model)
-                        for (auto b : session_.Selected().bones) {
-                            m.bonePose.at(b).components = {0, 0, 0, 0, 0, 0, 1, 0};
-                        }
-                return true;
-            },
-            r);
+        ok = session_.ResetSelectedBonePose(r);
         break;
     case kPerspectiveCheckbox: {
         auto c = session_.Runtime().Session()->Pose().camera;

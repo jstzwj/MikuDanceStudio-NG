@@ -89,6 +89,7 @@ public:
     bool ExportPose(std::uint8_t slot, format::VpdDocument&, std::string&) const;
     bool CopyBonePose(std::string&);
     bool PasteBonePose(bool mirrored, std::string&);
+    bool ResetSelectedBonePose(std::string&);
     bool HasBonePoseClipboard() const { return !poseClipboard_.empty(); }
     bool SetBone(std::uint8_t, std::uint32_t, const std::array<float, 3>&,
                  const std::array<float, 4>&, std::string&);

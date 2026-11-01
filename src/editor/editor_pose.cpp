@@ -1,5 +1,7 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/bone_pose_names.hpp"
+#include "mikudancestudio/bone_pose_reset.hpp"
+#include "mikudancestudio/text_encoding.hpp"
 #include <algorithm>
 
 namespace mikudancestudio::editor {
@@ -72,6 +74,50 @@ bool EditorSession::PasteBonePose(bool mirrored, std::string& reason) {
     for (std::size_t i = 0; i < model->bonePose.size(); ++i)
         if (model->bonePose[i].flags[2])
             next.selection.bones.push_back(std::uint32_t(i));
+    return Commit(std::move(next), reason);
+}
+
+bool EditorSession::ResetSelectedBonePose(std::string& reason) {
+    if (selection_.bones.empty()) {
+        reason.clear();
+        return true;
+    }
+    auto next = Current();
+    auto model = std::find_if(next.document.models.begin(), next.document.models.end(),
+                              [&](const auto& m) { return m.slot == selection_.model; });
+    const auto resource = next.assets.models.find(selection_.model);
+    if (model == next.document.models.end() || resource == next.assets.models.end()) {
+        reason = "pose-model-unavailable";
+        return false;
+    }
+    const std::set<std::uint32_t> selected(selection_.bones.begin(), selection_.bones.end());
+    if (*selected.rbegin() >= model->bonePose.size()) {
+        reason = "bone-selection-expired";
+        return false;
+    }
+    const auto& names = resource->second->BoneNames();
+    for (auto index : selected) {
+        std::string name;
+        const auto& encoded = model->boneNames[index];
+        if (!text::DecodeCp932({encoded.data(), encoded.size()}, name)) {
+            reason = "invalid-bone-name";
+            return false;
+        }
+        const auto found = std::find(names.begin(), names.end(), name);
+        if (found == names.end()) {
+            reason = "bone-name-not-bound";
+            return false;
+        }
+        const auto& bone =
+            resource->second->Document().bones[std::size_t(found - names.begin())].fields;
+        auto& pose = model->bonePose[index];
+        const auto& root = model->bonePose[0].components;
+        const auto matrix = cpu_math::RotationQuaternion(
+            {pose.components[3], pose.components[4], pose.components[5], pose.components[6]});
+        ResetBonePose(index, bone.parent, bone.position, matrix.data(), root.data(),
+                      root.data() + 3, pose.components.data(), pose.components.data() + 3,
+                      pose.flags[1]);
+    }
     return Commit(std::move(next), reason);
 }
 }

@@ -306,3 +306,17 @@ model switching and missing targets. Existing Windows clipboard/reset/undo
 regression and the Qt offscreen command test also passed. This batch fixes
 clipboard semantics; the broader history scope/depth and native reset semantics
 in the portable editor remain separate pending work.
+
+
+[Run 41289042076](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41289042076)
+at `633e584` passed background integration on all three platforms.
+
+Selected-bone reset now shares the native arithmetic with the Windows adapter.
+Root X/Z and its edit marker survive; parented bones reset to identity; other
+unparented bones transform their rest position by their own quaternion, subtract
+rest and add the current root translation, then take the root quaternion.
+Selection order is normalized to model order. The portable regression matches
+the frozen original x64 float bits and checks root/child/reset/undo behavior;
+the Windows regression independently supplies D3DX matrices to the same kernel.
+Both passed locally, along with the Qt reset-button test and application build.
+The x86 adapter retains its separate double evaluation order.

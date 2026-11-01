@@ -1,5 +1,7 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/bone_pose_names.hpp"
+#include "mikudancestudio/bone_pose_reset.hpp"
+#include <cstring>
 #include <iostream>
 #include <fstream>
 using namespace mikudancestudio;
@@ -14,6 +16,20 @@ std::string reason;
 int main(int argc, char** argv) {
     CHECK(argc == 2);
     const auto root = std::filesystem::absolute(argv[1]);
+    {
+        const float rest[]{.1f, .2f, .3f}, rootPosition[]{.05f, .07f, .09f};
+        const float rootRotation[]{0, 0, 0, 1};
+        float position[]{2, 3, 4}, rotation[]{.1f, .2f, .3f, .9f};
+        const auto matrix = cpu_math::RotationQuaternion({.1f, .2f, .3f, .9f});
+        std::uint8_t edited = 0;
+        editor::ResetBonePose(1, -1, rest, matrix.data(), rootPosition, rootRotation, position,
+                              rotation, edited);
+        std::array<std::uint32_t, 3> bits{};
+        std::memcpy(bits.data(), position, sizeof position);
+        // Frozen original x64 MULSS/ADDSS output, not a recomputed expectation.
+        CHECK(bits == (std::array<std::uint32_t, 3>{0x3d4ccccd, 0x3d8f5c2d, 0x3db851ec}));
+        CHECK(rotation[3] == 1 && edited == 1);
+    }
     editor::EditorSession s;
     CHECK(!s.HasBonePoseClipboard());
     const auto emptyRevision = s.Revision();
@@ -44,6 +60,21 @@ int main(int argc, char** argv) {
     CHECK(s.Selected().bones == (std::vector<std::uint32_t>{2, 5}));
     CHECK(s.Undo(reason) && s.Document().models[0].bonePose[2].components[0] == 0);
     CHECK(s.Redo(reason) && s.Document().models[0].bonePose[2].components[0] == -2);
+    s.Selected().bones = {2, 0};
+    const auto rootFlags = s.Document().models[0].bonePose[0].flags;
+    CHECK(s.ResetSelectedBonePose(reason));
+    CHECK(s.Document().models[0].bonePose[0].components[0] == 11);
+    CHECK(s.Document().models[0].bonePose[0].components[1] == 0);
+    CHECK(s.Document().models[0].bonePose[0].components[2] == 13);
+    CHECK(s.Document().models[0].bonePose[0].flags == rootFlags);
+    CHECK(s.Document().models[0].bonePose[2].components[0] == 0);
+    CHECK(s.Document().models[0].bonePose[2].components[6] == 1);
+    CHECK(s.Document().models[0].bonePose[2].flags[1] == 1);
+    CHECK(s.Document().models[0].bonePose[1].components[0] == 20);
+    CHECK(s.Undo(reason) && s.Document().models[0].bonePose[0].components[1] == 12);
+    s.Selected().bones.clear();
+    const auto beforeEmptyReset = s.Revision();
+    CHECK(s.ResetSelectedBonePose(reason) && s.Revision() == beforeEmptyReset);
     s.Selected().bones = {999};
     CHECK(!s.CopyBonePose(reason));
     CHECK(s.ImportModel(root / "pose.pmd", reason));
