@@ -64,6 +64,13 @@ bool EditorSession::SelectModel(std::uint8_t slot, std::string& reason) {
     reason.clear();
     return true;
 }
+int EditorSession::ActiveBone() const {
+    for (const auto& model : Document().models)
+        if (model.slot == selection_.model && model.selection.selectedBone >= 0 &&
+            std::size_t(model.selection.selectedBone) < model.bonePose.size())
+            return model.selection.selectedBone;
+    return -1;
+}
 bool EditorSession::SelectAllBones(bool unregisteredOnly, std::string& reason) {
     const auto& models = Document().models;
     const auto model = std::find_if(models.begin(), models.end(),

@@ -4,6 +4,46 @@
 #include <cstdint>
 
 namespace mikudancestudio::navigation {
+// Values stored in the original image, including its rounded angle presets.
+inline constexpr float HalfPi = 1.5707999467849731f; // 0x3FC90FF9
+inline constexpr float Pi = 3.1415920257568359f;     // 0x40490FD8
+struct ViewPreset {
+    float pitch = 0, yaw = 0, distance = -45;
+    bool referenceHeight = true, reload = false;
+};
+inline bool Preset(unsigned number, ViewPreset& out) {
+    ViewPreset p;
+    switch (number) {
+    case 0:
+        p.pitch = HalfPi;
+        p.reload = true;
+        break;
+    case 1:
+        p.pitch = HalfPi;
+        p.distance = -30;
+        p.referenceHeight = false;
+        break;
+    case 2:
+        break;
+    case 4:
+        p.yaw = HalfPi;
+        break;
+    case 5:
+        p.pitch = -HalfPi;
+        p.referenceHeight = false;
+        break;
+    case 6:
+        p.yaw = -HalfPi;
+        break;
+    case 8:
+        p.yaw = Pi;
+        break;
+    default:
+        return false;
+    }
+    out = p;
+    return true;
+}
 // x64 MMD pump arithmetic. The Windows host supplies D3DX's camera rotation;
 // portable callers use the independently checked row-vector math boundary.
 inline void RightDrag(float* angles, float& distance, float* offsets, bool modelMode, int dx,

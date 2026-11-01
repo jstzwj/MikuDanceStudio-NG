@@ -99,6 +99,9 @@ public:
     bool SetCamera(const format::PmmEvaluatedCamera&, std::string&);
     bool DragView(bool middleButton, int dx, int dy, bool shift, bool control, std::string&);
     bool WheelView(int delta, std::string&);
+    bool PrepareView(std::string&);
+    bool ViewPreset(unsigned numpadKey, std::string&);
+    int ActiveBone() const;
     bool Register(const std::vector<KeyAddress>&, std::string&);
     bool Delete(const std::set<KeyAddress>&, std::string&);
     bool Copy(const std::set<KeyAddress>&, std::string&);

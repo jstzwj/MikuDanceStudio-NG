@@ -98,11 +98,11 @@ namespace {
 // Angle presets bit-exact as stored by the original - deliberately NOT the
 // correctly rounded PI constants (float(PI) is 0x40490FDB, float(PI/2) is
 // 0x3FC90FDB; the image stores 3 ulps / 30 ulps off respectively).
-constexpr float kNumpadHalfPi = 1.5707999467849731f; // 0x3FC90FF9
-constexpr float kNumpadPi = 3.1415920257568359f;     // 0x40490FD8
-constexpr float kNumpadDistance = -45.0f;            // 0xC2340000
-constexpr float kNumpadDistance1 = -30.0f;           // 0xC1F00000 (NUMPAD1)
-constexpr float kNumpadTargetY = 10.0f;              // 0x41200000
+constexpr float kNumpadHalfPi = navigation::HalfPi; // 0x3FC90FF9
+constexpr float kNumpadPi = navigation::Pi;         // 0x40490FD8
+constexpr float kNumpadDistance = -45.0f;           // 0xC2340000
+constexpr float kNumpadDistance1 = -30.0f;          // 0xC1F00000 (NUMPAD1)
+constexpr float kNumpadTargetY = 10.0f;             // 0x41200000
 
 // Bone-edit drag path gate (see header): the active model slot is also the
 // camera's parent model and the select-state byte is set.  Callers inside

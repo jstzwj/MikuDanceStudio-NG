@@ -620,6 +620,14 @@ bool SceneRuntime::SetViewCamera(const format::PmmEvaluatedCamera& camera,
     return impl_ && impl_->session && !impl_->failed &&
            impl_->session->SetViewCamera(camera, offsets);
 }
+bool SceneRuntime::PrepareEditorView(std::uint8_t model, bool& changed) {
+    return impl_ && impl_->session && !impl_->failed &&
+           impl_->session->PrepareEditorView(model, impl_->playing, changed);
+}
+bool SceneRuntime::SetViewBasis(const std::array<float, 16>& basis, bool suppressed) {
+    return impl_ && impl_->session && !impl_->failed &&
+           impl_->session->SetViewBasis(basis, suppressed);
+}
 bool SceneRuntime::Edit(const std::function<void(format::PmmSceneDocument&)>& change,
                         std::string& reason) {
     if (!impl_ || !impl_->session || impl_->failed) {

@@ -255,6 +255,7 @@ void EditorWindow::CreateViewport(const rhi::BackendOptions& options) {
     auto* container = QWidget::createWindowContainer(next, canvas_);
     auto* old = viewportContainer_;
     viewport_ = next;
+    viewport_->installEventFilter(this);
     viewportContainer_ = container;
     if (old)
         delete old;
@@ -507,11 +508,22 @@ void EditorWindow::Refresh() {
     }
     const int pos[]{kReadoutPosXEdit, kReadoutPosYEdit, kReadoutPosZEdit};
     const int rot[]{kReadoutRotXEdit, kReadoutRotYEdit, kReadoutRotZEdit};
+    const auto readout = [&](int id, float value, bool angle = false) {
+        if (auto* field = qobject_cast<QLineEdit*>(Control(id)); field && !field->hasFocus())
+            field->setText(QString::asprintf(angle ? "%1.1f" : "%1.2f", double(value)));
+    };
     for (int i = 0; i < 3; ++i) {
-        edit(pos[i], i == 2 && camera.parentModel >= 0 ? -camera.position[i] : camera.position[i]);
-        edit(rot[i], float(camera.rotation[i] / (i == 0 ? -3.141592f : 3.141592f)) * 180.f);
+        readout(pos[i],
+                i == 2 && camera.parentModel >= 0 ? -camera.position[i] : camera.position[i]);
+        float degrees = float(camera.rotation[i] / (i == 0 ? -3.141592f : 3.141592f)) * 180.f;
+        if (i == 0 && std::abs(degrees) < 1e-7f)
+            degrees = 0;
+        readout(rot[i], degrees, true);
     }
-    edit(kReadoutDistEdit, camera.parentModel < 0 ? -camera.distance : 0);
+    float displayedDistance = camera.parentModel < 0 ? -camera.distance : 0;
+    if (std::abs(displayedDistance) < 1e-7f)
+        displayedDistance = 0;
+    readout(kReadoutDistEdit, displayedDistance);
     if (session_.Selected().model != 255)
         for (int id = kReadoutPosXEdit; id <= kReadoutDistEdit; ++id)
             if (auto* e = qobject_cast<QLineEdit*>(Control(id)); e && !e->hasFocus())
@@ -537,15 +549,15 @@ void EditorWindow::Refresh() {
                 edit(edits[panel], value);
                 static_cast<QSlider*>(Control(sliders[panel]))->setValue(qRound(value * 100));
             }
-            if (!session_.Selected().bones.empty() &&
-                session_.Selected().bones[0] < m.bonePose.size()) {
-                const auto& p = m.bonePose[session_.Selected().bones[0]];
+            if (session_.ActiveBone() >= 0 &&
+                std::size_t(session_.ActiveBone()) < m.bonePose.size()) {
+                const auto& p = m.bonePose[std::size_t(session_.ActiveBone())];
                 const auto degrees = BoneRotationDegrees(
                     {p.components[3], p.components[4], p.components[5], p.components[6]});
                 for (int i = 0; i < 3; ++i)
-                    edit(pos[i], p.components[i]);
+                    readout(pos[i], p.components[i]);
                 for (int i = 0; i < 3; ++i)
-                    edit(rot[i], degrees[i]);
+                    readout(rot[i], std::abs(degrees[i]) < 1e-7f ? 0 : degrees[i], true);
             }
         }
     for (unsigned i = 0; i < 4; ++i)
@@ -817,6 +829,8 @@ void EditorWindow::FileAction(const QString& id) {
     }
 }
 void EditorWindow::Numeric() {
+    if (session_.Selected().model != 255 && session_.ActiveBone() < 0)
+        return;
     QDialog dialog(this);
     dialog.setWindowTitle(language_.Text("edit.numeric"));
     QFormLayout layout(&dialog);
@@ -833,8 +847,8 @@ void EditorWindow::Numeric() {
         layout.addRow(QString(i < 3 ? "%1" : "R%1").arg("XYZ"[i % 3]), value);
     }
     for (const auto& m : session_.Document().models)
-        if (m.slot == session_.Selected().model && !session_.Selected().bones.empty()) {
-            auto bone = session_.Selected().bones[0];
+        if (m.slot == session_.Selected().model && session_.ActiveBone() >= 0) {
+            const auto bone = std::size_t(session_.ActiveBone());
             if (bone < m.bonePose.size()) {
                 const auto& p = m.bonePose[bone].components;
                 const auto degrees = BoneRotationDegrees({p[3], p[4], p[5], p[6]});
@@ -859,8 +873,8 @@ void EditorWindow::Numeric() {
                                      (i == 0 ? -3.141592025756836 : 3.141592025756836) / 180);
         }
         Result(session_.SetCamera(next, r), r);
-    } else if (!session_.Selected().bones.empty())
-        Result(session_.SetBone(session_.Selected().model, session_.Selected().bones[0],
+    } else if (session_.ActiveBone() >= 0)
+        Result(session_.SetBone(session_.Selected().model, std::uint32_t(session_.ActiveBone()),
                                 {float(values[0]->value()), float(values[1]->value()),
                                  float(values[2]->value())},
                                 Quaternion(float(values[3]->value()), float(values[4]->value()),
@@ -1133,10 +1147,10 @@ void EditorWindow::EditField(int id) {
             if (id == kReadoutDistEdit)
                 c.distance = float(-value);
             ok = session_.SetCamera(c, r);
-        } else if (!session_.Selected().bones.empty() && id != kReadoutDistEdit) {
+        } else if (session_.ActiveBone() >= 0 && id != kReadoutDistEdit) {
             for (const auto& model : session_.Document().models)
                 if (model.slot == session_.Selected().model) {
-                    const auto bone = session_.Selected().bones.front();
+                    const auto bone = std::size_t(session_.ActiveBone());
                     if (bone >= model.bonePose.size()) {
                         ok = false;
                         break;
@@ -1217,6 +1231,15 @@ void EditorWindow::Combo(int id, int index) {
 bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
     if (event->type() == QEvent::KeyPress && !qobject_cast<QLineEdit*>(object)) {
         auto* key = static_cast<QKeyEvent*>(event);
+        if ((key->modifiers() & Qt::KeypadModifier) && key->key() >= Qt::Key_0 &&
+            key->key() <= Qt::Key_9) {
+            if (!key->isAutoRepeat()) {
+                std::string reason;
+                Result(session_.ViewPreset(unsigned(key->key() - Qt::Key_0), reason), reason);
+                Refresh();
+            }
+            return true;
+        }
         if (key->key() == Qt::Key_Space) {
             Dispatch(kPlayButton);
             return true;

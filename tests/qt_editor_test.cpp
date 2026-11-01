@@ -130,6 +130,28 @@ int main(int argc, char** argv) {
         CHECK(&s.Runtime() == liveRuntime && s.Runtime().Snapshot(0) == liveSnapshot);
         CHECK(s.Runtime().Counters().frames == updates);
         CHECK(picking.LastError().isEmpty());
+        CHECK(s.SelectBones({0, 3}, 3, reason));
+        picking.Refresh();
+        auto* activeX = qobject_cast<QLineEdit*>(picking.Control(panel::kReadoutPosXEdit));
+        auto* activeRY = qobject_cast<QLineEdit*>(picking.Control(panel::kReadoutRotYEdit));
+        CHECK(activeX->text() == "4.00" && activeRY->text() == "0.0");
+        activeX->selectAll();
+        QTest::keyClicks(activeX, "9.25");
+        QTest::keyClick(activeX, Qt::Key_Return);
+        CHECK(s.Document().models[0].bonePose[3].components[0] == 9.25f);
+        CHECK(s.Document().models[0].bonePose[0].components[0] == 0);
+        CHECK(s.SelectBones({0, 3}, -1, reason));
+        picking.Refresh();
+        CHECK(activeX->text() == "-----");
+        const auto presetFrames = s.Runtime().Counters().frames;
+        QKeyEvent keypad(QEvent::KeyPress, Qt::Key_4, Qt::KeypadModifier);
+        QApplication::sendEvent(view, &keypad);
+        CHECK(s.Document().cameraState[7] == 1.5707999467849731f);
+        const auto presetRevision = s.Revision();
+        QKeyEvent repeat(QEvent::KeyPress, Qt::Key_6, Qt::KeypadModifier, QString(), true);
+        QApplication::sendEvent(view, &repeat);
+        CHECK(s.Revision() == presetRevision);
+        CHECK(s.Runtime().Counters().frames == presetFrames);
     }
     {
         qt::EditorWindow backgrounds(std::filesystem::absolute(argv[2]), true);

@@ -37,6 +37,8 @@ public:
     void SetBoneSelection(std::uint8_t, const std::vector<std::uint32_t>&, int active);
     void SetEditMode(std::int32_t);
     bool SetViewCamera(const format::PmmEvaluatedCamera&, const std::array<float, 2>&);
+    bool PrepareEditorView(std::uint8_t model, bool& changed);
+    bool SetViewBasis(const std::array<float, 16>&, bool suppressed);
     bool UnloadModel(std::uint8_t, std::string&);
     bool AttachAccessory(std::uint8_t, std::shared_ptr<const AccessoryResource>, std::string&);
     bool UnloadAccessory(std::uint8_t, std::string&);

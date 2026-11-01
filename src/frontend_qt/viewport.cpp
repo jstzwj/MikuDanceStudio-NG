@@ -42,6 +42,8 @@ bool Viewport::Reset(std::string& reason) {
 bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
     if ((!isExposed() && !hiddenAcceptance) || width() < 1 || height() < 1)
         return true;
+    if (!session_.PrepareView(reason))
+        return false;
     const auto w = unsigned(std::max(1, qRound(width() * devicePixelRatio())));
     const auto h = unsigned(std::max(1, qRound(height() * devicePixelRatio())));
     if (controller_.State() == rhi::PreviewState::Closed) {
@@ -107,10 +109,7 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
     return true;
 }
 int Viewport::ActiveBone() const {
-    for (const auto& model : session_.Document().models)
-        if (model.slot == session_.Selected().model)
-            return model.selection.selectedBone;
-    return -1;
+    return session_.ActiveBone();
 }
 std::uint64_t Viewport::Submissions() const {
     const auto* renderer = const_cast<rhi::ScenePreviewController&>(controller_).GetRenderer();
@@ -132,6 +131,11 @@ void Viewport::mousePressEvent(QMouseEvent* e) {
     previous_ = e->position().toPoint();
     if (e->button() == Qt::LeftButton && session_.Selected().model != 255 && !session_.Playing()) {
         std::string reason;
+        if (!session_.PrepareView(reason)) {
+            if (changed)
+                changed(false, reason);
+            return;
+        }
         if (!render::SceneBoneScreenPoints(session_.Runtime(), session_.Selected().model,
                                            unsigned(width()), unsigned(height()), bonePoints_,
                                            reason, session_.Selected().model)) {

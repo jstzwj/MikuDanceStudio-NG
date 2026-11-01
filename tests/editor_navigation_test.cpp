@@ -134,6 +134,103 @@ int main(int argc, char** argv) {
     CHECK(session.Advance(1. / 30., reason));
     CHECK(session.Runtime().Counters().frames == playbackFrames + 1);
     CHECK(session.Playing());
+    {
+        editor::EditorSession views;
+        CHECK(views.ImportModel(std::filesystem::absolute(argv[1]) / "pose.pmd", reason));
+        auto c = views.Runtime().Session()->Pose().camera;
+        c.position = {5, 7, 9};
+        c.rotation = {};
+        c.distance = -23;
+        CHECK(views.SetCamera(c, reason));
+        CHECK(views.Register({{editor::Track::Camera, 255, 0, 0}}, reason));
+        CHECK(views.Seek(12, reason));
+        CHECK(views.SetBone(0, 3, {4, 5, 6}, {0, 0, 0, 1}, reason));
+        c.distance = -91;
+        c.rotation = {.1f, .2f, .3f};
+        CHECK(views.SetCamera(c, reason));
+        const auto frame = views.Document().timeline.currentFrame;
+        const auto* snapshot = views.Runtime().Snapshot(0);
+        const auto updates = views.Runtime().Counters().frames;
+        CHECK(views.ViewPreset(0, reason));
+        CHECK(views.Document().timeline.currentFrame == frame);
+        CHECK(views.Document().models[0].bonePose[3].components[0] == 4);
+        CHECK(views.Runtime().Snapshot(0) == snapshot &&
+              views.Runtime().Counters().frames == updates);
+        CHECK(views.Document().cameraState[0] == 5 && views.Document().cameraState[1] == 7);
+        CHECK(views.Document().cameraState[3] == 5 && views.Document().cameraState[4] == 7);
+        CHECK(views.Document().cameraState[5] == -14 && views.Document().cameraState[6] == 0);
+        CHECK(views.ViewPreset(1, reason));
+        CHECK(views.Document().cameraState[5] == -30 && views.Document().cameraState[4] == 0);
+        CHECK(views.Document().cameraState[6] == 1.5707999467849731f);
+        CHECK(views.ViewPreset(2, reason));
+        CHECK(views.Document().cameraState[5] == -45 && views.Document().cameraState[4] == 10);
+        CHECK(views.ViewPreset(4, reason));
+        CHECK(views.Document().cameraState[7] == 1.5707999467849731f);
+        CHECK(views.ViewPreset(6, reason));
+        CHECK(views.Document().cameraState[7] == -1.5707999467849731f);
+        CHECK(views.ViewPreset(5, reason));
+        CHECK(views.Document().cameraState[6] == -1.5707999467849731f &&
+              views.Document().cameraState[4] == 0);
+        CHECK(views.ViewPreset(8, reason));
+        CHECK(views.Document().cameraState[7] == 3.1415920257568359f);
+        const auto unsupportedRevision = views.Revision();
+        for (unsigned key : {3, 7, 9, 42})
+            CHECK(views.ViewPreset(key, reason));
+        CHECK(views.Revision() == unsupportedRevision);
+        CHECK(views.Edit(
+            "bone-reference",
+            [](auto& d, auto&) {
+                d.timeline.cameraReferenceMode = 2;
+                return true;
+            },
+            reason));
+        CHECK(views.ViewPreset(2, reason));
+        CHECK(views.Document().cameraState[4] == 0);
+        CHECK(views.SelectModel(255, reason));
+        CHECK(views.ViewPreset(0, reason));
+        CHECK(views.Document().cameraState[6] == 1.5707999467849731f);
+        CHECK(views.Document().cameraState[5] == -45);
+        CHECK(views.Document().cameraState[0] == 5 && views.Document().cameraState[1] == 7);
+        c = views.Runtime().Session()->Pose().camera;
+        c.parentModel = 0;
+        c.parentBone = 3;
+        c.position = {5, 7, -21};
+        CHECK(views.SetCamera(c, reason));
+        CHECK(views.Edit(
+            "saved-basis",
+            [](auto& d, auto&) {
+                d.appearance.cameraAttachmentBasis = cpu_math::RotationY(.7f);
+                return true;
+            },
+            reason));
+        const auto basis = views.Document().appearance.cameraAttachmentBasis;
+        const auto preparedFrames = views.Runtime().Counters().frames;
+        const auto* preparedSnapshot = views.Runtime().Snapshot(0);
+        CHECK(views.PrepareView(reason));
+        CHECK(views.Document().cameraState[3] == 5 && views.Document().cameraState[4] == 7 &&
+              views.Document().cameraState[5] == -21);
+        CHECK(views.Document().appearance.cameraAttachmentBasis == basis);
+        const auto preparedRevision = views.Revision();
+        CHECK(views.PrepareView(reason));
+        CHECK(views.Revision() == preparedRevision);
+        c = views.Runtime().Session()->Pose().camera;
+        c.parentModel = -1;
+        CHECK(views.SetCamera(c, reason));
+        CHECK(views.PrepareView(reason));
+        CHECK(views.Document().appearance.cameraAttachmentBasis == cpu_math::Identity());
+        CHECK(views.SelectModel(0, reason));
+        CHECK(views.PrepareView(reason));
+        CHECK(views.Document().appearance.cameraAttachmentBasis == cpu_math::Identity());
+        CHECK(views.Runtime().Counters().frames == preparedFrames &&
+              views.Runtime().Snapshot(0) == preparedSnapshot);
+        CHECK(views.Play(reason));
+        const auto playingState = views.Document().cameraState;
+        const auto playingRevision = views.Revision();
+        CHECK(views.ViewPreset(4, reason));
+        CHECK(views.Document().cameraState == playingState && views.Revision() == playingRevision);
+        views.Pause();
+        CHECK(!views.Runtime().Playing());
+    }
     std::cout
         << "View navigation: native modifiers, parent/follow gates and zero scene updates passed\n";
 }

@@ -397,3 +397,24 @@ application built; it was not launched on the desktop.
 The rebuilt Windows `model_viewport_test`, `bone_pick_test` and
 `input_sequence_test` also passed, as did the rebuilt portable `scene_runtime`
 regression after sharing camera-center selection with the physics host.
+
+[Run 41294898401](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41294898401)
+at `ccfa66b` passed the navigation batch on Windows, macOS and Linux.
+
+The next camera batch adds the original stored numpad angles, model/camera
+presets, playback/repeat gates and camera-track reload at the current frame.
+Model-mode NumPad 0 preserves unregistered model poses and the published CPU
+snapshot. Attached-camera frame preparation publishes its eye offsets/distance;
+free or suppressed tracking clears the saved attachment basis as the native
+frame setup does. These changes do not evaluate the scene or consume history.
+
+Qt pose readouts and numeric edits now address the active bone independently of
+the multiselection order. No active bone displays the original `-----` values;
+positions use two decimals and rotations one. The offscreen test exercises
+these controls and sends keypad events to a never-shown viewport.
+
+All 16 local P4 tests passed, as did hidden native viewport presentation on
+DX11, DX12 and Vulkan and the 48-case D3DX camera math comparison. The application
+built without being launched. Camera reference-mode compensation, follow-toggle
+refresh semantics, event-dependent FOV rounding, original camera/output oracles,
+bone overlays and transform tools remain open; this batch does not close P4.

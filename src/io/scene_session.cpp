@@ -272,6 +272,42 @@ bool SceneSession::SetViewCamera(const PmmEvaluatedCamera& camera,
     return true;
 }
 
+bool SceneSession::SetViewBasis(const std::array<float, 16>& basis, bool suppressed) {
+    if (!loaded_ ||
+        !std::all_of(basis.begin(), basis.end(), [](float v) { return std::isfinite(v); }))
+        return false;
+    scene_.appearance.cameraAttachmentBasis = basis;
+    scene_.appearance.suppressCameraTransform = suppressed;
+    return true;
+}
+bool SceneSession::PrepareEditorView(std::uint8_t model, bool playing, bool& changed) {
+    changed = false;
+    if (!loaded_)
+        return false;
+    const bool cameraMode = model == 255;
+    const bool cameraView =
+        cameraMode ||
+        (scene_.appearance.followCamera &&
+         (playing || (pose_.camera.parentModel >= 0 && model == pose_.camera.parentModel)));
+    auto camera = pose_.camera;
+    std::array<float, 2> offsets{scene_.cameraState[3], scene_.cameraState[4]};
+    if (cameraView && camera.parentModel >= 0) {
+        offsets = {camera.position[0], camera.position[1]};
+        camera.distance = camera.position[2];
+    }
+    const auto previous = scene_.cameraState;
+    if (!SetViewCamera(camera, offsets))
+        return false;
+    changed = previous != scene_.cameraState;
+    if ((cameraMode || scene_.appearance.followCamera) &&
+        (camera.parentModel < 0 || scene_.appearance.suppressCameraTransform)) {
+        const std::array<float, 16> identity{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
+        changed = changed || scene_.appearance.cameraAttachmentBasis != identity;
+        scene_.appearance.cameraAttachmentBasis = identity;
+    }
+    return true;
+}
+
 bool SceneSession::Seek(std::uint32_t frame) {
     if (!loaded_ || frame > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max()))
         return false;
