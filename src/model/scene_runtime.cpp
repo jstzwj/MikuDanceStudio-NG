@@ -608,6 +608,10 @@ void SceneRuntime::SetPanelExpanded(unsigned option, bool expanded) {
     if (impl_ && impl_->session)
         impl_->session->SetPanelExpanded(option, expanded);
 }
+void SceneRuntime::SetSidebarWidth(int width) {
+    if (impl_->session)
+        impl_->session->SetSidebarWidth(width);
+}
 void SceneRuntime::SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded) {
     if (impl_ && impl_->session)
         impl_->session->SetGroupExpanded(slot, group, expanded);

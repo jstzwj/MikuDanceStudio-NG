@@ -4,6 +4,7 @@
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/editor_rotation.hpp"
 #include "mikudancestudio/mmd_editor_labels.hpp"
+#include "mikudancestudio/sidebar_navigation.hpp"
 #include <QApplication>
 #include <QAbstractButton>
 #include <QPushButton>
@@ -64,6 +65,7 @@ public:
         : QWidget(p), language_(language), session_(session),
           viewTools_(Path(assets / "playing_indicator.bmp")) {
         setAutoFillBackground(true);
+        setMouseTracking(true);
     }
     void paintEvent(QPaintEvent*) override {
         QPainter p(this);
@@ -412,6 +414,17 @@ void EditorWindow::Layout() {
     if (!canvas_)
         return;
     side_ = std::max(250, session_.Document().envelope.settings.editPanelWidth);
+    const int clientWidth = canvas_->width();
+    if (clientWidth >= 255) {
+        if (!sidebarClientWidth_ || side_ != sidebarStoredWidth_)
+            sidebarRatio_ = float(double(side_) / double(clientWidth));
+        else if (clientWidth != sidebarClientWidth_) {
+            side_ = ui::ResizeSidebar(sidebarRatio_, clientWidth);
+            session_.SetSidebarWidth(side_);
+        }
+        sidebarClientWidth_ = clientWidth;
+        sidebarStoredWidth_ = side_;
+    }
     layout_.cameraMode = session_.Selected().model == 255;
     const auto& options = session_.Document().envelope.settings.options;
     layout_.cameraPanelExpanded = options[1];
@@ -443,6 +456,8 @@ void EditorWindow::Layout() {
     for (const auto& rect : ui::MmdViewportControls(side_, canvas_->width(), viewport))
         place(rect);
     timeline_->setGeometry(6, 145, std::max(1, side_ - 25), std::max(1, canvas_->height() - 393));
+    static_cast<QScrollBar*>(Control(kTimelineHScroll))
+        ->setPageStep(std::max(1, (side_ - 100) / 13));
     interpolation_->move(8, canvas_->height() - 135);
     for (const auto& pair : controls_) {
         const auto id = pair.first;
@@ -1241,14 +1256,52 @@ void EditorWindow::Combo(int id, int index) {
         scopeSelections_[session_.Selected().model] = index;
     Refresh();
 }
+void EditorWindow::FinishSidebarDrag() {
+    if (!sidebarDragging_)
+        return;
+    sidebarDragging_ = false;
+    canvas_->setCursor(sidebarCursor_);
+}
 bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
     if (viewport_ && ((object == this && event->type() == QEvent::WindowDeactivate) ||
-                      (object == canvas_ && event->type() == QEvent::Hide)))
+                      (object == canvas_ &&
+                       (event->type() == QEvent::Hide || event->type() == QEvent::UngrabMouse)))) {
+        FinishSidebarDrag();
         viewport_->CancelInput();
+    }
     if (viewport_ && object == canvas_ &&
         (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseMove ||
          event->type() == QEvent::MouseButtonRelease)) {
         auto* mouse = static_cast<QMouseEvent*>(event);
+        const auto point = mouse->position().toPoint();
+        if (sidebarDragging_) {
+            if (event->type() == QEvent::MouseMove && (mouse->buttons() & Qt::LeftButton)) {
+                const auto placement = ui::DragSidebar(point.x(), canvas_->width());
+                session_.SetSidebarWidth(placement.width);
+                sidebarStoredWidth_ = placement.width;
+                sidebarClientWidth_ = canvas_->width();
+                sidebarRatio_ = placement.ratio;
+                Layout();
+                UpdateFrame();
+            } else if (event->type() == QEvent::MouseButtonRelease ||
+                       !(mouse->buttons() & Qt::LeftButton))
+                FinishSidebarDrag();
+            return true;
+        }
+        const bool divider = ui::SidebarHit(point.x(), point.y(), side_, canvas_->height());
+        if (event->type() == QEvent::MouseMove && !viewport_->HeaderDragging()) {
+            if (divider)
+                canvas_->setCursor(Qt::SizeHorCursor);
+            else
+                canvas_->unsetCursor();
+        }
+        if (event->type() == QEvent::MouseButtonPress && mouse->button() == Qt::LeftButton &&
+            divider && canvas_->width() >= 255 && !viewport_->HeaderDragging()) {
+            sidebarDragging_ = true;
+            sidebarCursor_ = canvas_->cursor();
+            canvas_->setCursor(Qt::SizeHorCursor);
+            return true;
+        }
         const auto origin = viewportContainer_->pos();
         if (event->type() == QEvent::MouseButtonPress && mouse->button() == Qt::LeftButton) {
             const auto point = mouse->position().toPoint();

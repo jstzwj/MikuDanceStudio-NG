@@ -137,6 +137,7 @@ public:
     bool Redo(std::string&);
     bool Seek(std::uint32_t, std::string&);
     void SetPanelExpanded(unsigned option, bool expanded);
+    void SetSidebarWidth(int width);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
     void SetEditMode(std::int32_t mode);
     unsigned CoordinateSystem() const { return coordinateSystem_; }

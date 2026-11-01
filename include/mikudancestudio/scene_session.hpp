@@ -86,6 +86,10 @@ public:
         if (option > 0 && option < scene_.envelope.settings.options.size())
             scene_.envelope.settings.options[option] = expanded;
     }
+    void SetSidebarWidth(int width) {
+        if (width >= 250 && width <= 1000000)
+            scene_.envelope.settings.editPanelWidth = width;
+    }
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded) {
         for (auto& model : scene_.models)
             if (model.slot == slot && group < model.selection.groupFlags.size())

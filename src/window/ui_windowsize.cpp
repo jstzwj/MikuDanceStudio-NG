@@ -43,6 +43,7 @@
 #define NOMINMAX
 #include "mikudancestudio/panel_controls.hpp"
 #include "mikudancestudio/mmd_editor_layout.hpp"
+#include "mikudancestudio/sidebar_navigation.hpp"
 #include <Windows.h>
 
 #include <cstdint>
@@ -97,10 +98,7 @@ void HandleWindowSize(MMDApp* app) {
         sidebar = cr1.right - 3;        // 0x4433B8
         RebuildTimelineTrackPanel(app); // 0x4433BE
     } else {
-        std::int32_t newSidebar = static_cast<std::int32_t>(static_cast<double>(s.SidebarRatio()) *
-                                                            cr1.right); // 0x4433CF
-        if (newSidebar < 250)
-            newSidebar = 250;                   // 0x4433D9
+        const auto newSidebar = ui::ResizeSidebar<sizeof(void*) == 4>(s.SidebarRatio(), cr1.right);
         const bool grew = sidebar < newSidebar; // 0x4433E0
         sidebar = newSidebar;                   // 0x4433E6
         if (grew)

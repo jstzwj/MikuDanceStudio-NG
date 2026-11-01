@@ -57,6 +57,67 @@ int main(int argc, char** argv) {
     CHECK(!window.isVisible());
     CHECK(window.SetLanguage("en"));
     {
+        qt::EditorWindow divider(std::filesystem::absolute(argv[2]), true);
+        auto* canvas = divider.centralWidget();
+        CHECK(divider.Session().ImportModel(root / "pose.pmd", reason));
+        canvas->resize(1024, 700);
+        divider.Refresh();
+        const auto frames = divider.Session().Runtime().Counters().frames;
+        const auto revision = divider.Session().Revision();
+        const auto* snapshot = divider.Session().Runtime().Snapshot(0);
+        const auto mouse = [&](QEvent::Type type, QPointF point, Qt::MouseButton button,
+                               Qt::MouseButtons buttons) {
+            QMouseEvent event(type, point, point, point, button, buttons, Qt::NoModifier);
+            QCoreApplication::sendEvent(canvas, &event);
+        };
+        const auto drag = [&](int to) {
+            const int width = divider.Session().Document().envelope.settings.editPanelWidth;
+            mouse(QEvent::MouseButtonPress, {width + 2., 542}, Qt::LeftButton, Qt::LeftButton);
+            mouse(QEvent::MouseMove, {double(to), 542}, Qt::NoButton, Qt::LeftButton);
+            mouse(QEvent::MouseButtonRelease, {double(to), 542}, Qt::LeftButton, Qt::NoButton);
+        };
+        mouse(QEvent::MouseMove, {252, 542}, Qt::NoButton, Qt::NoButton);
+        CHECK(canvas->cursor().shape() == Qt::SizeHorCursor);
+        drag(300);
+        CHECK(divider.Session().Document().envelope.settings.editPanelWidth == 300);
+        CHECK(divider.Control(panel::kUndoButton)->x() == 70);
+        const auto expected = ui::MmdViewport(1024, 700, 300, 1024, 768);
+        CHECK(divider.RenderWindow()->width() == expected.width);
+        canvas->resize(1280, 700);
+        divider.Refresh();
+        CHECK(divider.Session().Document().envelope.settings.editPanelWidth == 375);
+        canvas->resize(640, 700);
+        divider.Refresh();
+        CHECK(divider.Session().Document().envelope.settings.editPanelWidth == 250);
+        canvas->resize(1280, 700);
+        divider.Refresh();
+        CHECK(divider.Session().Document().envelope.settings.editPanelWidth == 375);
+        // Restore the original dimensions without changing the saved ratio.
+        canvas->resize(1024, 700);
+        divider.Refresh();
+        drag(-100);
+        CHECK(divider.Session().Document().envelope.settings.editPanelWidth == 250);
+        drag(5000);
+        CHECK(divider.Session().Document().envelope.settings.editPanelWidth == 1019);
+        drag(381);
+        CHECK(divider.SetLanguage("ja") && divider.SetLanguage("zh_CN"));
+        CHECK(divider.Session().Document().envelope.settings.editPanelWidth == 381);
+        mouse(QEvent::MouseButtonPress, {383, 300}, Qt::LeftButton, Qt::LeftButton);
+        QEvent deactivate(QEvent::WindowDeactivate);
+        QCoreApplication::sendEvent(&divider, &deactivate);
+        mouse(QEvent::MouseMove, {500, 300}, Qt::NoButton, Qt::LeftButton);
+        CHECK(divider.Session().Document().envelope.settings.editPanelWidth == 381);
+        CHECK(divider.Session().Runtime().Counters().frames == frames);
+        CHECK(divider.Session().Revision() == revision);
+        CHECK(divider.Session().Runtime().Snapshot(0) == snapshot);
+        CHECK(!divider.Session().CanUndo() && divider.RenderWindow()->Submissions() == 0);
+        CHECK(divider.Save(root / "divider.pmm"));
+        editor::EditorSession restored;
+        CHECK(restored.Open(root / "divider.pmm", reason));
+        CHECK(restored.Document().envelope.settings.editPanelWidth == 381);
+        CHECK(!divider.isVisible());
+    }
+    {
         qt::EditorWindow header(std::filesystem::absolute(argv[2]), true);
         auto* canvas = header.centralWidget();
         canvas->resize(1024, 700);

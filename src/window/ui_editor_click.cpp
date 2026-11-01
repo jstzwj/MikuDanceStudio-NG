@@ -52,6 +52,7 @@
 
 #include "timeline_selection.hpp"
 #include "mikudancestudio/mmd_app.hpp"
+#include "mikudancestudio/sidebar_navigation.hpp"
 #include "mikudancestudio/timeline_selection_grid.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
 #include "mikudancestudio/model.hpp"
@@ -911,8 +912,7 @@ void HandleLButtonDown(MMDApp* app) {
     // this+0xA442C = 0, then shared tail.  Gates (eval order as in the
     // original): y <= bottom-0x9E(158) && x <= sidebar+6 &&
     // [0xA0D38]==0 && sidebar <= x.
-    if (y <= rc.bottom - 0x9E && x <= sidebar + 6 && app->FloatingWindow() == nullptr &&
-        sidebar <= x) {
+    if (ui::SidebarHit(x, y, sidebar, rc.bottom) && app->FloatingWindow() == nullptr) {
         app->SidebarResizeDragging() = 1;
         app->WindowLayoutReady() = 0;
         return;

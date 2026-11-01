@@ -21,6 +21,14 @@ int main(int argc, char** argv) {
     const auto* snapshot = runtime->Snapshot(0);
     const auto* vertices = snapshot->vertices.data();
     const auto counters = runtime->Counters();
+    const auto sidebarRevision = session.Revision();
+    session.SetSidebarWidth(381);
+    session.SetSidebarWidth(-1);
+    session.SetSidebarWidth(249);
+    session.SetSidebarWidth(1000001);
+    CHECK(session.Document().envelope.settings.editPanelWidth == 381);
+    CHECK(session.Revision() == sidebarRevision && &session.Runtime() == runtime);
+    CHECK(runtime->Snapshot(0) == snapshot && runtime->Counters().frames == counters.frames);
     const auto set = [&](float depth = -45) {
         auto camera = session.Runtime().Session()->Pose().camera;
         camera.position = {0, 0, depth};

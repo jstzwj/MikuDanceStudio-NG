@@ -1,8 +1,20 @@
 #include "mikudancestudio/mmd_editor_layout.hpp"
+#include "mikudancestudio/sidebar_navigation.hpp"
 #include "editor_layout_reference.hpp"
 #include <cstdio>
 using namespace mikudancestudio;
 int main() {
+    if (!ui::SidebarHit(250, 542, 250, 700) || !ui::SidebarHit(256, 542, 250, 700) ||
+        ui::SidebarHit(249, 542, 250, 700) || ui::SidebarHit(257, 542, 250, 700) ||
+        ui::SidebarHit(250, 543, 250, 700))
+        return 1;
+    if (ui::DragSidebar(-100, 1024).width != 250 || ui::DragSidebar(5000, 1024).width != 1019 ||
+        ui::DragSidebar(381, 1024).width != 381 ||
+        ui::DragSidebar(381, 1024).ratio != .3720703125f ||
+        ui::ResizeSidebar(.29296875f, 1280) != 375 || ui::ResizeSidebar(.29296875f, 640) != 250)
+        return 1;
+    if (ui::ResizeSidebar(.7f, 1000) != 700 || ui::ResizeSidebar<true>(.7f, 1000) != 699)
+        return 1;
     for (const auto& reference : kOriginalLayouts) {
         std::uint64_t hash = 14695981039346656037ull;
         for (unsigned flags = 0; flags < 128; ++flags) {

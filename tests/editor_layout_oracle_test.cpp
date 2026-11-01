@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include "mikudancestudio/mmd_editor_layout.hpp"
+#include "mikudancestudio/sidebar_navigation.hpp"
 #include "editor_layout_reference.hpp"
 #include <array>
 #include <algorithm>
@@ -140,6 +141,20 @@ int wmain(int argc, wchar_t** argv) try {
     }
     std::printf("Original x64 main layout: %u cases, %u exact controls; no windows or GPU\n", cases,
                 controls);
+    unsigned resized = 0;
+    for (int width : {640, 1000, 1024, 1365, 1920, 2560})
+        for (float ratio : {.125f, .244140625f, .29296875f, .33333334f, .7f, .999f, 1.25f}) {
+            client = {0, 0, width, 700};
+            std::fill(app.begin(), app.end(), 0);
+            Store(app, 0xa54d4, ratio);
+            observed.clear();
+            layout(app.data());
+            int actual;
+            std::memcpy(&actual, app.data() + 0xa16e8, 4);
+            Check(actual == ui::ResizeSidebar(ratio, width), "original sidebar resize rounding");
+            ++resized;
+        }
+    std::printf("Original x64 sidebar resize: %u exact ratios/widths\n", resized);
     const auto viewportLayout = original.Function<void (*)(void*)>(0x1fa90);
     cases = controls = 0;
     for (bool separate : {false, true}) {

@@ -846,3 +846,22 @@ native streams in the portable test. Main and viewport strips together now have
 **1524 states / 128760 exact rectangles** of independent arithmetic coverage.
 This still does not establish actual native widget/font rasterization, full
 visibility/menu behavior or a separate-window Qt implementation.
+
+Qt now supports the native sidebar divider hit interval, drag clamps and
+proportional window resize. The compatibility host and Qt share the arithmetic;
+x64 retains its binary32 resize multiply, while the x86 compatibility policy
+retains its double intermediate. The original layout oracle passed another
+**42 exact width/ratio cases**, including the one-pixel difference at `0.7f *
+1000`. A minimum-width clamp preserves the ratio for subsequent enlargement.
+Divider motion updates PMM UI metadata without evaluating the scene, replacing
+published snapshots, changing document revision or adding bone undo history.
+Focus loss ends the gesture. Save/reopen retains the final sidebar width.
+
+Local validation passed all **22 P4 regressions** and the three touched Win32
+editor/layout tests. Offscreen Qt input passed at scale factors 1, 1.5 and 2,
+including drag limits, shrink/enlarge, cancellation and language changes. The
+previous main/viewport layout references passed all three platform editor jobs
+at `0360a5c`
+([run 41316951102](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41316951102)).
+These tests cover supplied Qt canvas dimensions, not exposed window-manager
+resize events, full native widget metrics or the remaining P4 exit gates.

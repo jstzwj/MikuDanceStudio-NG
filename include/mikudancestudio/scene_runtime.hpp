@@ -33,6 +33,7 @@ public:
     bool Tick(float deltaSeconds, std::string&);
     bool Edit(const std::function<void(format::PmmSceneDocument&)>&, std::string&);
     void SetPanelExpanded(unsigned option, bool expanded);
+    void SetSidebarWidth(int width);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
     void ClearPoseEditMarkers();
     void SetBoneSelection(std::uint8_t, const std::vector<std::uint32_t>&, int active);

@@ -50,6 +50,10 @@ private:
     QElapsedTimer clock_;
     bool testing_ = false, refreshing_ = false;
     int side_ = 250;
+    int sidebarClientWidth_ = 0, sidebarStoredWidth_ = 250;
+    float sidebarRatio_ = 0;
+    bool sidebarDragging_ = false;
+    QCursor sidebarCursor_;
     int frameNormalization_ = 100;
     std::map<std::uint8_t, int> scopeSelections_;
     std::map<std::uint8_t, std::weak_ptr<const runtime::ModelResource>> scopeResources_;
@@ -57,6 +61,7 @@ private:
     QString lastError_;
     AudioTransport audio_;
     void Layout();
+    void FinishSidebarDrag();
     void BuildMenus();
     void Texts();
     void EditField(int);

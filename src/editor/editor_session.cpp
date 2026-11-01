@@ -304,6 +304,9 @@ EditorSession::State EditorSession::Current() const {
 void EditorSession::SetPanelExpanded(unsigned option, bool expanded) {
     runtime_->SetPanelExpanded(option, expanded);
 }
+void EditorSession::SetSidebarWidth(int width) {
+    runtime_->SetSidebarWidth(width);
+}
 void EditorSession::SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded) {
     runtime_->SetGroupExpanded(slot, group, expanded);
 }

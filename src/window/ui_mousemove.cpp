@@ -65,6 +65,7 @@
 #include "mikudancestudio/accessory_layout.hpp"
 #include "mikudancestudio/global_key_layout.hpp"
 #include "mikudancestudio/mmd_app.hpp"
+#include "mikudancestudio/sidebar_navigation.hpp"
 #include "mikudancestudio/timeline_selection_grid.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
 #include "mikudancestudio/model.hpp"
@@ -94,7 +95,6 @@ constexpr int kColPitch = 14;    // 0x0E  hover column pitch (bands)
 constexpr int kGridX0 = 94;      // 0x5E  first hover row x
 constexpr int kColY0 = 209;      // 0xD1  first hover column y (display)
 constexpr int kColY0Bone = 153;  // 0x99  first hover column y (bone-edit)
-constexpr int kSidebarMin = 250; // 0xFA  sidebar drag minimum
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -285,8 +285,7 @@ void HandleMouseMove(std::uint32_t lParam, int mouseY) {
         }
         RECT rc;
         GetClientRect(static_cast<HWND>(app->Hwnd()), &rc);
-        if ((app->SidebarWidth() <= app->MouseX() && app->MouseY() <= rc.bottom - 158 &&
-             app->MouseX() <= app->SidebarWidth() + 6) &
+        if (ui::SidebarHit(app->MouseX(), app->MouseY(), app->SidebarWidth(), rc.bottom) &
             (app->FloatingWindow() == nullptr)) {
             SetCursor(
                 LoadCursorA(nullptr,
@@ -295,14 +294,9 @@ void HandleMouseMove(std::uint32_t lParam, int mouseY) {
 
         // --- 3. sidebar drag (0x444E54) ------------------------------------
         if (app->SidebarResizeDragging() != 0) {
-            const int x = app->MouseX();
-            app->SidebarWidth() = x;
-            if (x < kSidebarMin)
-                app->SidebarWidth() = kSidebarMin;
-            if (rc.right - 5 < app->SidebarWidth())
-                app->SidebarWidth() = rc.right - 5;
-            app->SidebarRatio() = static_cast<float>(static_cast<double>(app->SidebarWidth()) /
-                                                     static_cast<double>(rc.right));
+            const auto placement = ui::DragSidebar(app->MouseX(), rc.right);
+            app->SidebarWidth() = placement.width;
+            app->SidebarRatio() = placement.ratio;
             RelayoutSidebarControls(app);
             PanelPaint(app);
             const int sidebar = app->SidebarWidth();
