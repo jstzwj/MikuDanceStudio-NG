@@ -355,6 +355,10 @@ void EditorWindow::CreateViewport(const rhi::BackendOptions& options) {
         Refresh();
     };
     Layout();
+    // A replacement child of an already-visible QWidget is not implicitly
+    // shown. Ensure Qt attaches/maps the new native child on every platform.
+    // A hidden ancestor still keeps hidden-window acceptance off the desktop.
+    container->show();
 }
 void EditorWindow::SetSeparateWindow(bool enabled) {
     if (enabled == (separate_ != nullptr))

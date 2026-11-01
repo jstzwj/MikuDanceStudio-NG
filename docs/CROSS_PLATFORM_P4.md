@@ -1576,3 +1576,11 @@ on DX11, DX12 and Vulkan. Fullscreen round trips, playback, unchanged document
 and body state, field-focus behavior and both docked/separate restoration are
 covered. These are local results; the corrected X11/Cocoa paths still require
 an isolated CI run.
+
+Cocoa fullscreen/detach acceptance passed in editor run `41342536406`. X11
+still exposed a replacement-container visibility issue: a new child of an
+already-visible widget is not automatically mapped. `CreateViewport` now
+explicitly shows its container; hidden ancestors continue to keep local windows
+invisible. The Qt menu/editor checks and all three never-shown Windows backend
+lifecycle runs passed after this correction; the isolated X11/Wayland rerun is
+still required.
