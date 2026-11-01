@@ -58,6 +58,36 @@ int main(int argc, char** argv) {
     CHECK(!window.isVisible());
     CHECK(window.SetLanguage("en"));
     {
+        qt::EditorWindow registration(std::filesystem::absolute(argv[2]), true);
+        auto& s = registration.Session();
+        CHECK(s.ImportModel(root / "articulated.pmd", reason));
+        registration.Refresh();
+        auto* physics =
+            static_cast<QAbstractButton*>(registration.Control(panel::kPhysicsCheckbox));
+        CHECK(physics->isChecked() && s.RegistrationPhysics());
+        const auto revision = s.Revision(), frames = s.Runtime().Counters().frames;
+        const auto* runtime = &s.Runtime();
+        const auto bodies = s.Runtime().Bodies(0);
+        physics->click();
+        CHECK(!physics->isChecked() && !s.RegistrationPhysics());
+        for (const char* language : {"en", "ja", "zh_CN"}) {
+            CHECK(registration.SetLanguage(language));
+            CHECK(!physics->isChecked() && !s.RegistrationPhysics());
+        }
+        CHECK(s.Revision() == revision && &s.Runtime() == runtime);
+        CHECK(s.Runtime().Counters().frames == frames && s.Runtime().Bodies(0) == bodies);
+        CHECK(!s.CanUndo());
+        s.Selected().bones = {0};
+        registration.Dispatch(panel::kRegisterFrameButton);
+        CHECK(registration.LastError().isEmpty());
+        CHECK(s.Document().models[0].boneKeys.dense[0].physicsDisabled == 1);
+        physics->click();
+        registration.Dispatch(panel::kRegisterFrameButton);
+        CHECK(registration.LastError().isEmpty());
+        CHECK(s.Document().models[0].boneKeys.dense[0].physicsDisabled == 0);
+        CHECK(!registration.isVisible() && !registration.RenderWindow()->isVisible());
+    }
+    {
         qt::EditorWindow divider(std::filesystem::absolute(argv[2]), true);
         auto* canvas = divider.centralWidget();
         CHECK(divider.Session().ImportModel(root / "pose.pmd", reason));

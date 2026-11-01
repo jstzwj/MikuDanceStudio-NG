@@ -424,6 +424,7 @@ void EditorWindow::Refresh() {
     check(kPlaybackLoopCheckbox, doc.timeline.playbackLoop);
     check(kPlaybackReturnCheckbox, doc.timeline.returnToStart);
     check(kPhysicsFrameCheckbox, session_.AutoInterpolation());
+    check(kPhysicsCheckbox, session_.RegistrationPhysics());
     check(kPlaybackFromCurrentCheckbox, doc.timeline.startAtCurrent);
     if (auto* b = qobject_cast<QAbstractButton*>(Control(kPlayButton)))
         b->setText(language_.Text(session_.Playing() ? "stop" : "control.408"));
@@ -825,6 +826,9 @@ void EditorWindow::Dispatch(int id) {
     bool ok = true;
     const auto current = unsigned(session_.Document().timeline.currentFrame);
     switch (id) {
+    case kPhysicsCheckbox:
+        session_.SetRegistrationPhysics(static_cast<QAbstractButton*>(Control(id))->isChecked());
+        break;
     case kPhysicsFrameCheckbox:
         session_.SetAutoInterpolation(static_cast<QAbstractButton*>(Control(id))->isChecked());
         break;

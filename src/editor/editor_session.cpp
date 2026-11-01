@@ -817,6 +817,18 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
             auto& entry = history.at(address.slot);
             entry.partialKeys = true;
             entry.keys = {};
+            // Native SnapshotPose reads the live editable bone transforms,
+            // including the last completed IK solve, before choosing backups.
+            for (auto& saved : entry.poses) {
+                PmmEvaluatedBone live;
+                bool physics;
+                if (!runtime_->BoneRegistrationPose(address.slot, saved.index, 0, live, physics,
+                                                    reason))
+                    return false;
+                std::copy(live.translation.begin(), live.translation.end(),
+                          saved.components.begin());
+                std::copy(live.rotation.begin(), live.rotation.end(), saved.components.begin() + 3);
+            }
             const auto clear = [](auto& track) {
                 for (auto& key : track.dense)
                     key.allocated = 0;
@@ -843,20 +855,27 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
             return false;
         }
         if (address.track == Track::Bone) {
-            const auto& boneKey = std::get<PmmBoneKey>(key);
             auto* model = Model(next.document, address.slot);
-            PmmBoneRegistrationPose pose{boneKey.position, boneKey.rotation, {}};
-            const auto& rigids = next.assets.models.at(address.slot)->Document().rigids;
-            if (std::any_of(rigids.begin(), rigids.end(), [&](const auto& body) {
-                    return body.fields.mode > 0 && body.fields.boneIndex == int(address.channel);
-                }))
-                pose.physicsDisabled = boneKey.physicsDisabled;
+            PmmEvaluatedBone live;
+            bool physics;
+            if (!runtime_->BoneRegistrationPose(address.slot, address.channel,
+                                                next.document.physics.playbackMode, live, physics,
+                                                reason))
+                return false;
+            PmmBoneRegistrationPose pose{live.translation, live.rotation, {}};
+            if (physics)
+                pose.physicsDisabled = !registrationPhysics_;
             if (!RegisterPmmBonePose(model->boneKeys, address.channel, address.frame, pose,
                                      autoInterpolation_, history.at(address.slot).keyRecords)) {
                 reason = "key-registration-failed";
                 return false;
             }
-            model->bonePose.at(address.channel).flags[1] = 0;
+            auto& current = model->bonePose.at(address.channel);
+            std::copy(pose.position.begin(), pose.position.end(), current.components.begin());
+            std::copy(pose.rotation.begin(), pose.rotation.end(), current.components.begin() + 3);
+            if (physics)
+                current.flags[0] = *pose.physicsDisabled;
+            current.flags[1] = 0;
             next.selection.keys.insert(address);
         } else if (!Put(next.document, address, key)) {
             reason = "key-registration-failed";

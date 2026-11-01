@@ -61,6 +61,12 @@ public:
     // PMM bone indices address its name-bound order, which may differ from the
     // immutable resource. BoneAttachment itself takes a resource bone index.
     bool DocumentBoneIndex(int model, int documentBone, int& resourceBone, std::string&) const;
+    // Read the last completed CPU frame in PMM bone order. Mode zero returns
+    // the editable pose; other modes select the same physics backup as MMD's
+    // register command. This never advances simulation or changes the model.
+    bool BoneRegistrationPose(std::uint8_t, std::uint32_t documentBone, unsigned physicsMode,
+                              format::PmmEvaluatedBone&, bool& physicsControlled,
+                              std::string&) const;
     bool BoneAttachment(int model, int resourceBone, cpu_math::Matrix&, std::string&) const;
     bool AccessoryPlacement(std::uint8_t, cpu_math::Matrix&, std::string&) const;
 

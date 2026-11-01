@@ -39,8 +39,9 @@ original UI event-loop or all timeline-topology acceptance. No window is created
 The portable regression additionally checks model isolation, camera/Morph
 preservation, selection, failed edits, gesture grouping and unload invalidation.
 Frame-line/marked-key deletion and bone registration now have touched-record
-evidence below. Clipboard, chained range operations and physics registration
-through the actual Qt controls remain part of the broader timeline gate.
+evidence below; physics registration is connected to the Qt control and CPU pose
+source. Clipboard, reused native slot payloads and chained range operations
+remain part of the broader timeline gate.
 
 Local Windows x64 checks executed during implementation:
 
@@ -1224,3 +1225,37 @@ the original registration and history oracles and the Qt application build.
 The preceding deletion batch (`47e440a`) passed all three platform editor jobs in
 [run 41331565985](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41331565985),
 along with the formats and rendering workflows.
+
+## Physics pose registration and Qt option
+
+Control 499 now defaults to checked, as in original initialization. It changes
+the next bone registration's physics-enabled flag. Clicking it does not edit the
+document, rebuild resources, advance physics or consume history. English,
+Japanese and Chinese refreshes, New and Open retain this session-level option.
+
+`SceneRuntime::BoneRegistrationPose` reads the last completed CPU frame and maps
+PMM bone indices through the model's name bindings. Mode 0 uses the current
+editable pose; mode 1 uses the physics backup for controlled bones; modes 2/3 use
+that backup only when the bone's prior physics-disabled flag is clear. Registration
+then applies the checkbox to the key and current physics flag. History captures
+the live editable transforms before selecting backups, including completed IK
+results, instead of treating the saved document pose as the CPU bone state.
+
+The new public `editor_registration` regression passed 16 PMD/PMX mode/checkbox
+cases, including distinct editable/physics poses, repeated undo/redo, persistence,
+atomic rejection and reordered document bone names. The offscreen Qt regression
+checks real control dispatch, the initial value and language changes without a
+new simulation frame, changed body state or history entry. The existing original
+registration oracle provides the independent mode/flag/pose-selection comparison;
+these integration checks exercise generated physics models and the Qt host.
+
+This does not establish uninterrupted physical-world continuity across every
+editing command: committing document edits still constructs a replacement
+runtime. Reused native key-slot payloads, chained operations and the remaining
+P4/C1 gates need further acceptance.
+
+Validation passed all 27 local P4 tests (69.32 seconds), five Win32 editor
+tests, the 123-checkpoint original history comparison and the Qt application
+build. The registration-capture batch (`1b8cbb6`) passed the three-platform editor
+[run 41332621890](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41332621890)
+and both formats/rendering workflows.

@@ -828,6 +828,27 @@ bool SceneRuntime::DocumentBoneIndex(int slot, int index, int& output, std::stri
     reason.clear();
     return true;
 }
+bool SceneRuntime::BoneRegistrationPose(std::uint8_t slot, std::uint32_t documentBone,
+                                        unsigned mode, format::PmmEvaluatedBone& output,
+                                        bool& physicsControlled, std::string& reason) const {
+    int index;
+    if (mode > 3 || documentBone > unsigned(std::numeric_limits<int>::max())) {
+        reason = "invalid-registration-pose";
+        return false;
+    }
+    if (!DocumentBoneIndex(slot, int(documentBone), index, reason))
+        return false;
+    const auto& bone = impl_->items.at(slot).timeline.bones.at(std::size_t(index));
+    const bool backup = bone.hasRigidBody && (mode == 1 || (mode >= 2 && !bone.physicsDisabled));
+    format::PmmEvaluatedBone pose;
+    std::copy_n(backup ? bone.ikBackup : bone.trans, 3, pose.translation.begin());
+    std::copy_n(backup ? bone.ikBackup + 3 : bone.rotQuat, 4, pose.rotation.begin());
+    pose.physicsDisabled = bone.physicsDisabled != 0;
+    output = pose;
+    physicsControlled = bone.hasRigidBody != 0;
+    reason.clear();
+    return true;
+}
 bool SceneRuntime::BoneAttachment(int slot, int index, cpu_math::Matrix& output,
                                   std::string& reason) const {
     if (slot < 0 || slot > 254 || !Snapshot(std::uint8_t(slot)) || index < 0 ||
