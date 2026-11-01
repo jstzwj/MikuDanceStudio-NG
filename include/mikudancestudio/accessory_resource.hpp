@@ -23,12 +23,18 @@ class AccessoryResource final {
 public:
     static bool Parse(const void*, std::size_t, std::shared_ptr<const AccessoryResource>&,
                       std::string& reason);
+    // Bundled editor mesh: convex quads, generated face normals and white
+    // vertex colors. Ordinary imported accessories retain the strict contract.
+    static bool ParseOperationMesh(const void*, std::size_t,
+                                   std::shared_ptr<const AccessoryResource>&, std::string& reason);
     const std::vector<AccessoryVertex>& Vertices() const { return vertices_; }
     const std::vector<std::uint32_t>& Indices() const { return indices_; }
     const std::vector<AccessoryMaterial>& Materials() const { return materials_; }
     const std::vector<AccessorySubset>& Subsets() const { return subsets_; }
 
 private:
+    static bool ParseImpl(const void*, std::size_t, std::shared_ptr<const AccessoryResource>&,
+                          std::string&, bool operationMesh);
     std::vector<AccessoryVertex> vertices_;
     std::vector<std::uint32_t> indices_;
     std::vector<AccessoryMaterial> materials_;

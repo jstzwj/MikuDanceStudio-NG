@@ -13,6 +13,8 @@ const char* AssetName(AssetId id) {
     if (value >= 0x67 && value <= 0x71)
         return toons[value - 0x67];
     switch (id) {
+    case AssetId::AxisMesh:
+        return "axis.x";
     case AssetId::HudSprites:
         return "hud_sprites.png";
     case AssetId::AccessoryHelper:

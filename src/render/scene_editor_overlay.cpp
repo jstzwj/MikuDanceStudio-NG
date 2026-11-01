@@ -1,6 +1,9 @@
 #include "mikudancestudio/scene_editor_overlay.hpp"
 #include "mikudancestudio/bone_overlay.hpp"
 #include "mikudancestudio/background_placement.hpp"
+#include "mikudancestudio/bone_local_axes.hpp"
+#include "mikudancestudio/bone_operation_axis.hpp"
+#include "mikudancestudio/text_encoding.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -20,7 +23,7 @@ struct LineVertex {
 };
 static_assert(sizeof(LineVertex) == 16);
 using SpriteVertex = std::array<float, 8>;
-bool Fail(std::string& reason, const char* text) {
+bool Fail(std::string& reason, const std::string& text) {
     reason = text;
     return false;
 }
@@ -79,6 +82,12 @@ bool SceneEditorOverlay::Load(const rhi::AssetSource& source, std::string& reaso
     rhi::AtlasAsset atlas;
     if (!rhi::LoadAtlas(source, rhi::AssetId::HudSprites, atlas))
         return Fail(reason, "editor_overlay_atlas_unavailable");
+    std::vector<std::uint8_t> bytes;
+    std::shared_ptr<const runtime::AccessoryResource> axis;
+    if (!source.Read(rhi::AssetId::AxisMesh, bytes))
+        return Fail(reason, "editor_overlay_axis_unavailable");
+    if (!runtime::AccessoryResource::ParseOperationMesh(bytes.data(), bytes.size(), axis, reason))
+        return Fail(reason, "editor_overlay_axis_unavailable:" + reason);
     // Disjoint from SceneFrameProducer's ascending low resource namespace.
     constexpr std::uint64_t base = 0x7000000000000000ull;
     texture_.key = {base, 1};
@@ -87,6 +96,17 @@ bool SceneEditorOverlay::Load(const rhi::AssetSource& source, std::string& reaso
     lines_.key.id = base + 1;
     lines_.vertexLayout = rhi::VertexLayout::PositionColor;
     sprites_.key.id = base + 2;
+    axisVertices_.key.id = base + 3;
+    axisIndices_.key.id = base + 4;
+    axisIndices_.kind = rhi::ReplayResourceKind::Indices;
+    axisIndices_.indexFormat = rhi::IndexFormat::UInt32;
+    std::vector<SpriteVertex> vertices;
+    for (const auto& v : axis->Vertices())
+        vertices.push_back({v.position[0], v.position[1], v.position[2], v.normal[0], v.normal[1],
+                            v.normal[2], v.uv[0], v.uv[1]});
+    if (!Publish(axisVertices_, vertices) || !Publish(axisIndices_, axis->Indices()))
+        return Fail(reason, "editor_overlay_version_exhausted");
+    axis_ = std::move(axis);
     loaded_ = true;
     reason.clear();
     return true;
@@ -104,6 +124,7 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
     const float scale = BackgroundViewScale(int(width));
     std::vector<LineVertex> lines;
     std::vector<SpriteVertex> sprites;
+    FramePass axisPass;
     auto toolState = tools ? *tools : ViewportTools{};
     const auto appendLine = [&](float x, float y, float ex, float ey, std::uint32_t argb) {
         // Model vertex colors have an explicit RGBA8 boundary; native lines are ARGB.
@@ -188,6 +209,86 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
             if (model->selection.selectedBone == int(i))
                 active = index;
         }
+        if (tools && active >= 0 &&
+            cpu_bone::OperationAxisActive(bones[std::size_t(active)].type,
+                                          bones[std::size_t(active)].flags, toolState.operation,
+                                          toolState.dragMode)) {
+            struct AxisBone {
+                cpu_bone::BoneType type;
+                std::uint16_t flags;
+                float position[3], matInit[16], localAxes[6];
+                int tailBone;
+                char name[20]{};
+            };
+            std::vector<AxisBone> axes(bones.size());
+            for (std::size_t i = 0; i < axes.size(); ++i) {
+                auto& bone = axes[i];
+                const auto& fields = resource->Document().bones[i].fields;
+                bone.type = bones[i].type;
+                bone.flags = bones[i].flags;
+                std::copy_n(fields.position, 3, bone.position);
+                std::copy_n(fields.localAxes, 6, bone.localAxes);
+                std::copy_n(snapshot->bones[i].skin.data(), 16, bone.matInit);
+                bone.tailBone = bones[i].tailBone < 0 ? 0 : bones[i].tailBone;
+                std::string name;
+                if (text::EncodeCp932(resource->BoneNames()[i], name))
+                    std::copy_n(name.data(), std::min(name.size(), sizeof bone.name - 1),
+                                bone.name);
+            }
+            struct AxisModel {
+                AxisBone* boneTable;
+                int selectedBone, physicsMode;
+            } axisModel{axes.data(), active,
+                        resource->SourceKind() == format::ModelKind::Pmx ? 2 : 1};
+            Matrix axisWorld;
+            const auto eye = inputs.view.editorNavigation ? inputs.view.editorEye
+                             : inputs.scene.camera.parentModel >= 0
+                                 ? inputs.scene.camera.position
+                                 : Vec3{0, 0, inputs.scene.camera.distance};
+            const auto fov =
+                inputs.view.editorNavigation ? inputs.view.editorFov : inputs.scene.camera.fov;
+            if (cpu_bone::OperationAxis(
+                    axes[std::size_t(active)], toolState.operation, toolState.dragMode,
+                    toolState.coordinateSystem, inputs.world, eye, fov,
+                    [&](float* basis) {
+                        cpu_bone::LocalAxes(&axisModel, basis,
+                                            [](float* v) { cpu_model::Math{}.normalize(v, v); });
+                    },
+                    [](const auto& a, const auto& b) { return Multiply(a, b); }, axisWorld)) {
+                for (float value : axisWorld)
+                    if (!std::isfinite(value))
+                        return Fail(reason, "editor_overlay_axis_transform_invalid");
+                constexpr std::uint64_t depth = 0x7000000000000010ull;
+                frame.targets.push_back({depth,
+                                         {width, height, TextureFormat::Depth24Stencil8,
+                                          std::uint32_t(TextureAccess::DepthStencilAttachment)}});
+                axisPass.name = "editor_operation_axis";
+                axisPass.color = FrameAttachment{frame.finalColor, AttachmentLoad::Load};
+                axisPass.depthStencil = FrameAttachment{depth};
+                auto local = inputs;
+                local.world = axisWorld;
+                for (const auto& subset : axis_->Subsets()) {
+                    const auto& m = axis_->Materials()[subset.material];
+                    ModelMaterialInputs material;
+                    material.diffuse = m.diffuse;
+                    material.ambient = m.ambient;
+                    std::copy_n(m.specular.data(), 3, material.specular.begin());
+                    std::copy_n(m.emissive.data(), 3, material.emissive.begin());
+                    material.shininess = m.shininess;
+                    ModelReplayDraw draw;
+                    draw.vertices = axisVertices_.key;
+                    draw.indices = axisIndices_.key;
+                    draw.firstIndex = subset.firstIndex;
+                    draw.indexCount = subset.indexCount;
+                    draw.vertexCount = std::uint32_t(axis_->Vertices().size());
+                    if (!BuildModelInputs(local, material, {}, draw.pipeline))
+                        return Fail(reason, "editor_overlay_axis_pipeline_invalid");
+                    draw.pipeline.shader.layout = {};
+                    draw.pipeline.shader.normalizeNormals = true;
+                    axisPass.draws.push_back(std::move(draw));
+                }
+            }
+        }
         struct Relation {
             int boneIndex, targetBone;
             bool enabled;
@@ -238,7 +339,7 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
     }
     // The replay contract requires a pure clear to have no upload resources.
     // Drop leases only for that case and publish fresh versions on revival.
-    if (lines.empty() && sprites.empty() &&
+    if (lines.empty() && sprites.empty() && axisPass.draws.empty() &&
         std::none_of(frame.passes.begin(), frame.passes.end(),
                      [](const auto& p) { return !p.draws.empty(); })) {
         retired_ = true;
@@ -249,7 +350,7 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
         return true;
     }
     if (retired_) {
-        for (auto* resource : {&texture_, &lines_, &sprites_})
+        for (auto* resource : {&texture_, &lines_, &sprites_, &axisVertices_, &axisIndices_})
             if (resource->key.version == UINT64_MAX)
                 return Fail(reason, "editor_overlay_version_exhausted");
         ++texture_.key.version;
@@ -257,10 +358,17 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
             ++lines_.key.version;
         if (!sprites_.bytes.empty())
             ++sprites_.key.version;
+        ++axisVertices_.key.version;
+        ++axisIndices_.key.version;
         retired_ = false;
     }
     if (!Publish(lines_, lines) || !Publish(sprites_, sprites))
         return Fail(reason, "editor_overlay_version_exhausted");
+    // A revived upload has a new version; update draws made before retirement handling.
+    for (auto& draw : axisPass.draws) {
+        draw.vertices = axisVertices_.key;
+        draw.indices = axisIndices_.key;
+    }
     FramePass pass;
     pass.name = "editor_bone_overlay";
     pass.color = FrameAttachment{frame.finalColor, AttachmentLoad::Load};
@@ -299,6 +407,10 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
         frame.resources.push_back(lines_);
     if (!sprites_.bytes.empty())
         frame.resources.push_back(sprites_);
+    frame.resources.push_back(axisVertices_);
+    frame.resources.push_back(axisIndices_);
+    if (!axisPass.draws.empty())
+        frame.passes.push_back(std::move(axisPass));
     if (!pass.draws.empty())
         frame.passes.push_back(std::move(pass));
     const auto valid = ValidateRenderFrame(frame);

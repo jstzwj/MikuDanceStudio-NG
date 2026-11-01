@@ -15,7 +15,8 @@ public:
                 std::string&, const ViewportTools* tools = nullptr);
 
 private:
-    rhi::ModelReplayResource texture_, lines_, sprites_;
+    rhi::ModelReplayResource texture_, lines_, sprites_, axisVertices_, axisIndices_;
+    std::shared_ptr<const runtime::AccessoryResource> axis_;
     bool loaded_ = false;
     bool retired_ = false;
 };

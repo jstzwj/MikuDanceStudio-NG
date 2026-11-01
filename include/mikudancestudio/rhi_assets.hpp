@@ -20,6 +20,7 @@ enum class AssetId : std::uint16_t {
     Toon09,
     Toon10,
     AccessoryHelper = 0x72,
+    AxisMesh = 0x73,
     SceneFont = 0x100
 };
 

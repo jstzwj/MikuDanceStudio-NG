@@ -707,3 +707,32 @@ without changing expectations or tolerances.
 The full local Win32 foundation suite then passed (75 registered tests, with
 only the explicitly external PMM asset case skipped), including all P4 commands,
 scene/physics comparisons and the dependency audit.
+The same boundary explicitly exports the floating-point policy for public
+inline arithmetic; ARM64 consumers also need `-ffp-contract=off` to retain
+separate multiply/add rounding instead of inheriting it accidentally from Bullet.
+
+The Qt viewport now draws the bundled `axis.x` operation mesh before 2D bone
+feedback. Native and portable hosts share the selected-bone transform and local
+axis construction. The mesh has its own depth clear; it does not occlude the
+subsequent screen markers and is excluded from exports and screen history.
+Upload identities survive hiding/playback, resize and device replacement, with
+fresh versions after a pure-clear retirement. The special importer accepts only
+the operation mesh's convex quads, generated normals and white vertex colors;
+ordinary accessory imports keep their existing strict rules.
+
+The opt-in Windows x64 `editor_axis_oracle_test <original.exe> <fixture>` calls
+the hash-verified original function at RVA `37490` with raw application offsets
+and fake COM transform/clear callbacks. It passed **10,488 cases**, including PMD
+Japanese local axes, PMX axes, constrained bones, local/world coordinates,
+three frame/eye/FOV variants and operation/drag eligibility. Maximum absolute
+matrix error was `9.53674316e-7`, under the existing `2e-5` matrix limit. This
+checks supplied bone/frame matrices, not independent pose generation or native
+GPU rasterization. No original entrypoint, window or GPU device runs.
+
+Local DX11/DX12/Vulkan image tests passed strict repeated submission and exact
+restoration after device replacement, alongside playback hiding and odd-size
+resize. Removing only the 3D pass changes the rendered image. The native viewport
+regression passed; the 1296-case original drag comparison and 1800-case exact
+bone-overlay comparison also passed after extracting local axes. Offscreen Qt
+gestures passed at scale factors 1, 1.5 and 2. Complete exposed input, UI/font
+and C1 rasterization acceptance remain open.

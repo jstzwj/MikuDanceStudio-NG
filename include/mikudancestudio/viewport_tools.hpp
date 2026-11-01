@@ -5,7 +5,7 @@
 namespace mikudancestudio::render {
 struct ViewportTools {
     bool camera = true, playing = false;
-    int coordinateSystem = 0, boneMode = 0, operation = 0, editMode = 0;
+    int coordinateSystem = 0, boneMode = 0, operation = 0, editMode = 0, dragMode = 0;
     int centerX = 393939, centerY = 393939;
     bool selectionBox = false;
     std::array<int, 4> box{}; // Physical pixel left/top/right/bottom.

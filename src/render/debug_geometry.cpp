@@ -12,6 +12,7 @@
 #include <d3d9.h>
 
 #include <cmath>
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <new>
@@ -25,6 +26,7 @@
 #include "mikudancestudio/ported_funcs.hpp"
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/model_input_bridge.hpp"
+#include "mikudancestudio/bone_operation_axis.hpp"
 
 namespace mikudancestudio {
 namespace {
@@ -391,70 +393,30 @@ void DrawAccessoryDebug(MMDApp* app) {
 }
 
 bool BuildBoneOperationAxisTransform(MMDApp* app, const mdl::ModelRecord* model,
-                                      const float frameMatrix[16], float* output) {
+                                     const float frameMatrix[16], float* output) {
     if (!model || !model->boneTable)
         return false;
     const int selected = model->selectedBone;
     if (selected < 0 || unsigned(selected) >= model->boneCount)
         return false;
-    auto* bones = model->boneTable;
-    const mdl::BoneRecord* bone = &bones[selected];
-    const mdl::BoneType type = bone->type;
-    if (type == mdl::BoneType::FixedAxis ||
-        (type == mdl::BoneType::UnderIk &&
-         (bone->flags & mdl::kBoneFlagFixedAxis) == mdl::kBoneFlagFixedAxis))
-        return false;
-    const int operation = static_cast<int>(app->ViewportToolOperation());
-    const int mode = static_cast<int>(app->InteractionDragMode());
-    if (!((operation >= 9 && operation <= 14) || (mode >= 4 && mode <= 7) ||
-          (mode >= 10 && mode <= 12)))
-        return false;
-
-    auto& api = d3dx::Get();
-    Matrix world;
-    Matrix translation;
-    api.translation(&translation, bone->position[0], bone->position[1], bone->position[2]);
-    if (app->state.coordinateSystem == 1) {
-        api.multiply(&world, &translation, BoneMatrix(bone));
-        const float x = world.m[3][0];
-        const float y = world.m[3][1];
-        const float z = world.m[3][2];
-        Identity(&world);
-        world.m[3][0] = x;
-        world.m[3][1] = y;
-        world.m[3][2] = z;
-    } else {
-        Matrix basis;
-        BoneLocalAxes(model, &basis.m[0][0]);
-        api.multiply(&world, &basis, &translation);
-        api.multiply(&world, &world, BoneMatrix(bone));
-    }
-    const auto* frame = reinterpret_cast<const Matrix*>(frameMatrix);
-    api.multiply(&world, &world, frame);
-
-    const float px = bone->matInit[0] * bone->position[0] + bone->matInit[4] * bone->position[1] +
-                     bone->matInit[8] * bone->position[2] + bone->matInit[12];
-    const float py = bone->matInit[1] * bone->position[0] + bone->matInit[5] * bone->position[1] +
-                     bone->matInit[9] * bone->position[2] + bone->matInit[13];
-    const float pz = bone->matInit[2] * bone->position[0] + bone->matInit[6] * bone->position[1] +
-                     bone->matInit[10] * bone->position[2] + bone->matInit[14];
-    const float pw = bone->matInit[3] * bone->position[0] + bone->matInit[7] * bone->position[1] +
-                     bone->matInit[11] * bone->position[2] + bone->matInit[15];
-    const float tx =
-        px * frame->m[0][0] + py * frame->m[1][0] + pz * frame->m[2][0] + pw * frame->m[3][0];
-    const float ty =
-        px * frame->m[0][1] + py * frame->m[1][1] + pz * frame->m[2][1] + pw * frame->m[3][1];
-    const float tz =
-        px * frame->m[0][2] + py * frame->m[1][2] + pz * frame->m[2][2] + pw * frame->m[3][2];
-    const float dx = tx - app->ViewOffsetX();
-    const float dy = ty - app->ViewOffsetY();
-    const float dz = tz - app->CameraDistance();
-    const float scale = std::sqrt(dx * dx + dy * dy + dz * dz) * (app->CameraFov() * 0.001f);
-    Matrix scaleMatrix;
-    api.scaling(&scaleMatrix, scale, scale, scale);
-    api.multiply(&world, &scaleMatrix, &world);
-    std::memcpy(output, &world, sizeof(world));
-    return true;
+    std::array<float, 16> frame, result;
+    std::copy_n(frameMatrix, 16, frame.begin());
+    const bool built = cpu_bone::OperationAxis(
+        model->boneTable[selected], static_cast<int>(app->ViewportToolOperation()),
+        static_cast<int>(app->InteractionDragMode()), app->state.coordinateSystem, frame,
+        {app->ViewOffsetX(), app->ViewOffsetY(), app->CameraDistance()}, app->CameraFov(),
+        [&](float* basis) { BoneLocalAxes(model, basis); },
+        [](const auto& a, const auto& b) {
+            std::array<float, 16> r;
+            d3dx::Get().multiply(reinterpret_cast<Matrix*>(r.data()),
+                                 reinterpret_cast<const Matrix*>(a.data()),
+                                 reinterpret_cast<const Matrix*>(b.data()));
+            return r;
+        },
+        result);
+    if (built)
+        std::copy(result.begin(), result.end(), output);
+    return built;
 }
 
 void DrawBoneOperationAxis(MMDApp* app, const mdl::ModelRecord* model,

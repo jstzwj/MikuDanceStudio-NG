@@ -106,6 +106,7 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         render::ViewportTools tools;
         tools.coordinateSystem = int(session_.CoordinateSystem());
         tools.operation = toolOperation_;
+        tools.dragMode = int(session_.BoneDragMode());
         tools.selectionBox = box_;
         const auto start = DevicePoint(anchor_), end = DevicePoint(previous_);
         tools.box = {start.x(), start.y(), end.x(), end.y()};

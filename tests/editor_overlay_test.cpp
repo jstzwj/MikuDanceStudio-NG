@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <tuple>
+#include <algorithm>
 using namespace mikudancestudio;
 std::string reason;
 #define CHECK(x)                                                                                   \
@@ -144,6 +145,27 @@ int main(int argc, char** argv) {
     }
     const auto root = std::filesystem::absolute(std::filesystem::u8path(argv[1]));
     rhi::FileAssetSource assets(std::filesystem::absolute(std::filesystem::u8path(argv[2])));
+    {
+        std::vector<std::uint8_t> bytes;
+        CHECK(assets.Read(rhi::AssetId::AxisMesh, bytes));
+        std::shared_ptr<const runtime::AccessoryResource> axis;
+        CHECK(!runtime::AccessoryResource::Parse(bytes.data(), bytes.size(), axis, reason));
+        CHECK(runtime::AccessoryResource::ParseOperationMesh(bytes.data(), bytes.size(), axis,
+                                                             reason));
+        CHECK(axis->Materials().size() == 6 && axis->Subsets().size() == 6);
+        CHECK(!axis->Vertices().empty() && !axis->Indices().empty());
+        for (const auto& m : axis->Materials())
+            CHECK(m.diffuse[3] == 1 && m.ambient == (std::array<float, 4>{}) && m.texture.empty());
+        for (const auto& v : axis->Vertices()) {
+            const float length =
+                v.normal[0] * v.normal[0] + v.normal[1] * v.normal[1] + v.normal[2] * v.normal[2];
+            CHECK(std::abs(length - 1) < 2e-6f);
+        }
+        const auto saved = axis;
+        CHECK(!runtime::AccessoryResource::ParseOperationMesh(bytes.data(), bytes.size() - 3, axis,
+                                                              reason) &&
+              axis == saved);
+    }
     rhi::BackendOptions options;
     options.backend = rhi::Backend::Vulkan;
     if (const auto* value = std::getenv("MDS_GPU_BACKEND")) {
@@ -241,6 +263,42 @@ int main(int argc, char** argv) {
         CHECK(overlay.Append(session.Runtime(), settings, session.Selected().bones, false, unboxed,
                              reason, &tools));
         CHECK(submit(unboxed, repeat) && actual.bytes != repeat.bytes);
+        // The operation mesh has a fresh depth attachment, before all 2D feedback.
+        // Removing only its pass proves that the visible change comes from 3D geometry.
+        for (int coordinate : {0, 1}) {
+            tools.coordinateSystem = coordinate;
+            tools.operation = 9;
+            auto axis = scene;
+            CHECK(overlay.Append(session.Runtime(), settings, session.Selected().bones, false, axis,
+                                 reason, &tools));
+            const auto found =
+                std::find_if(axis.passes.begin(), axis.passes.end(),
+                             [](const auto& p) { return p.name == "editor_operation_axis"; });
+            CHECK(found != axis.passes.end() && found->draws.size() == 6);
+            CHECK(found->color->target == axis.finalColor &&
+                  found->color->load == rhi::AttachmentLoad::Load);
+            CHECK(found->depthStencil && found->depthStencil->load == rhi::AttachmentLoad::Clear);
+            CHECK(submit(axis, actual) && submit(axis, repeat) && actual.bytes == repeat.bytes);
+            const auto vertices = found->draws[0].vertices;
+            axis.passes.erase(found);
+            CHECK(submit(axis, repeat) && actual.bytes != repeat.bytes);
+            auto hidden = scene;
+            CHECK(overlay.Append(session.Runtime(), settings, session.Selected().bones, true,
+                                 hidden, reason, &tools));
+            CHECK(std::none_of(hidden.passes.begin(), hidden.passes.end(),
+                               [](const auto& p) { return p.name == "editor_operation_axis"; }));
+            CHECK(std::any_of(hidden.resources.begin(), hidden.resources.end(), [&](const auto& r) {
+                return r.key.id == vertices.id && r.key.version == vertices.version;
+            }));
+        }
+        tools.operation = 0;
+        tools.dragMode = 4;
+        auto dragged = scene;
+        CHECK(overlay.Append(session.Runtime(), settings, session.Selected().bones, false, dragged,
+                             reason, &tools));
+        CHECK(std::any_of(dragged.passes.begin(), dragged.passes.end(),
+                          [](const auto& p) { return p.name == "editor_operation_axis"; }));
+        CHECK(submit(dragged, actual));
         CHECK(session.Runtime().Counters().frames == frames);
         CHECK(session.SelectModel(255, reason));
         settings.editorModel = 255;
@@ -254,6 +312,20 @@ int main(int argc, char** argv) {
         CHECK(overlay.Append(session.Runtime(), settings, {}, false, scene, reason));
         CHECK(submit(scene, actual));
         CHECK(actual.description.width == 511 && actual.description.height == 383);
+        if (std::string(name) == "pose.pmd") {
+            CHECK(session.SelectModel(0, reason));
+            settings.editorModel = 0;
+            tools.operation = 12;
+            tools.dragMode = 0;
+            CHECK(producer.Build(session.Runtime(), settings, scene, reason));
+            CHECK(overlay.Append(session.Runtime(), settings, session.Selected().bones, false,
+                                 scene, reason, &tools));
+            CHECK(submit(scene, actual));
+            auto replacement = rhi::CreateOffscreenBackendDevice(511, 383, options);
+            CHECK(replacement && renderer.Rebind(*replacement.device));
+            std::swap(gpu, replacement);
+            CHECK(submit(scene, repeat) && repeat.bytes == actual.bytes);
+        }
         CHECK(session.Runtime().Counters().frames == frames);
         CHECK(renderer.Unload(1));
     }
@@ -279,7 +351,7 @@ int main(int argc, char** argv) {
         rhi::RenderFrame scene, frame;
         CHECK(producer.Build(empty.Runtime(), settings, scene, reason));
         CHECK(scene.resources.empty());
-        std::uint64_t firstVersion = 0;
+        std::uint64_t firstVersion = 0, axisVersion = 0;
         for (bool playing : {false, true, true, false}) {
             frame = scene;
             CHECK(overlay.Append(empty.Runtime(), settings, {}, playing, frame, reason));
@@ -291,6 +363,12 @@ int main(int argc, char** argv) {
                 if (firstVersion)
                     CHECK(version > firstVersion);
                 firstVersion = version;
+                const auto axis =
+                    std::find_if(frame.resources.begin(), frame.resources.end(),
+                                 [](const auto& r) { return r.key.id == 0x7000000000000003ull; });
+                CHECK(axis != frame.resources.end());
+                CHECK(axis->key.version > axisVersion);
+                axisVersion = axis->key.version;
             }
             rhi::PreparedModelFrame prepared;
             rhi::CompletionToken token;

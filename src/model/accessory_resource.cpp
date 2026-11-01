@@ -271,6 +271,16 @@ struct Data {
 bool AccessoryResource::Parse(const void* input, std::size_t size,
                               std::shared_ptr<const AccessoryResource>& output,
                               std::string& reason) {
+    return ParseImpl(input, size, output, reason, false);
+}
+bool AccessoryResource::ParseOperationMesh(const void* input, std::size_t size,
+                                           std::shared_ptr<const AccessoryResource>& output,
+                                           std::string& reason) {
+    return ParseImpl(input, size, output, reason, true);
+}
+bool AccessoryResource::ParseImpl(const void* input, std::size_t size,
+                                  std::shared_ptr<const AccessoryResource>& output,
+                                  std::string& reason, bool operationMesh) {
     try {
         Require(input && size >= 16 && size <= 64 * 1024 * 1024, "x-file-size");
         const auto* bytes = static_cast<const unsigned char*>(input);
@@ -309,15 +319,28 @@ bool AccessoryResource::Parse(const void* input, std::size_t size,
         std::vector<cpu_math::Vec3> positions, normals;
         std::vector<std::array<float, 2>> uvs;
         std::vector<std::array<unsigned, 3>> faces, normalFaces;
+        std::vector<unsigned> faceSources;
         std::vector<unsigned> materials;
-        const auto readFaces = [](Data& data, std::size_t count,
-                                  std::vector<std::array<unsigned, 3>>& out) {
-            out.resize(data.Count());
-            for (auto& face : out) {
-                Require(data.Count() == 3, "x-nontriangle-face-not-supported");
-                for (auto& v : face) {
+        const auto readFaces = [&](Data& data, std::size_t count,
+                                   std::vector<std::array<unsigned, 3>>& out) {
+            const auto sourceCount = data.Count();
+            for (unsigned i = 0; i < sourceCount; ++i) {
+                const auto corners = data.Count();
+                Require(corners == 3 || (operationMesh && corners == 4),
+                        "x-nontriangle-face-not-supported");
+                unsigned face[4];
+                for (unsigned c = 0; c < corners; ++c) {
+                    auto& v = face[c];
                     v = data.Count();
                     Require(v < count, "x-vertex-index");
+                }
+                out.push_back({face[0], face[1], face[2]});
+                if (&out == &faces)
+                    faceSources.push_back(i);
+                if (corners == 4) {
+                    out.push_back({face[0], face[2], face[3]});
+                    if (&out == &faces)
+                        faceSources.push_back(i);
                 }
             }
         };
@@ -356,7 +379,8 @@ bool AccessoryResource::Parse(const void* input, std::size_t size,
                 hasMaterials = true;
                 const auto count = data.Count();
                 materials.resize(data.Count());
-                Require(count && materials.size() == faces.size(), "x-material-faces");
+                Require(count && !faceSources.empty() && materials.size() == faceSources.back() + 1,
+                        "x-material-faces");
                 for (auto& index : materials) {
                     index = data.Count();
                     Require(index < count, "x-material-index");
@@ -381,10 +405,13 @@ bool AccessoryResource::Parse(const void* input, std::size_t size,
                     for (auto& v : material.emissive)
                         v = m.Float();
                     m.End();
-                    for (unsigned c = 0; c < 3; ++c) {
-                        material.diffuse[c] *= .1f;
-                        material.specular[c] *= .1f;
-                    }
+                    if (operationMesh)
+                        material.ambient = {};
+                    else
+                        for (unsigned c = 0; c < 3; ++c) {
+                            material.diffuse[c] *= .1f;
+                            material.specular[c] *= .1f;
+                        }
                     for (const auto& texture : source->children) {
                         Require(texture.type == "TextureFilename" &&
                                     material.originalTextureBytes.empty() &&
@@ -398,9 +425,29 @@ bool AccessoryResource::Parse(const void* input, std::size_t size,
                     next->materials_.push_back(std::move(material));
                 }
                 Require(next->materials_.size() == count, "x-material-count");
+            } else if (operationMesh && node.type == "MeshVertexColors") {
+                const auto count = data.Count();
+                for (unsigned i = 0; i < count; ++i) {
+                    Require(data.Count() < positions.size(), "x-color-index");
+                    for (unsigned c = 0; c < 4; ++c)
+                        Require(data.Float() == 1, "x-operation-mesh-vertex-color");
+                }
+                data.End();
             } else
                 throw std::runtime_error("x-mesh-extension-not-supported:" + node.type);
         }
+        if (operationMesh && normals.empty())
+            for (const auto& face : faces) {
+                const auto& a = positions[face[0]];
+                const auto& b = positions[face[1]];
+                const auto& c = positions[face[2]];
+                const cpu_math::Vec3 ab{b[0] - a[0], b[1] - a[1], b[2] - a[2]};
+                const cpu_math::Vec3 ac{c[0] - a[0], c[1] - a[1], c[2] - a[2]};
+                const auto index = unsigned(normals.size());
+                normals.push_back({ab[1] * ac[2] - ab[2] * ac[1], ab[2] * ac[0] - ab[0] * ac[2],
+                                   ab[0] * ac[1] - ab[1] * ac[0]});
+                normalFaces.push_back({index, index, index});
+            }
         Require(hasMaterials && !normals.empty() && !faces.empty(),
                 "x-explicit-normals-and-materials-required");
         for (auto& normal : normals) {
@@ -427,7 +474,7 @@ bool AccessoryResource::Parse(const void* input, std::size_t size,
                                 .first;
                     next->vertices_.push_back(v);
                 }
-                groups[materials[f]].push_back(found->second);
+                groups[materials[faceSources[f]]].push_back(found->second);
             }
         for (unsigned m = 0; m < groups.size(); ++m)
             if (!groups[m].empty()) {
