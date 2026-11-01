@@ -204,8 +204,13 @@ bool ModelResource::Create(const format::ModelDocument& source,
                        resource->boneNames_, resource->skeleton_, resource->chains_, reason))
         return false;
     resource->sourceKind_ = source.kind;
-    for (const auto& bone : resource->skeleton_)
+    for (const auto& bone : resource->skeleton_) {
         resource->layers_.push_back(bone.layer);
+        resource->editingBones_.push_back({bone.type, bone.flags, bone.hasRigidBody});
+    }
+    for (const auto& rigid : model.rigids)
+        if (rigid.fields.mode > 0 && rigid.fields.boneIndex >= 0)
+            resource->editingBones_[std::size_t(rigid.fields.boneIndex)].hasRigidBody = true;
     std::sort(resource->layers_.begin(), resource->layers_.end());
     resource->layers_.erase(std::unique(resource->layers_.begin(), resource->layers_.end()),
                             resource->layers_.end());

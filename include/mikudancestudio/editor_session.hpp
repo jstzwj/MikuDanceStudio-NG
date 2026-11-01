@@ -2,6 +2,7 @@
 #include "scene_runtime.hpp"
 #include "pmm_edit.hpp"
 #include "rhi_image.hpp"
+#include "bone_selection.hpp"
 #include <filesystem>
 #include <variant>
 
@@ -116,6 +117,7 @@ public:
     bool Seek(std::uint32_t, std::string&);
     void SetPanelExpanded(unsigned option, bool expanded);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
+    void SetEditMode(std::int32_t mode);
     bool Play(std::string&);
     void Pause();
     bool Advance(double deltaSeconds, std::string&);
@@ -135,6 +137,14 @@ public:
     std::vector<KeyAddress> Keys() const;
     void SelectKeys(std::uint32_t first, std::uint32_t last, const KeyScope&);
     void ExtendSelectedColumns();
+    // These only change selection metadata, never evaluate the scene or create history.
+    bool SelectBones(const std::vector<std::uint32_t>&, int active, std::string&);
+    bool SelectModel(std::uint8_t, std::string&);
+    bool SelectAllBones(bool unregisteredOnly, std::string&);
+    bool PickBone(const std::vector<cpu_bone::ScreenPoint>&, int x, int y, bool additive,
+                  std::string&);
+    bool BoxSelectBones(const std::vector<cpu_bone::ScreenPoint>&, int left, int top, int right,
+                        int bottom, bool additive, bool finish, std::string&);
 
 private:
     struct State {

@@ -341,3 +341,23 @@ the frozen original x64 float bits and checks root/child/reset/undo behavior;
 the Windows regression independently supplies D3DX matrices to the same kernel.
 Both passed locally, along with the Qt reset-button test and application build.
 The x86 adapter retains its separate double evaluation order.
+
+[Run 41290806720](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41290806720)
+at `cae4dd6` passed the per-model history regressions on Windows, macOS and Linux.
+
+Bone picking and box selection now share their algorithm with the Windows
+adapter. Clicks use the strict eight-pixel radius, signed bone-type eligibility,
+physics-mode restrictions, overlapping-marker cycling and Shift toggling. Box
+selection retains its distinct eligibility and strict-edge rules; finishing a
+box applies the native active-bone rules. Selection and edit-mode changes update
+PMM metadata without evaluating physics, changing document revision or consuming
+undo history. Switching models restores each model's selection. Unregistered
+selection uses the pose-edited marker instead of selecting every bone.
+
+The portable regression covers all 256 type bytes, physics modes, boundary and
+overlap cases, active-bone finalization, model isolation and expired inputs. The
+Qt test sends mouse events to a never-shown viewport and exercises click, Shift,
+box and unregistered selection. All 14 local P4 tests passed. The Windows picking
+regression and application build also passed. Projection currently follows the
+shared producer's camera; independent native editor-camera comparison, visible
+bone overlays and transform tools remain open P4 work.

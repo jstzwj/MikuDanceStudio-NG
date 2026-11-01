@@ -603,6 +603,15 @@ void SceneRuntime::ClearPoseEditMarkers() {
     if (impl_ && impl_->session)
         impl_->session->ClearPoseEditMarkers();
 }
+void SceneRuntime::SetBoneSelection(std::uint8_t slot, const std::vector<std::uint32_t>& indices,
+                                    int active) {
+    if (impl_->session)
+        impl_->session->SetBoneSelection(slot, indices, active);
+}
+void SceneRuntime::SetEditMode(std::int32_t mode) {
+    if (impl_->session)
+        impl_->session->SetEditMode(mode);
+}
 bool SceneRuntime::Edit(const std::function<void(format::PmmSceneDocument&)>& change,
                         std::string& reason) {
     if (!impl_ || !impl_->session || impl_->failed) {

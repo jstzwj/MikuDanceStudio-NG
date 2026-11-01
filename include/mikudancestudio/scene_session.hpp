@@ -67,6 +67,19 @@ public:
             for (auto& pose : model.bonePose)
                 pose.flags[1] = 0;
     }
+    void SetEditMode(std::int32_t mode) { scene_.timeline.editMode = mode; }
+    void SetBoneSelection(std::uint8_t slot, const std::vector<std::uint32_t>& indices,
+                          int active) {
+        for (auto& model : scene_.models)
+            if (model.slot == slot) {
+                for (auto& bone : model.bonePose)
+                    bone.flags[2] = 0;
+                for (auto index : indices)
+                    if (index < model.bonePose.size())
+                        model.bonePose[index].flags[2] = 1;
+                model.selection.selectedBone = active;
+            }
+    }
     bool Save(WritePmmBytes write, void* context) const;
     bool KinematicWorld(std::uint8_t slot,
                         std::vector<std::optional<std::array<float, 16>>>& world) const;

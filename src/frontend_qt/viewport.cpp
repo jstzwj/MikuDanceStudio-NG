@@ -119,8 +119,24 @@ bool Viewport::event(QEvent* event) {
 void Viewport::mousePressEvent(QMouseEvent* e) {
     pressed_ = true;
     previous_ = e->position().toPoint();
-    if (e->button() == Qt::LeftButton && pick)
-        pick(previous_);
+    if (e->button() == Qt::LeftButton && session_.Selected().model != 255 && !session_.Playing()) {
+        std::string reason;
+        if (!render::SceneBoneScreenPoints(session_.Runtime(), session_.Selected().model,
+                                           unsigned(width()), unsigned(height()), bonePoints_,
+                                           reason)) {
+            if (changed)
+                changed(false, reason);
+            return;
+        }
+        anchor_ = previous_;
+        box_ = session_.Document().timeline.editMode == 1;
+        if (session_.Document().timeline.editMode == 0) {
+            const bool ok = session_.PickBone(bonePoints_, previous_.x(), previous_.y(),
+                                              e->modifiers() & Qt::ShiftModifier, reason);
+            if (changed)
+                changed(ok, reason);
+        }
+    }
 }
 void Viewport::mouseMoveEvent(QMouseEvent* e) {
     if (!pressed_)
@@ -128,10 +144,30 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
     auto point = e->position().toPoint();
     auto delta = point - previous_;
     previous_ = point;
+    if (box_ && (e->buttons() & Qt::LeftButton)) {
+        std::string reason;
+        const auto bounds = QRect(anchor_, point).normalized();
+        const bool ok = session_.BoxSelectBones(bonePoints_, bounds.left(), bounds.top(),
+                                                bounds.right(), bounds.bottom(),
+                                                e->modifiers() & Qt::ShiftModifier, false, reason);
+        if (changed)
+            changed(ok, reason);
+        return;
+    }
     if (drag)
         drag(delta, e->buttons(), e->modifiers());
 }
-void Viewport::mouseReleaseEvent(QMouseEvent*) {
+void Viewport::mouseReleaseEvent(QMouseEvent* e) {
+    if (box_ && e->button() == Qt::LeftButton) {
+        std::string reason;
+        const auto bounds = QRect(anchor_, e->position().toPoint()).normalized();
+        const bool ok = session_.BoxSelectBones(bonePoints_, bounds.left(), bounds.top(),
+                                                bounds.right(), bounds.bottom(),
+                                                e->modifiers() & Qt::ShiftModifier, true, reason);
+        if (changed)
+            changed(ok, reason);
+        box_ = false;
+    }
     pressed_ = false;
 }
 void Viewport::wheelEvent(QWheelEvent* e) {

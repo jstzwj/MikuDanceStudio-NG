@@ -507,6 +507,8 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     path_ = absolute;
     selection_ = {};
     selection_.model = Document().models.empty() ? 255 : Document().envelope.selectedModelSlot;
+    if (!SelectModel(selection_.model, reason))
+        SelectModel(255, reason);
     histories_.clear();
     clipboard_.clear();
     playing_ = false;

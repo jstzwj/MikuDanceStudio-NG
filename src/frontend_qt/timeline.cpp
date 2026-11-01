@@ -238,6 +238,19 @@ void Timeline::mousePressEvent(QMouseEvent* e) {
                         selection.accessory = a.slot;
                 }
             }
+            if (selection.model != 255) {
+                int active = -1;
+                for (const auto& model : session_.Document().models)
+                    if (model.slot == selection.model)
+                        active = model.selection.selectedBone;
+                if (selectedRow.address.track == Track::Bone && selectedRow.group < 0)
+                    active = std::find(selection.bones.begin(), selection.bones.end(),
+                                       selectedRow.address.channel) != selection.bones.end()
+                                 ? int(selectedRow.address.channel)
+                                 : -1;
+                std::string reason;
+                session_.SelectBones(selection.bones, active, reason);
+            }
         }
         if (changed)
             changed();

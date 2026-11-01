@@ -190,16 +190,19 @@ bool EditorWindow::PanelCommand(int id) {
             return true;
         }
     if (id == kModelEditToggle) {
+        auto target = session_.Selected().model;
         if (session_.Selected().model != 255) {
             previousModel_ = session_.Selected().model;
-            session_.Selected().model = 255;
+            target = 255;
         } else {
             for (const auto& m : session_.Document().models)
                 if (m.slot == previousModel_)
-                    session_.Selected().model = m.slot;
-            if (session_.Selected().model == 255 && !session_.Document().models.empty())
-                session_.Selected().model = session_.Document().models.front().slot;
+                    target = m.slot;
+            if (target == 255 && !session_.Document().models.empty())
+                target = session_.Document().models.front().slot;
         }
+        std::string reason;
+        Result(session_.SelectModel(target, reason), reason);
         return true;
     }
     if (id >= kResetPositionXButton && id <= kCameraDistanceButton) {
@@ -210,10 +213,16 @@ bool EditorWindow::PanelCommand(int id) {
         EditField(field);
         return true;
     }
+    if (id >= kBoneSelectRadio && id <= kBoneRotateRadio) {
+        session_.SetEditMode(static_cast<QAbstractButton*>(Control(id))->isChecked()
+                                 ? (id == kBoneMoveRadio ? 4 : id - kBoneSelectRadio)
+                                 : 2);
+        return true;
+    }
     if (id == kResetLightButton || (id >= kEditOffCheckbox && id <= kEditMode2Checkbox) ||
-        (id >= kBoneSelectRadio && id <= kBoneRotateRadio) || id == kCoordAxisCheckbox ||
-        id == kInfoCheckbox || id == kFollowCameraCheckbox || id == kCameraRefBoneCheckbox ||
-        id == kCameraRefModelCheckbox || id == kIkOnRadio || id == kIkOffRadio) {
+        id == kCoordAxisCheckbox || id == kInfoCheckbox || id == kFollowCameraCheckbox ||
+        id == kCameraRefBoneCheckbox || id == kCameraRefModelCheckbox || id == kIkOnRadio ||
+        id == kIkOffRadio) {
         Result(session_.Edit(
                    "panel-state",
                    [&](auto& d, auto&) {
@@ -221,11 +230,6 @@ bool EditorWindow::PanelCommand(int id) {
                            d.lightState = {.602f, .602f, .602f, -.5f, -1.f, .5f};
                        else if (id >= kEditOffCheckbox && id <= kEditMode2Checkbox)
                            d.selfShadowMode = std::uint8_t(id - kEditOffCheckbox);
-                       else if (id >= kBoneSelectRadio && id <= kBoneRotateRadio)
-                           d.timeline.editMode =
-                               static_cast<QAbstractButton*>(Control(id))->isChecked()
-                                   ? (id == kBoneMoveRadio ? 4 : id - kBoneSelectRadio)
-                                   : 2;
                        else if (id == kCameraRefModelCheckbox || id == kCameraRefBoneCheckbox)
                            d.timeline.cameraReferenceMode =
                                static_cast<QAbstractButton*>(Control(id))->isChecked()

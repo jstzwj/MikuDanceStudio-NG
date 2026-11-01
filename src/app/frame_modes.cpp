@@ -21,6 +21,7 @@
 #include "mikudancestudio/ported_funcs.hpp"
 #include "frame_state_dump.hpp"
 #include "bone_selection.hpp"
+#include "mikudancestudio/bone_selection.hpp"
 
 namespace mikudancestudio {
 
@@ -433,90 +434,28 @@ void BeginOrEndViewportToolDrag(MMDApp* app, ViewportToolAction operation) {
 bool PickBoneAtPoint(mdl::ModelRecord& model, int x, int y, int physicsMode, bool additive) {
     if (!model.boneTable || !model.boneSelection || model.boneCount == 0)
         return false;
-    int first = -1;
-    int candidate = -1;
-    bool changed = false;
-    for (std::uint32_t i = 0; i < model.boneCount; ++i) {
-        const mdl::BoneRecord& bone = model.boneTable[i];
-        // Original x64 0x7FF7CB451B92..0x7FF7CB451BFE: the physics
-        // gate reads hasRigidBody, independently of the bone type byte.
-        if (!(bone.flags & mdl::kBoneFlagVisible) ||
-            !(static_cast<std::int8_t>(bone.type) < static_cast<int>(mdl::BoneType::InertTip) ||
-              bone.type == mdl::BoneType::FixedAxis))
-            continue;
-        if (bone.hasRigidBody && (physicsMode == 1 || (physicsMode == 2 && !bone.physicsDisabled)))
-            continue;
-        const int dx = bone.screenX - x;
-        const int dy = bone.screenY - y;
-        if (dx * dx + dy * dy >= 64)
-            continue;
-        if (additive) {
-            model.boneSelection[i] = model.boneSelection[i] == 0 ? 1 : 0;
-            if (model.boneSelection[i])
-                model.selectedBone = static_cast<int>(i);
-            else if (model.selectedBone == static_cast<int>(i))
-                model.selectedBone = -1;
-            changed = true;
-        } else {
-            if (first < 0)
-                first = static_cast<int>(i);
-            // Repeated clicks cycle through overlapping markers, then wrap.
-            if (static_cast<int>(i) > model.selectedBone) {
-                candidate = static_cast<int>(i);
-                break;
-            }
-        }
-    }
-    if (!additive) {
-        if (candidate < 0)
-            candidate = first;
-        if (candidate >= 0) {
-            std::memset(model.boneSelection, 0, model.boneCount);
-            model.boneSelection[candidate] = 1;
-            model.selectedBone = candidate;
-            changed = true;
-        }
-    }
-    return changed;
+    return cpu_bone::Pick(
+        model.boneCount, [&](auto i) -> const auto& { return model.boneTable[i]; },
+        [&](auto i) -> auto& { return model.boneSelection[i]; }, model.selectedBone, x, y,
+        physicsMode, additive);
 }
 
 void SelectBonesInScreenRect(mdl::ModelRecord& model, int left, int top, int right, int bottom,
                              bool additive) {
     if (!model.boneTable || !model.boneSelection)
         return;
-    for (std::uint32_t i = 0; i < model.boneCount; ++i) {
-        const auto& bone = model.boneTable[i];
-        // x64 452EA6..452EC4: unlike clicking, box selection includes hidden
-        // types <= 6 and fixed-axis bones, without the rigid-body gate.
-        const bool eligible =
-            static_cast<std::int8_t>(bone.type) <= static_cast<int>(mdl::BoneType::Effector) ||
-            bone.type == mdl::BoneType::FixedAxis;
-        if (eligible && bone.screenX > left && bone.screenX < right && bone.screenY > top &&
-            bone.screenY < bottom)
-            model.boneSelection[i] = 1;
-        else if (!additive)
-            model.boneSelection[i] = 0;
-    }
+    cpu_bone::Box(
+        model.boneCount, [&](auto i) -> const auto& { return model.boneTable[i]; },
+        [&](auto i) -> auto& { return model.boneSelection[i]; }, left, top, right, bottom,
+        additive);
 }
 
 void FinishBoneBoxSelection(mdl::ModelRecord& model, bool additive) {
     if (!model.boneSelection || model.boneCount == 0)
         return;
-    // x64 452136..4521F7: preserve the active bone if it remains selected.
-    if (model.selectedBone < 0 || !model.boneSelection[model.selectedBone]) {
-        if (!additive)
-            model.selectedBone = -1;
-        if (model.boneSelection[0])
-            model.selectedBone = 0;
-    }
-    int count = 0, last = -1;
-    for (std::uint32_t i = 0; i < model.boneCount; ++i)
-        if (model.boneSelection[i]) {
-            ++count;
-            last = static_cast<int>(i);
-        }
-    if (count == 1)
-        model.selectedBone = last;
+    cpu_bone::FinishBox(
+        model.boneCount, [&](auto i) -> auto& { return model.boneSelection[i]; },
+        model.selectedBone, additive);
 }
 
 void MouseInteractionBegin(MMDApp* app) {

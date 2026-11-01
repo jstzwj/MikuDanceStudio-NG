@@ -2,6 +2,7 @@
 #include "scene_runtime.hpp"
 #include "rhi_frame_passes.hpp"
 #include "render_self_shadow.hpp"
+#include "bone_selection.hpp"
 #include <filesystem>
 namespace mikudancestudio::render {
 struct SceneRenderSources {
@@ -14,6 +15,10 @@ struct SceneRenderSettings {
     SelfShadowSettings shadow;
     bool postProcessCopy = true;
 };
+// Uses the same camera inputs as scene rendering, in PMM bone-table order.
+// No GPU readback or additional scene evaluation is involved.
+bool SceneBoneScreenPoints(const runtime::SceneRuntime&, std::uint8_t slot, unsigned width,
+                           unsigned height, std::vector<cpu_bone::ScreenPoint>&, std::string&);
 // Consumes an already published P2 scene snapshot. Never advances animation or
 // physics and never borrows native GPU objects. GPU caches survive resize;
 // changed CPU bytes retain resource IDs and receive increasing versions.

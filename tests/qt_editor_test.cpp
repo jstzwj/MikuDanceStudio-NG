@@ -56,6 +56,50 @@ int main(int argc, char** argv) {
     CHECK(!window.isVisible());
     CHECK(window.SetLanguage("en"));
     {
+        qt::EditorWindow picking(std::filesystem::absolute(argv[2]), true);
+        auto& s = picking.Session();
+        CHECK(s.ImportModel(root / "pose.pmd", reason));
+        CHECK(s.SetBone(0, 3, {4, 0, 0}, {0, 0, 0, 1}, reason));
+        picking.Refresh();
+        auto* view = picking.RenderWindow();
+        view->resize(640, 480); // hidden window containers have no exposed surface layout
+        std::vector<cpu_bone::ScreenPoint> points;
+        CHECK(render::SceneBoneScreenPoints(s.Runtime(), 0, unsigned(view->width()),
+                                            unsigned(view->height()), points, reason));
+        CHECK(points.size() == 8 && points[3].x != 393939);
+        const QPointF hit(points[3].x, points[3].y);
+        const auto click = [&](QEvent::Type type, QPointF point,
+                               Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
+            QMouseEvent event(type, point, point, Qt::LeftButton,
+                              type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton,
+                              modifiers);
+            QApplication::sendEvent(view, &event);
+        };
+        const auto revision = s.Revision(), updates = s.Runtime().Counters().frames;
+        click(QEvent::MouseButtonPress, hit);
+        click(QEvent::MouseButtonRelease, hit);
+        CHECK(picking.LastError().isEmpty());
+        CHECK(s.Selected().bones == (std::vector<std::uint32_t>{3}));
+        CHECK(s.Document().models[0].bonePose[3].flags[2] == 1);
+        click(QEvent::MouseButtonPress, hit, Qt::ShiftModifier);
+        click(QEvent::MouseButtonRelease, hit, Qt::ShiftModifier);
+        CHECK(s.Selected().bones.empty());
+        s.SetEditMode(1);
+        click(QEvent::MouseButtonPress, hit - QPointF(9, 9));
+        QMouseEvent move(QEvent::MouseMove, hit + QPointF(9, 9), hit + QPointF(9, 9), Qt::NoButton,
+                         Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(view, &move);
+        click(QEvent::MouseButtonRelease, hit + QPointF(9, 9));
+        CHECK(s.Selected().bones == (std::vector<std::uint32_t>{3}));
+        CHECK(s.Document().models[0].selection.selectedBone == 3);
+        CHECK(s.Revision() == revision && s.Runtime().Counters().frames == updates);
+        picking.Dispatch(panel::kSelectUnregisteredBonesButton);
+        CHECK(s.Selected().bones == (std::vector<std::uint32_t>{3}));
+        CHECK(s.Document().models[0].selection.selectedBone == -1);
+        CHECK(s.Runtime().Counters().frames == updates);
+        CHECK(!picking.isVisible() && !view->isVisible());
+    }
+    {
         qt::EditorWindow backgrounds(std::filesystem::absolute(argv[2]), true);
         CHECK(backgrounds.SetLanguage("en"));
         auto* show = backgrounds.findChild<QAction*>("background.show");

@@ -43,6 +43,11 @@ struct ModelDisplayGroup {
     std::array<std::string, 2> names;
     std::vector<ModelDisplayEntry> entries;
 };
+struct BoneEditingInfo {
+    cpu_bone::BoneType type = cpu_bone::BoneType::RotateMove;
+    std::uint16_t flags = 0;
+    bool hasRigidBody = false;
+};
 class ModelResource final {
 public:
     static bool Create(const format::ModelDocument&, std::shared_ptr<const ModelResource>&,
@@ -51,6 +56,7 @@ public:
     const std::vector<std::string>& BoneNames() const { return boneNames_; }
     const std::vector<std::string>& MorphNames() const { return morphNames_; }
     const std::vector<ModelDisplayGroup>& DisplayGroups() const { return displayGroups_; }
+    const std::vector<BoneEditingInfo>& EditingBones() const { return editingBones_; }
     std::uint32_t DisplayRootBone() const { return displayRoot_; }
     std::vector<std::int32_t> IkBoneIndices() const {
         std::vector<std::int32_t> result;
@@ -73,6 +79,7 @@ private:
     std::vector<cpu_model::IkChain> chains_;
     std::vector<std::string> boneNames_, morphNames_;
     std::vector<ModelDisplayGroup> displayGroups_;
+    std::vector<BoneEditingInfo> editingBones_;
     std::uint32_t displayRoot_ = 0;
     std::vector<std::size_t> order_;
     std::vector<int> layers_;

@@ -17,7 +17,7 @@ public:
     bool Reset(std::string&);
     std::function<void(QPoint, Qt::MouseButtons, Qt::KeyboardModifiers)> drag;
     std::function<void(int)> zoom;
-    std::function<void(QPoint)> pick;
+    std::function<void(bool, const std::string&)> changed;
     std::uint64_t Submissions() const;
     std::uint64_t FrameBuilds() const { return frameBuilds_; }
 
@@ -40,6 +40,9 @@ private:
     unsigned cachedWidth_ = 0, cachedHeight_ = 0;
     bool frameCached_ = false;
     bool loadedAssets_ = false, pressed_ = false;
+    bool box_ = false;
+    QPoint anchor_;
+    std::vector<cpu_bone::ScreenPoint> bonePoints_;
     QPoint previous_;
 };
 // Export uses its own scene/renderer. It never reads the editor swapchain.

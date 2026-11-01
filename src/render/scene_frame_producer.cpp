@@ -158,6 +158,64 @@ void InstallShadow(ModelPipeline& p, const BuiltinShadowState& shared,
     p.shadow.specular[3] = material.shininess == 0 ? .1f : material.shininess;
 }
 }
+bool SceneBoneScreenPoints(const runtime::SceneRuntime& scene, std::uint8_t slot, unsigned width,
+                           unsigned height, std::vector<cpu_bone::ScreenPoint>& output,
+                           std::string& reason) {
+    const auto resource = scene.Resource(slot);
+    const auto snapshot = scene.Snapshot(slot);
+    if (!scene.Session() || !resource || !snapshot || !width || !height || width > 0x7fffffffu ||
+        height > 0x7fffffffu)
+        return Fail(reason, "bone_projection_scene_unavailable");
+    const auto& models = scene.Session()->Document().models;
+    const auto model = std::find_if(models.begin(), models.end(),
+                                    [slot](const auto& m) { return m.slot == slot; });
+    if (model == models.end())
+        return Fail(reason, "bone_projection_model_unavailable");
+    ModelFrameInputs frame;
+    frame.view.aspect = float(width) / height;
+    frame.view.viewport = {0, 0, width, height, 0, 1};
+    if (!Camera(scene, frame, reason))
+        return false;
+    ModelPipeline pipeline;
+    if (!BuildModelInputs(frame, {}, {}, pipeline))
+        return Fail(reason, "bone_projection_camera_invalid");
+    const auto transform = [](const std::array<float, 4>& point, const Matrix& m) {
+        std::array<float, 4> out;
+        for (unsigned c = 0; c < 4; ++c)
+            out[c] =
+                point[0] * m[c] + point[1] * m[4 + c] + point[2] * m[8 + c] + point[3] * m[12 + c];
+        return out;
+    };
+    std::vector<cpu_bone::ScreenPoint> points;
+    for (const auto& encoded : model->boneNames) {
+        std::string name;
+        if (!text::DecodeCp932({encoded.data(), encoded.size()}, name))
+            return Fail(reason, "bone_projection_name_invalid");
+        const auto found =
+            std::find(resource->BoneNames().begin(), resource->BoneNames().end(), name);
+        if (found == resource->BoneNames().end())
+            return Fail(reason, "bone_projection_binding_invalid");
+        const auto& position =
+            snapshot->bones[std::size_t(found - resource->BoneNames().begin())].worldPosition;
+        auto point = transform({position[0], position[1], position[2], 1}, pipeline.shader.world);
+        point = transform(point, pipeline.shader.view);
+        point = transform(point, pipeline.shader.projection);
+        cpu_bone::ScreenPoint screen;
+        if (point[3] > 0) {
+            const double x = point[0] / point[3] * double(width) * .5 + width / 2;
+            const double y = height / 2 - point[1] / point[3] * double(height) * .5;
+            if (std::isfinite(x) && std::isfinite(y) && x > -2147483648. && x < 2147483647. &&
+                y > -2147483648. && y < 2147483647.) {
+                screen.x = int(x);
+                screen.y = int(y);
+            }
+        }
+        points.push_back(screen);
+    }
+    output = std::move(points);
+    reason.clear();
+    return true;
+}
 struct SceneFrameProducer::Impl {
     struct Model {
         std::shared_ptr<const runtime::ModelResource> resource;

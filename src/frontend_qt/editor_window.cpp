@@ -258,6 +258,10 @@ void EditorWindow::CreateViewport(const rhi::BackendOptions& options) {
     viewportContainer_ = container;
     if (old)
         delete old;
+    viewport_->changed = [this](bool ok, const std::string& reason) {
+        Result(ok, reason);
+        Refresh();
+    };
     viewport_->zoom = [this](int delta) {
         auto camera = session_.Runtime().Session()->Pose().camera;
         if (session_.Selected().model == 255 && camera.parentModel >= 0)
@@ -987,11 +991,7 @@ void EditorWindow::Dispatch(int id) {
         break;
     case kSelectAllBonesButton:
     case kSelectUnregisteredBonesButton: {
-        session_.Selected().bones.clear();
-        auto resource = session_.Runtime().Resource(session_.Selected().model);
-        if (resource)
-            for (unsigned i = 0; i < resource->BoneNames().size(); ++i)
-                session_.Selected().bones.push_back(i);
+        ok = session_.SelectAllBones(id == kSelectUnregisteredBonesButton, r);
         break;
     }
     case kRegisterFrameButton: {
@@ -1211,8 +1211,8 @@ void EditorWindow::Combo(int id, int index) {
         return;
     }
     if (id == kMainComboModel) {
-        session_.Selected() = {};
-        session_.Selected().model = std::uint8_t(c->itemData(index).toUInt());
+        std::string reason;
+        Result(session_.SelectModel(std::uint8_t(c->itemData(index).toUInt()), reason), reason);
     }
     if (id == kAccessoryCombo)
         session_.Selected().accessory = std::uint8_t(c->itemData(index).toUInt());

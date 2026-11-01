@@ -33,6 +33,8 @@ public:
     void SetPanelExpanded(unsigned option, bool expanded);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
     void ClearPoseEditMarkers();
+    void SetBoneSelection(std::uint8_t, const std::vector<std::uint32_t>&, int active);
+    void SetEditMode(std::int32_t);
     bool UnloadModel(std::uint8_t, std::string&);
     bool AttachAccessory(std::uint8_t, std::shared_ptr<const AccessoryResource>, std::string&);
     bool UnloadAccessory(std::uint8_t, std::string&);
