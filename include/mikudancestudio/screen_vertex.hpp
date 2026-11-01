@@ -1,23 +1,25 @@
 #pragma once
 
 #include <cstddef>
-#include <d3d9.h>
+#include <cstdint>
 
 namespace mikudancestudio {
 
 struct TexturedScreenVertex {
     float x, y, z, reciprocalW;
-    D3DCOLOR color;
+    std::uint32_t color;
     float u, v;
 };
 
 struct ColoredScreenVertex {
     float x, y, z, reciprocalW;
-    D3DCOLOR color;
+    std::uint32_t color;
 };
 
-inline constexpr DWORD kTexturedScreenVertexFvf = D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1;
-inline constexpr DWORD kColoredScreenVertexFvf = D3DFVF_XYZRHW | D3DFVF_DIFFUSE;
+// CPU transport descriptors use the original numeric FVF values without
+// importing DirectX into portable geometry consumers.
+inline constexpr std::uint32_t kTexturedScreenVertexFvf = 0x144;
+inline constexpr std::uint32_t kColoredScreenVertexFvf = 0x44;
 inline constexpr std::size_t kTextOverlayVertexCapacity = 1000;
 inline constexpr std::size_t kSpriteOverlayVertexCapacity = 10000;
 inline constexpr std::size_t kLineOverlayVertexCapacity = 10000;
