@@ -96,13 +96,19 @@ foreach(MDS_RUNTIME_TARGET IN ITEMS mds_model_cli mikudancestudio_model_runtime 
 endforeach()
 file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/generated/model_runtime_targets.json"
     CONTENT "${MDS_RUNTIME_GRAPH}}\n")
+add_library(mikudancestudio_images STATIC src/render/rhi_image.cpp)
+target_include_directories(mikudancestudio_images PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_features(mikudancestudio_images PUBLIC cxx_std_17)
+if(MSVC)
+    target_compile_options(mikudancestudio_images PRIVATE /fp:precise)
+endif()
 add_library(mikudancestudio_rhi STATIC
     src/render/rhi_null.cpp
     src/render/rhi_render_pass.cpp
     src/render/rhi_frame_passes.cpp
-    src/render/rhi_image.cpp
     src/render/rhi_assets.cpp
     src/render/rhi_material_textures.cpp)
+target_link_libraries(mikudancestudio_rhi PUBLIC mikudancestudio_images)
 target_sources(mikudancestudio_rhi PRIVATE src/render/rhi_shader_inputs.cpp)
 target_sources(mikudancestudio_rhi PRIVATE src/render/rhi_model_replay.cpp)
 target_sources(mikudancestudio_rhi PRIVATE src/render/rhi_scene_renderer.cpp src/render/rhi_backend.cpp src/render/rhi_scene_preview.cpp)
@@ -538,6 +544,10 @@ if(BUILD_TESTING)
     target_include_directories(background_placement_test PRIVATE include)
     add_test(NAME background_placement COMMAND background_placement_test)
     set_tests_properties(background_placement PROPERTIES LABELS "headless;portable;p4")
+    add_executable(background_filter_test tests/background_filter_test.cpp)
+    target_link_libraries(background_filter_test PRIVATE mikudancestudio_images)
+    add_test(NAME background_filter COMMAND background_filter_test)
+    set_tests_properties(background_filter PROPERTIES LABELS "headless;portable;p4" TIMEOUT 120)
     target_link_libraries(rhi_image_test PRIVATE mikudancestudio_rhi)
     add_test(NAME rhi_image COMMAND rhi_image_test
         "${CMAKE_CURRENT_SOURCE_DIR}/res/assets/hud_sprites.png")
@@ -1111,6 +1121,10 @@ if(BUILD_TESTING)
     add_test(NAME background_quad COMMAND background_quad_test)
     add_executable(background_picture_test tests/background_picture_test.cpp)
     add_executable(background_placement_oracle_test tests/background_placement_oracle_test.cpp)
+    add_executable(background_filter_oracle_test tests/background_filter_oracle_test.cpp)
+    target_link_libraries(background_filter_oracle_test PRIVATE mikudancestudio_images D3DXRuntime d3d9 user32)
+    add_test(NAME background_filter_native COMMAND background_filter_oracle_test)
+    set_tests_properties(background_filter_native PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
     target_link_libraries(background_placement_oracle_test PRIVATE mikudancestudio_core MMEffect dsound bcrypt)
     target_compile_definitions(background_placement_oracle_test PRIVATE MDS_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
     if(MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 4)

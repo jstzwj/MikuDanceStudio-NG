@@ -145,92 +145,106 @@ bool NextPowerOfTwoTextureSize(std::uint32_t source, std::uint32_t limit, std::u
     target = rounded;
     return true;
 }
-bool PrepareTriangleDitherWrap(const RgbaImage& source, std::uint32_t width, std::uint32_t height,
-                               RgbaImage& prepared) {
-    // Clear failure output, and allow source/output aliasing without clearing input.
+static bool PrepareLegacyTriangle(const RgbaImage& source, std::uint32_t width,
+                                  std::uint32_t height, RgbaImage& prepared) {
     if (&source == &prepared) {
-        const RgbaImage retained = source;
-        return PrepareTriangleDitherWrap(retained, width, height, prepared);
+        const auto retained = source;
+        return PrepareLegacyTriangle(retained, width, height, prepared);
     }
     prepared = {};
     if (!source.width || !source.height || source.width > 4096 || source.height > 4096 || !width ||
-        !height || width > 4096 || height > 4096 || width < source.width ||
-        height < source.height || width > source.width * 2 || height > source.height * 2 ||
-        source.pixels.size() != static_cast<std::size_t>(source.width) * source.height * 4)
+        !height || width > 4096 || height > 4096 ||
+        source.pixels.size() != std::size_t(source.width) * source.height * 4)
         return false;
-    if (width == source.width && height == source.height) {
+    if (source.width == width && source.height == height) {
         prepared = source;
         return true;
     }
     struct Tap {
-        unsigned index;
-        double weight;
+        unsigned destination;
+        float weight;
     };
-    using Taps = std::vector<Tap>;
+    // D3DX9_43 x64's triangle filter builds destination coverage per source
+    // texel, in float arithmetic. Rewriting this as a normalized gather or a
+    // separable two-pass filter changes rounding before ordered dithering.
     const auto build = [](unsigned from, unsigned to) {
-        std::vector<Taps> result(to);
-        for (unsigned at = 0; at < to; ++at) {
-            // An unchanged axis must not introduce a blur into a 1D resize.
-            if (from == to) {
-                result[at].push_back({at, 1});
-                continue;
-            }
-            const double low = static_cast<double>(at) * from / to - 0.5;
-            const double high = static_cast<double>(at + 1) * from / to - 0.5;
-            const auto add = [&](int index, double value) {
-                const auto wrapped = static_cast<unsigned>((index + static_cast<int>(from)) % from);
-                for (auto& tap : result[at])
-                    if (tap.index == wrapped) {
-                        tap.weight += value;
-                        return;
-                    }
-                result[at].push_back({wrapped, value});
+        std::vector<std::vector<Tap>> taps(from);
+        const float ratio = float(to) / float(from), halfInverse = .5f / ratio;
+        for (unsigned source = 0; source < from; ++source) {
+            unsigned last = 0;
+            float weight = 0;
+            const auto flush = [&] {
+                if (weight > 1.e-5f)
+                    taps[source].push_back({last, weight});
             };
-            for (int i = static_cast<int>(std::floor(low)); i < std::ceil(high); ++i) {
-                const double a = std::max(low, static_cast<double>(i)) - i;
-                const double b = std::min(high, static_cast<double>(i + 1)) - i;
-                const double upper = (b * b - a * a) / (2 * (high - low));
-                add(i, (b - a) / (high - low) - upper);
-                add(i + 1, upper);
+            for (unsigned half = 0; half < 2; ++half) {
+                const float edge = (float(source) + float(half)) - .5f;
+                const float low = edge * ratio, high = low + ratio;
+                for (int d = int(std::floor(low)); float(d) < high; ++d) {
+                    const auto wrapped = unsigned((d + int(to)) % int(to));
+                    if (wrapped != last) {
+                        flush();
+                        weight = 0;
+                        last = wrapped;
+                    }
+                    const float start = std::max(float(d), low);
+                    const float end = std::min(float(d) + 1.f, high);
+                    float slope = ((end + start) * halfInverse) - edge;
+                    if (half)
+                        slope = 1.f - slope;
+                    const float area = (end - start) * slope;
+                    weight = weight + area;
+                }
             }
+            flush();
         }
-        return result;
+        return taps;
     };
-    const auto horizontal = build(source.width, width), vertical = build(source.height, height);
-    prepared.width = width;
-    prepared.height = height;
-    prepared.pixels.resize(static_cast<std::size_t>(width) * height * 4);
-    // Measured D3DX ordered thresholds. The pattern is absolute destination
-    // texel position, shared by R/G/B/A, with no random or content-specific fix.
+    const auto columns = build(source.width, width), rows = build(source.height, height);
+    std::vector<std::array<float, 4>> values(std::size_t(width) * height);
+    constexpr float reciprocal = 1.f / 255.f;
+    for (unsigned y = 0; y < source.height; ++y)
+        for (unsigned x = 0; x < source.width; ++x) {
+            const auto* raw = source.pixels.data() + (std::size_t(y) * source.width + x) * 4;
+            const std::array<float, 4> pixel{raw[0] * reciprocal, raw[1] * reciprocal,
+                                             raw[2] * reciprocal, raw[3] * reciprocal};
+            for (const auto& row : rows[y])
+                for (const auto& column : columns[x]) {
+                    auto& value = values[std::size_t(row.destination) * width + column.destination];
+                    const float weight = column.weight * row.weight;
+                    for (unsigned c = 0; c < 4; ++c) {
+                        const float contribution = pixel[c] * weight;
+                        value[c] = value[c] + contribution;
+                    }
+                }
+        }
     constexpr unsigned thresholds[4][4] = {
         {31, 15, 27, 11}, {19, 3, 23, 7}, {25, 9, 29, 13}, {21, 5, 17, 1}};
-    // Identity-size RGBA32F measurements match reciprocal multiplication,
-    // not division (e.g. byte 127 differs by one float ULP). This aligns the
-    // conversion stage only; legacy coefficient arithmetic is still gated.
-    constexpr float byteToFloat = 1.0f / 255.0f;
+    prepared.width = width;
+    prepared.height = height;
+    prepared.pixels.resize(std::size_t(width) * height * 4);
     for (unsigned y = 0; y < height; ++y)
-        for (unsigned x = 0; x < width; ++x) {
-            std::array<float, 4> value{};
-            for (const auto& row : vertical[y]) {
-                std::array<float, 4> scanline{};
-                for (const auto& column : horizontal[x]) {
-                    const auto* pixel =
-                        source.pixels.data() +
-                        (static_cast<std::size_t>(row.index) * source.width + column.index) * 4;
-                    for (unsigned channel = 0; channel < 4; ++channel)
-                        scanline[channel] +=
-                            (pixel[channel] * byteToFloat) * static_cast<float>(column.weight);
-                }
-                for (unsigned channel = 0; channel < 4; ++channel)
-                    value[channel] += scanline[channel] * static_cast<float>(row.weight);
+        for (unsigned x = 0; x < width; ++x)
+            for (unsigned c = 0; c < 4; ++c) {
+                const float scaled = values[std::size_t(y) * width + x][c] * 255.f;
+                const float value = std::floor(scaled + thresholds[y % 4][x % 4] / 32.f);
+                prepared.pixels[(std::size_t(y) * width + x) * 4 + c] =
+                    std::uint8_t(std::clamp(value, 0.f, 255.f));
             }
-            auto* pixel = prepared.pixels.data() + (static_cast<std::size_t>(y) * width + x) * 4;
-            for (unsigned channel = 0; channel < 4; ++channel) {
-                const float quantized =
-                    std::floor(value[channel] * 255.0f + thresholds[y % 4][x % 4] / 32.0f);
-                pixel[channel] = static_cast<std::uint8_t>(std::clamp(quantized, 0.0f, 255.0f));
-            }
-        }
+    prepared.pixels.Seal();
     return true;
 }
+bool PrepareTriangleDitherWrap(const RgbaImage& source, std::uint32_t width, std::uint32_t height,
+                               RgbaImage& prepared) {
+    if (width < source.width || height < source.height || width > source.width * 2 ||
+        height > source.height * 2) {
+        prepared = {};
+        return false;
+    }
+    return PrepareLegacyTriangle(source, width, height, prepared);
+}
+bool PrepareBackgroundImage(const RgbaImage& source, RgbaImage& prepared) {
+    return PrepareLegacyTriangle(source, 1024, 1024, prepared);
+}
+
 }

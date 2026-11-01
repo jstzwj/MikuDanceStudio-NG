@@ -242,3 +242,23 @@ should a prepared textured eligible batch undergo same-frame and actual-adapter
 pixel comparison. Material 6's existing IK dependency does not become eligible
 merely because its texture matches; keep the prior batch dependency exclusions.
 Retain the old path until both resource and eligible-draw gates pass.
+
+
+## NG P4 x64 arithmetic correction (2026-11-01)
+
+The earlier blocked measurements above describe the previous gather candidate.
+The shared implementation now preserves x64 D3DX9_43 coefficient construction
+and accumulation order. It computes each source texel's destination coverage in
+float, retains the native `1e-5f` contribution cutoff, multiplies X/Y weights
+before the source channel, and accumulates in source order. It does not normalize
+taps or patch individual pixels. The existing native `--boundary` test now reports
+zero different channels for both DEFAULT and explicit TRIANGLE+DITHER; its
+independent native digest is part of `background_filter_test`.
+
+The new hidden `background_filter_oracle_test` additionally compares 22 original
+RGBA patterns at the background loader's 1024-square size. All channels match
+exactly, including single-axis, transparency and reduction cases. Frozen native
+digests support execution without D3DX on other hosts. Raw decode remains separate
+in `mikudancestudio_images`, which has no GUI or GPU dependency. These results do
+not retroactively accept the earlier private scene, x86 runtime, every codec or
+eligible-draw comparisons: those require their corresponding independent tests.

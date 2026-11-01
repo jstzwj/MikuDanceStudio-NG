@@ -235,3 +235,22 @@ branches. All cases passed exactly; a frozen digest of the original output
 also gates the portable helper without loading the reference executable.
 This validates placement only; image loading, filtering and complete background
 interaction are still being integrated into the Qt editor.
+
+
+The initial geometry CI exposed a leftover D3D9 include in the screen-vertex
+transport header. That dependency is removed; the fixed numeric layout is shared
+without Windows headers. [Run 41286817301](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41286817301)
+at `49a1445` passed the native-derived geometry digest and all editor gates on
+Windows, Linux and macOS.
+
+Background texture preparation now reproduces x64 D3DX9_43 triangle/dither
+arithmetic: float coverage coefficients per source texel, the native small-weight
+cutoff, and joint XY accumulation in source order. Normalized gather weights or
+two separable passes were mathematically similar but rounded differently. A
+hidden DX9 test passed exact RGBA comparison for 22 generated cases: transparency,
+alpha zero/one, deterministic noise, single rows/columns, up/downsampling,
+unchanged axes and identity copies. Their native output digests gate the portable
+implementation. The earlier public 106x106 constant/impulse counterexample also
+now matches exactly at 128x128. These results cover RGBA8 preparation against the
+x64 runtime, not all codecs, compressed textures, x86 arithmetic or complete
+background scene rendering.
