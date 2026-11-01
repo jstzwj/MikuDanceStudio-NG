@@ -602,6 +602,10 @@ bool EditorSession::Save(const std::filesystem::path& path, const AtomicWrite& w
         return false;
     }
     auto next = Current();
+    if (!SetPmmSelectedKeys(next.document, selection_.model, selection_.keys)) {
+        reason = "key-selection-expired-or-invalid-tracks";
+        return false;
+    }
     const auto absolute = std::filesystem::absolute(path).lexically_normal();
     for (auto& m : next.document.models)
         if (!DiskPath(next.assets.modelPaths.at(m.slot), absolute.parent_path(), m.path, reason))
@@ -661,6 +665,10 @@ bool EditorSession::ImportModel(const std::filesystem::path& path, std::string& 
         next.assets.modelPaths[std::uint8_t(slot)] = absolute;
         next.selection = {};
         next.selection.model = std::uint8_t(slot);
+        if (!ReadPmmSelectedKeys(next.document, next.selection.model, next.selection.keys)) {
+            reason = "key-selection-invalid-tracks";
+            return false;
+        }
         return Commit(std::move(next), reason);
     } catch (const std::exception& e) {
         reason = e.what();

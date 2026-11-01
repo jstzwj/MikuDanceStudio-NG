@@ -2,6 +2,7 @@
 #include "mikudancestudio/model_reader.hpp"
 #include "mikudancestudio/pmm_scene_evaluation.hpp"
 #include "mikudancestudio/pmm_scene_world.hpp"
+#include "mikudancestudio/pmm_key_selection.hpp"
 #include <functional>
 #include <cmath>
 #include <optional>
@@ -115,6 +116,13 @@ public:
                 pose.flags[1] = 0;
     }
     bool SelectPhysicsOnKeys(std::uint8_t slot, const std::vector<std::uint8_t>& physical);
+    bool SetSelectedKeys(std::uint8_t slot, const std::set<PmmKeyAddress>& selected,
+                         const PmmKeyPools& clearUnused) {
+        return loaded_ && SetPmmSelectedKeys(scene_, slot, selected, clearUnused);
+    }
+    bool SelectKeyRange(std::uint8_t slot, const PmmKeyRangeSelection& range) {
+        return loaded_ && SelectPmmKeyRange(scene_, slot, range);
+    }
     void SetEditMode(std::int32_t mode) { scene_.timeline.editMode = mode; }
     void SetBoneSelection(std::uint8_t slot, const std::vector<std::uint32_t>& indices,
                           int active) {

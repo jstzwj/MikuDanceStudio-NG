@@ -8,25 +8,8 @@
 #include <optional>
 
 namespace mikudancestudio::editor {
-enum class Track {
-    Bone,
-    Morph,
-    Display,
-    Camera,
-    Light,
-    Shadow,
-    Gravity,
-    Accessory
-};
-struct KeyAddress {
-    Track track = Track::Camera;
-    std::uint8_t slot = 255;
-    std::uint32_t channel = 0, frame = 0;
-    bool operator<(const KeyAddress& b) const {
-        return std::tie(track, slot, channel, frame) <
-               std::tie(b.track, b.slot, b.channel, b.frame);
-    }
-};
+using Track = format::PmmKeyKind;
+using KeyAddress = format::PmmKeyAddress;
 struct Selection {
     std::uint8_t model = 255, accessory = 255;
     std::vector<std::uint32_t> bones;
@@ -179,6 +162,8 @@ public:
     Selection& Selected() { return selection_; }
     const Selection& Selected() const { return selection_; }
     std::vector<KeyAddress> Keys() const;
+    bool SetSelectedKeys(const std::set<KeyAddress>&, std::string&,
+                         const format::PmmKeyPools& clearUnused = {});
     void SelectKeys(std::uint32_t first, std::uint32_t last, const KeyScope&);
     void ExtendSelectedColumns();
     // These only change selection metadata, never evaluate the scene or create history.

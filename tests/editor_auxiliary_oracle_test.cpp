@@ -426,6 +426,126 @@ unsigned PhysicsKeyCommand(OriginalPhysicsModule& original, const std::filesyste
             }
     return cases;
 }
+std::map<int, std::string> rangeFields;
+int WINAPI RangeText(HWND window, LPSTR text, int capacity) {
+    const auto& value = rangeFields.at(int(reinterpret_cast<std::uintptr_t>(window)));
+    const auto count = std::min(value.size(), std::size_t(capacity - 1));
+    std::memcpy(text, value.data(), count);
+    text[count] = 0;
+    return int(count);
+}
+unsigned RangeCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    const unsigned char ret = 0xc3;
+    Patch paint(original.Function<void*>(0x60ea0), &ret, 1);
+    Patch controls(original.Function<void*>(0x62bb0), &ret, 1);
+    auto child = &ResetChild;
+    auto text = &RangeText;
+    Patch getChild(original.Function<void*>(0x128658), &child, sizeof child);
+    Patch getText(original.Function<void*>(0x128690), &text, sizeof text);
+    std::vector<unsigned char> app(0xa3000);
+    auto* pointer = app.data();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    const auto execute = original.Function<void (*)(HWND, WPARAM)>(0x3f550);
+    unsigned cases = 0;
+    for (const char* file : {"articulated.pmd", "articulated.pmx"}) {
+        EditorSession portable;
+        std::string reason;
+        Check(PhysicsSelectionFixture(portable, root, file, false, 1, reason), reason.c_str());
+        const bool edited = portable.Edit(
+            "detached-range-record",
+            [](auto& document, auto&) {
+                auto& track = document.models[0].boneKeys;
+                auto key = track.dense[0];
+                key.frame = 3;
+                key.previous = key.next = 0;
+                key.allocated = 0;
+                track.sparse.push_back({30, 0, key});
+                key.frame = 5; // overlaps the forward chain but owns its own mark
+                track.sparse.push_back({31, 0, key});
+                return true;
+            },
+            reason);
+        Check(edited, reason.c_str());
+        const auto& source = portable.Document().models[0];
+        NativeAuxiliary native(source,
+                               portable.Runtime().Resource(0)->SourceKind() == ModelKind::Pmx);
+        auto* model = native.model.get();
+        std::vector<mdl::BoneKey> bones(mdl::kBoneKeyCapacity);
+        std::vector<mdl::BoneRecord> poses(source.bonePose.size());
+        model->boneCount = unsigned(poses.size());
+        model->boneTable = poses.data();
+        model->boneKeys = bones.data();
+        std::strcpy(poses[0].name, "selection-root");
+        const auto copy = [](const auto& track, auto& pool) {
+            const auto one = [&](unsigned index, const auto& key) {
+                pool[index].frame = key.frame;
+                pool[index].previous = key.previous;
+                pool[index].next = key.next;
+                pool[index].allocated = key.allocated;
+            };
+            for (unsigned i = 0; i < track.dense.size(); ++i)
+                one(i, track.dense[i]);
+            for (const auto& key : track.sparse)
+                one(unsigned(key.index), key.value);
+            for (const auto& key : track.unused)
+                one(key.first, key.second);
+        };
+        copy(source.boneKeys, bones);
+        copy(source.morphKeys, native.morphs);
+        copy(source.displayKeys, native.displays);
+        std::fill(app.begin(), app.end(), 0);
+        std::memcpy(app.data() + 0xbe8, &model, sizeof model);
+        struct Step {
+            const char* name;
+            unsigned first, last;
+            KeyScope scope;
+        };
+        const Step steps[] = {
+            {"selection-root", 5, 5, {KeyScopeKind::Track, {Track::Bone, 0, 0, 0}}},
+            {"All frame", 2, 2, {}},
+            {"All bone", 0, 0, {KeyScopeKind::Bones}},
+            {"All facial", 5, 5, {KeyScopeKind::Morphs}},
+            {"disp/IK/OP", 0, 0, {KeyScopeKind::Track, {Track::Display, 0, 0, 0}}},
+            {"selection-root", 5, 5, {KeyScopeKind::Track, {Track::Bone, 0, 0, 0}}},
+            {"All frame", 99, 99, {}},
+            {"selection-root", 5, 5, {KeyScopeKind::Track, {Track::Bone, 0, 0, 0}}},
+            {"selection-root", 3, 3, {KeyScopeKind::Track, {Track::Bone, 0, 0, 0}}},
+            {"All frame", 3, 3, {}},
+            {"All frame", 5, 2, {}}};
+        const auto compare = [&](const auto& track, const auto& pool) {
+            std::vector<unsigned char> expected(pool.size());
+            for (unsigned i = 0; i < track.dense.size(); ++i)
+                expected[i] = track.dense[i].allocated;
+            for (const auto& key : track.sparse)
+                expected[unsigned(key.index)] = key.value.allocated;
+            for (const auto& key : track.unused)
+                expected[key.first] = key.second.allocated;
+            for (unsigned i = 0; i < pool.size(); ++i) {
+                if (pool[i].allocated != expected[i])
+                    std::fprintf(stderr, "%s step=%u record=%u original=%u portable=%u\n", file,
+                                 cases, i, unsigned(pool[i].allocated), unsigned(expected[i]));
+                Check(pool[i].allocated == expected[i], "native range pool marks");
+            }
+        };
+        const auto revision = portable.Revision(), frames = portable.Runtime().Counters().frames;
+        for (const auto& step : steps) {
+            rangeFields = {{425, std::to_string(step.first)},
+                           {426, std::to_string(step.last)},
+                           {434, step.name}};
+            execute(nullptr, 415);
+            portable.SelectKeys(step.first, step.last, step.scope);
+            const auto& result = portable.Document().models[0];
+            compare(result.boneKeys, bones);
+            compare(result.morphKeys, native.morphs);
+            compare(result.displayKeys, native.displays);
+            Check(!app[0xa1b31] && portable.Revision() == revision &&
+                      portable.Runtime().Counters().frames == frames,
+                  "range selection is metadata only");
+            ++cases;
+        }
+    }
+    return cases;
+}
 }
 int wmain(int argc, wchar_t** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
@@ -489,6 +609,9 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf(
         "%u original physics-key commands: full pool sweeps, reversed bindings and empty chains\n",
         PhysicsKeyCommand(original, argv[2]));
+    std::printf(
+        "%u original chained range commands: full pools, additive rows and detached records\n",
+        RangeCommands(original, argv[2]));
     return 0;
 } catch (const std::exception& e) {
     std::fprintf(stderr, "%s\n", e.what());

@@ -1,5 +1,6 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "editor_physics_selection_fixture.hpp"
+#include <fstream>
 #include <iostream>
 using namespace mikudancestudio;
 std::string reason;
@@ -170,6 +171,113 @@ int main(int argc, char** argv) {
                 selected.Selected().model = 0;
                 CHECK(!selected.SelectPhysicsOnKeys(reason));
             }
+    using editor::Track;
+    using editor::KeyAddress;
+    const auto write = [](const auto& path, const auto& bytes, auto&) {
+        std::ofstream stream(path, std::ios::binary);
+        stream.write(reinterpret_cast<const char*>(bytes.data()), std::streamsize(bytes.size()));
+        stream.close();
+        return bool(stream);
+    };
+    for (const char* file : {"articulated.pmd", "articulated.pmx"}) {
+        editor::EditorSession keys;
+        CHECK(PhysicsSelectionFixture(keys, root, file, false, 1, reason));
+        const auto revision = keys.Revision(), frames = keys.Runtime().Counters().frames,
+                   updates = keys.Runtime().Counters().editorUpdates;
+        const bool undo = keys.CanUndo(), redo = keys.CanRedo();
+        const auto* runtime = &keys.Runtime();
+        keys.SelectKeys(2, 2, {editor::KeyScopeKind::Bones});
+        const auto& model = keys.Document().models[0];
+        for (const auto& key : model.boneKeys.dense)
+            CHECK(!key.allocated);
+        for (const auto& key : model.boneKeys.sparse)
+            CHECK(bool(key.value.allocated) == (key.value.frame == 2));
+        CHECK(!model.boneKeys.unused.at(32).allocated);
+        CHECK(model.morphKeys.dense[0].allocated && model.morphKeys.unused.at(32).allocated);
+        CHECK(model.displayKeys.dense[0].allocated && model.displayKeys.unused.at(32).allocated);
+        keys.SelectKeys(5, 5, {editor::KeyScopeKind::Track, {Track::Bone, 0, 0, 0}});
+        CHECK(keys.Selected().keys.count({Track::Bone, 0, 0, 2}) &&
+              keys.Selected().keys.count({Track::Bone, 0, 0, 5}));
+        const auto before = keys.Selected().keys;
+        auto expired = before;
+        expired.insert({Track::Bone, 0, 0, 999});
+        CHECK(!keys.SetSelectedKeys(expired, reason, {{Track::Morph, 0}}));
+        CHECK(keys.Selected().keys == before &&
+              keys.Document().models[0].morphKeys.unused.at(32).allocated);
+        CHECK(keys.Revision() == revision && keys.Runtime().Counters().frames == frames &&
+              keys.Runtime().Counters().editorUpdates == updates && &keys.Runtime() == runtime);
+        CHECK(keys.CanUndo() == undo && keys.CanRedo() == redo);
+
+        // Reject a broken later track before writing marks in earlier tracks.
+        auto invalid = keys.Document();
+        invalid.models[0].displayKeys.dense[0].next = 999;
+        CHECK(!format::SetPmmSelectedKeys(invalid, 0, {}));
+        CHECK(invalid.models[0].boneKeys.sparse[0].value.allocated ==
+              keys.Document().models[0].boneKeys.sparse[0].value.allocated);
+        auto detached = keys.Document();
+        auto key = detached.models[0].boneKeys.dense[0];
+        key.frame = 3;
+        key.previous = key.next = 0;
+        key.allocated = 0;
+        detached.models[0].boneKeys.sparse.push_back({30, 0, key});
+        const std::set<KeyAddress> orphan{{Track::Bone, 0, 0, 3}};
+        CHECK(format::SetPmmSelectedKeys(detached, 0, orphan));
+        std::set<KeyAddress> found;
+        CHECK(format::ReadPmmSelectedKeys(detached, 0, found) && found == orphan);
+
+        const std::set<KeyAddress> selected{{Track::Bone, 0, 0, 5}, {Track::Morph, 0, 0, 0}};
+        CHECK(keys.SetSelectedKeys(selected, reason));
+        CHECK(keys.SelectModel(1, reason));
+        CHECK(keys.Selected().keys.count({Track::Bone, 1, 0, 0}));
+        CHECK(keys.SetSelectedKeys({}, reason));
+        CHECK(keys.SelectModel(0, reason) && keys.Selected().keys == selected);
+        CHECK(keys.SelectModel(0, reason) && keys.Selected().keys == selected);
+        CHECK(keys.ImportAccessory(root / "bound.x", reason));
+        CHECK(keys.ImportAccessory(root / "bound.x", reason));
+        CHECK(keys.SelectModel(255, reason));
+        const std::set<KeyAddress> globals{
+            {Track::Camera, 255, 0, 0}, {Track::Light, 255, 0, 0}, {Track::Accessory, 0, 0, 0}};
+        CHECK(keys.SetSelectedKeys(globals, reason));
+        CHECK(keys.Edit(
+            "unused-accessory-marks",
+            [](auto& d, auto&) {
+                for (auto& a : d.accessories)
+                    a.keyRecords.unused[32].selected = 1;
+                return true;
+            },
+            reason));
+        keys.SelectKeys(1, 1, {editor::KeyScopeKind::Track, {Track::Accessory, 0, 0, 0}});
+        CHECK(!keys.Document().accessories[0].keyRecords.unused.at(32).selected &&
+              keys.Document().accessories[1].keyRecords.unused.at(32).selected);
+        CHECK(keys.SetSelectedKeys(globals, reason));
+        CHECK(keys.SelectModel(0, reason) && keys.Selected().keys == selected);
+        const auto save = root / "selection-roundtrip.pmm";
+        CHECK(keys.Edit(
+            "overlapping-record",
+            [](auto& d, auto&) {
+                auto& track = d.models[0].boneKeys;
+                auto key = track.dense[0];
+                key.frame = 5;
+                key.next = key.previous = 0;
+                key.allocated = 0;
+                track.sparse.push_back({31, 0, key});
+                return true;
+            },
+            reason));
+        CHECK(keys.Save(save, write, reason) && !keys.Dirty());
+        const auto savedFrames = keys.Runtime().Counters().frames;
+        CHECK(keys.SetSelectedKeys({}, reason));
+        CHECK(!keys.Dirty() && keys.Runtime().Counters().frames == savedFrames);
+        CHECK(keys.Open(save, reason) && keys.Selected().keys == selected);
+        const auto& overlap = keys.Document().models[0].boneKeys.sparse;
+        CHECK(std::any_of(overlap.begin(), overlap.end(), [](const auto& entry) {
+            return entry.index == 31 && entry.value.frame == 5 && !entry.value.allocated;
+        }));
+        CHECK(keys.SelectModel(1, reason) && keys.Selected().keys.empty());
+        CHECK(keys.SelectModel(255, reason) && keys.Selected().keys == globals);
+        CHECK(keys.Save(save, write, reason) && keys.Open(save, reason));
+        CHECK(keys.Selected().model == 255 && keys.Selected().keys == globals);
+    }
     std::cout
         << "Bone selection: click/cycle, Shift, box, markers, model isolation and no evaluation passed\n";
 }

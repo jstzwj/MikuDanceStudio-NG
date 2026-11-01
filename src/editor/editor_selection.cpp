@@ -49,6 +49,8 @@ bool EditorSession::SelectModel(std::uint8_t slot, std::string& reason) {
         return false;
     }
     const auto previous = selection_.model;
+    if (!SetSelectedKeys(selection_.keys, reason))
+        return false;
     if (previous == slot && slot == 255) {
         reason.clear();
         return true;
@@ -95,11 +97,17 @@ bool EditorSession::RestoreModelSelection(std::uint8_t slot, std::string& reason
         reason = "model-selection-expired";
         return false;
     }
+    std::set<KeyAddress> keys;
+    if (!format::ReadPmmSelectedKeys(Document(), slot, keys)) {
+        reason = "key-selection-invalid-tracks";
+        return false;
+    }
     const auto accessory = selection_.accessory;
     selection_ = {};
     if (state_.assets.accessories.count(accessory))
         selection_.accessory = accessory;
     selection_.model = slot;
+    selection_.keys = std::move(keys);
     for (const auto& model : Document().models)
         if (model.slot == slot)
             for (unsigned i = 0; i < model.bonePose.size(); ++i)
@@ -230,6 +238,16 @@ bool EditorSession::BoxSelectBones(const std::vector<cpu_bone::ScreenPoint>& poi
             indices.push_back(i);
     return SelectBones(indices, active, reason);
 }
+bool EditorSession::SetSelectedKeys(const std::set<KeyAddress>& selected, std::string& reason,
+                                    const format::PmmKeyPools& clearUnused) {
+    if (!runtime_->SetSelectedKeys(selection_.model, selected, clearUnused)) {
+        reason = "key-selection-expired-or-invalid-tracks";
+        return false;
+    }
+    selection_.keys = selected;
+    reason.clear();
+    return true;
+}
 void EditorSession::SelectKeys(std::uint32_t first, std::uint32_t last, const KeyScope& scope) {
     const auto matches = [&](const KeyAddress& key) {
         if (!Active(selection_, key))
@@ -261,15 +279,31 @@ void EditorSession::SelectKeys(std::uint32_t first, std::uint32_t last, const Ke
     const bool replace = scope.kind == KeyScopeKind::All || scope.kind == KeyScopeKind::Bones ||
                          scope.kind == KeyScopeKind::Morphs ||
                          (scope.kind == KeyScopeKind::Track && !ModelTrack(scope.track.track));
-    if (replace)
-        for (auto it = selection_.keys.begin(); it != selection_.keys.end();)
-            if (matches(*it))
-                it = selection_.keys.erase(it);
-            else
-                ++it;
-    for (const auto& key : Keys())
-        if (matches(key) && first <= key.frame && key.frame <= last)
-            selection_.keys.insert(key);
+    format::PmmKeyRangeSelection range;
+    range.first = first;
+    range.last = last;
+    for (auto key : Keys())
+        if (matches(key)) {
+            if (replace)
+                range.replace.emplace(key.track, key.slot);
+            else {
+                key.frame = 0;
+                range.append.insert(key);
+            }
+        }
+    std::string reason;
+    if (!SetSelectedKeys(selection_.keys, reason) ||
+        !runtime_->SelectKeyRange(selection_.model, range))
+        return;
+    std::set<KeyAddress> selected;
+    if (!format::ReadPmmSelectedKeys(Document(), selection_.model, selected))
+        return;
+    for (auto it = selection_.keys.begin(); it != selection_.keys.end();)
+        if (Active(selection_, *it))
+            it = selection_.keys.erase(it);
+        else
+            ++it;
+    selection_.keys.insert(selected.begin(), selected.end());
 }
 bool EditorSession::SelectPhysicsOnKeys(std::string& reason) {
     reason.clear();
@@ -317,8 +351,11 @@ void EditorSession::ExtendSelectedColumns() {
     for (const auto& key : selection_.keys)
         if (Active(selection_, key))
             frames.insert(key.frame);
+    auto selected = selection_.keys;
     for (const auto& key : Keys())
         if (Active(selection_, key) && frames.count(key.frame))
-            selection_.keys.insert(key);
+            selected.insert(key);
+    std::string reason;
+    SetSelectedKeys(selected, reason);
 }
 }

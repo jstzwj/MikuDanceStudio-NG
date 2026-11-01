@@ -983,12 +983,18 @@ int main(int argc, char** argv) {
     CHECK(timeline->RowCount() == 4);
     QTest::mouseClick(timeline, Qt::LeftButton, Qt::NoModifier, QPoint(100, 65));
     CHECK(window.Session().Selected().keys.count({editor::Track::Bone, 0, 0, 0}) == 1);
+    CHECK(window.Session().Document().models[0].boneKeys.dense[0].allocated);
+    QTest::mouseClick(timeline, Qt::LeftButton, Qt::ControlModifier, QPoint(100, 65));
+    CHECK(!window.Session().Document().models[0].boneKeys.dense[0].allocated);
+    QTest::mouseClick(timeline, Qt::LeftButton, Qt::ControlModifier, QPoint(100, 65));
+    const auto timelineKeys = window.Session().Selected().keys;
     CHECK(window.Session().SetBone(0, 0, {2, 0, 0}, {0, 0, 0, 1}, reason));
     window.Session().SetGroupExpanded(0, 3, true);
     CHECK(window.Session().Undo(reason));
     CHECK(window.Session().Document().models[0].selection.groupFlags[3] == 1);
     CHECK(window.Save(root / "qt-groups.pmm") && window.Open(root / "qt-groups.pmm"));
     CHECK(window.Session().Document().models[0].selection.groupFlags[3] == 1);
+    CHECK(window.Session().Selected().keys == timelineKeys);
     QStringList catalogKeys;
     CHECK(window.SetLanguage("en"));
     auto* scope = static_cast<QComboBox*>(window.Control(panel::kRegisterScopeCombo));

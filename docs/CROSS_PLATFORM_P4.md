@@ -1856,7 +1856,8 @@ The complete auxiliary oracle now passes **178 checkpoints/cases**. Local Qt men
 portable selection and scene-runtime tests passed (10.75 seconds); the legacy
 model-key-selection test and Qt application build also passed. The rebuilt Win32
 portable selection test passed (4.10 seconds). No window is shown. Three-platform
-CI for this selection batch remains required.
+CI for this selection batch passed all three platform jobs in
+[run 41352087825](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41352087825).
 
 ## Edge-window model-combo integration
 
@@ -1870,4 +1871,45 @@ reopening, resource replacement on project load and playback after reopening.
 Ordinary frame/dirty-state refreshes retain uncommitted text.
 The rebuilt Qt numeric/menu/channel-binding tests passed (5.54 seconds), as did
 the extended original numeric oracle. The application builds. Three-platform CI
-for this host follow-up remains required.
+for this host follow-up passed all three jobs in
+[run 41352599572](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41352599572).
+
+## Timeline selection metadata and persistence
+
+Timeline clicks, Ctrl toggles, rectangle selections, scoped ranges and column
+extension now publish selection bytes through a validated metadata-only scene
+operation. Model selection and project opening restore the occupied record marks;
+camera/global selection and each model retain independent marks. Save overlays
+the active UI selection onto its private output document, without evaluating the
+scene or changing history. Imported model root marks are immediately reflected
+in the timeline. Other models and global tracks remain untouched by model edits.
+
+The format-level address contract is shared by the editor and scene runtime.
+Validation includes detached occupied records and rejects missing addresses or
+invalid tracks before publishing any marks. Unused-slot marks survive additive
+selection and saving. Clearing operations identify both track kind and slot so
+selecting one accessory's range cannot clear another accessory's unused records.
+Named/selected model rows follow active chains; full array sweeps also address
+detached occupied records, matching the original distinction. Multiple records
+can share a channel/frame address: range operations retain their actual record
+identity, while unchanged UI addresses preserve each original mark during model
+switching and saving. Selecting one visible diamond does not silently rewrite
+an overlapping record that the range operation did not visit.
+
+The auxiliary oracle now executes original range command **415** through the
+full dispatcher, replacing only control-text queries and two UI refresh tails.
+**22 chained command checkpoints** compare complete bone/Morph/display pools for
+PMD and PMX, including root-only ranges, additive named rows, reversed bounds,
+empty ranges, unused marks and detached/overlapping occupied records. All **200** auxiliary
+checks/cases pass. The portable tests additionally cover atomic rejection,
+per-model/camera selection, two accessories, save/reopen, unchanged revisions,
+runtime identity, CPU update counts and history availability. Qt tests exercise
+real mouse clicks and Ctrl toggles, then save/reopen after undo. Both targeted
+tests passed again after the overlapping-record follow-up (12.94 seconds) with
+no desktop interaction. The final revision passed all **31 P4 regressions**
+(59.21 seconds), the scene-runtime regression (1.77 seconds), and rebuilt Win32
+selection/session tests (8.31 seconds). The Qt application builds. Three-platform
+CI for this batch remains required.
+
+Broader chained clipboard, capacity, keyboard/IME/DPI and full C1 output gates
+remain open; this change is not P4 acceptance.

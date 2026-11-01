@@ -672,10 +672,19 @@ bool SceneRuntime::SelectPhysicsOnKeys(std::uint8_t slot,
     return impl_ && !impl_->failed && impl_->session &&
            impl_->session->SelectPhysicsOnKeys(slot, physical);
 }
+bool SceneRuntime::SetSelectedKeys(std::uint8_t slot,
+                                   const std::set<format::PmmKeyAddress>& selected,
+                                   const format::PmmKeyPools& clearUnused) {
+    return impl_ && !impl_->failed && impl_->session &&
+           impl_->session->SetSelectedKeys(slot, selected, clearUnused);
+}
 void SceneRuntime::SetBoneSelection(std::uint8_t slot, const std::vector<std::uint32_t>& indices,
                                     int active) {
     if (impl_->session)
         impl_->session->SetBoneSelection(slot, indices, active);
+}
+bool SceneRuntime::SelectKeyRange(std::uint8_t slot, const format::PmmKeyRangeSelection& range) {
+    return impl_ && !impl_->failed && impl_->session && impl_->session->SelectKeyRange(slot, range);
 }
 void SceneRuntime::SetEditMode(std::int32_t mode) {
     if (impl_->session)

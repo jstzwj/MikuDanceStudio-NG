@@ -48,6 +48,9 @@ public:
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
     void ClearPoseEditMarkers();
     bool SelectPhysicsOnKeys(std::uint8_t, const std::vector<std::uint8_t>& physical);
+    bool SetSelectedKeys(std::uint8_t, const std::set<format::PmmKeyAddress>&,
+                         const format::PmmKeyPools& clearUnused);
+    bool SelectKeyRange(std::uint8_t, const format::PmmKeyRangeSelection&);
     void SetBoneSelection(std::uint8_t, const std::vector<std::uint32_t>&, int active);
     void SetEditMode(std::int32_t);
     bool SetViewCamera(const format::PmmEvaluatedCamera&, const std::array<float, 2>&);

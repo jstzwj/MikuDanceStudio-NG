@@ -287,19 +287,26 @@ void Timeline::mousePressEvent(QMouseEvent* e) {
         return;
     }
     const auto frame = unsigned(FrameAt(press_.x()));
+    auto selected = selection.keys;
     if (!(e->modifiers() & Qt::ControlModifier))
-        selection.keys.clear();
+        selected.clear();
     if (row >= 0 && row < int(rows_.size()) && press_.y() >= 16) {
         const auto keys = session_.Keys();
         for (const auto& key : keys)
             if (key.frame == frame && Matches(rows_[row], key)) {
-                if ((e->modifiers() & Qt::ControlModifier) && selection.keys.count(key))
-                    selection.keys.erase(key);
+                if ((e->modifiers() & Qt::ControlModifier) && selected.count(key))
+                    selected.erase(key);
                 else
-                    selection.keys.insert(key);
+                    selected.insert(key);
             }
     }
     std::string error;
+    format::PmmKeyPools clear;
+    if (!(e->modifiers() & Qt::ControlModifier))
+        for (const auto& key : session_.Keys())
+            clear.emplace(key.track, key.slot);
+    if (!session_.SetSelectedKeys(selected, error, clear))
+        return;
     session_.Seek(frame, error);
     dragging_ = true;
     if (changed)
@@ -318,7 +325,7 @@ void Timeline::mouseReleaseEvent(QMouseEvent* e) {
     const auto end = e->position().toPoint();
     if ((end - press_).manhattanLength() > 4) {
         const auto r = QRect(press_, end).normalized();
-        auto& selected = session_.Selected().keys;
+        auto selected = session_.Selected().keys;
         const auto keys = session_.Keys();
         for (int row = std::max(0, RowAt(r.top()));
              row <= RowAt(r.bottom()) && row < int(rows_.size()); ++row)
@@ -327,6 +334,8 @@ void Timeline::mouseReleaseEvent(QMouseEvent* e) {
                     key.frame <= unsigned(FrameAt(r.right())))
                     selected.insert(key);
             }
+        std::string reason;
+        session_.SetSelectedKeys(selected, reason);
     }
     if (changed)
         changed();
@@ -362,12 +371,14 @@ void Timeline::SelectColumn() {
 }
 void Timeline::SelectTrack(Track track) {
     SelectAll();
-    auto& keys = session_.Selected().keys;
+    auto keys = session_.Selected().keys;
     for (auto it = keys.begin(); it != keys.end();)
         if (it->track != track)
             it = keys.erase(it);
         else
             ++it;
+    std::string reason;
+    session_.SetSelectedKeys(keys, reason);
     update();
 }
 }
