@@ -13,9 +13,11 @@ function(mds_add_scene_runtime physics_target)
     add_executable(mds_cpu_scene_cli "${mds_root}/src/tools/scene_runtime_cli.cpp")
     target_link_libraries(mds_cpu_scene_cli PRIVATE mikudancestudio_scene_runtime)
     if(MSVC)
-        target_compile_options(mikudancestudio_scene_runtime PRIVATE /fp:precise /utf-8)
+        target_compile_options(mikudancestudio_scene_runtime PRIVATE /utf-8 PUBLIC /fp:precise)
     else()
-        target_compile_options(mikudancestudio_scene_runtime PRIVATE -ffp-contract=off)
+        # Public headers contain compatibility arithmetic too. Do not let a
+        # consumer contract those multiply/add operations into ARM64 FMA.
+        target_compile_options(mikudancestudio_scene_runtime PUBLIC -ffp-contract=off)
     endif()
     include("${mds_root}/cmake/SceneRender.cmake")
     mds_add_scene_render()
