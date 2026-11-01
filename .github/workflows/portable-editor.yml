@@ -1,0 +1,125 @@
+name: Portable editor
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          arch: win64_msvc2022_64
+          modules: qtmultimedia
+          cache: true
+      - name: Build editor with DX11 WARP
+        run: |
+          cmake -S cmake/portable-editor -B out/p4 -A x64 -DMIKUDANCESTUDIO_RHI_VULKAN=OFF -DMIKUDANCESTUDIO_RHI_D3D11=ON -DMIKUDANCESTUDIO_RHI_D3D12=OFF
+          cmake --build out/p4 --config Release --target qt_editor_test qt_editor_render_test editor_session_test pmm_edit_test wave_format_test MikuDanceStudioNG --parallel 3
+      - name: Offscreen editor and generated export
+        env:
+          MDS_GPU_BACKEND: d3d11
+          MDS_GPU_DRIVER: software
+        run: ctest --test-dir out/p4 -C Release -L p4 --output-on-failure --output-junit p4.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p4-windows
+          path: |
+            out/p4/p4.xml
+            out/p4/Testing/Temporary/
+  linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/checkout@v4
+        with:
+          repository: KhronosGroup/Vulkan-Headers
+          ref: v1.3.296
+          path: out/vulkan-headers
+      - run: sudo apt-get update -qq && sudo apt-get install -y ninja-build spirv-tools libvulkan1 mesa-vulkan-drivers libxcb1-dev libwayland-dev libxkbcommon-x11-0 libxcb-cursor0 libegl1 libgl1 libpulse0 xvfb weston
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          modules: qtmultimedia qtwaylandcompositor
+          cache: true
+      - run: python tools/fetch_dxc.py --output out/dxc
+      - name: Build and test editor
+        env:
+          MDS_GPU_DRIVER: software
+        run: |
+          cmake -S cmake/portable-editor -B out/p4 -G Ninja -DCMAKE_BUILD_TYPE=Release -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/bin/dxc"
+          cmake --build out/p4 --target qt_editor_test qt_editor_render_test editor_session_test pmm_edit_test wave_format_test MikuDanceStudioNG --parallel 3
+          ctest --test-dir out/p4 -L p4 --output-on-failure --output-junit p4.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p4-linux
+          path: |
+            out/p4/p4.xml
+            out/p4/Testing/Temporary/
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/cache@v4
+        id: compiler
+        with:
+          path: out/dxc
+          key: dxc-b106a961-macos15-arm64-v1
+      - uses: actions/checkout@v4
+        if: steps.compiler.outputs.cache-hit != 'true'
+        with:
+          repository: microsoft/DirectXShaderCompiler
+          ref: b106a961d09221b3c5bdb37be45b679257da08b8
+          submodules: recursive
+          path: out/dxc-source
+      - name: Build pinned upstream DXC
+        if: steps.compiler.outputs.cache-hit != 'true'
+        run: |
+          cmake -S out/dxc-source -B out/dxc-build -G Ninja -C out/dxc-source/cmake/caches/PredefinedParams.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DHLSL_INCLUDE_TESTS=OFF -DSPIRV_BUILD_TESTS=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_WERROR=OFF -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+          cmake --build out/dxc-build --target dxc --parallel 3
+          mkdir -p out/dxc/bin out/dxc/lib
+          cp out/dxc-build/bin/dxc out/dxc/bin/
+          cp -L out/dxc-build/lib/libdxcompiler*.dylib out/dxc/lib/
+          cp out/dxc-source/LICENSE.TXT out/dxc-source/ThirdPartyNotices.txt out/dxc/
+      - uses: actions/checkout@v4
+        with:
+          repository: KhronosGroup/Vulkan-Headers
+          ref: v1.3.296
+          path: out/vulkan-headers
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          modules: qtmultimedia
+          cache: true
+      - run: chmod +x out/dxc/bin/dxc && brew install spirv-tools
+      - run: python tools/fetch_moltenvk_probe.py --output out/moltenvk
+      - name: Build and test editor
+        env:
+          MDS_TEST_VULKAN_LIBRARY: ${{ github.workspace }}/out/moltenvk/libMoltenVK.dylib
+        run: |
+          cmake -S cmake/portable-editor -B out/p4 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/bin/dxc"
+          cmake --build out/p4 --target qt_editor_test qt_editor_render_test editor_session_test pmm_edit_test wave_format_test MikuDanceStudioNG --parallel 3
+          ctest --test-dir out/p4 -L p4 --output-on-failure --output-junit p4.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p4-macos
+          path: |
+            out/p4/p4.xml
+            out/p4/Testing/Temporary/
