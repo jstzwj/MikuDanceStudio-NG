@@ -119,8 +119,9 @@ std::array<float, 4> Quaternion(float x, float y, float z) {
     return BoneRotationFromDegrees({x, y, z});
 }
 }
-EditorWindow::EditorWindow(std::filesystem::path assets, bool testing)
-    : assets_(std::move(assets)), testing_(testing) {
+EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
+                           std::unique_ptr<AudioOutput> audio)
+    : assets_(std::move(assets)), testing_(testing), audio_(std::move(audio), testing) {
     setObjectName("mmd.editor");
     setMinimumSize(640, 480);
     resize(1024, 768);
@@ -198,22 +199,28 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing)
     BuildMenus();
     Texts();
     Refresh();
-    connect(&timer_, &QTimer::timeout, this, [this] {
-        auto seconds = clock_.restart() / 1000.;
-        if (audio_.Running())
-            seconds = std::max(0., audio_.Position() -
-                                       double(session_.Runtime().Simulation().cursorSeconds));
-        if (session_.Playing()) {
-            std::string reason;
-            if (!Result(session_.Advance(std::min(1., seconds), reason), reason))
-                session_.Pause();
-            Refresh();
-        } else
-            UpdateFrame();
-    });
+    connect(&timer_, &QTimer::timeout, this, [this] { Tick(clock_.restart() / 1000.); });
     clock_.start();
     if (!testing_)
         timer_.start(16);
+}
+void EditorWindow::Tick(double seconds) {
+    if (!std::isfinite(seconds) || seconds < 0)
+        return;
+    if (const auto position = audio_.ClockPosition())
+        seconds = std::max(0., *position - session_.CursorSeconds());
+    if (session_.Playing()) {
+        std::string reason;
+        const auto epoch = session_.PlaybackEpoch();
+        if (seconds > 0 && !Result(session_.Advance(std::min(1., seconds), reason), reason))
+            session_.Pause();
+        if (session_.Playing() && session_.PlaybackEpoch() != epoch &&
+            session_.Document().wave.enabled && !session_.Assets().wave.empty() &&
+            !Result(audio_.Play(session_.CursorSeconds(), reason), reason))
+            session_.Pause();
+        Refresh();
+    } else
+        UpdateFrame();
 }
 EditorWindow::~EditorWindow() {
     timer_.stop();
@@ -831,12 +838,11 @@ void EditorWindow::Dispatch(int id) {
         } else {
             clock_.restart();
             ok = session_.Play(r);
-            if (ok && !testing_ && session_.Document().wave.enabled &&
-                !session_.Assets().wave.empty()) {
+            if (ok && session_.Document().wave.enabled && !session_.Assets().wave.empty()) {
                 if (audio_.Path() != session_.Assets().wave)
                     ok = audio_.Load(session_.Assets().wave, r);
                 if (ok)
-                    ok = audio_.Play(session_.Runtime().Simulation().cursorSeconds, r);
+                    ok = audio_.Play(session_.CursorSeconds(), r);
                 if (!ok)
                     session_.Pause();
             }

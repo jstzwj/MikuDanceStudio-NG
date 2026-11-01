@@ -11,7 +11,8 @@
 namespace mikudancestudio::qt {
 class EditorWindow final : public QMainWindow {
 public:
-    explicit EditorWindow(std::filesystem::path assets, bool testing = false);
+    explicit EditorWindow(std::filesystem::path assets, bool testing = false,
+                          std::unique_ptr<AudioOutput> audio = {});
     ~EditorWindow() override;
     editor::EditorSession& Session() { return session_; }
     QWidget* Control(int id) const;
@@ -23,6 +24,7 @@ public:
     bool Save(const std::filesystem::path&);
     void Dispatch(int id);
     void Refresh();
+    void Tick(double elapsedSeconds);
     QString LastError() const { return lastError_; }
 
 protected:

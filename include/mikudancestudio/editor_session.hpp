@@ -81,6 +81,8 @@ public:
     void Pause();
     bool Advance(double deltaSeconds, std::string&);
     bool Playing() const { return playing_; }
+    double CursorSeconds() const { return cursorSeconds_; }
+    std::uint64_t PlaybackEpoch() const { return playbackEpoch_; }
     bool Dirty() const { return revision_ != savedRevision_; }
     bool CanUndo() const { return !undo_.empty(); }
     bool CanRedo() const { return !redo_.empty(); }
@@ -110,6 +112,7 @@ private:
     bool playing_ = false;
     double cursorSeconds_ = 0;
     std::uint32_t playOrigin_ = 0;
+    std::uint64_t playbackEpoch_ = 0;
     State Current() const;
     bool Prepare(State&, std::unique_ptr<runtime::SceneRuntime>&, std::string&) const;
     bool Commit(State, std::string&);

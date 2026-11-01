@@ -1,10 +1,13 @@
 #include "audio.hpp"
 #include "editor_window.hpp"
 #include <QFile>
-#include <QMediaDevices>
-#include <QAudioDevice>
 #include <cmath>
 namespace mikudancestudio::qt {
+AudioTransport::AudioTransport(std::unique_ptr<AudioOutput> output, bool disableNativeOutput)
+    : output_(std::move(output)) {
+    if (!output_ && !disableNativeOutput)
+        output_ = CreateAudioOutput();
+}
 bool AudioTransport::Load(const std::filesystem::path& path, std::string& reason) {
     QFile file(qt::Path(path));
     if (!file.open(QIODevice::ReadOnly) || file.size() > (256u << 20)) {
@@ -34,40 +37,45 @@ bool AudioTransport::Play(double seconds, std::string& reason) {
     format.setSampleRate(int(wave_.sampleRate));
     format.setChannelCount(int(wave_.channels));
     format.setSampleFormat(QAudioFormat::Float);
-    const auto device = QMediaDevices::defaultAudioOutput();
-    if (device.isNull() || !device.isFormatSupported(format)) {
-        reason = "audio-output-format-unavailable";
-        return false;
-    }
-    const auto offset = std::min(wave_.SampleFrames(), std::uint64_t(seconds * wave_.sampleRate));
+    const auto duration = double(wave_.SampleFrames()) / wave_.sampleRate;
+    const auto offset = std::min(wave_.SampleFrames(),
+                                 std::uint64_t(std::min(seconds, duration) * wave_.sampleRate));
     start_ = double(offset) / wave_.sampleRate;
+    reason.clear();
+    if (!output_ || offset == wave_.SampleFrames())
+        return true;
     buffer_.open(QIODevice::ReadOnly);
     buffer_.seek(qint64(offset * wave_.channels * 4));
-    sink_ = std::make_unique<QAudioSink>(device, format);
-    sink_->setVolume(volume_);
-    sink_->start(&buffer_);
-    if (sink_->error() != QAudio::NoError) {
-        reason = "audio-output-start-failed";
+    if (!output_->Start(format, buffer_, volume_, reason)) {
         Stop();
         return false;
     }
+    clockActive_ = true;
     return true;
 }
 void AudioTransport::Stop() {
-    if (sink_)
-        sink_->stop();
-    sink_.reset();
+    clockActive_ = false;
+    if (output_)
+        output_->Stop();
     buffer_.close();
 }
 void AudioTransport::Volume(float value) {
     volume_ = std::clamp(value, 0.f, 1.f);
-    if (sink_)
-        sink_->setVolume(volume_);
+    if (output_)
+        output_->Volume(volume_);
 }
 bool AudioTransport::Running() const {
-    return sink_ && sink_->state() == QAudio::ActiveState;
+    return output_ && output_->Running();
 }
 double AudioTransport::Position() const {
-    return start_ + (sink_ ? sink_->processedUSecs() / 1000000. : 0);
+    return start_ + (output_ ? output_->ProcessedMicroseconds() / 1000000. : 0);
+}
+std::optional<double> AudioTransport::ClockPosition() {
+    if (!clockActive_)
+        return {};
+    const auto position = Position();
+    if (!Running())
+        clockActive_ = false;
+    return position;
 }
 }

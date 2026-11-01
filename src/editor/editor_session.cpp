@@ -861,6 +861,7 @@ bool EditorSession::Play(std::string& reason) {
     if (!runtime_->StartPlayback(reason))
         return false;
     playing_ = true;
+    ++playbackEpoch_;
     return true;
 }
 void EditorSession::Pause() {
@@ -882,6 +883,7 @@ bool EditorSession::Advance(double delta, std::string& reason) {
                 !runtime_->StartPlayback(reason))
                 return false;
             playing_ = true;
+            ++playbackEpoch_;
             return true;
         }
         if (!Seek(std::uint32_t(settings.returnToStart ? playOrigin_ : settings.playStopFrame),

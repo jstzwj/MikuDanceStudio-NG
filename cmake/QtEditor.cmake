@@ -6,6 +6,7 @@ function(mds_add_qt_editor)
     get_filename_component(root "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/.." ABSOLUTE)
     qt_add_library(mikudancestudio_frontend_qt STATIC
         "${root}/src/frontend_qt/language.cpp"
+        "${root}/src/frontend_qt/audio_output.cpp"
         "${root}/src/frontend_qt/timeline.cpp"
         "${root}/src/frontend_qt/editor_window.cpp"
         "${root}/src/frontend_qt/editor_panels.cpp"
@@ -34,6 +35,10 @@ function(mds_add_qt_editor)
     add_custom_command(TARGET MikuDanceStudioNG POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${root}/res/assets" "$<TARGET_FILE_DIR:MikuDanceStudioNG>/assets")
     if(BUILD_TESTING)
+        qt_add_executable(qt_audio_test "${root}/tests/qt_audio_test.cpp")
+        target_link_libraries(qt_audio_test PRIVATE mikudancestudio_frontend_qt)
+        add_test(NAME qt_audio COMMAND qt_audio_test "${root}/res/assets")
+        set_tests_properties(qt_audio PROPERTIES LABELS "p4;offscreen;qt;audio" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_editor_test "${root}/tests/qt_editor_test.cpp")
         target_link_libraries(qt_editor_test PRIVATE mikudancestudio_frontend_qt Qt6::Test)
         add_test(NAME qt_editor COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"

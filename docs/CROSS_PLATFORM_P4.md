@@ -41,8 +41,8 @@ behavior and all frame-line operations require further implementation/comparison
 |---|---|
 | Shared editing and serialization | First local regression passed; full command/compatibility coverage pending |
 | Qt original layout and multilingual interface | Initial three-platform command/language regression passed; full original parity pending |
-| C1 scene rendering | Generated model outlines/projected shadows passed on three platforms; texture morph pools and screen history passed locally; accessory shadows and full comparison pending |
-| WAV and synchronization | Pending |
+| C1 scene rendering | Model outlines, texture morphs and screen history passed on three platforms; accessory self-shadow passed local DX9 comparisons on DX11/DX12/Vulkan; full C1 comparison pending |
+| WAV and synchronization | Deterministic consuming sink passed 120s clock/jitter, loop, seek, EOF and failure checks; native audio output acceptance pending |
 | Fixed-step image sequence export and cancellation | Generated 30fps sequence, strict repeat and cancellation passed on three platforms |
 | Three-platform open/edit/play/save/reopen/export | Initial generated workflow passed; complete C1 workflow coverage pending |
 | MMD v9.32 independent geometry, behavior and output comparison | Pending |
@@ -93,3 +93,24 @@ replacement and surface destruction reset it; sequence export renders capture
 warmup frames before the first requested output. The generated `screen.x` fixture
 checks recursive output, repeated submission and exact restoration after reset.
 All five local P4 regressions passed after these changes.
+
+[Run 41280483143](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41280483143)
+at `e40bffb` passed Windows, Linux and macOS, including native Qt surface lifecycle.
+It includes panel controls, texture morph pools and screen capture history.
+
+The next local batch adds accessory shadow casting and FX9 diffuse shadow
+receiving, sphere multiplication/addition and combined texture inputs. The
+explicit `portable_scene_dx9_test` compiles the shipped `skin_effect_sm3.fx` on a
+hidden DX9 device. DX11, DX12 and Vulkan each passed 20 cases: normal/forced
+shadow, both shadow projection modes, four accessory material variants and PMX
+texture morphs. Every image and natural shadow map must contain written pixels.
+RGB differences were at most one code value; alpha, coverage and repeated
+submissions passed the existing strict contracts. This checks shader execution
+against DX9; a full independent scene-input oracle remains required.
+
+WAV output now has an injectable device boundary. A deterministic sink consumes
+the real decoded PCM without opening an audio device. The Qt regression covers
+120 seconds with timer jitter, exact PCM offsets, loop restart, seek, stop,
+WAV EOF handoff and output-start failure. The editor follows the processed audio
+clock while active, and restarts the stream when playback loops. These tests do
+not measure physical output latency. Six local P4 tests passed after this batch.
