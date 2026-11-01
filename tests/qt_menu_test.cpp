@@ -36,6 +36,7 @@ int main(int argc, char** argv) {
     const auto root = std::filesystem::absolute(argv[1]);
     qt::EditorWindow window(std::filesystem::absolute(argv[2]), true);
     auto& session = window.Session();
+    CHECK(session.Document().appearance.floorVisible == 1);
     const auto command = [&](int id) -> QAction* {
         for (auto* action : window.findChildren<QAction*>())
             if (action->property("mmdCommandId").toInt() == id)
@@ -174,7 +175,30 @@ int main(int argc, char** argv) {
     CHECK(!command(MDS_CMD_LOAD_POSE)->isEnabled());
     CHECK(!command(MDS_CMD_SAVE_POSE)->isEnabled());
     CHECK(command(MDS_CMD_SELECT_ALL_CAMERA_FRAMES)->isEnabled());
+    // The floor command updates the existing Bullet world and saved metadata;
+    // it must not rebuild the session, stop playback or consume bone history.
+    CHECK(session.ImportModel(root / "articulated.pmd", reason));
+    CHECK(session.Play(reason));
+    window.Refresh();
+    const auto* runtime = &session.Runtime();
+    const auto* snapshot = session.Runtime().Snapshot(0);
+    const auto bodies = session.Runtime().Bodies(0);
+    const auto floorUpdates = session.Runtime().Counters().frames;
+    const auto floorRevision = session.Revision();
+    const auto undo = session.CanUndo();
+    command(MDS_CMD_TOGGLE_PHYSICS_FLOOR)->trigger();
+    CHECK(session.Playing() && &session.Runtime() == runtime);
+    CHECK(!session.Document().appearance.floorVisible &&
+          !command(MDS_CMD_TOGGLE_PHYSICS_FLOOR)->isChecked());
+    CHECK(session.Runtime().Snapshot(0) == snapshot && session.Runtime().Bodies(0) == bodies);
+    CHECK(session.Runtime().Counters().frames == floorUpdates &&
+          session.Revision() == floorRevision);
+    CHECK(session.CanUndo() == undo);
+    session.Pause();
     CHECK(window.Save(root / "menu-save.pmm"));
+    CHECK(window.Open(root / "menu-save.pmm"));
+    CHECK(!session.Document().appearance.floorVisible &&
+          !command(MDS_CMD_TOGGLE_PHYSICS_FLOOR)->isChecked());
     auto camera = session.Runtime().Session()->Pose().camera;
     camera.position[0] += 3;
     CHECK(session.SetCamera(camera, reason) && session.Dirty());
@@ -185,7 +209,7 @@ int main(int argc, char** argv) {
     unsigned implemented = 0;
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 37);
+    CHECK(implemented == 38);
     CHECK(window.LastError().isEmpty());
     CHECK(!window.isVisible() && window.RenderWindow()->Submissions() == 0);
     std::cout

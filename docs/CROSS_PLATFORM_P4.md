@@ -945,7 +945,7 @@ with a translated explanation. The binary-tree check is structural acceptance,
 
 While tracing the floor command, the audit found that the shared runtime had
 not applied PMM `floorVisible` to Bullet's ground collision flags. That command
-remains disabled until the actual physics path and trajectory tests are fixed;
+was left disabled pending the actual physics path and trajectory fix below;
 changing a menu checkmark alone does not establish support. Full timeline/menu
 behavior, dialogs, native audio, input/font metrics and independent C1 frame
 output remain open P4 gates.
@@ -953,4 +953,42 @@ output remain open P4 gates.
 Local Windows validation for the menu batch passed all **24 P4 tests** and the
 Qt application build. These tests remained offscreen; no desktop window or
 audio output was opened. The new menu oracle is included in all three editor
-CI jobs; its three-platform result is recorded separately when available.
+CI jobs. The batch passed Windows, Linux and macOS in
+[run 41321824124](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41321824124)
+at `0f5a7f0`, including the native surface jobs.
+
+## Physics floor command and PMM restoration
+
+The next batch connects the floor command (38 connected menu commands in total).
+It replaces the existing ground body's collision flags with exactly `1` or `-1`,
+without rebuilding the world, changing body transforms/velocities, advancing
+simulation, stopping playback or creating an undo entry. Like the native menu,
+the toggle does not mark the document dirty, but an explicit save includes it.
+New scenes enable the floor. Older V1 files lacking the optional floor section
+retain the editor's current setting; standalone V1 decoding starts enabled.
+
+The shared runtime now applies an explicit saved floor value before its initial
+simulation and when replacing settings. The audit also found that both legacy
+PMM loaders incorrectly wrote Bullet's deactivation timer. Both loaders and the
+legacy menu now call the same ground-flag helper as the portable runtime.
+
+The optional local `physics_floor_oracle_test <original-x64.exe>` executes only
+the actual ground-body store instructions extracted from the hash-verified
+original: menu RVAs `500BC/500F7`, V2 loader `81C1A/81C52`, V1 loader
+`884B6/884EE`. All **24 complete body-byte comparisons** passed. It maps no UI,
+opens no renderer and does not invoke the original application entrypoint. This
+is an instruction-level oracle; it is not a full original PMM-loading workflow.
+
+The portable Bullet test exercises on/off/on contact in the same world. New
+public PMD/PMX fixtures explicitly include collision group 16 (the floor);
+existing articulated fixtures deliberately disable all collision masks and
+remain byte-identical. Editor playback tests verify actual landing/falling both
+directly and after PMM save/reopen. Qt's offscreen menu test checks playback,
+snapshot/body identity, unchanged update/revision counters, menu state and
+persistence. P4's remaining full behavior and output gates are unchanged.
+
+Local Windows validation passed all **24 P4 tests**, four additional x64
+physics/runtime/PMM tests and six Win32 tests, including V1 setting inheritance.
+The Qt application and legacy Windows application both built successfully;
+the legacy hidden-window floor test and its three PMM regressions passed.
+No local desktop interaction or audio output was used.

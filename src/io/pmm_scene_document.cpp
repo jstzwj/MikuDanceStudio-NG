@@ -493,6 +493,9 @@ static bool ParseSections(const PmmDocument& envelope, ResolvePmmV1ModelLayout r
             return false;
     } else {
         begin = cursor.offset;
+        // Files predating the optional physics-floor section keep the fresh
+        // editor's enabled floor. An explicit tail flag overrides this below.
+        parsed.appearance.floorVisible = 1;
         if (!V1Tail(cursor, parsed))
             return false;
         if (cursor.offset != begin)

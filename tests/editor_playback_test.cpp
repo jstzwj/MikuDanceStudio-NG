@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstring>
 #include <iostream>
+#include <fstream>
 #include <limits>
 using namespace mikudancestudio;
 std::string reason;
@@ -62,6 +63,52 @@ int main(int argc, char** argv) {
     boundary.Pause();
     editor::EditorSession session;
     const auto root = std::filesystem::absolute(argv[1]);
+    {
+        // Native v1 loading leaves the current floor setting alone when its
+        // optional section is absent. A fresh editor starts with floor on.
+        editor::EditorSession inherited;
+        inherited.SetPhysicsFloor(false);
+        CHECK(inherited.Open(root / "v1.pmm", reason));
+        CHECK(!inherited.Document().appearance.floorVisible);
+        CHECK(inherited.New(reason) && inherited.Open(root / "v1.pmm", reason));
+        CHECK(inherited.Document().appearance.floorVisible);
+    }
+    for (const char* model : {"floor.pmd", "floor.pmx"})
+        for (bool enabled : {false, true})
+            for (bool reopen : {false, true}) {
+                editor::EditorSession floor;
+                CHECK(floor.Document().appearance.floorVisible == 1);
+                CHECK(floor.ImportModel(root / model, reason));
+                const auto* runtime = &floor.Runtime();
+                const auto before = floor.Runtime().Bodies(0);
+                const auto count = floor.Runtime().Counters().frames;
+                const auto revision = floor.Revision();
+                floor.SetPhysicsFloor(enabled);
+                CHECK(&floor.Runtime() == runtime && floor.Runtime().Bodies(0) == before);
+                CHECK(floor.Runtime().Counters().frames == count && floor.Revision() == revision);
+                if (reopen) {
+                    CHECK(floor.Save(
+                        root / "floor.pmm",
+                        [](const auto& path, const auto& bytes, auto&) {
+                            std::ofstream file(path, std::ios::binary);
+                            file.write(reinterpret_cast<const char*>(bytes.data()),
+                                       std::streamsize(bytes.size()));
+                            return bool(file);
+                        },
+                        reason));
+                    CHECK(floor.Open(root / "floor.pmm", reason));
+                }
+                CHECK(bool(floor.Document().appearance.floorVisible) == enabled);
+                CHECK(floor.Play(reason));
+                for (unsigned n = 0; n < 60; ++n)
+                    CHECK(floor.Advance(1. / 60., reason));
+                const auto bodies = floor.Runtime().Bodies(0);
+                CHECK(bodies.size() == 1);
+                const float height = bodies[0][13];
+                std::cout << "floor model=" << model << " enabled=" << enabled
+                          << " reopen=" << reopen << " y=" << height << '\n';
+                CHECK(enabled ? height >= .59f && height <= .7f : height < -20);
+            }
     CHECK(session.ImportModel(root / "pose.pmd", reason));
     CHECK(session.ImportAccessory(root / "bound.x", reason));
     CHECK(session.Edit(

@@ -100,6 +100,7 @@
 // ===========================================================================
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#include "mikudancestudio/physics_world_state.hpp"
 #include "mikudancestudio/menu_commands.h"
 #include <Windows.h>
 #include <commdlg.h>
@@ -1575,16 +1576,15 @@ static void LoadSceneV1_ReadGatedTail(PmmV1LoadContext& ctx, int fd) {
                                                                       MDS_CMD_TOGGLE_PHYSICS_FLOOR,
                                                                       8);
                                                         s->state.floorVisible = 1;
-                                                        s->Physics()
-                                                            ->groundBody->setDeactivationTime(1.0f);
+                                                        SetPhysicsGroundEnabled(
+                                                            s->Physics()->groundBody, true);
                                                     } else {
                                                         CheckMenuItem(GetMenu(main),
                                                                       MDS_CMD_TOGGLE_PHYSICS_FLOOR,
                                                                       0);
                                                         s->state.floorVisible = 0;
-                                                        s->Physics()
-                                                            ->groundBody->setDeactivationTime(
-                                                                -1.0f);
+                                                        SetPhysicsGroundEnabled(
+                                                            s->Physics()->groundBody, false);
                                                     }
                                                     unsigned char modelOrderSectionPresent = 0;
                                                     const int modelOrderFlagBytesRead =

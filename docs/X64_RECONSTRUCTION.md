@@ -67,6 +67,12 @@ Bullet 2.75 的第三方源码保持为用户提供的 `bullet-2.75.zip` 原始 
 
 附件顺序、剪贴板嵌套指针及数量字段增加布局断言；回归见 `edit_target_layout`、`physics_floor`、`frame_state_dump`。三项覆盖具名字段和上述边界分支，刷新函数使用计数替身，控件及地板碰撞体使用真实 Win32/Bullet 对象。它们不替代原版完整 GUI 的端到端 A/B 或长期物理轨迹对照。
 
+2026-11-01 补查 PMM 加载：原版 x64 V2 的 RVA `81C1A/81C56`、V1 的
+`884B6/884EE` 同样写入刚体 `+0xE0` 碰撞标志。旧加载路径误用
+`setDeactivationTime`，现已与菜单、跨平台运行时共用 `SetPhysicsGroundEnabled`。
+离线 `physics_floor_oracle_test` 执行哈希校验后的原版字段写入指令，24 个完整刚体字节
+对照通过；未启动原版窗口。共享 Bullet 的落地／穿透、Qt 播放中切换及 PMM 重开另有回归。
+
 ## 2026-10-25：关键帧、顶点及 COM 访问整理
 
 VMD 加载、关键帧粘贴和范围缩放共用 `BoneClipboardRecord`、`MorphClipboardRecord`、`IkClipboardState` 与 `SelectorClipboardState`。注册接口显式表达记录类型；骨骼输入保留可变引用，因为固定轴修正会修改输入四元数。输入布局由 `offsetof` 断言约束，VMD/PMM 磁盘读写仍使用各自的字段长度，不能用运行时记录的 `sizeof` 替代。

@@ -23,5 +23,8 @@ struct PhysicsWorldState {
 // Create requires an empty state; destroy accepts empty or partially built state.
 void CreatePhysicsWorld(PhysicsWorldState& state);
 void DestroyPhysicsWorld(PhysicsWorldState& state);
+// Native floor command and PMM loaders replace collision flags with 1/-1.
+// Preserve activation, material, velocities and the existing broadphase body.
+void SetPhysicsGroundEnabled(btRigidBody* ground, bool enabled);
 
 } // namespace mikudancestudio

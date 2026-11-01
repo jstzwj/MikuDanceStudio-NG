@@ -38,6 +38,11 @@ void CreatePhysicsWorld(PhysicsWorldState& state) {
     state.groundBody->setRestitution(0.88f);
 }
 
+void SetPhysicsGroundEnabled(btRigidBody* ground, bool enabled) {
+    if (ground)
+        ground->setCollisionFlags(enabled ? 1 : -1);
+}
+
 // Reference: MMD x64 sub_7FF7CB422580. Keep reverse traversal and
 // destruction order while using Bullet interfaces rather than byte offsets.
 void DestroyPhysicsWorld(PhysicsWorldState& state) {

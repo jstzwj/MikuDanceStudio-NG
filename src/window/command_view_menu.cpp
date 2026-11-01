@@ -220,6 +220,7 @@
 // =========================================================================//
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#include "mikudancestudio/physics_world_state.hpp"
 #include "mikudancestudio/dialog_resources.h"
 #include "mikudancestudio/menu_commands.h"
 #include <Windows.h>
@@ -1353,11 +1354,11 @@ void CmdViewMenu(MMDApp* app, HWND hwnd, std::uint16_t id, std::uint16_t notify)
         if (app->state.floorVisible != 0) {
             app->state.floorVisible = 0;
             CheckMenuItem(GetMenu(hwnd), MDS_CMD_TOGGLE_PHYSICS_FLOOR, MF_UNCHECKED);
-            groundBody->setCollisionFlags(-1);
+            SetPhysicsGroundEnabled(groundBody, false);
         } else {
             app->state.floorVisible = 1;
             CheckMenuItem(GetMenu(hwnd), MDS_CMD_TOGGLE_PHYSICS_FLOOR, MF_CHECKED);
-            groundBody->setCollisionFlags(1);
+            SetPhysicsGroundEnabled(groundBody, true);
         }
         return;
     }

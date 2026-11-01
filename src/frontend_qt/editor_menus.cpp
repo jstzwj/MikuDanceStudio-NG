@@ -88,6 +88,7 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_CAMERA_TRACKING:
     case MDS_CMD_TOGGLE_GROUND_SHADOW:
     case MDS_CMD_TOGGLE_GROUND_SHADOW_TRANSPARENCY:
+    case MDS_CMD_TOGGLE_PHYSICS_FLOOR:
     case MDS_CMD_TOGGLE_UI_LANGUAGE:
         return true;
     default:
@@ -221,6 +222,11 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_TOGGLE_UI_LANGUAGE) {
         SetLanguage(language_.Code() == "en" ? "ja" : "en");
+        return;
+    }
+    if (command == MDS_CMD_TOGGLE_PHYSICS_FLOOR) {
+        session_.SetPhysicsFloor(!session_.Document().appearance.floorVisible);
+        Refresh();
         return;
     }
     int control = 0;

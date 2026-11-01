@@ -92,6 +92,7 @@
 // ===========================================================================
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+#include "mikudancestudio/physics_world_state.hpp"
 #include <Windows.h>
 #include <commdlg.h>
 #include <commctrl.h>
@@ -2313,11 +2314,11 @@ static bool LoadSceneV2_PhysicsTracksAndClose(PmmV2LoadContext& ctx, int fd,
         if (b == 1) {
             CheckMenuItem(GetMenu(main), MDS_CMD_TOGGLE_PHYSICS_FLOOR, 8);
             s->state.floorVisible = 1;
-            groundBody->setDeactivationTime(1.0f);
+            SetPhysicsGroundEnabled(groundBody, true);
         } else {
             CheckMenuItem(GetMenu(main), MDS_CMD_TOGGLE_PHYSICS_FLOOR, 0);
             s->state.floorVisible = 0;
-            groundBody->setDeactivationTime(-1.0f);
+            SetPhysicsGroundEnabled(groundBody, false);
         }
     }
     {

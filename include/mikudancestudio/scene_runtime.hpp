@@ -24,6 +24,7 @@ public:
     bool BindGlobalMotion(const format::VmdDocument&, std::string&);
     bool Seek(std::uint32_t, std::string&, format::PmmSceneApplication = {});
     bool SetPhysicsMode(unsigned mode, std::string& reason);
+    void SetPhysicsFloor(bool enabled);
     bool Reset(std::string&);
     bool StartPlayback(std::string&, format::PmmSceneApplication = {});
     void Pause();

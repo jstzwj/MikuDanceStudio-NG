@@ -307,6 +307,9 @@ void EditorSession::SetPanelExpanded(unsigned option, bool expanded) {
 void EditorSession::SetSidebarWidth(int width) {
     runtime_->SetSidebarWidth(width);
 }
+void EditorSession::SetPhysicsFloor(bool enabled) {
+    runtime_->SetPhysicsFloor(enabled);
+}
 void EditorSession::SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded) {
     runtime_->SetGroupExpanded(slot, group, expanded);
 }
@@ -422,6 +425,9 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     }
     State next;
     next.document = session.Document();
+    if (next.document.envelope.header.version == PmmVersion::V1 &&
+        next.document.v1TailStage < 11)
+        next.document.appearance.floorVisible = Document().appearance.floorVisible;
     next.assets.modelPaths = resolver.Resolved();
     for (std::size_t i = 0; i < session.Models().size(); ++i) {
         auto slot = next.document.models[i].slot;

@@ -95,7 +95,7 @@ def pmx(material_flags=0x11, tint_morphs=False, display_groups=False, extra_uv=0
     return b
 
 
-def articulated_pmd():
+def articulated_pmd(collision_mask=0):
     b = Bytes(b'Pmd'); b.f(1); b.fixed('CPU IK physics', 20); b.zero(256)
     b.u32(3)
     for index, p in enumerate(POSITIONS):
@@ -117,7 +117,7 @@ def articulated_pmd():
     for index in range(4): b.u16(index); b.u8(0)
     b.u8(0)
     for index in range(10): b.fixed('toon%02d.bmp' % (index + 1), 100)
-    b.u32(1); b.fixed('dynamic', 20); b.u16(0); b.u8(0); b.u16(0); b.u8(0)
+    b.u32(1); b.fixed('dynamic', 20); b.u16(0); b.u8(0); b.u16(collision_mask); b.u8(0)
     b.f(.6, .6, .6, 0, 5, 0, 0, 0, 0, 1, .1, .1, .1, .5); b.u8(1)
     b.u32(0)
     return b
@@ -134,7 +134,7 @@ def bone_only_pmd():
     return b
 
 
-def articulated_pmx():
+def articulated_pmx(collision_mask=0):
     b = Bytes(b'PMX '); b.f(2); b.u8(8); b.extend(bytes((0, 0, 2, 1, 1, 1, 1, 1)))
     for name in ('CPU IK physics SDEF', '', '', ''): b.text(name)
     b.u32(3)
@@ -156,7 +156,7 @@ def articulated_pmx():
     b.u8(3); b.f(.3, .2, 0, 0, 0, 0, 1)
     b.u32(1); b.text('Root'); b.text(''); b.u8(1); b.u32(4)
     for index in range(4): b.u8(0); b.u8(index)
-    b.u32(1); b.text('dynamic'); b.text(''); b.u8(0); b.u8(0); b.u16(0); b.u8(0)
+    b.u32(1); b.text('dynamic'); b.text(''); b.u8(0); b.u8(0); b.u16(collision_mask); b.u8(0)
     b.f(.6, .6, .6, 0, 5, 0, 0, 0, 0, 1, .1, .1, .1, .5); b.u8(1); b.u32(0)
     return b
 
@@ -302,6 +302,10 @@ def write(directory):
     (root / 'articulated.pmd').write_bytes(articulated_pmd())
     (root / 'bone-only.pmd').write_bytes(bone_only_pmd())
     (root / 'articulated.pmx').write_bytes(articulated_pmx())
+    # The floor lives in collision group 16. Existing articulated fixtures
+    # intentionally isolate all collisions; these exercise real ground contact.
+    (root / 'floor.pmd').write_bytes(articulated_pmd(0x8000))
+    (root / 'floor.pmx').write_bytes(articulated_pmx(0x8000))
     (root / 'ik-v1.pmm').write_bytes(scene(1, 'articulated.pmd', True))
     (root / 'physics-v2.pmm').write_bytes(scene(2, 'articulated.pmd', True, 2))
     (root / 'reverse-v2.pmm').write_bytes(scene(2, 'articulated.pmd', True, 2, reverse_display=True))

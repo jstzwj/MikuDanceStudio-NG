@@ -427,6 +427,8 @@ bool SceneRuntime::LoadResources(
         return false;
     }
     next->simulation.physicsMode = next->session->Document().physics.playbackMode;
+    SetPhysicsGroundEnabled(next->world.groundBody,
+                            next->session->Document().appearance.floorVisible != 0);
     next->simulation.cursorSeconds = float(next->frame) / 30.f;
     next->simulation.resetPending = 1;
     next->Gravity();
@@ -547,6 +549,13 @@ bool SceneRuntime::SetPhysicsMode(unsigned mode, std::string& reason) {
 }
 bool SceneRuntime::Reset(std::string& reason) {
     return Seek(0, reason);
+}
+void SceneRuntime::SetPhysicsFloor(bool enabled) {
+    if (!impl_ || impl_->failed)
+        return;
+    if (impl_->session)
+        impl_->session->SetPhysicsFloor(enabled);
+    SetPhysicsGroundEnabled(impl_->world.groundBody, enabled);
 }
 bool SceneRuntime::StartPlayback(std::string& reason, format::PmmSceneApplication application) {
     double evaluatedFrame;
@@ -690,6 +699,8 @@ bool SceneRuntime::Edit(const std::function<void(format::PmmSceneDocument&)>& ch
         return false;
     }
     impl_->simulation.physicsMode = impl_->session->Document().physics.playbackMode;
+    SetPhysicsGroundEnabled(impl_->world.groundBody,
+                            impl_->session->Document().appearance.floorVisible != 0);
     return Seek(impl_->session->Pose().frame, reason);
 }
 bool SceneRuntime::UnloadModel(std::uint8_t slot, std::string& reason) {

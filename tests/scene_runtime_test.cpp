@@ -39,6 +39,9 @@ int Run(int argc, char** argv) {
         SceneSession session;
         std::ifstream input(path, std::ios::binary);
         CHECK(SceneSession::Load(Read, &input, SceneResourceResolver::Resolve, &resolver, session));
+        if (session.Document().envelope.header.version == PmmVersion::V1 &&
+            session.Document().v1TailStage < 11)
+            CHECK(session.Document().appearance.floorVisible == 1);
         std::map<std::uint8_t, ModelDocument> models;
         for (std::size_t n = 0; n < session.Models().size(); ++n) {
             CHECK(session.Models()[n]);

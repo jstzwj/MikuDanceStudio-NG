@@ -393,6 +393,7 @@ PmmSceneDocument NewPmmScene() {
     d.avi.scale = d.picture.scale = 1;
     d.appearance.cameraParentModel = d.appearance.cameraParentBone = -1;
     d.appearance.maxFrame = 300;
+    d.appearance.floorVisible = 1;
     for (unsigned i = 0; i < 4; ++i)
         d.appearance.cameraAttachmentBasis[i * 5] = 1;
     return d;
