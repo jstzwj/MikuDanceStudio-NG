@@ -38,13 +38,17 @@ struct SceneRuntime::Impl {
         DestroyPhysicsWorld(world);
     }
     bool Add(std::uint8_t slot, const format::ModelDocument& model, std::string& reason) {
+        std::shared_ptr<const ModelResource> resource;
+        return ModelResource::Create(model, resource, reason) && Add(slot, std::move(resource), reason);
+    }
+    bool Add(std::uint8_t slot, std::shared_ptr<const ModelResource> resource, std::string& reason) {
         if (slot == 255 || items.count(slot)) {
             reason = "duplicate-or-invalid-model-slot";
             return false;
         }
         Item item;
-        if (!ModelResource::Create(model, item.resource, reason))
-            return false;
+        item.resource = std::move(resource);
+        if (!item.resource) { reason = "missing-model-resource"; return false; }
         item.instance = std::make_unique<ModelInstance>(item.resource);
         item.physics = std::make_unique<ModelPhysics>();
         if (!item.physics->Create(item.resource, world.world, constraintId, reason))
@@ -373,7 +377,16 @@ SceneRuntime::SceneRuntime() = default;
 SceneRuntime::~SceneRuntime() = default;
 bool SceneRuntime::Load(format::SceneSession session,
                         const std::map<std::uint8_t, format::ModelDocument>& models,
-                        std::string& reason) {
+                        std::string& reason, bool useSavedPose) {
+    std::map<std::uint8_t, std::shared_ptr<const ModelResource>> resources;
+    for (const auto& pair : models)
+        if (!ModelResource::Create(pair.second, resources[pair.first], reason))
+            return false;
+    return LoadResources(std::move(session), resources, reason, useSavedPose);
+}
+bool SceneRuntime::LoadResources(format::SceneSession session,
+                        const std::map<std::uint8_t, std::shared_ptr<const ModelResource>>& models,
+                        std::string& reason, bool useSavedPose) {
     if (!session.Loaded()) {
         reason = "scene-session-not-loaded";
         return false;
@@ -391,7 +404,7 @@ bool SceneRuntime::Load(format::SceneSession session,
     if (!next->Validate(reason))
         return false;
     next->frame = next->session->Pose().frame;
-    if (!next->session->Seek(next->frame)) {
+    if (!useSavedPose && !next->session->Seek(next->frame)) {
         reason = "scene-initial-seek-failed";
         return false;
     }
@@ -401,6 +414,23 @@ bool SceneRuntime::Load(format::SceneSession session,
     next->Gravity();
     for (auto& pair : next->items)
         pair.second.timeline.Seek(next->frame, next->simulation.physicsMode, *pair.second.physics);
+    if (useSavedPose) {
+        for (const auto& model : next->session->Document().models) {
+            auto& item = next->items.at(model.slot);
+            auto& timeline = item.timeline;
+            for (std::size_t i=0;i<model.bonePose.size();++i) {
+                auto& bone=timeline.bones[item.boneMap[i]];
+                std::copy_n(model.bonePose[i].components.begin(),3,bone.trans);
+                std::copy_n(model.bonePose[i].components.begin()+3,4,bone.rotQuat);
+                bone.physicsDisabled=model.bonePose[i].flags[0];
+            }
+            for(std::size_t i=0;i<model.morphPose.size();++i)
+                timeline.morphs[item.morphMap[i]].value=model.morphPose[i];
+            for(std::size_t i=0;i<model.ikPose.size();++i)
+                timeline.chains[item.ikMap[i]].enabled=model.ikPose[i];
+            timeline.visible=model.selection.loadComplete;
+        }
+    }
     if (!next->Frame(0, reason))
         return false;
     impl_ = std::move(next);

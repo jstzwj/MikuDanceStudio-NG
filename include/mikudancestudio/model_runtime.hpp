@@ -39,6 +39,11 @@ public:
     const format::PmxDocument& Document() const { return document_; }
     const std::vector<std::string>& BoneNames() const { return boneNames_; }
     const std::vector<std::string>& MorphNames() const { return morphNames_; }
+    std::vector<std::int32_t> IkBoneIndices() const {
+        std::vector<std::int32_t> result;
+        for(const auto& chain:chains_) result.push_back(chain.boneIndex);
+        return result;
+    }
     format::ModelKind SourceKind() const { return sourceKind_; }
     const std::array<std::array<char, 100>, 10>& PmdToonNames() const { return pmdToonNames_; }
 
@@ -63,6 +68,9 @@ public:
     static bool Create(std::shared_ptr<const ModelResource>, const format::VpdDocument&,
                        std::shared_ptr<const MotionClip>&, std::string& reason);
     const std::vector<std::string>& Warnings() const { return warnings_; }
+    const std::vector<std::vector<format::PmmBoneKey>>& BoneTracks() const { return bones_; }
+    const std::vector<std::vector<format::VmdMorphKey>>& MorphTracks() const { return morphs_; }
+    const std::vector<format::PmmDisplayKey>& DisplayTrack() const { return displays_; }
 
 private:
     friend class ModelInstance;

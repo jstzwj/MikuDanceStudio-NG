@@ -1,4 +1,5 @@
 #include "mikudancestudio/scene_session.hpp"
+#include "mikudancestudio/pmm_edit.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -186,6 +187,18 @@ bool SceneSession::Load(ReadPmmBytesResult read, void* readContext, ResolveScene
     candidate.pose_ = CurrentPose(candidate.scene_);
     candidate.loaded_ = true;
     output = std::move(candidate);
+    return true;
+}
+
+bool SceneSession::Create(const PmmSceneDocument& document, SceneSession& output,
+                          std::string& reason) {
+    SceneSession next;
+    if (!RebuildPmmV2(document, next.scene_, reason))
+        return false;
+    next.pose_ = CurrentPose(next.scene_);
+    next.models_.resize(next.scene_.models.size());
+    next.loaded_ = true;
+    output = std::move(next);
     return true;
 }
 

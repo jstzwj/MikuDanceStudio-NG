@@ -16,6 +16,8 @@ function(mds_add_scene_runtime physics_target)
     endif()
     include("${mds_root}/cmake/SceneRender.cmake")
     mds_add_scene_render()
+    include("${mds_root}/cmake/EditorCore.cmake")
+    mds_add_editor_core()
     # Capture the complete offline production graph, including the pinned
     # Bullet libraries. Conan builds use the same sources through its recipe;
     # the portable CI entry point audits those sources and the final executable.

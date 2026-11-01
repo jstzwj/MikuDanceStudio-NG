@@ -15,7 +15,10 @@ public:
     SceneRuntime(const SceneRuntime&) = delete;
     SceneRuntime& operator=(const SceneRuntime&) = delete;
     bool Load(format::SceneSession, const std::map<std::uint8_t, format::ModelDocument>&,
-              std::string&);
+              std::string&, bool useSavedPose = false);
+    bool LoadResources(format::SceneSession,
+                       const std::map<std::uint8_t, std::shared_ptr<const ModelResource>>&,
+                       std::string&, bool useSavedPose = false);
     bool LoadModel(const format::ModelDocument&, std::string&);
     bool BindMotion(std::uint8_t, std::shared_ptr<const MotionClip>, std::string&);
     bool BindGlobalMotion(const format::VmdDocument&, std::string&);

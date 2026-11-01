@@ -4,6 +4,7 @@
 #include "mikudancestudio/pmm_scene_world.hpp"
 #include <functional>
 #include <optional>
+#include <string>
 
 namespace mikudancestudio::format {
 using ResolveSceneModel = bool (*)(void* context, std::uint8_t slot,
@@ -16,6 +17,10 @@ class SceneSession {
 public:
     static bool Load(ReadPmmBytesResult read, void* readContext, ResolveSceneModel resolveModel,
                      void* modelContext, SceneSession& output);
+    // Editor transaction: materialize a fresh v2 envelope, including changes to
+    // linked tracks. Rejection leaves output unchanged. Uses saved current pose
+    // rather than seeking (unregistered edits must remain visible).
+    static bool Create(const PmmSceneDocument&, SceneSession& output, std::string& reason);
     bool Seek(std::uint32_t frame);
     bool StartPlayback();
     // Absolute playback cursor in seconds, not a per-frame delta.

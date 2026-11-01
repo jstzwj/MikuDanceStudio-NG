@@ -1,6 +1,7 @@
 #include "mikudancestudio/text_encoding.hpp"
 #include <algorithm>
 #include <iterator>
+#include <map>
 
 namespace mikudancestudio::text {
 namespace {
@@ -42,6 +43,32 @@ bool DecodeCp932(std::string_view bytes, std::string& output) {
         Append(result, c);
     }
     output = std::move(result);
+    return true;
+}
+bool EncodeCp932(std::string_view utf8, std::string& output) {
+    static const auto inverse = [] {
+        std::map<std::string, std::string> table;
+        for (unsigned i=0;i<256;++i) if (Cp932Single[i]!=0xffffffff) {
+            std::string key; Append(key,Cp932Single[i]);
+            table.emplace(std::move(key),std::string(1,char(i)));
+        }
+        for (const auto& pair:Cp932Pairs) {
+            std::string key; Append(key,pair.unicode);
+            const char value[]{char(pair.bytes>>8),char(pair.bytes)};
+            table.emplace(std::move(key),std::string(value,2));
+        }
+        return table;
+    }();
+    std::string result;
+    for (std::size_t i=0;i<utf8.size();) {
+        const auto lead=static_cast<unsigned char>(utf8[i]);
+        const auto length=lead<0x80?1:lead>=0xc2&&lead<0xe0?2:lead>=0xe0&&lead<0xf0?3:0;
+        if (!length || i+length>utf8.size()) return false;
+        auto entry=inverse.find(std::string(utf8.substr(i,length)));
+        if (entry==inverse.end()) return false;
+        result+=entry->second; i+=length;
+    }
+    output=std::move(result);
     return true;
 }
 bool DecodeUtf16Le(const std::uint8_t* bytes, std::size_t size, std::string& output) {
