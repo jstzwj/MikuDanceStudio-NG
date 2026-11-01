@@ -1,6 +1,10 @@
 find_package(Qt6 6.8 REQUIRED COMPONENTS Widgets Multimedia Test)
 if(APPLE)
     enable_language(OBJCXX)
+elseif(UNIX)
+    # Protocol metadata is C. Enable it in directory scope so CMake retains
+    # the language rules when generating targets after the function returns.
+    enable_language(C)
 endif()
 function(mds_add_qt_editor)
     get_filename_component(root "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/.." ABSOLUTE)
@@ -31,7 +35,6 @@ function(mds_add_qt_editor)
         # The small platform adapter uses QPA to retrieve Wayland wl_surface.
         # Keep the Qt minor version pinned in CI and test both X11 and Wayland.
         target_link_libraries(mikudancestudio_frontend_qt PRIVATE Qt6::GuiPrivate)
-        enable_language(C)
         find_package(Qt6 6.8 REQUIRED COMPONENTS WaylandClient)
         find_package(PkgConfig REQUIRED)
         pkg_check_modules(MDS_WAYLAND REQUIRED IMPORTED_TARGET wayland-client)
