@@ -720,25 +720,120 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
         reason);
 }
 bool EditorSession::Delete(const std::set<KeyAddress>& addresses, std::string& reason) {
-    return Edit(
-        "delete-keys",
-        [&](auto& d, auto& error) {
-            bool changed = false;
-            for (const auto& a : addresses)
-                if (a.frame) {
-                    if (!Visit(d, a, [&](auto& track) {
-                            return DeletePmmKey(track, a.channel, a.frame);
-                        })) {
-                        error = "key-selection-expired";
+    EndGesture();
+    if (addresses.empty()) {
+        reason = "no-selected-keys";
+        return false;
+    }
+    auto next = Current();
+    auto& d = next.document;
+    for (const auto& a : addresses) {
+        Key key;
+        if (!Get(d, a, key)) {
+            reason = "key-selection-expired";
+            return false;
+        }
+    }
+    for (const auto& a : addresses)
+        if (a.frame &&
+            !Visit(d, a, [&](auto& track) { return DeletePmmKey(track, a.channel, a.frame); })) {
+            reason = "key-delete-failed";
+            return false;
+        }
+    for (const auto& a : addresses)
+        if (!a.frame) {
+            bool rigid = false;
+            if (a.track == Track::Bone) {
+                const auto resource = next.assets.models.at(a.slot);
+                for (const auto& body : resource->Document().rigids)
+                    rigid |= body.fields.mode > 0 && body.fields.boneIndex == int(a.channel);
+            }
+            if (!Visit(d, a, [&](auto& track) {
+                    if (a.channel >= track.dense.size())
                         return false;
+                    auto& key = track.dense[a.channel];
+                    using K = std::decay_t<decltype(key)>;
+                    if constexpr (std::is_same_v<K, PmmCameraKey>) {
+                        key.distance = -45;
+                        key.eye = {0, 10, 0};
+                        key.target = {};
+                        key.parentModel = -1;
+                        key.parentBone = 0;
+                        for (unsigned i = 0; i < 4; ++i)
+                            key.interpolation[i].fill(i < 2 ? 20 : 107);
+                        key.selected = 0; // fov/perspective and successor survive
+                    } else if constexpr (std::is_same_v<K, PmmBoneKey>) {
+                        key.position = {};
+                        key.rotation = {0, 0, 0, 1};
+                        key.allocated = 0;
+                        if (rigid)
+                            key.physicsDisabled = 0;
+                    } else if constexpr (std::is_same_v<K, PmmMorphKey>) {
+                        key.value = 0;
+                        key.allocated = 0;
+                    } else if constexpr (std::is_same_v<K, PmmDisplayKey>) {
+                        key.visible = 1;
+                        std::fill(key.ikEnabled.begin(), key.ikEnabled.end(), 1);
+                        std::fill(key.rigidStates.begin(), key.rigidStates.end(),
+                                  PmmRigidState{-1, 0});
+                        key.allocated = 0;
+                    } else if constexpr (std::is_same_v<K, PmmAccessoryKey>) {
+                        key.parentModel = -1;
+                        key.parentBone = 0;
+                        key.position = key.rotation = {};
+                        key.opacity = key.scale = 1;
+                        key.visible = 1;
+                        key.shadowEnabled = key.selected = 0;
+                    } else {
+                        // The native light/shadow/gravity reset cuts the head's
+                        // successor. Retaining unselected detached records needs
+                        // a separate topology contract; reject it atomically.
+                        if (key.next) {
+                            reason = "native-root-reset-detached-keys-unsupported";
+                            return false;
+                        }
+                        key.selected = 0;
+                        if constexpr (std::is_same_v<K, PmmLightKey>) {
+                            key.color = {.602f, .602f, .602f};
+                            key.direction = {-.5f, -1, .5f};
+                        } else if constexpr (std::is_same_v<K, PmmSelfShadowKey>) {
+                            key.mode = 1;
+                            key.distance = .01125f;
+                        } else if constexpr (std::is_same_v<K, PmmGravityKey>) {
+                            key.noiseEnabled = 0;
+                            key.noise = 10;
+                            key.acceleration = 9.8000002f;
+                            key.direction = {0, -1, 0};
+                        }
                     }
-                    changed = true;
-                }
-            if (!changed)
-                error = "no-deletable-keys";
-            return changed;
-        },
-        reason);
+                    return true;
+                }))
+                return false;
+        }
+    // Deletion immediately evaluates the edited tracks, including frame zero.
+    SceneSession evaluated;
+    if (!SceneSession::Create(d, evaluated, reason) ||
+        !evaluated.Seek(std::uint32_t(d.timeline.currentFrame))) {
+        if (reason.empty())
+            reason = "key-delete-evaluation-failed";
+        return false;
+    }
+    bool global = false;
+    std::set<std::uint8_t> models;
+    for (const auto& a : addresses) {
+        if (a.track == Track::Bone || a.track == Track::Morph || a.track == Track::Display)
+            models.insert(a.slot);
+        else
+            global = true;
+        next.selection.keys.erase(a);
+    }
+    if (global)
+        d = evaluated.Document();
+    else
+        for (const auto& model : evaluated.Document().models)
+            if (models.count(model.slot))
+                *Model(d, model.slot) = model;
+    return Commit(std::move(next), reason);
 }
 bool EditorSession::Copy(const std::set<KeyAddress>& addresses, std::string& reason) {
     auto d = Document();

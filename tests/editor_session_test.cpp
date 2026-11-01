@@ -94,6 +94,73 @@ int main(int argc, char** argv) {
     }
     EditorSession editor;
     {
+        EditorSession roots;
+        CHECK(roots.ImportModel(root / "grouped.pmx", reason));
+        CHECK(roots.SetBone(0, 0, {3, 4, 5}, {0, 0, 0, 1}, reason));
+        CHECK(roots.Register({{Track::Bone, 0, 0, 0}, {Track::Bone, 0, 0, 20}}, reason));
+        roots.Selected().keys = {{Track::Bone, 0, 0, 0}};
+        CHECK(roots.MoveInterpolationPoint(0, 0, 35, 60, reason));
+        const auto savedCurve = roots.Document().models[0].boneKeys.dense[0].interpolation;
+        CHECK(roots.Delete({{Track::Bone, 0, 0, 0}}, reason));
+        CHECK(roots.Document().models[0].boneKeys.dense[0].position == (std::array<float, 3>{}));
+        CHECK(roots.Document().models[0].boneKeys.dense[0].interpolation == savedCurve);
+        CHECK(roots.Document().models[0].boneKeys.sparse.size() == 1);
+        CHECK(roots.Runtime().Snapshot(0)->bones[0].translation == (std::array<float, 3>{}));
+        CHECK(roots.Selected().keys.empty());
+        CHECK(roots.Undo(reason));
+        CHECK(roots.Document().models[0].boneKeys.dense[0].position[0] == 3);
+        CHECK(roots.Redo(reason));
+        CHECK(roots.Seek(20, reason));
+        CHECK(roots.Runtime().Snapshot(0)->bones[0].translation[0] == 3);
+        CHECK(roots.SetMorph(0, 0, .75f, reason));
+        CHECK(roots.Register({{Track::Morph, 0, 0, 0}}, reason));
+        CHECK(roots.Delete({{Track::Morph, 0, 0, 0}}, reason));
+        CHECK(roots.Document().models[0].morphKeys.dense[0].value == 0);
+        auto camera = roots.Runtime().Session()->Pose().camera;
+        camera.distance = -12;
+        camera.position = {1, 2, 3};
+        camera.fov = 63;
+        camera.perspective = 1;
+        CHECK(roots.SetCamera(camera, reason));
+        CHECK(roots.Register({{Track::Camera, 255, 0, 0}, {Track::Camera, 255, 0, 20}}, reason));
+        CHECK(roots.Delete({{Track::Camera, 255, 0, 0}}, reason));
+        const auto resetCamera = roots.Document().cameraKeys.dense[0];
+        CHECK(resetCamera.distance == -45 && resetCamera.eye[1] == 10);
+        CHECK(resetCamera.fov == 63 && resetCamera.perspective == 1);
+        CHECK(resetCamera.next != 0);
+        CHECK(roots.ImportAccessory(root / "bound.x", reason));
+        auto accessory = roots.Document().accessories[0].state;
+        accessory.position = {2, 3, 4};
+        accessory.opacity = .5f;
+        accessory.scale = 2;
+        accessory.shadowEnabled = 1;
+        CHECK(roots.SetAccessory(0, accessory, reason));
+        CHECK(roots.Register({{Track::Accessory, 0, 0, 0}, {Track::Accessory, 0, 0, 20}}, reason));
+        CHECK(roots.Delete({{Track::Accessory, 0, 0, 0}}, reason));
+        const auto resetAccessory = roots.Document().accessories[0].keyRecords.dense[0];
+        CHECK(resetAccessory.position == (std::array<float, 3>{}));
+        CHECK(resetAccessory.opacity == 1 && resetAccessory.scale == 1 &&
+              !resetAccessory.shadowEnabled);
+        CHECK(resetAccessory.next != 0);
+        CHECK(roots.Register({{Track::Light, 255, 0, 20}}, reason));
+        const auto beforeRejected = roots.Revision();
+        CHECK(!roots.Delete({{Track::Light, 255, 0, 0}}, reason));
+        CHECK(reason == "native-root-reset-detached-keys-unsupported");
+        CHECK(roots.Revision() == beforeRejected && roots.Document().lightKeys.sparse.size() == 1);
+        CHECK(roots.Delete({{Track::Light, 255, 0, 0},
+                            {Track::Light, 255, 0, 20},
+                            {Track::Shadow, 255, 0, 0},
+                            {Track::Gravity, 255, 0, 0}},
+                           reason));
+        CHECK(roots.Document().lightKeys.sparse.empty());
+        CHECK(roots.Document().lightKeys.dense[0].color[0] == .602f);
+        CHECK(roots.Document().selfShadowKeys.dense[0].distance == .01125f);
+        CHECK(roots.Document().gravityKeys.dense[0].acceleration == 9.8000002f);
+        CHECK(roots.Save(root / "deleted-roots.pmm", Write, reason));
+        CHECK(roots.Open(root / "deleted-roots.pmm", reason));
+        CHECK(roots.Document().cameraKeys.dense[0].fov == 63);
+    }
+    {
         EditorSession selection;
         CHECK(selection.ImportModel(root / "grouped.pmx", reason));
         CHECK(selection.Register(

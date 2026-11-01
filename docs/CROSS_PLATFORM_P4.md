@@ -150,3 +150,13 @@ The column button extends every selected column across the active model or globa
 tracks, independently of the playhead. Qt retains each loaded model's scope while
 switching models/languages and centers the playhead using the original sidebar
 formula. Generated core/Qt tests cover these distinctions without scene evaluation.
+
+Frame-zero deletion now resets retained camera, bone, morph, display and accessory
+keys, preserving the native per-track fields and successors, and immediately
+re-evaluates the affected pose. Regression covers undo/redo, interpolation/FOV
+preservation, successor playback and PMM reload. Light/shadow/gravity roots reset
+when no unselected successors remain. Their native head-cut behavior with retained
+detached records is still unsupported: the command rejects the entire edit with
+`native-root-reset-detached-keys-unsupported` rather than silently removing those
+records. Detached-record identity/topology and automatic bone-curve rebuilding
+remain requirements for complete deletion parity.
