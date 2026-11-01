@@ -349,6 +349,7 @@ bool EditorSession::New(std::string& reason) {
     interpolationCopied_ = false;
     selection_ = {};
     playing_ = false;
+    coordinateSystem_ = 0;
     cursorSeconds_ = 0;
     revision_ = savedRevision_ = nextRevision_++;
     reason.clear();
@@ -384,6 +385,8 @@ bool EditorSession::Commit(State next, std::string& reason, const HistoryBatch& 
     runtime_ = std::move(runtime);
     state_ = std::move(next);
     selection_ = state_.selection;
+    if (selection_.model != 255 && coordinateSystem_ == 2)
+        coordinateSystem_ = 0;
     revision_ = nextRevision_++;
     playing_ = false;
     cursorSeconds_ = Document().timeline.currentFrame / 30.;
@@ -508,6 +511,7 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     state_ = std::move(next);
     path_ = absolute;
     selection_ = {};
+    coordinateSystem_ = 0;
     selection_.model = Document().models.empty() || Document().envelope.settings.options[0]
                            ? 255
                            : Document().envelope.selectedModelSlot;

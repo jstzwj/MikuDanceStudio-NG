@@ -44,8 +44,11 @@ private:
     int cachedBone_ = -1;
     std::vector<std::uint32_t> cachedSelectedBones_;
     int cachedEditMode_ = -1;
+    unsigned cachedCoordinateSystem_ = 0;
+    int toolOperation_ = 0, cachedToolOperation_ = -1;
     bool cachedPlaying_ = false;
     int ActiveBone() const;
+    int ToolAt(QPoint);
     bool frameCached_ = false;
     bool loadedAssets_ = false, pressed_ = false;
     bool box_ = false;

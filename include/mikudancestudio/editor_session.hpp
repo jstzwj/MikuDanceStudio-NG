@@ -125,6 +125,8 @@ public:
     void SetPanelExpanded(unsigned option, bool expanded);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
     void SetEditMode(std::int32_t mode);
+    unsigned CoordinateSystem() const { return coordinateSystem_; }
+    void CycleCoordinateSystem();
     bool Play(std::string&);
     void Pause();
     bool Advance(double deltaSeconds, std::string&);
@@ -199,6 +201,7 @@ private:
     std::filesystem::path path_;
     std::uint64_t revision_ = 0, savedRevision_ = 0, nextRevision_ = 1;
     bool playing_ = false;
+    unsigned coordinateSystem_ = 0;
     double cursorSeconds_ = 0;
     std::uint32_t playOrigin_ = 0;
     std::uint64_t playbackEpoch_ = 0;

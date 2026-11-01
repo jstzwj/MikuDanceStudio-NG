@@ -15,6 +15,7 @@
 
 #include "mikudancestudio/mmd_app.hpp"
 #include "mikudancestudio/bone_overlay.hpp"
+#include "mikudancestudio/viewport_tools.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
 #include "mikudancestudio/model.hpp"
 #include "vb_dump.hpp"
@@ -312,100 +313,16 @@ void PrepareFrameSpriteOverlay(MMDApp* app) {
                0.46414399f, 0.35086f, 0.49874699f, 0.385463f);
     }
 
-    // 0x46C414..0x46C6C5: global/local target strip. All three variants
-    // occupy the same 120x30 rectangle and select a vertical atlas band.
-    const bool playback = app->PlaybackActive() != 0;
-    if (!playback) {
-        float targetV0 = 0.470705f;
-        float targetV1 = 0.52734601f;
-        const int target = app->state.coordinateSystem;
-        if (target == 1) {
-            targetV0 = 0.52929902f;
-            targetV1 = 0.58594f;
-        } else if (target == 2) {
-            targetV0 = 0.58789301f;
-            targetV1 = 0.64453399f;
-        }
-        append(right - scale * 130.0f, bottom - scale * 115.0f, right - scale * 10.0f,
-               bottom - scale * 85.0f, 0.001953f, targetV0, 0.23242199f, targetV1);
-    }
-
-    // 0x46C6E2..0x46CE84: camera and bone operation rows. Playback takes
-    // LABEL_105 and deliberately emits neither rows nor highlights.
-    if (!playback) {
-        if (app->CameraMode() != 0) {
-            append(right - scale * 130.0f, bottom - scale * 80.0f, right - scale * 10.0f,
-                   bottom - scale * 50.0f, 0.001953f, 0.41210899f, 0.23242199f, 0.46875f);
-            append(right - scale * 130.0f, bottom - scale * 40.0f, right - scale * 10.0f,
-                   bottom - scale * 10.0f, 0.001953f, 0.177734f, 0.23242199f, 0.234375f);
-        } else {
-            const int boneMode = static_cast<std::int32_t>(app->state.v32c);
-            if (boneMode >= 0 && boneMode <= 3) {
-                const bool alternate = (boneMode & 1) != 0;
-                const bool lowerPair = boneMode >= 2;
-                append(right - scale * 130.0f, bottom - scale * 80.0f, right - scale * 10.0f,
-                       bottom - scale * 50.0f, 0.001953f, lowerPair ? 0.35351601f : 0.29492199f,
-                       0.23242199f, lowerPair ? 0.41015601f : 0.35156301f);
-                append(right - scale * 130.0f, bottom - scale * 40.0f, right - scale * 10.0f,
-                       bottom - scale * 10.0f, 0.001953f, alternate ? 0.119141f : 0.060547002f,
-                       0.23242199f, alternate ? 0.175781f : 0.117188f);
-            }
-        }
-
-        // 0x46CF9B..0x46D71F: the six 40x30 operation highlights. The
-        // paired interaction modes share one atlas cell exactly as below.
-        const int operation = static_cast<int>(app->ViewportToolOperation());
-        const auto highlight = [&](int first, int second, int column, int row) {
-            if (operation != first && operation != second)
-                return;
-            const float x0 = right - scale * (130.0f - 40.0f * column);
-            const float y0 = bottom - scale * (80.0f - 40.0f * row);
-            const float u0 = 0.001953f + 0.078125f * column;
-            const float v0 = row == 0 ? 0.23632801f : 0.001953f;
-            append(x0, y0, x0 + scale * 40.0f, y0 + scale * 30.0f, u0, v0,
-                   column == 2 ? 0.23242199f : u0 + 0.078125f, row == 0 ? 0.29296899f : 0.058594f);
-        };
-        highlight(9, 18, 0, 0);
-        highlight(10, 19, 1, 0);
-        highlight(11, 20, 2, 0);
-        highlight(12, 15, 0, 1);
-        highlight(13, 16, 1, 1);
-        highlight(14, 17, 2, 1);
-
-        // 0x46D74D..0x46DB2A: operation cursor pictures in bone mode. These
-        // use raw projected mouse coordinates returned by 0x499BD0 and are
-        // intentionally not multiplied by the viewport scale.
-        if (app->CameraMode() == 0) {
-            const float x = static_cast<float>(app->ViewportToolCenterX());
-            const float y = static_cast<float>(app->ViewportToolCenterY());
-            const int cursorKind = static_cast<int>(app->EditMode());
-            if (cursorKind == 3) {
-                float u0 = 0.5f;
-                float v0 = 0.5f;
-                if (operation == 3) {
-                    v0 = 0.75f;
-                } else if (operation == 4) {
-                    u0 = 0.75f;
-                } else if (operation == 5) {
-                    u0 = 0.75f;
-                    v0 = 0.75f;
-                }
-                append(x - 45.0f, y - 45.0f, x + 45.0f, y + 45.0f, u0, v0, u0 + 0.25f, v0 + 0.25f);
-            } else if (cursorKind == 4) {
-                float u0 = 0.5f;
-                float v0 = 0.0f;
-                if (operation == 6) {
-                    v0 = 0.25f;
-                } else if (operation == 7) {
-                    u0 = 0.75f;
-                } else if (operation == 8) {
-                    u0 = 0.75f;
-                    v0 = 0.25f;
-                }
-                append(x - 13.0f, y - 67.0f, x + 62.0f, y + 8.0f, u0, v0, u0 + 0.25f, v0 + 0.25f);
-            }
-        }
-    }
+    render::ViewportTools tools;
+    tools.camera = app->CameraMode() != 0;
+    tools.playing = app->PlaybackActive() != 0;
+    tools.coordinateSystem = app->state.coordinateSystem;
+    tools.boneMode = static_cast<std::int32_t>(app->state.v32c);
+    tools.operation = static_cast<int>(app->ViewportToolOperation());
+    tools.editMode = static_cast<int>(app->EditMode());
+    tools.centerX = app->ViewportToolCenterX();
+    tools.centerY = app->ViewportToolCenterY();
+    render::AppendViewportTools(tools, right, bottom, scale, append);
 
     app->ViewportRenderer().CaptureOverlay(EditorOverlay::Sprites, spriteBegin,
                                            app->SpriteOverlayPrimitiveCount() * 3u,

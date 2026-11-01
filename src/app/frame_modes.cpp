@@ -22,6 +22,7 @@
 #include "frame_state_dump.hpp"
 #include "bone_selection.hpp"
 #include "mikudancestudio/bone_selection.hpp"
+#include "mikudancestudio/viewport_tools.hpp"
 
 namespace mikudancestudio {
 
@@ -130,88 +131,17 @@ ViewportToolAction ViewportToolAtPoint(MMDApp* app) {
     if (!(scale > 0.0f))
         scale = 1.0f;
 
-    if (operation == ViewportToolAction::None && app->PlaybackActive() == 0) {
-        const float fx = static_cast<float>(x);
-        const float fy = static_cast<float>(y);
-        const float x0 = view.right - 127.0f * scale;
-        const float x1 = view.right - 92.0f * scale;
-        const float x2 = view.right - 86.0f * scale;
-        const float x3 = view.right - 51.0f * scale;
-        const float x4 = view.right - 48.0f * scale;
-        const float x5 = view.right - 13.0f * scale;
-        const float upperTop = view.bottom - 80.0f * scale;
-        const float upperBottom = view.bottom - 50.0f * scale;
-        const float lowerTop = view.bottom - 40.0f * scale;
-        const float lowerBottom = view.bottom - 10.0f * scale;
-        int column = -1;
-        if (fx > x0 && fx < x1)
-            column = 0;
-        else if (fx > x2 && fx < x3)
-            column = 1;
-        else if (fx > x4 && fx < x5)
-            column = 2;
-        if (column >= 0) {
-            const bool modelPanel = app->CameraMode() != 0;
-            const std::uint32_t axisMode = app->state.v32c;
-            if (fy > upperTop && fy < upperBottom) {
-                if (modelPanel)
-                    operation = std::array{ViewportToolAction::AngleAdjustX,
-                                           ViewportToolAction::AngleAdjustY,
-                                           ViewportToolAction::AngleAdjustZ}[column];
-                else if (axisMode == 0 || axisMode == 1)
-                    operation = std::array{ViewportToolAction::TransformAxisX,
-                                           ViewportToolAction::TransformAxisY,
-                                           ViewportToolAction::TransformAxisZ}[column];
-            } else if (fy > lowerTop && fy < lowerBottom) {
-                if (modelPanel)
-                    operation = std::array{ViewportToolAction::CameraAdjustX,
-                                           ViewportToolAction::CameraAdjustY,
-                                           ViewportToolAction::CameraAdjustZ}[column];
-                else if (axisMode == 0 || axisMode == 2)
-                    operation = std::array{ViewportToolAction::PhysicsAxisX,
-                                           ViewportToolAction::PhysicsAxisY,
-                                           ViewportToolAction::PhysicsAxisZ}[column];
-            }
-        }
-
-        if (operation == ViewportToolAction::None && app->EditMode() == ViewportEditMode::Rotate) {
-            const int cx = app->ViewportToolCenterX();
-            const int cy = app->ViewportToolCenterY();
-            const int px = x - cx;
-            const int py = y - cy;
-            const bool horizontal =
-                ((px > 7 && px < 35) || (px > -35 && px < -7)) && py > -7 && py < 7;
-            const bool vertical =
-                ((py > 7 && py < 35) || (py > -35 && py < -7)) && px > -7 && px < 7;
-            if (horizontal)
-                operation = ViewportToolAction::BoneRotateHorizontal;
-            else if (vertical)
-                operation = ViewportToolAction::BoneRotateVertical;
-            else {
-                const int radius2 = px * px + py * py;
-                if (radius2 > 1225 && radius2 < 2025)
-                    operation = ViewportToolAction::BoneRotateRing;
-            }
-        } else if (operation == ViewportToolAction::None &&
-                   app->EditMode() == ViewportEditMode::Move) {
-            const int px = x - app->ViewportToolCenterX();
-            const int py = y - app->ViewportToolCenterY();
-            if (px > 41 && px < 61 && py > -8 && py < 8)
-                operation = ViewportToolAction::BoneMoveHorizontalHandle;
-            else if (px > -13 && px < 8 && py > -61 && py < -42)
-                operation = ViewportToolAction::BoneMoveVerticalHandle;
-            else if (px > -13 && px < 11 && py > -16 && py < 8)
-                operation = ViewportToolAction::BoneMovePlaneHandle;
-        }
-
-        if (operation == ViewportToolAction::None &&
-            app->InteractionDragMode() == ViewportDragMode::None) {
-            const float coordLeft = view.right - 120.0f * scale;
-            const float coordTop = view.bottom - 105.0f * scale;
-            if (fx > coordLeft && fx < coordLeft + 25.0f * scale && fy > coordTop &&
-                fy < coordTop + 25.0f * scale)
-                operation = ViewportToolAction::CycleCoordinateSystem;
-        }
+    if (operation == ViewportToolAction::None) {
+        render::ViewportTools tools;
+        tools.camera = app->CameraMode() != 0;
+        tools.playing = app->PlaybackActive() != 0;
+        tools.boneMode = static_cast<int>(app->state.v32c);
+        tools.editMode = static_cast<int>(app->EditMode());
+        tools.centerX = app->ViewportToolCenterX();
+        tools.centerY = app->ViewportToolCenterY();
+        operation = static_cast<ViewportToolAction>(
+            render::ViewportToolAt(tools, x, y, float(view.right), float(view.bottom), scale,
+                                   app->InteractionDragMode() != ViewportDragMode::None));
     }
 
     if (operation != ViewportToolAction::None) {

@@ -1,5 +1,6 @@
 #pragma once
 #include "scene_frame_producer.hpp"
+#include "viewport_tools.hpp"
 
 namespace mikudancestudio::render {
 // Editor-only final composition. Append after scene history capture; exports
@@ -11,7 +12,7 @@ public:
     bool Load(const rhi::AssetSource&, std::string&);
     bool Append(const runtime::SceneRuntime&, const SceneRenderSettings&,
                 const std::vector<std::uint32_t>& selected, bool playing, rhi::RenderFrame&,
-                std::string&);
+                std::string&, const ViewportTools* tools = nullptr);
 
 private:
     rhi::ModelReplayResource texture_, lines_, sprites_;

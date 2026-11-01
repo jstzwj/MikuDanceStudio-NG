@@ -167,6 +167,20 @@ int main(int argc, char** argv) {
     CHECK(session.Playing() && session.Selected().model == 255 &&
           session.Revision() == playingRevision);
     session.Pause();
+    const auto transientRevision = session.Revision();
+    const auto transientFrames = session.Runtime().Counters().frames;
+    for (unsigned expected : {1u, 2u, 0u, 1u, 2u}) {
+        session.CycleCoordinateSystem();
+        CHECK(session.CoordinateSystem() == expected);
+    }
+    CHECK(session.Revision() == transientRevision &&
+          session.Runtime().Counters().frames == transientFrames);
+    CHECK(session.SelectModel(1, reason));
+    CHECK(session.CoordinateSystem() == 0);
+    session.CycleCoordinateSystem();
+    CHECK(session.CoordinateSystem() == 1);
+    session.CycleCoordinateSystem();
+    CHECK(session.CoordinateSystem() == 0);
     std::cout
         << "Editor mode transitions: global/camera reload gates, default light, pose/history preservation and saved mode passed\n";
 }

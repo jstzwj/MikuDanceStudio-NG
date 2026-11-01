@@ -94,7 +94,8 @@ bool SceneEditorOverlay::Load(const rhi::AssetSource& source, std::string& reaso
 bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
                                 const SceneRenderSettings& settings,
                                 const std::vector<std::uint32_t>& selected, bool playing,
-                                rhi::RenderFrame& frame, std::string& reason) {
+                                rhi::RenderFrame& frame, std::string& reason,
+                                const ViewportTools* tools) {
     if (!loaded_ || !settings.editorModel || !scene.Session() || !settings.width ||
         !settings.height || settings.width > INT32_MAX || settings.height > INT32_MAX)
         return Fail(reason, "editor_overlay_scene_unavailable");
@@ -103,6 +104,7 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
     const float scale = BackgroundViewScale(int(width));
     std::vector<LineVertex> lines;
     std::vector<SpriteVertex> sprites;
+    auto toolState = tools ? *tools : ViewportTools{};
     const auto appendLine = [&](float x, float y, float ex, float ey, std::uint32_t argb) {
         // Model vertex colors have an explicit RGBA8 boundary; native lines are ARGB.
         const auto rgba = (argb & 0xff00ff00u) | ((argb & 255) << 16) | ((argb >> 16) & 255);
@@ -121,20 +123,24 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
         appendLine(float(ex), float(ey), coordinate(dy, x), coordinate(-dx, y), color);
         return true;
     };
+    const auto quad = [&](float left, float top, float right, float bottom, float u0, float v0,
+                          float u1, float v1) {
+        const auto vertex = [&](float sx, float sy, float u, float v) -> SpriteVertex {
+            return {sx * 2.f / width - 1.f, 1.f - sy * 2.f / height, 0, 0, 0, 0, u, v};
+        };
+        for (const auto& v : {vertex(right, top, u1, v0), vertex(right, bottom, u1, v1),
+                              vertex(left, top, u0, v0), vertex(left, top, u0, v0),
+                              vertex(right, bottom, u1, v1), vertex(left, bottom, u0, v1)})
+            sprites.push_back(v);
+    };
     const auto marker = [&](int x, int y, float v0, float v1, bool camera = false) {
         // Original x64 stores the leading edge before adding the full extent.
         const float left = camera ? float(x) - scale * 9.5f : float(x - scale * 9.5);
         const float top = camera ? float(y) - scale * 9.5f : float(y - scale * 9.5);
         const float right = camera ? float(x) + scale * 8.5f : float(left + scale * 18.0);
         const float bottom = camera ? float(y) + scale * 8.5f : float(top + scale * 18.0);
-        const auto vertex = [&](float sx, float sy, float u, float v) -> SpriteVertex {
-            return {sx * 2.f / width - 1.f, 1.f - sy * 2.f / height, 0, 0, 0, 0, u, v};
-        };
         constexpr float u0 = .46414399f, u1 = .49874699f;
-        for (const auto& v : {vertex(right, top, u1, v0), vertex(right, bottom, u1, v1),
-                              vertex(left, top, u0, v0), vertex(left, top, u0, v0),
-                              vertex(right, bottom, u1, v1), vertex(left, bottom, u0, v1)})
-            sprites.push_back(v);
+        quad(left, top, right, bottom, u0, v0, u1, v1);
     };
     const auto slot = *settings.editorModel;
     if (!playing && slot != 255) {
@@ -204,6 +210,8 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
                                  std::uint8_t(chain.storage.size()), chain.storage.data()});
         }
         const auto boneAt = [&](int i) -> const auto& { return bones[std::size_t(i)]; };
+        toolState.centerX = active >= 0 ? boneAt(active).screenX : 393939;
+        toolState.centerY = active >= 0 ? boneAt(active).screenY : 393939;
         const auto selectedAt = [&](int i) { return boneAt(i).selected; };
         const auto editedAt = [&](int i) { return boneAt(i).edited; };
         cpu_bone::OverlayLines(
@@ -218,6 +226,12 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
                                  });
     } else if (!playing && scene.Session()->Pose().camera.parentModel < 0) {
         marker(int(width / 2), int(height / 2), .35086f, .385463f, true);
+    }
+    if (tools) {
+        toolState.camera = slot == 255;
+        toolState.playing = playing;
+        toolState.editMode = doc.timeline.editMode;
+        AppendViewportTools(toolState, float(width), float(height), scale, quad);
     }
     // The replay contract requires a pure clear to have no upload resources.
     // Drop leases only for that case and publish fresh versions on revival.

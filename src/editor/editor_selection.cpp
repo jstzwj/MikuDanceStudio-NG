@@ -85,6 +85,8 @@ bool EditorSession::SelectModel(std::uint8_t slot, std::string& reason) {
         return false;
     EndGesture();
     RestoreModelSelection(slot, reason);
+    if (slot != 255 && coordinateSystem_ == 2)
+        coordinateSystem_ = 0;
     revision_ = nextRevision_++;
     return true;
 }
@@ -142,6 +144,9 @@ bool EditorSession::SelectAllBones(bool unregisteredOnly, std::string& reason) {
 void EditorSession::SetEditMode(std::int32_t mode) {
     if (mode >= 0 && mode <= 4)
         runtime_->SetEditMode(mode);
+}
+void EditorSession::CycleCoordinateSystem() {
+    coordinateSystem_ = (coordinateSystem_ + 1) % (selection_.model == 255 ? 3u : 2u);
 }
 bool EditorSession::SelectBones(const std::vector<std::uint32_t>& indices, int active,
                                 std::string& reason) {

@@ -1,4 +1,5 @@
 #include "viewport.hpp"
+#include "mikudancestudio/background_placement.hpp"
 #include <QPlatformSurfaceEvent>
 #include <QMouseEvent>
 #include <QWheelEvent>
@@ -87,12 +88,17 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         cachedWidth_ != w || cachedHeight_ != h || cachedModel_ != session_.Selected().model ||
         cachedBone_ != ActiveBone() || cachedPlaying_ != session_.Playing() ||
         cachedSelectedBones_ != session_.Selected().bones ||
-        cachedEditMode_ != session_.Document().timeline.editMode) {
+        cachedEditMode_ != session_.Document().timeline.editMode ||
+        cachedCoordinateSystem_ != session_.CoordinateSystem() ||
+        cachedToolOperation_ != toolOperation_) {
         frameCached_ = false;
         if (!producer_.Build(session_.Runtime(), settings, cachedFrame_, reason))
             return false;
+        render::ViewportTools tools;
+        tools.coordinateSystem = int(session_.CoordinateSystem());
+        tools.operation = toolOperation_;
         if (!overlay_.Append(session_.Runtime(), settings, session_.Selected().bones,
-                             session_.Playing(), cachedFrame_, reason))
+                             session_.Playing(), cachedFrame_, reason, &tools))
             return false;
         ++frameBuilds_;
         cachedRevision_ = revision;
@@ -103,6 +109,8 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         cachedBone_ = ActiveBone();
         cachedSelectedBones_ = session_.Selected().bones;
         cachedEditMode_ = session_.Document().timeline.editMode;
+        cachedCoordinateSystem_ = session_.CoordinateSystem();
+        cachedToolOperation_ = toolOperation_;
         cachedPlaying_ = session_.Playing();
         frameCached_ = !history;
     }
@@ -119,6 +127,28 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
 }
 int Viewport::ActiveBone() const {
     return session_.ActiveBone();
+}
+int Viewport::ToolAt(QPoint point) {
+    render::ViewportTools tools;
+    tools.camera = session_.Selected().model == 255;
+    tools.playing = session_.Playing();
+    tools.editMode = session_.Document().timeline.editMode;
+    const auto ratio = devicePixelRatio();
+    const auto w = unsigned(std::max(1, qRound(width() * ratio)));
+    const auto h = unsigned(std::max(1, qRound(height() * ratio)));
+    if (!tools.camera && ActiveBone() >= 0) {
+        std::string reason;
+        if (!session_.PrepareView(reason) ||
+            !render::SceneBoneScreenPoints(session_.Runtime(), session_.Selected().model, w, h,
+                                           bonePoints_, reason, session_.Selected().model))
+            return 0;
+        if (unsigned(ActiveBone()) < bonePoints_.size()) {
+            tools.centerX = bonePoints_[unsigned(ActiveBone())].x;
+            tools.centerY = bonePoints_[unsigned(ActiveBone())].y;
+        }
+    }
+    return render::ViewportToolAt(tools, qRound(point.x() * ratio), qRound(point.y() * ratio),
+                                  float(w), float(h), render::BackgroundViewScale(int(w)));
 }
 std::uint64_t Viewport::Submissions() const {
     const auto* renderer = const_cast<rhi::ScenePreviewController&>(controller_).GetRenderer();
@@ -138,6 +168,12 @@ bool Viewport::event(QEvent* event) {
 void Viewport::mousePressEvent(QMouseEvent* e) {
     pressed_ = true;
     previous_ = e->position().toPoint();
+    if (e->button() == Qt::LeftButton && ToolAt(previous_) == 21) {
+        session_.CycleCoordinateSystem();
+        if (changed)
+            changed(true, {});
+        return;
+    }
     if (e->button() == Qt::LeftButton && session_.Selected().model != 255 && !session_.Playing()) {
         std::string reason;
         if (!session_.PrepareView(reason)) {
@@ -163,8 +199,15 @@ void Viewport::mousePressEvent(QMouseEvent* e) {
     }
 }
 void Viewport::mouseMoveEvent(QMouseEvent* e) {
-    if (!pressed_)
+    if (!pressed_) {
+        const auto operation = ToolAt(e->position().toPoint());
+        if (operation != toolOperation_) {
+            toolOperation_ = operation;
+            if (changed)
+                changed(true, {});
+        }
         return;
+    }
     auto point = e->position().toPoint();
     auto delta = point - previous_;
     previous_ = point;

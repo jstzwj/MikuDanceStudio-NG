@@ -123,6 +123,7 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
                            std::unique_ptr<AudioOutput> audio)
     : assets_(std::move(assets)), testing_(testing), audio_(std::move(audio), testing) {
     setObjectName("mmd.editor");
+    installEventFilter(this);
     setMinimumSize(640, 480);
     resize(1024, 768);
     menuBar()->setNativeMenuBar(false);
@@ -1242,6 +1243,12 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
         }
         if (key->key() == Qt::Key_Space) {
             Dispatch(kPlayButton);
+            return true;
+        }
+        if (key->key() == Qt::Key_L && !key->isAutoRepeat() &&
+            !(key->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
+            session_.CycleCoordinateSystem();
+            Refresh();
             return true;
         }
         if (key->key() == Qt::Key_Delete) {

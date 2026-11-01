@@ -56,6 +56,16 @@ int main(int argc, char** argv) {
     CHECK(!window.isVisible());
     CHECK(window.SetLanguage("en"));
     {
+        const auto revision = window.Session().Revision();
+        QTest::keyClick(&window, Qt::Key_L);
+        CHECK(window.Session().CoordinateSystem() == 1);
+        QTest::keyClick(&window, Qt::Key_L);
+        CHECK(window.Session().CoordinateSystem() == 2);
+        QTest::keyClick(&window, Qt::Key_L);
+        CHECK(window.Session().CoordinateSystem() == 0);
+        CHECK(window.Session().Revision() == revision);
+    }
+    {
         qt::EditorWindow modes(std::filesystem::absolute(argv[2]), true);
         auto& s = modes.Session();
         CHECK(s.ImportModel(root / "pose.pmd", reason));

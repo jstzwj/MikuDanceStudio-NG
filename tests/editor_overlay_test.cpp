@@ -17,6 +17,52 @@ std::string reason;
     } while (false)
 int main(int argc, char** argv) {
     CHECK(argc == 3);
+    {
+        render::ViewportTools tools;
+        tools.camera = false;
+        tools.editMode = 3;
+        tools.centerX = 400;
+        tools.centerY = 300;
+        const auto hit = [&](int x, int y) {
+            return render::ViewportToolAt(tools, x, y, 1280, 960, 1);
+        };
+        CHECK(hit(420, 300) == 3 && hit(400, 320) == 4 && hit(440, 300) == 5);
+        CHECK(hit(407, 300) == 0 && hit(435, 300) == 0 && hit(445, 300) == 0);
+        CHECK(hit(1170, 895) == 9 && hit(1210, 895) == 10 && hit(1250, 935) == 14);
+        CHECK(hit(1153, 895) == 0 && hit(1170, 880) == 0);
+        CHECK(hit(1170, 865) == 21);
+        tools.editMode = 4;
+        CHECK(hit(450, 300) == 6 && hit(400, 250) == 7 && hit(400, 300) == 8);
+        CHECK(hit(441, 300) == 0 && hit(400, 239) == 0);
+        tools.camera = true;
+        CHECK(hit(1170, 895) == 18 && hit(1250, 935) == 17);
+        tools.playing = true;
+        CHECK(hit(1170, 895) == 0 && hit(1170, 865) == 0);
+        std::vector<std::array<float, 8>> quads;
+        const auto draw = [&] {
+            quads.clear();
+            render::AppendViewportTools(
+                tools, 1280, 960, 1,
+                [&](float l, float t, float r, float b, float u0, float v0, float u1, float v1) {
+                    quads.push_back({l, t, r, b, u0, v0, u1, v1});
+                });
+        };
+        draw();
+        CHECK(quads.empty());
+        tools.playing = false;
+        tools.camera = false;
+        tools.operation = 7;
+        tools.coordinateSystem = 1;
+        draw();
+        CHECK(quads.size() == 4);
+        CHECK(quads.front() == (std::array<float, 8>{1150, 845, 1270, 875, .001953f, .52929902f,
+                                                     .23242199f, .58594f}));
+        CHECK(quads.back() == (std::array<float, 8>{387, 233, 462, 308, .75f, 0.f, 1.f, .25f}));
+        tools.operation = 13;
+        draw();
+        CHECK(quads.size() == 5);
+        CHECK(quads[3][0] == 1190 && quads[3][1] == 920);
+    }
     // Frozen native atlas cells and order. These checks do not obtain expected
     // UVs from the producer, and include the selected mode-1 physics exception.
     {

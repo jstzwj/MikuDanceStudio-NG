@@ -603,3 +603,24 @@ presentation run passed all three backends, including selection/mode cache
 invalidation, replacement, recreation and unload. No comparison tolerance or
 wrapper limit was relaxed. Complete overlay raster/output comparison and the
 remaining P4 gates stay open.
+
+[Run 41304124144](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41304124144)
+at `d7798c6` passed bone overlays and the public mode/lifecycle regression on
+Windows, macOS and Linux.
+
+The native operation-panel strip, six axis controls, hover highlights and
+rotate/move cursor pictures now share one atlas-layout helper between the
+Windows host and Qt. Drawable-viewport hit rectangles are also shared, including
+strict edges, the rotation ring and the coordinate-cycle control. Qt maps
+device-pixel hit coordinates explicitly; the full DPI gate is still open.
+The L shortcut and strip control cycle transient coordinates (three camera
+states, two model states). Entering model mode resets camera-only state 2;
+coordinate changes do not dirty the document, create history or evaluate the
+scene. Window-background keyboard events now use the same filter as controls.
+
+Frozen atlas and hit-boundary checks, coordinate-state checks and actual Qt L
+key events passed. Never-shown presentation passed DX11/DX12/Vulkan with these
+controls, and the compatibility host rebuilt with its playback/physics check
+passing. The previous 1800-case original bone oracle still passed. This adds
+the operation controls' presentation and coordinate selection; bone/axis drag
+execution, cursor capture/restoration and 3D axis geometry remain pending.
