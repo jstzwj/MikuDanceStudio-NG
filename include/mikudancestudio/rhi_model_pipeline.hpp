@@ -121,6 +121,10 @@ inline VertexLayout BuiltinShadowVertexLayout(BuiltinShadowMode mode) {
     return mode == BuiltinShadowMode::Outline ? VertexLayout::PositionColor
                                               : VertexLayout::PositionNormalUv;
 }
+inline bool ValidBuiltinShadowVertexLayout(BuiltinShadowMode mode, VertexLayout layout) {
+    return mode == BuiltinShadowMode::Outline ? layout == VertexLayout::PositionColor
+                                              : IsModelVertexLayout(layout);
+}
 enum class PostProcessMode {
     None,
     Copy,
@@ -186,9 +190,9 @@ inline unsigned ModelPrimitiveArity(PrimitiveTopology topology) {
                                                        : 0;
 }
 inline unsigned ModelVertexStride(VertexLayout layout) {
-    return layout == VertexLayout::PositionNormalUv ? 32
-           : layout == VertexLayout::PositionColor  ? 16
-                                                    : 0;
+    return IsModelVertexLayout(layout)             ? 32 + 16 * AdditionalVertexUvs(layout)
+           : layout == VertexLayout::PositionColor ? 16
+                                                   : 0;
 }
 struct ModelTextureData {
     std::vector<RgbaImage> levels;

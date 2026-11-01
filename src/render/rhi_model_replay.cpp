@@ -144,7 +144,7 @@ static ModelReplayResult ValidateReplay(const ModelReplayStream& stream, bool fr
             return fail("invalid_postprocess_pipeline");
         if (!ValidBuiltinShadowState(p.shadow) ||
             (p.shadow.mode != BuiltinShadowMode::None &&
-             (p.vertexLayout != BuiltinShadowVertexLayout(p.shadow.mode) ||
+             (!ValidBuiltinShadowVertexLayout(p.shadow.mode, p.vertexLayout) ||
               p.topology != PrimitiveTopology::TriangleList)))
             return fail("invalid_builtin_shadow_pipeline");
         const auto& s = p.shader;
@@ -225,7 +225,8 @@ static ModelReplayResult ValidateReplay(const ModelReplayStream& stream, bool fr
                 if (p.vertexLayout == VertexLayout::PositionColor &&
                     s.layout.stages[slot].coordinates != MaterialCoordinates::MeshUv0)
                     return fail("position_color_has_no_normal_coordinates");
-                if (s.layout.stages[slot].coordinates == MaterialCoordinates::MeshUv1 ||
+                if ((s.layout.stages[slot].coordinates == MaterialCoordinates::MeshUv1 &&
+                     !AdditionalVertexUvs(p.vertexLayout)) ||
                     sampler.maxAnisotropy > 16 ||
                     (sampler.mip == SamplerFilter::Anisotropic &&
                      sampler.min != SamplerFilter::Anisotropic &&

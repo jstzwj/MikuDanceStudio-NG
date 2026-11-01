@@ -28,8 +28,21 @@ enum class VertexLayout {
     PositionColor,
     PositionNormalUv,
     ScreenPositionColor,
-    ScreenPositionColorUv
+    ScreenPositionColorUv,
+    PositionNormalUv1,
+    PositionNormalUv2,
+    PositionNormalUv3,
+    PositionNormalUv4
 };
+// PMX additional UVs are float4 attributes, following the base float2 UV.
+constexpr unsigned AdditionalVertexUvs(VertexLayout layout) {
+    return layout >= VertexLayout::PositionNormalUv1 && layout <= VertexLayout::PositionNormalUv4
+               ? unsigned(layout) - unsigned(VertexLayout::PositionNormalUv1) + 1
+               : 0;
+}
+constexpr bool IsModelVertexLayout(VertexLayout layout) {
+    return layout == VertexLayout::PositionNormalUv || AdditionalVertexUvs(layout) != 0;
+}
 enum class PrimitiveTopology {
     TriangleList,
     LineList

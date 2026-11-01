@@ -39,6 +39,11 @@ function(mds_add_qt_editor)
     add_custom_command(TARGET MikuDanceStudioNG POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${root}/res/assets" "$<TARGET_FILE_DIR:MikuDanceStudioNG>/assets")
     if(BUILD_TESTING)
+        add_executable(portable_uv_render_test "${root}/tests/portable_uv_render_test.cpp")
+        target_link_libraries(portable_uv_render_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render)
+        add_test(NAME portable_uv_render COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"
+            --passes $<TARGET_FILE:portable_uv_render_test> --assets "${root}/res/assets")
+        set_tests_properties(portable_uv_render PROPERTIES LABELS "p4;offscreen;gpu" TIMEOUT 120)
         qt_add_executable(qt_audio_test "${root}/tests/qt_audio_test.cpp")
         target_link_libraries(qt_audio_test PRIVATE mikudancestudio_frontend_qt)
         add_test(NAME qt_audio COMMAND qt_audio_test "${root}/res/assets")

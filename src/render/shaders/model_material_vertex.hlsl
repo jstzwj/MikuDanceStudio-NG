@@ -10,14 +10,20 @@ cbuffer VertexInputs : register(b0) {
 #if MDS_MODEL_VERTEX_COLOR
 struct VertexInput { float3 position:POSITION; float4 color:COLOR0; };
 #else
-struct VertexInput { float3 position:POSITION; float3 normal:NORMAL; float2 uv:TEXCOORD0; };
+struct VertexInput {
+    float3 position:POSITION; float3 normal:NORMAL; float2 uv:TEXCOORD0;
+#if MDS_MODEL_EXTRA_UV
+    float4 extraUv:TEXCOORD1;
+#endif
+};
 #endif
 struct PixelInput {
     float4 position:SV_POSITION; float4 litDiffuse:COLOR0;
     float2 coordinate0:TEXCOORD0; float2 coordinate1:TEXCOORD1; float2 coordinate2:TEXCOORD2;
     float3 specular:COLOR1;
 };
-float2 Coordinate(uint stage, uint mode, float3 normal, float2 uv) {
+float2 Coordinate(uint stage, uint mode, float3 normal, float2 uv, float4 uv1) {
+    if(mode==1) return mul(uv1,textureTransform[stage]).xy;
 #if MDS_MODEL_DX9_COMPATIBILITY && MDS_MODEL_TEXTURE_FMA_DIAGNOSTIC
     if(mode!=2)return uv;
     float2 result;
@@ -95,8 +101,12 @@ PixelInput main(VertexInput input) {
 #if MDS_MODEL_VERTEX_BYTE
     output.litDiffuse=floor(output.litDiffuse*255+0.5)/255;
 #endif
-    output.coordinate0=Coordinate(0,coordinates.x,normal,uv);
-    output.coordinate1=Coordinate(1,coordinates.y,normal,uv);
-    output.coordinate2=Coordinate(2,coordinates.z,normal,uv);
+    float4 uv1=0;
+#if MDS_MODEL_EXTRA_UV && !MDS_MODEL_VERTEX_COLOR
+    uv1=input.extraUv;
+#endif
+    output.coordinate0=Coordinate(0,coordinates.x,normal,uv,uv1);
+    output.coordinate1=Coordinate(1,coordinates.y,normal,uv,uv1);
+    output.coordinate2=Coordinate(2,coordinates.z,normal,uv,uv1);
     return output;
 }

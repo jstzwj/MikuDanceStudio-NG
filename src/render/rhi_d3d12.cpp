@@ -261,8 +261,9 @@ public:
         ++f.drawCount;
         return true;
     }
-    ComPtr<ID3DBlob> vertex, colorVertex, pixel;
-    ComPtr<ID3DBlob> screenVertex, screenPixel, shadowVertex, shadowOutlineVertex, shadowPixel;
+    ComPtr<ID3DBlob> vertex, uvVertex, colorVertex, pixel;
+    ComPtr<ID3DBlob> screenVertex, screenPixel, shadowVertex, shadowUvVertex, shadowOutlineVertex,
+        shadowPixel;
     ComPtr<ID3DBlob> postVertex, postPixel;
     Handle shadowTexture;
     std::map<std::string, ComPtr<ID3D12PipelineState>> pipelines;
@@ -1133,6 +1134,12 @@ public:
             {"MDS_MODEL_TEXTURE_FMA_DIAGNOSTIC", support.diagnosticTextureFma ? "1" : "0"},
             {"MDS_MODEL_SPECULAR_FMA_DIAGNOSTIC", support.diagnosticSpecularFma ? "1" : "0"},
             {nullptr, nullptr}};
+        const D3D_SHADER_MACRO uvs[] = {
+            {"MDS_MODEL_EXTRA_UV", "1"},
+            {"MDS_MODEL_DX9_COMPATIBILITY", measured ? "1" : "0"},
+            {"MDS_MODEL_TEXTURE_FMA_DIAGNOSTIC", support.diagnosticTextureFma ? "1" : "0"},
+            {"MDS_MODEL_SPECULAR_FMA_DIAGNOSTIC", support.diagnosticSpecularFma ? "1" : "0"},
+            {nullptr, nullptr}};
         const D3D_SHADER_MACRO cvs[] = {
             {"MDS_MODEL_VERTEX_COLOR", "1"},
             {"MDS_MODEL_DX9_COMPATIBILITY", measured ? "1" : "0"},
@@ -1146,6 +1153,9 @@ public:
             {nullptr, nullptr}};
         lastError = D3DCompile(source.data(), source.size(), nullptr, vs, nullptr, "main", "vs_5_0",
                                D3DCOMPILE_IEEE_STRICTNESS, 0, &vertex, &errors);
+        if (SUCCEEDED(lastError))
+            lastError = D3DCompile(source.data(), source.size(), nullptr, uvs, nullptr, "main",
+                                   "vs_5_0", D3DCOMPILE_IEEE_STRICTNESS, 0, &uvVertex, &errors);
         if (SUCCEEDED(lastError))
             lastError = D3DCompile(source.data(), source.size(), nullptr, cvs, nullptr, "main",
                                    "vs_5_0", D3DCOMPILE_IEEE_STRICTNESS, 0, &colorVertex, &errors);
@@ -1163,6 +1173,10 @@ public:
             lastError = D3DCompile(builtinShadowSource, std::strlen(builtinShadowSource), nullptr,
                                    nullptr, nullptr, "shadow_vs", "vs_5_0",
                                    D3DCOMPILE_IEEE_STRICTNESS, 0, &shadowVertex, &errors);
+        if (SUCCEEDED(lastError))
+            lastError = D3DCompile(builtinShadowSource, std::strlen(builtinShadowSource), nullptr,
+                                   nullptr, nullptr, "shadow_uv_vs", "vs_5_0",
+                                   D3DCOMPILE_IEEE_STRICTNESS, 0, &shadowUvVertex, &errors);
         if (SUCCEEDED(lastError))
             lastError = D3DCompile(builtinShadowSource, std::strlen(builtinShadowSource), nullptr,
                                    nullptr, nullptr, "shadow_outline_vs", "vs_5_0",
@@ -1505,7 +1519,10 @@ bool D3D12Device::UsePipeline(const ModelPipeline& p, VertexLayout layout, ID3DB
                                                  {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,
                                                   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
                                                  {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24,
-                                                  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
+                                                  D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+                                                 {"TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
+                                                  32, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+                                                  0}};
     const D3D12_INPUT_ELEMENT_DESC colors[] = {{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
                                                 D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
                                                {"COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 12,
@@ -1537,8 +1554,9 @@ bool D3D12Device::UsePipeline(const ModelPipeline& p, VertexLayout layout, ID3DB
     if (state == pipelines.end()) {
         d.InputLayout =
             layout == VertexLayout::ScreenPositionColorUv ? D3D12_INPUT_LAYOUT_DESC{screen, 3}
-            : layout == VertexLayout::PositionColor       ? D3D12_INPUT_LAYOUT_DESC{colors, 2}
-                                                          : D3D12_INPUT_LAYOUT_DESC{elements, 3};
+            : layout == VertexLayout::PositionColor
+                ? D3D12_INPUT_LAYOUT_DESC{colors, 2}
+                : D3D12_INPUT_LAYOUT_DESC{elements, AdditionalVertexUvs(layout) ? 4u : 3u};
         std::vector<D3D12_INPUT_ELEMENT_DESC> genericInputs;
         if (generic) {
             for (const auto& i : generic->description.inputs) {
@@ -1660,7 +1678,7 @@ bool D3D12Device::SetModelPipeline(const ModelPipeline& p) {
     std::array<std::array<float, 4>, 3> samples{};
     if (!Live() || !inFrame || !ValidPostProcess(p) || !ValidBuiltinShadowState(p.shadow) ||
         (p.shadow.mode != BuiltinShadowMode::None &&
-         (!passes.Active() || p.vertexLayout != BuiltinShadowVertexLayout(p.shadow.mode) ||
+         (!passes.Active() || !ValidBuiltinShadowVertexLayout(p.shadow.mode, p.vertexLayout) ||
           p.topology != PrimitiveTopology::TriangleList)) ||
         !ValidModelViewport(view, RenderWidth(), RenderHeight()) ||
         !ModelVertexStride(p.vertexLayout) || !ModelPrimitiveArity(p.topology) ||
@@ -1686,7 +1704,9 @@ bool D3D12Device::SetModelPipeline(const ModelPipeline& p) {
         const auto& a = s.samplers[i];
         D3D12_SAMPLER_DESC d{};
         if (t.role != MaterialTextureRole::None &&
-            (t.coordinates == MaterialCoordinates::MeshUv1 || a.maxAnisotropy > 16 ||
+            ((t.coordinates == MaterialCoordinates::MeshUv1 &&
+              !AdditionalVertexUvs(p.vertexLayout)) ||
+             a.maxAnisotropy > 16 ||
              (p.vertexLayout == VertexLayout::PositionColor &&
               t.coordinates != MaterialCoordinates::MeshUv0)))
             return false;
@@ -1708,9 +1728,12 @@ bool D3D12Device::SetModelPipeline(const ModelPipeline& p) {
         d.MaxLOD = D3D12_FLOAT32_MAX;
         samplerDescriptions[i] = d;
     }
-    auto* vs = p.vertexLayout == VertexLayout::PositionColor ? colorVertex.Get() : vertex.Get();
+    auto* vs = p.vertexLayout == VertexLayout::PositionColor ? colorVertex.Get()
+               : AdditionalVertexUvs(p.vertexLayout)         ? uvVertex.Get()
+                                                             : vertex.Get();
     if (p.shadow.mode != BuiltinShadowMode::None)
         vs = p.shadow.mode == BuiltinShadowMode::Outline ? shadowOutlineVertex.Get()
+             : AdditionalVertexUvs(p.vertexLayout)       ? shadowUvVertex.Get()
                                                          : shadowVertex.Get();
     const bool post = p.postProcess.mode != PostProcessMode::None;
     if (!UsePipeline(p, p.vertexLayout, post ? postVertex.Get() : vs,

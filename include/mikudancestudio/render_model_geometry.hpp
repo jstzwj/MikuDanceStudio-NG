@@ -38,8 +38,7 @@ private:
     ModelGeometrySnapshot snapshot;
 };
 
-// Appends only the geometry used by this draw. Extra UVs remain in CPU staging
-// but are explicitly rejected until the shader/layout contract supports them.
+// Appends only the geometry used by this draw, preserving every additional UV.
 rhi::ModelReplayResult AppendModelGeometry(rhi::ModelReplayStream&, const ModelGeometrySnapshot&,
                                            rhi::ModelReplayDraw, bool edge = false);
 }

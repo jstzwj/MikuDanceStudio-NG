@@ -109,9 +109,12 @@ class Reference {
         const auto& s = p.shadow;
         const auto& v = resources.at(draw.vertices);
         Check(device->SetStreamSource(0, v.vertices.Get(), 0, ModelVertexStride(p.vertexLayout)));
-        Check(device->SetFVF(p.vertexLayout == VertexLayout::PositionColor
-                                 ? D3DFVF_XYZ | D3DFVF_DIFFUSE
-                                 : D3DFVF_XYZ | D3DFVF_NORMAL | D3DFVF_TEX1));
+        DWORD fvf = D3DFVF_XYZ | D3DFVF_NORMAL |
+                    ((1 + AdditionalVertexUvs(p.vertexLayout)) << D3DFVF_TEXCOUNT_SHIFT);
+        for (unsigned i = 0; i < AdditionalVertexUvs(p.vertexLayout); ++i)
+            fvf |= D3DFVF_TEXCOORDSIZE4(i + 1);
+        Check(device->SetFVF(
+            p.vertexLayout == VertexLayout::PositionColor ? D3DFVF_XYZ | D3DFVF_DIFFUSE : fvf));
         if (draw.indexed)
             Check(device->SetIndices(resources.at(draw.indices).indices.Get()));
         State(p);
@@ -146,7 +149,7 @@ class Reference {
         Check(effect->SetBool("parthf", s.perspective));
         Check(effect->SetBool("transp", s.transparent));
         IDirect3DTexture9 *base = nullptr, *sphere = nullptr;
-        bool additive = false;
+        bool additive = false, subtexture = false;
         const SamplerDesc *baseSampler = nullptr, *sphereSampler = nullptr;
         for (unsigned stage = 0; stage < 3; ++stage) {
             const auto& t = p.shader.layout.stages[stage];
@@ -157,11 +160,14 @@ class Reference {
             if (t.role == MaterialTextureRole::Sphere) {
                 sphere = resources.at(draw.textures[stage]).texture.Get();
                 additive = t.color == MaterialCombine::Add;
+                subtexture = t.coordinates == MaterialCoordinates::MeshUv1;
                 sphereSampler = &p.shader.samplers[stage];
             }
         }
         const char* technique = s.mode == BuiltinShadowMode::Depth     ? "ZValuePlotTec"
                                 : s.mode == BuiltinShadowMode::Outline ? "ColorRenderTec"
+                                : base && sphere && subtexture         ? "BShadowTextureTexCd2Tec"
+                                : sphere && subtexture                 ? "BShadowTexCd2Tec"
                                 : base && sphere                       ? "BShadowSphiaTextureTec"
                                 : sphere                               ? "BShadowSphiaTec"
                                 : base                                 ? "BShadowTextureTec"

@@ -308,8 +308,10 @@ public:
     Handle shadow;
     std::map<std::string, VkPipeline> pipelines;
     std::map<std::string, VkSampler> samplers;
-    VkShaderModule modelVs = VK_NULL_HANDLE, colorVs = VK_NULL_HANDLE, modelPs = VK_NULL_HANDLE;
-    VkShaderModule shadowVs = VK_NULL_HANDLE, outlineVs = VK_NULL_HANDLE, shadowPs = VK_NULL_HANDLE;
+    VkShaderModule modelUvVs = VK_NULL_HANDLE, modelVs = VK_NULL_HANDLE, colorVs = VK_NULL_HANDLE,
+                   modelPs = VK_NULL_HANDLE;
+    VkShaderModule shadowUvVs = VK_NULL_HANDLE, shadowVs = VK_NULL_HANDLE,
+                   outlineVs = VK_NULL_HANDLE, shadowPs = VK_NULL_HANDLE;
     VkShaderModule postVs = VK_NULL_HANDLE, postPs = VK_NULL_HANDLE;
     std::string reason;
 #ifdef _WIN32
@@ -413,8 +415,8 @@ public:
             }
             for (auto s : samplers)
                 vkDestroySampler(native, s.second, nullptr);
-            for (auto module :
-                 {modelVs, colorVs, modelPs, shadowVs, outlineVs, shadowPs, postVs, postPs})
+            for (auto module : {modelVs, modelUvVs, colorVs, modelPs, shadowVs, shadowUvVs,
+                                outlineVs, shadowPs, postVs, postPs})
                 if (module)
                     vkDestroyShaderModule(native, module, nullptr);
             if (pipelineLayout)
@@ -2073,10 +2075,12 @@ bool VulkanDevice::Initialize(unsigned w, unsigned h, VulkanDriver driver, Vulka
         m.pCode = words;
         return Check(vkCreateShaderModule(native, &m, nullptr, &out));
     };
-    if (!module(spirv::model_vertex, modelVs) || !module(spirv::color_vertex, colorVs) ||
-        !module(spirv::model_pixel, modelPs) || !module(spirv::shadow_vertex, shadowVs) ||
-        !module(spirv::outline_vertex, outlineVs) || !module(spirv::shadow_pixel, shadowPs) ||
-        !module(spirv::post_vertex, postVs) || !module(spirv::post_pixel, postPs))
+    if (!module(spirv::model_uv_vertex, modelUvVs) ||
+        !module(spirv::shadow_uv_vertex, shadowUvVs) || !module(spirv::model_vertex, modelVs) ||
+        !module(spirv::color_vertex, colorVs) || !module(spirv::model_pixel, modelPs) ||
+        !module(spirv::shadow_vertex, shadowVs) || !module(spirv::outline_vertex, outlineVs) ||
+        !module(spirv::shadow_pixel, shadowPs) || !module(spirv::post_vertex, postVs) ||
+        !module(spirv::post_pixel, postPs))
         return false;
     reason = "fallback_texture_failed";
     white.texture = {1, 1, TextureFormat::Rgba8};
@@ -2147,16 +2151,23 @@ bool VulkanDevice::MakePipeline(const ModelPipeline& p, VkPipeline& out,
         out = found->second;
         return true;
     }
-    const bool builtin = p.shadow.mode != BuiltinShadowMode::None,
+    const bool extraUv = AdditionalVertexUvs(p.vertexLayout) != 0,
+               builtin = p.shadow.mode != BuiltinShadowMode::None,
                outline = p.shadow.mode == BuiltinShadowMode::Outline;
     VkPipelineShaderStageCreateInfo stages[2]{};
     stages[0].sType = stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
     stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    stages[0].module = builtin
-                           ? (outline ? outlineVs : shadowVs)
-                           : (p.vertexLayout == VertexLayout::PositionColor ? colorVs : modelVs);
-    stages[0].pName = builtin ? (outline ? "shadow_outline_vs" : "shadow_vs") : "main";
+    stages[0].module = builtin ? (outline   ? outlineVs
+                                  : extraUv ? shadowUvVs
+                                            : shadowVs)
+                               : (p.vertexLayout == VertexLayout::PositionColor ? colorVs
+                                  : extraUv                                     ? modelUvVs
+                                                                                : modelVs);
+    stages[0].pName = builtin ? (outline   ? "shadow_outline_vs"
+                                 : extraUv ? "shadow_uv_vs"
+                                           : "shadow_vs")
+                              : "main";
     stages[1].module = builtin ? shadowPs : modelPs;
     stages[1].pName = builtin ? "shadow_ps" : "main";
     if (p.postProcess.mode != PostProcessMode::None) {
@@ -2179,12 +2190,15 @@ bool VulkanDevice::MakePipeline(const ModelPipeline& p, VkPipeline& out,
                                                       ? VK_FORMAT_R8G8B8A8_UNORM
                                                       : VK_FORMAT_R32G32B32_SFLOAT,
                                                   12},
-                                                 {2, 0, VK_FORMAT_R32G32_SFLOAT, 24}};
+                                                 {2, 0, VK_FORMAT_R32G32_SFLOAT, 24},
+                                                 {3, 0, VK_FORMAT_R32G32B32A32_SFLOAT, 32}};
     VkPipelineVertexInputStateCreateInfo vi{
         VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
     vi.vertexBindingDescriptionCount = 1;
     vi.pVertexBindingDescriptions = &binding;
-    vi.vertexAttributeDescriptionCount = p.vertexLayout == VertexLayout::PositionColor ? 2 : 3;
+    vi.vertexAttributeDescriptionCount = p.vertexLayout == VertexLayout::PositionColor ? 2
+                                         : extraUv                                     ? 4
+                                                                                       : 3;
     vi.pVertexAttributeDescriptions = attrs;
     if (p.postProcess.mode != PostProcessMode::None) {
         attrs[1] = {1, 0, VK_FORMAT_R32G32_SFLOAT, 24};
@@ -2477,7 +2491,7 @@ bool VulkanDevice::SetModelPipeline(const ModelPipeline& p) {
     std::array<std::array<float, 4>, 3> samples{};
     if (!Live() || !inFrame || !ValidPostProcess(p) || !ValidBuiltinShadowState(p.shadow) ||
         (p.shadow.mode != BuiltinShadowMode::None &&
-         (!passes.Active() || p.vertexLayout != BuiltinShadowVertexLayout(p.shadow.mode) ||
+         (!passes.Active() || !ValidBuiltinShadowVertexLayout(p.shadow.mode, p.vertexLayout) ||
           p.topology != PrimitiveTopology::TriangleList)) ||
         !ValidModelViewport(view, RenderWidth(), RenderHeight()) ||
         !ModelVertexStride(p.vertexLayout) || !ModelPrimitiveArity(p.topology) ||
@@ -2509,7 +2523,8 @@ bool VulkanDevice::SetModelPipeline(const ModelPipeline& p) {
         const auto& t = s.layout.stages[i];
         const auto& a = s.samplers[i];
         if (t.role != MaterialTextureRole::None &&
-            (t.coordinates == MaterialCoordinates::MeshUv1 ||
+            ((t.coordinates == MaterialCoordinates::MeshUv1 &&
+              !AdditionalVertexUvs(p.vertexLayout)) ||
              (p.vertexLayout == VertexLayout::PositionColor &&
               t.coordinates != MaterialCoordinates::MeshUv0) ||
              a.maxAnisotropy > properties.limits.maxSamplerAnisotropy ||

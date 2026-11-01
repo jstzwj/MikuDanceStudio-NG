@@ -27,11 +27,12 @@ int main(int argc, char** argv) try {
     FileAssetSource files(assets);
     unsigned cases = 0;
     for (const char* name :
-         {"bound-varied.x", "sphere-mul.x", "sphere-add.x", "dual-sphere.x", "tint-shadow.pmx"})
+         {"bound-varied.x", "sphere-mul.x", "sphere-add.x", "dual-sphere.x", "tint-shadow.pmx",
+          "uv1-only.pmx", "uv1-dual.pmx", "uv4-only.pmx", "uv4-dual.pmx"})
         for (int mode : {1, 2}) {
             editor::EditorSession session;
             std::string reason;
-            const bool model = std::string(name) == "tint-shadow.pmx";
+            const bool model = std::filesystem::path(name).extension() == ".pmx";
             Require(model ? session.ImportModel(root / name, reason)
                           : session.ImportAccessory(root / name, reason),
                     reason);
@@ -54,6 +55,8 @@ int main(int argc, char** argv) try {
             if (model) {
                 Require(session.SetMorph(0, 1, .5f, reason), reason);
                 Require(session.SetMorph(0, 2, .5f, reason), reason);
+                if (std::string(name).rfind("uv", 0) == 0)
+                    Require(session.SetMorph(0, 3, .75f, reason), reason);
             }
             render::SceneRenderSources sources;
             sources.models = session.Assets().modelPaths;

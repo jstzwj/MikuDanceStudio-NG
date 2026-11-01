@@ -166,15 +166,40 @@ public:
         return true;
     }
     Handle shadowTexture;
-    ComPtr<ID3D11VertexShader> shadowVs, shadowOutlineVs;
+    ComPtr<ID3D11VertexShader> shadowVs, shadowUvVs, shadowOutlineVs;
     ComPtr<ID3D11PixelShader> shadowPs;
-    ComPtr<ID3D11InputLayout> shadowLayout, shadowOutlineLayout;
+    ComPtr<ID3D11InputLayout> shadowLayout, shadowUvLayout, shadowOutlineLayout;
     ComPtr<ID3D11Buffer> shadowConstants;
     ComPtr<ID3D11SamplerState> shadowSampler;
     ComPtr<ID3D11VertexShader> postVs;
     ComPtr<ID3D11PixelShader> postPs;
     ComPtr<ID3D11InputLayout> postLayout;
     ComPtr<ID3D11Buffer> postConstants;
+    bool MakeUvVertex(const std::string& source, const char* entry, const D3D_SHADER_MACRO* macros,
+                      ComPtr<ID3D11VertexShader>& shader, ComPtr<ID3D11InputLayout>& layout) {
+        ComPtr<ID3DBlob> code, error;
+        lastError = D3DCompile(source.data(), source.size(), nullptr, macros, nullptr, entry,
+                               "vs_5_0", D3DCOMPILE_IEEE_STRICTNESS, 0, &code, &error);
+        if (FAILED(lastError))
+            return false;
+        const D3D11_INPUT_ELEMENT_DESC elements[] = {
+            {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+            {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+            {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0},
+            {"TEXCOORD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0}};
+        ComPtr<ID3D11VertexShader> nextShader;
+        ComPtr<ID3D11InputLayout> nextLayout;
+        lastError = native->CreateVertexShader(code->GetBufferPointer(), code->GetBufferSize(),
+                                               nullptr, &nextShader);
+        if (SUCCEEDED(lastError))
+            lastError = native->CreateInputLayout(elements, 4, code->GetBufferPointer(),
+                                                  code->GetBufferSize(), &nextLayout);
+        if (FAILED(lastError))
+            return false;
+        shader = std::move(nextShader);
+        layout = std::move(nextLayout);
+        return true;
+    }
     bool SetPostProcess(const ModelPipeline& p) {
         if (p.postProcess.mode == PostProcessMode::None)
             return true;
@@ -229,7 +254,7 @@ public:
         if (p.shadow.mode == BuiltinShadowMode::None)
             return true;
         if (!passes.Active() || !ValidBuiltinShadowState(p.shadow) ||
-            p.vertexLayout != BuiltinShadowVertexLayout(p.shadow.mode) ||
+            !ValidBuiltinShadowVertexLayout(p.shadow.mode, p.vertexLayout) ||
             p.topology != PrimitiveTopology::TriangleList)
             return false;
         if (!shadowVs) {
@@ -287,6 +312,10 @@ public:
             shadowPs = ps;
             shadowLayout = layout;
         }
+        const bool extraUv = AdditionalVertexUvs(p.vertexLayout) != 0;
+        if (extraUv && !shadowUvVs &&
+            !MakeUvVertex(builtinShadowSource, "shadow_uv_vs", nullptr, shadowUvVs, shadowUvLayout))
+            return false;
         const auto c = detail::BuildBuiltinShadowConstants(p, viewport);
         context->UpdateSubresource(shadowConstants.Get(), 0, nullptr, &c, 0, 0);
         auto* cb = shadowConstants.Get();
@@ -295,8 +324,13 @@ public:
         auto* sampler = shadowSampler.Get();
         context->PSSetSamplers(3, 1, &sampler);
         const bool outline = p.shadow.mode == BuiltinShadowMode::Outline;
-        context->IASetInputLayout(outline ? shadowOutlineLayout.Get() : shadowLayout.Get());
-        context->VSSetShader(outline ? shadowOutlineVs.Get() : shadowVs.Get(), nullptr, 0);
+        context->IASetInputLayout(outline   ? shadowOutlineLayout.Get()
+                                  : extraUv ? shadowUvLayout.Get()
+                                            : shadowLayout.Get());
+        context->VSSetShader(outline   ? shadowOutlineVs.Get()
+                             : extraUv ? shadowUvVs.Get()
+                                       : shadowVs.Get(),
+                             nullptr, 0);
         context->PSSetShader(shadowPs.Get(), nullptr, 0);
         return true;
     }
@@ -312,9 +346,9 @@ public:
         shadowTexture = h;
         return true;
     }
-    ComPtr<ID3D11VertexShader> modelVs;
+    ComPtr<ID3D11VertexShader> modelVs, modelUvVs;
     ComPtr<ID3D11PixelShader> modelPs;
-    ComPtr<ID3D11InputLayout> modelLayout;
+    ComPtr<ID3D11InputLayout> modelLayout, modelUvLayout;
     ComPtr<ID3D11VertexShader> modelColorVs;
     ComPtr<ID3D11InputLayout> modelColorLayout;
     ComPtr<ID3D11Buffer> modelVertexConstants, modelPixelConstants;
@@ -1094,7 +1128,8 @@ bool D3D11Device::SetModelPipeline(const ModelPipeline& p) {
     for (unsigned stage = 0; stage < 3; ++stage) {
         const auto& t = s.layout.stages[stage];
         if (t.role != MaterialTextureRole::None &&
-            (t.coordinates == MaterialCoordinates::MeshUv1 ||
+            ((t.coordinates == MaterialCoordinates::MeshUv1 &&
+              !AdditionalVertexUvs(p.vertexLayout)) ||
              s.samplers[stage].maxAnisotropy > 16 ||
              (p.vertexLayout == VertexLayout::PositionColor &&
               t.coordinates != MaterialCoordinates::MeshUv0)))
@@ -1145,6 +1180,20 @@ bool D3D11Device::SetModelPipeline(const ModelPipeline& p) {
         modelVs = vshader;
         modelPs = pshader;
         modelLayout = input;
+    }
+    if (AdditionalVertexUvs(p.vertexLayout) && !modelUvVs) {
+        const bool compatible = modelSupport.selected == D3D11ModelCompatibility::Dx9Measured;
+        const std::string source =
+            compatible ? std::string(modelDx9CompatibilitySource) + modelVertexSource
+                       : std::string(modelVertexSource);
+        const D3D_SHADER_MACRO macros[] = {
+            {"MDS_MODEL_EXTRA_UV", "1"},
+            {"MDS_MODEL_DX9_COMPATIBILITY", compatible ? "1" : "0"},
+            {"MDS_MODEL_TEXTURE_FMA_DIAGNOSTIC", modelSupport.diagnosticTextureFma ? "1" : "0"},
+            {"MDS_MODEL_SPECULAR_FMA_DIAGNOSTIC", modelSupport.diagnosticSpecularFma ? "1" : "0"},
+            {nullptr, nullptr}};
+        if (!MakeUvVertex(source, "main", macros, modelUvVs, modelUvLayout))
+            return false;
     }
     if (p.vertexLayout == VertexLayout::PositionColor && !modelColorVs) {
         const bool compatible = modelSupport.selected == D3D11ModelCompatibility::Dx9Measured;
@@ -1337,11 +1386,13 @@ bool D3D11Device::SetModelPipeline(const ModelPipeline& p) {
     context->OMSetDepthStencilState(depthState.Get(), p.stencilReference);
     context->RSSetState(raster.Get());
     context->IASetInputLayout(p.vertexLayout == VertexLayout::PositionColor ? modelColorLayout.Get()
+                              : AdditionalVertexUvs(p.vertexLayout)         ? modelUvLayout.Get()
                                                                             : modelLayout.Get());
     context->IASetPrimitiveTopology(p.topology == PrimitiveTopology::LineList
                                         ? D3D11_PRIMITIVE_TOPOLOGY_LINELIST
                                         : D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     context->VSSetShader(p.vertexLayout == VertexLayout::PositionColor ? modelColorVs.Get()
+                         : AdditionalVertexUvs(p.vertexLayout)         ? modelUvVs.Get()
                                                                        : modelVs.Get(),
                          nullptr, 0);
     context->PSSetShader(modelPs.Get(), nullptr, 0);

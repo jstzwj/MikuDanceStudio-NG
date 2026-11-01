@@ -110,3 +110,15 @@ The independent preview host accepts Vulkan and explicit self-shadow frames.
 See [material sampling and output](RHI_MATERIAL_SAMPLING.md) for the explicit
 portable/native profiles, public reproducer, hidden WSI tests and remaining
 native anisotropic difference. Native MME remains unsupported.
+
+### P4 additional UV extension
+
+The current shared vertex contract preserves zero to four PMX float4 UV sets
+(32/48/64/80/96-byte strides). DX11, DX12 and Vulkan sample UV1 in fixed material
+and built-in self-shadow programs, including UV morphs and subtexture-only/base
+plus subtexture variants. Generic shader input descriptions expose all four sets.
+A missing UV1 attribute still fails replay validation. Fixed material sampling
+applies the captured row-vector texture transform to the full float4 UV1.
+Earlier UV1 rejection statements above describe those historical milestones;
+P4 execution and outstanding DX9 acceptance are recorded in
+[CROSS_PLATFORM_P4.md](CROSS_PLATFORM_P4.md).

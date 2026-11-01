@@ -22,6 +22,9 @@ ModelGeometry::ModelGeometry(std::uint64_t firstId, std::uint32_t count, unsigne
         throw std::invalid_argument("invalid CPU geometry description");
     snapshot.vertexCount = count;
     snapshot.additionalUvCount = uv;
+    snapshot.main.vertexLayout =
+        uv ? rhi::VertexLayout(unsigned(rhi::VertexLayout::PositionNormalUv1) + uv - 1)
+           : rhi::VertexLayout::PositionNormalUv;
     snapshot.main.key.id = firstId;
     snapshot.edge.key.id = firstId + 1;
     snapshot.indices.key.id = firstId + 2;
@@ -80,12 +83,10 @@ bool ModelGeometry::SetIndices(rhi::IndexFormat format, const void* data, std::s
 bool ModelGeometry::Publish() {
     if (!snapshot.indices.key.version || edges.size() != snapshot.vertexCount)
         return false;
-    std::vector<std::uint8_t> vertices(std::size_t(snapshot.vertexCount) * 32),
-        outline(std::size_t(snapshot.vertexCount) * 16);
+    std::vector<std::uint8_t> vertices(MainSize()), outline(std::size_t(snapshot.vertexCount) * 16);
     const auto* source = static_cast<const std::uint8_t*>(MainData());
+    std::memcpy(vertices.data(), source, vertices.size());
     for (std::size_t i = 0; i < snapshot.vertexCount; ++i) {
-        std::memcpy(vertices.data() + i * 32, source + i * (32 + 16 * snapshot.additionalUvCount),
-                    32);
         auto* out = outline.data() + i * 16;
         std::memcpy(out, edges[i].position, 12);
         const auto argb = edges[i].diffuse;
@@ -109,8 +110,9 @@ rhi::ModelReplayResult AppendModelGeometry(rhi::ModelReplayStream& stream,
         result.reason = why;
         return result;
     };
-    if (geometry.additionalUvCount)
-        return fail("unsupported_additional_uv_layout");
+    if (geometry.additionalUvCount > 4 ||
+        geometry.additionalUvCount != rhi::AdditionalVertexUvs(geometry.main.vertexLayout))
+        return fail("invalid_additional_uv_layout");
     const auto& vertices = edge ? geometry.edge : geometry.main;
     if (!geometry.vertexCount || !vertices.key.version || !geometry.indices.key.version)
         return fail("unpublished_cpu_geometry");

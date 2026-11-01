@@ -202,7 +202,8 @@ bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRen
                 next->models.emplace(std::uint8_t(slot), std::move(model));
                 continue;
             }
-            model->geometry = std::make_unique<ModelGeometry>(id, unsigned(doc.vertices.size()));
+            model->geometry = std::make_unique<ModelGeometry>(id, unsigned(doc.vertices.size()),
+                                                              doc.header.additionalUvCount);
             // Original PMX load-time ownership: a shared vertex takes the
             // material with the smallest original edge size (first on ties).
             model->edgeMaterials.resize(doc.vertices.size());
@@ -499,7 +500,9 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         const auto* snapshot = scene.Snapshot(slot);
         if (!snapshot || snapshot->vertices.size() != model.resource->Document().vertices.size())
             return Fail(reason, "model_snapshot_missing");
-        auto* vertices = static_cast<ModelVertex*>(model.geometry->MainData());
+        auto* vertices = static_cast<std::uint8_t*>(model.geometry->MainData());
+        const auto extraUv = model.geometry->AdditionalUvCount();
+        const auto vertexStride = 32 + 16 * extraUv;
         const bool pmd = model.resource->SourceKind() == format::ModelKind::Pmd;
         const auto& source = model.resource->Document();
         float scale = 1;
@@ -521,9 +524,12 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                                                        frame.scene.camera.fov, scale);
         for (std::size_t n = 0; n < snapshot->vertices.size(); ++n) {
             const auto& v = snapshot->vertices[n];
-            std::copy_n(v.position.data(), 3, vertices[n].position);
-            std::copy_n(v.normal.data(), 3, vertices[n].normal);
-            std::copy_n(v.uv.data(), 2, vertices[n].uv);
+            auto* output = vertices + n * vertexStride;
+            std::memcpy(output, v.position.data(), 12);
+            std::memcpy(output + 12, v.normal.data(), 12);
+            std::memcpy(output + 24, v.uv.data(), 8);
+            for (unsigned u = 0; u < extraUv; ++u)
+                std::memcpy(output + 32 + u * 16, v.additionalUv[u].data(), 16);
             auto& edge = model.geometry->Edges()[n];
             const auto& original = source.vertices[n];
             const auto& material = snapshot->materials.at(model.edgeMaterials[n]).material;
@@ -555,6 +561,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                     pose.material, model.resource->SourceKind() == format::ModelKind::Pmd, saved);
                 if (!BuildModelInputs(frame, material, {}, packet.pipeline))
                     return Fail(reason, "model_pipeline");
+                packet.pipeline.vertexLayout = model.geometry->Snapshot().main.vertexLayout;
                 if (mode) {
                     InstallShadow(packet.pipeline, shadow, material, saved.toonColor,
                                   material.pmd || (pose.material.flags & 8));

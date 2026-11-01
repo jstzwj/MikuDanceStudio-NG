@@ -11,9 +11,11 @@ PMD 的带填充索引在这里转换为连续 UInt16；PMX 按实际索引宽�
 转换前检查范围，避免先截断错误索引再验证。
 
 `Publish()` 生成拥有字节数据的 `ModelGeometrySnapshot`。主顶点为
-position/normal/UV 的 32 字节记录；描边输出为 position/RGBA8 的 16 字节记录。
-旧运行时的 ARGB 颜色在这个边界转换为 RGBA。追加 UV 的 CPU 布局仍保留；
-当前 RHI 布局未支持它们，`AppendModelGeometry()` 会明确拒绝。
+position/normal/UV 的 32 字节前缀，随后保留 0～4 组 float4 追加 UV；
+描边输出为 position/RGBA8 的 16 字节记录，ARGB 在这个边界转换为 RGBA。
+P4 扩展了对应的五种显式顶点布局，DX11／DX12／Vulkan 内置材质可以采样 UV1，
+通用着色器输入描述保留全部 UV 属性。布局、步长不匹配仍明确拒绝；
+UV Morph 修改也参与不可变版本比较。实施与验收边界见 [P4 记录](CROSS_PLATFORM_P4.md)。
 
 资源 ID 由场景所有者分配，不使用模型指针作为 GPU 资源身份。主顶点、描边和
 索引分别维护单调版本；字节不变时不增加版本。旧快照保留原有内容，模型重载

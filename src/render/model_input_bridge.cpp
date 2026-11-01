@@ -283,6 +283,7 @@ bool BuildLiveCpuModelInputs(MMDApp* app, mdl::ModelRecord* model, unsigned mate
         reason = "unsupported_cpu_pipeline";
         return false;
     }
+    pipeline.vertexLayout = found->second->geometry.Snapshot().main.vertexLayout;
     assets = {};
     assets[0] = saved.assets[0];
     for (unsigned stage = 1; stage < 3; ++stage) {

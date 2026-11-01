@@ -39,6 +39,7 @@ struct ShadowPixel {
     float2 uv : TEXCOORD3;
     float2 sphere : TEXCOORD4;
     float4 color : COLOR0;
+    float2 uv1 : TEXCOORD5;
 };
 ShadowPixel shadow_vs(ShadowVertex v) {
     ShadowPixel o;
@@ -46,6 +47,7 @@ ShadowPixel shadow_vs(ShadowVertex v) {
     o.position = shadowOptions.x == 1 ? o.light : mul(float4(v.position,1),shadowCamera);
     o.normal = v.normal; o.eye = shadowEye.xyz-v.position;
     o.uv = v.uv;
+    o.uv1 = 0;
     o.sphere = mul(float4(v.normal,0),shadowRotation).xy;
     o.color = shadowColor;
     if (shadowOptions.w & 262144) {
@@ -54,6 +56,12 @@ ShadowPixel shadow_vs(ShadowVertex v) {
         o.color = saturate(shadowColor+max(0,accessoryDiffuse*dot(normalize(o.normal),-shadowDirection.xyz)));
         o.color.a = shadowColor.a;
     }
+    return o;
+}
+ShadowPixel shadow_uv_vs(float3 position : POSITION, float3 normal : NORMAL,
+                         float2 uv : TEXCOORD0, float4 uv1 : TEXCOORD1) {
+    ShadowVertex v; v.position=position; v.normal=normal; v.uv=uv;
+    ShadowPixel o=shadow_vs(v); o.uv1=uv1.xy;
     return o;
 }
 ShadowPixel shadow_outline_vs(float3 position : POSITION) {
@@ -104,6 +112,7 @@ float4 shadow_ps(ShadowPixel p) : SV_TARGET {
     float4 color = shadowColor;
     float alpha = color.a;
     bool baseTexture = false;
+    bool ordinaryBase = false, subtexture = false;
     float2 sphereUv = float2(p.sphere.x*.5+.5,p.sphere.y*-.5+.5);
     [unroll] for (uint i=0;i<3;++i) {
         uint role = (shadowOptions.w >> (i*4)) & 15;
@@ -115,8 +124,9 @@ float4 shadow_ps(ShadowPixel p) : SV_TARGET {
                 tinted = (sample*textureMultiply+textureAdd)*weight+(1-weight);
             }
             color *= tinted; alpha *= sample.a; baseTexture = true;
-        } else if (role == 2 || role == 3) {
-            float4 sample = materialTextures[i].Sample(materialSamplers[i],sphereUv);
+            ordinaryBase = true;
+        } else if (role == 2 || role == 3 || role == 4) {
+            float4 sample = materialTextures[i].Sample(materialSamplers[i],role==4?p.uv1:sphereUv);
             float4 tinted = sample;
             if (shadowOptions.w & 131072) {
                 float weight = sphereMultiply.w + sphereAdd.w;
@@ -125,11 +135,16 @@ float4 shadow_ps(ShadowPixel p) : SV_TARGET {
             }
             color.rgb = role == 3 ? color.rgb+tinted.rgb : color.rgb*tinted.rgb;
             alpha *= sample.a;
+            if (role == 4) { baseTexture = true; subtexture = true; }
         }
     }
     float3 result;
     if (outside || comp == 1) result = color.rgb+specular;
     else if (baseTexture) result = color.rgb*(comp+shadowToon.rgb*(1-comp))+specular*comp;
     else result = color.rgb*comp+color.rgb*shadowToon.rgb*(1-comp)+specular*comp;
+    // BShadowTextureTexCd2Tec retains the full float4 toon multiplication.
+    // Its apparent alpha reassignment is an expression without an assignment.
+    if (ordinaryBase && subtexture && !outside && comp != 1)
+        alpha *= comp+shadowToon.a*(1-comp);
     return shadow_output(float4(result,shadowOptions.z && !outside ? .5 : alpha));
 }

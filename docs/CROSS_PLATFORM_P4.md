@@ -183,3 +183,27 @@ history deliberately continues building every submitted frame. The hidden Window
 native test passed DX11/DX12/Vulkan, asserting repeated static submissions do not
 rebuild the frame, and checking history/lifecycle invalidation. Eight local
 core/Qt/render regressions passed; full-frame performance remains open.
+
+[Run 41283882956](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41283882956)
+passed CPU evaluation reuse and static viewport caching on all three platforms.
+The legacy Windows x64 editor also built successfully; it was not launched.
+
+The next material batch preserves all four additional PMX UV sets through CPU
+publication and GPU buffers. Explicit layouts and generic input descriptions keep
+the float4 components; fixed material and self-shadow programs sample UV1. Local
+DX11/DX12/Vulkan each passed 24 generated cases covering UV1-4, subtexture-only
+and combined base/subtexture materials, three shadow modes, UV morphs, byte-exact
+repeat submission and restoration. The geometry and replay validators and existing
+Qt render regression also passed.
+
+The hidden FX9 oracle passed UV1-only cases, then exposed the original combined
+subtexture shader's shadow-alpha multiplication by Toon alpha. The shared shader
+now preserves that source behavior. DX9 became unavailable with 0x8876086C before
+the corrected comparison could run; that comparison remains pending, not passed.
+The fixture intentionally exercises separate sphere/texture tint pools and UV
+morphs. Original inheritance of `spadd` between materials/frames remains a separate
+state-parity requirement; these single-material fixtures explicitly initialize it.
+
+The UV fixed-material regression also compares a nonidentity full float4
+row-vector transform against independently transformed CPU UVs, including Z/W.
+All three local backends passed exact image equality for this comparison.

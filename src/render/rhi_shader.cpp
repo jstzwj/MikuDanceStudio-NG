@@ -110,10 +110,14 @@ std::vector<ShaderVertexInput> StandardShaderInputs(VertexLayout layout) {
     if (layout == VertexLayout::PositionColor)
         return {{"POSITION", 0, 0, 0, ShaderVertexFormat::Float3},
                 {"COLOR", 0, 1, 12, ShaderVertexFormat::Rgba8}};
-    if (layout == VertexLayout::PositionNormalUv)
-        return {{"POSITION", 0, 0, 0, ShaderVertexFormat::Float3},
-                {"NORMAL", 0, 1, 12, ShaderVertexFormat::Float3},
-                {"TEXCOORD", 0, 2, 24, ShaderVertexFormat::Float2}};
+    if (IsModelVertexLayout(layout)) {
+        std::vector<ShaderVertexInput> inputs{{"POSITION", 0, 0, 0, ShaderVertexFormat::Float3},
+                                              {"NORMAL", 0, 1, 12, ShaderVertexFormat::Float3},
+                                              {"TEXCOORD", 0, 2, 24, ShaderVertexFormat::Float2}};
+        for (unsigned i = 0; i < AdditionalVertexUvs(layout); ++i)
+            inputs.push_back({"TEXCOORD", i + 1, i + 3, 32 + 16 * i, ShaderVertexFormat::Float4});
+        return inputs;
+    }
     return {};
 }
 ModelPipeline ShaderRasterAdapter(const ShaderPipeline& p) {

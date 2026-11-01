@@ -46,10 +46,11 @@ inline BuiltinShadowConstants BuildBuiltinShadowConstants(const ModelPipeline& p
         c.options[3] |= 131072u;
     for (unsigned i = 0; i < 3; ++i) {
         const auto& t = p.shader.layout.stages[i];
-        const unsigned role = t.role == MaterialTextureRole::Base     ? 1
-                              : t.role != MaterialTextureRole::Sphere ? 0
-                              : t.color == MaterialCombine::Add       ? 3
-                                                                      : 2;
+        const unsigned role = t.role == MaterialTextureRole::Base             ? 1
+                              : t.role != MaterialTextureRole::Sphere         ? 0
+                              : t.coordinates == MaterialCoordinates::MeshUv1 ? 4
+                              : t.color == MaterialCombine::Add               ? 3
+                                                                              : 2;
         c.options[3] |= role << (i * 4);
     }
     return c;

@@ -8,6 +8,10 @@ file(MAKE_DIRECTORY "${MDS_SPIRV_DIR}")
 set(MDS_SPIRV_MODULES)
 set(MDS_SPIRV_FILES)
 function(mds_spirv name source entry profile color)
+    set(extra_uv 0)
+    if(name STREQUAL "model_uv_vertex")
+        set(extra_uv 1)
+    endif()
     if(profile MATCHES "^vs" OR name MATCHES "^generic_")
         set(buffer_shift 0)
     else()
@@ -21,7 +25,7 @@ function(mds_spirv name source entry profile color)
     add_custom_command(OUTPUT "${output}"
         COMMAND "${MDS_DXC}" -spirv -fspv-target-env=vulkan1.3 -fvk-use-dx-layout
             -fvk-stage-io-order=decl -fvk-b-shift ${buffer_shift} 0 -fvk-t-shift 4 0 -fvk-s-shift ${sampler_shift} 0
-            -D MDS_MODEL_VERTEX_COLOR=${color} -D MDS_MODEL_DX9_COMPATIBILITY=0 -D MDS_MODEL_SPECULAR=1
+            -D MDS_MODEL_VERTEX_COLOR=${color} -D MDS_MODEL_EXTRA_UV=${extra_uv} -D MDS_MODEL_DX9_COMPATIBILITY=0 -D MDS_MODEL_SPECULAR=1
             -T ${profile} -E ${entry} -Ges -Gis -Fo "${output}" "${PROJECT_SOURCE_DIR}/${source}"
         COMMAND "${MDS_SPIRV_VAL}" --target-env vulkan1.3 --relax-block-layout "${output}"
         DEPENDS "${PROJECT_SOURCE_DIR}/${source}" VERBATIM)
@@ -29,9 +33,11 @@ function(mds_spirv name source entry profile color)
     set(MDS_SPIRV_FILES ${MDS_SPIRV_FILES} "${output}" PARENT_SCOPE)
 endfunction()
 mds_spirv(model_vertex src/render/shaders/model_material_vertex.hlsl main vs_6_0 0)
+mds_spirv(model_uv_vertex src/render/shaders/model_material_vertex.hlsl main vs_6_0 0)
 mds_spirv(color_vertex src/render/shaders/model_material_vertex.hlsl main vs_6_0 1)
 mds_spirv(model_pixel src/render/shaders/model_material_pixel.hlsl main ps_6_0 0)
 mds_spirv(shadow_vertex src/render/shaders/builtin_shadow.hlsl shadow_vs vs_6_0 0)
+mds_spirv(shadow_uv_vertex src/render/shaders/builtin_shadow.hlsl shadow_uv_vs vs_6_0 0)
 mds_spirv(outline_vertex src/render/shaders/builtin_shadow.hlsl shadow_outline_vs vs_6_0 1)
 mds_spirv(shadow_pixel src/render/shaders/builtin_shadow.hlsl shadow_ps ps_6_0 0)
 mds_spirv(post_vertex src/render/shaders/post_process.hlsl post_vs vs_6_0 0)
