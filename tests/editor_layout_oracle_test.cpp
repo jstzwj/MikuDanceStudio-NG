@@ -140,6 +140,45 @@ int wmain(int argc, wchar_t** argv) try {
     }
     std::printf("Original x64 main layout: %u cases, %u exact controls; no windows or GPU\n", cases,
                 controls);
+    const auto viewportLayout = original.Function<void (*)(void*)>(0x1fa90);
+    cases = controls = 0;
+    for (bool separate : {false, true}) {
+        std::uint64_t hash = 14695981039346656037ull;
+        for (int top : {0, 25, 83})
+            for (int bottom : {480, 777})
+                for (int boundary : kViewportFitBoundaries)
+                    for (int delta : {-1, 0, 1}) {
+                        const int sidebar = separate ? -9 : 250;
+                        client = {0, 0, sidebar + 9 + boundary + delta, bottom + 100};
+                        std::fill(app.begin(), app.end(), 0);
+                        Store(app, 0xa16e8, 250);
+                        Store(app, 0xa1de0, std::uintptr_t(separate ? 44 : 0));
+                        Store(app, 0xa1df0, top);
+                        Store(app, 0xa1df8, bottom);
+                        observed.clear();
+                        viewportLayout(app.data());
+                        const auto expected = ui::MmdViewportControls(
+                            sidebar, client.right, {0, 0, top, client.right, bottom - top});
+                        Check(observed.size() == 22 && expected.size() == 22,
+                              "original viewport control count");
+                        for (unsigned n = 0; n < observed.size(); ++n) {
+                            const auto& a = observed[n];
+                            const auto& b = expected[n];
+                            Check(a.id == b.id && a.x == b.x && a.y == b.y && a.width == b.width &&
+                                      a.height == b.height,
+                                  "original viewport control rectangle");
+                            Hash(hash, a);
+                            ++controls;
+                        }
+                        ++cases;
+                    }
+        std::printf("Viewport layout separate=%d: 0x%016llxull\n", int(separate),
+                    static_cast<unsigned long long>(hash));
+        Check(hash == kOriginalViewportLayouts[separate],
+              "original viewport layout reference hash");
+    }
+    std::printf("Original x64 viewport layout: %u cases, %u exact controls; no windows or GPU\n",
+                cases, controls);
     return 0;
 } catch (const std::exception& error) {
     std::fprintf(stderr, "%s\n", error.what());

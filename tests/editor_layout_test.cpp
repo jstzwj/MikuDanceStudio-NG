@@ -26,7 +26,27 @@ int main() {
             return 1;
         }
     }
-    std::puts(
-        "Original main layout references: 768 states and 112128 exact control rectangles passed");
+    for (bool separate : {false, true}) {
+        std::uint64_t hash = 14695981039346656037ull;
+        for (int top : {0, 25, 83})
+            for (int bottom : {480, 777})
+                for (int boundary : kViewportFitBoundaries)
+                    for (int delta : {-1, 0, 1}) {
+                        const int sidebar = separate ? -9 : 250;
+                        const int right = sidebar + 9 + boundary + delta;
+                        const auto controls = ui::MmdViewportControls(
+                            sidebar, right, {0, 0, top, right, bottom - top});
+                        if (controls.size() != 22)
+                            return 1;
+                        for (const auto& r : controls)
+                            for (auto value : {r.id, r.x, r.y, r.width, r.height})
+                                for (unsigned shift = 0; shift < 32; shift += 8)
+                                    hash = (hash ^ std::uint8_t(std::uint32_t(value) >> shift)) *
+                                           1099511628211ull;
+                    }
+        if (hash != kOriginalViewportLayouts[separate])
+            return 1;
+    }
+    std::puts("Original layout references: 1524 states and 128760 exact control rectangles passed");
     return 0;
 }

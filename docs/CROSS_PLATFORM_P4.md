@@ -837,3 +837,12 @@ The independent native record streams also supply six frozen hashes for the
 portable `editor_layout` regression on every platform. This checks main-control
 placement expressions and order. It does not compare native font metrics,
 collapsed combo geometry, visibility, viewport-tail controls or window chrome.
+
+The same oracle additionally executes RVA `1FA90` for all 22 viewport-strip
+controls. It passed **756 states / 16632 exact rectangles**, including the pixel
+before, on and after every fit boundary, three header heights, two strip heights,
+and both main/separate-window insets. Two additional frozen hashes cover those
+native streams in the portable test. Main and viewport strips together now have
+**1524 states / 128760 exact rectangles** of independent arithmetic coverage.
+This still does not establish actual native widget/font rasterization, full
+visibility/menu behavior or a separate-window Qt implementation.
