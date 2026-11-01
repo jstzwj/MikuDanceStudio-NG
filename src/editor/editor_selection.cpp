@@ -1,5 +1,4 @@
 #include "mikudancestudio/editor_session.hpp"
-#include "mikudancestudio/text_encoding.hpp"
 namespace mikudancestudio::editor {
 namespace {
 bool ModelTrack(Track t) {
@@ -26,20 +25,11 @@ bool Projected(const EditorSession& session, const std::vector<cpu_bone::ScreenP
         return false;
     }
     for (std::size_t i = 0; i < points.size(); ++i) {
-        std::string name;
-        if (!text::DecodeCp932({model->boneNames[i].data(), model->boneNames[i].size()}, name)) {
-            reason = "bone-screen-binding-expired";
+        int index;
+        if (!session.Runtime().DocumentBoneIndex(slot, int(i), index, reason))
             return false;
-        }
-        const auto found =
-            std::find(resource->BoneNames().begin(), resource->BoneNames().end(), name);
-        if (found == resource->BoneNames().end()) {
-            reason = "bone-screen-binding-expired";
-            return false;
-        }
         ProjectedBone bone;
-        static_cast<runtime::BoneEditingInfo&>(bone) =
-            resource->EditingBones()[std::size_t(found - resource->BoneNames().begin())];
+        static_cast<runtime::BoneEditingInfo&>(bone) = resource->EditingBones()[std::size_t(index)];
         bone.screenX = points[i].x;
         bone.screenY = points[i].y;
         bone.physicsDisabled = model->bonePose[i].flags[0] != 0;

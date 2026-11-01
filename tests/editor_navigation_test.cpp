@@ -231,6 +231,42 @@ int main(int argc, char** argv) {
         views.Pause();
         CHECK(!views.Runtime().Playing());
     }
+    {
+        editor::EditorSession reference;
+        CHECK(reference.ImportModel(std::filesystem::absolute(argv[1]) / "pose.pmd", reason));
+        CHECK(reference.SetBone(0, 0, {1, 2, 3}, {0, 0, 0, 1}, reason));
+        CHECK(reference.SelectBones({}, -1, reason));
+        auto c = reference.Runtime().Session()->Pose().camera;
+        c.rotation = {};
+        c.parentModel = -1;
+        c.distance = -45;
+        CHECK(reference.SetCamera(c, reason));
+        const auto state = reference.Document().cameraState;
+        const auto* snapshot = reference.Runtime().Snapshot(0);
+        const auto frames = reference.Runtime().Counters().frames;
+        CHECK(reference.SetCameraReference(2, reason));
+        // The command falls back to bone zero, unlike frame setup's no-active
+        // pivot. Retain this original distinction rather than normalizing it.
+        CHECK(reference.Document().cameraState[3] == state[3] - 1);
+        CHECK(reference.Document().cameraState[4] == state[4] - 2);
+        CHECK(reference.Document().cameraState[5] == state[5] - 3);
+        const auto revision = reference.Revision();
+        const auto changed = reference.Document().cameraState;
+        CHECK(reference.SetCameraReference(2, reason));
+        CHECK(reference.Revision() == revision);
+        CHECK(!reference.SetCameraReference(3, reason));
+        CHECK(reference.Document().cameraState == changed && reference.Revision() == revision);
+        CHECK(reference.SelectModel(255, reason));
+        CHECK(reference.SetCameraReference(1, reason));
+        CHECK(reference.Document().cameraState == changed); // camera mode only changes metadata
+        CHECK(reference.Runtime().Counters().frames == frames &&
+              reference.Runtime().Snapshot(0) == snapshot);
+        CHECK(reference.SelectModel(0, reason));
+        CHECK(reference.Undo(reason)); // view changes do not consume bone history
+        CHECK(reference.Document().models[0].bonePose[0].components[0] == 0);
+        CHECK(reference.Document().timeline.cameraReferenceMode == 1 &&
+              reference.Document().cameraState == changed);
+    }
     std::cout
         << "View navigation: native modifiers, parent/follow gates and zero scene updates passed\n";
 }

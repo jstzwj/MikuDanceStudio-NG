@@ -219,10 +219,16 @@ bool EditorWindow::PanelCommand(int id) {
                                  : 2);
         return true;
     }
+    if (id == kCameraRefBoneCheckbox || id == kCameraRefModelCheckbox) {
+        const unsigned mode = static_cast<QAbstractButton*>(Control(id))->isChecked()
+                                  ? (id == kCameraRefBoneCheckbox ? 2u : 1u)
+                                  : 0u;
+        Result(session_.SetCameraReference(mode, reason), reason);
+        return true;
+    }
     if (id == kResetLightButton || (id >= kEditOffCheckbox && id <= kEditMode2Checkbox) ||
         id == kCoordAxisCheckbox || id == kInfoCheckbox || id == kFollowCameraCheckbox ||
-        id == kCameraRefBoneCheckbox || id == kCameraRefModelCheckbox || id == kIkOnRadio ||
-        id == kIkOffRadio) {
+        id == kIkOnRadio || id == kIkOffRadio) {
         Result(session_.Edit(
                    "panel-state",
                    [&](auto& d, auto&) {
@@ -230,11 +236,6 @@ bool EditorWindow::PanelCommand(int id) {
                            d.lightState = {.602f, .602f, .602f, -.5f, -1.f, .5f};
                        else if (id >= kEditOffCheckbox && id <= kEditMode2Checkbox)
                            d.selfShadowMode = std::uint8_t(id - kEditOffCheckbox);
-                       else if (id == kCameraRefModelCheckbox || id == kCameraRefBoneCheckbox)
-                           d.timeline.cameraReferenceMode =
-                               static_cast<QAbstractButton*>(Control(id))->isChecked()
-                                   ? (id == kCameraRefBoneCheckbox ? 2 : 1)
-                                   : 0;
                        else if (id == kIkOnRadio || id == kIkOffRadio) {
                            auto* combo = static_cast<QComboBox*>(Control(kIkChainCombo));
                            if (!combo->count())

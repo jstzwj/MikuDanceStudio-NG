@@ -39,6 +39,7 @@ public:
     bool SetViewCamera(const format::PmmEvaluatedCamera&, const std::array<float, 2>&);
     bool PrepareEditorView(std::uint8_t model, bool& changed);
     bool SetViewBasis(const std::array<float, 16>&, bool suppressed);
+    bool SetCameraReference(unsigned mode);
     bool UnloadModel(std::uint8_t, std::string&);
     bool AttachAccessory(std::uint8_t, std::shared_ptr<const AccessoryResource>, std::string&);
     bool UnloadAccessory(std::uint8_t, std::string&);
@@ -49,7 +50,10 @@ public:
     const format::SceneSession* Session() const;
     const CpuSimulationState& Simulation() const;
     const SceneCounters& Counters() const;
-    bool BoneAttachment(int model, int bone, cpu_math::Matrix&, std::string&) const;
+    // PMM bone indices address its name-bound order, which may differ from the
+    // immutable resource. BoneAttachment itself takes a resource bone index.
+    bool DocumentBoneIndex(int model, int documentBone, int& resourceBone, std::string&) const;
+    bool BoneAttachment(int model, int resourceBone, cpu_math::Matrix&, std::string&) const;
     bool AccessoryPlacement(std::uint8_t, cpu_math::Matrix&, std::string&) const;
 
 private:

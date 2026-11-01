@@ -93,9 +93,13 @@ bool Camera(const runtime::SceneRuntime& scene, ModelFrameInputs& f, std::string
                  (scene.Playing() || (c.parentModel >= 0 && *editorModel == c.parentModel)));
             Vec3 focus{};
             Matrix parent = Identity(), attachment = Identity();
-            if (c.parentModel >= 0 &&
-                !scene.BoneAttachment(c.parentModel, std::max(0, c.parentBone), parent, reason))
-                return false;
+            if (c.parentModel >= 0) {
+                int index;
+                if (!scene.DocumentBoneIndex(c.parentModel, std::max(0, c.parentBone), index,
+                                             reason) ||
+                    !scene.BoneAttachment(c.parentModel, index, parent, reason))
+                    return false;
+            }
             f.view.editorNavigation = true;
             f.view.editorEye = {doc.cameraState[3], doc.cameraState[4], c.distance};
             f.view.editorFov = c.fov;
@@ -118,10 +122,11 @@ bool Camera(const runtime::SceneRuntime& scene, ModelFrameInputs& f, std::string
                 } else if (doc.timeline.cameraReferenceMode == 2) {
                     for (const auto& model : doc.models)
                         if (model.slot == *editorModel && model.selection.selectedBone >= 0) {
-                            const auto i = std::size_t(model.selection.selectedBone);
-                            if (i >= snapshot->bones.size())
-                                return Fail(reason, "editor_camera_bone_expired");
-                            focus = snapshot->bones[i].worldPosition;
+                            int index;
+                            if (!scene.DocumentBoneIndex(*editorModel, model.selection.selectedBone,
+                                                         index, reason))
+                                return false;
+                            focus = snapshot->bones[std::size_t(index)].worldPosition;
                         }
                 }
             }
@@ -144,7 +149,9 @@ bool Camera(const runtime::SceneRuntime& scene, ModelFrameInputs& f, std::string
         Vec3 focus = c.position;
         Matrix attachment = Identity();
         if (c.parentModel >= 0) {
-            if (!scene.BoneAttachment(c.parentModel, c.parentBone, attachment, reason))
+            int index;
+            if (!scene.DocumentBoneIndex(c.parentModel, std::max(0, c.parentBone), index, reason) ||
+                !scene.BoneAttachment(c.parentModel, index, attachment, reason))
                 return false;
             std::copy_n(attachment.begin() + 12, 3, focus.begin());
             if (!(doc.appearance.followCamera || doc.timeline.cameraReferenceMode) ||
@@ -259,16 +266,11 @@ bool SceneBoneScreenPoints(const runtime::SceneRuntime& scene, std::uint8_t slot
         return out;
     };
     std::vector<cpu_bone::ScreenPoint> points;
-    for (const auto& encoded : model->boneNames) {
-        std::string name;
-        if (!text::DecodeCp932({encoded.data(), encoded.size()}, name))
-            return Fail(reason, "bone_projection_name_invalid");
-        const auto found =
-            std::find(resource->BoneNames().begin(), resource->BoneNames().end(), name);
-        if (found == resource->BoneNames().end())
-            return Fail(reason, "bone_projection_binding_invalid");
-        const auto& position =
-            snapshot->bones[std::size_t(found - resource->BoneNames().begin())].worldPosition;
+    for (std::size_t i = 0; i < model->boneNames.size(); ++i) {
+        int index;
+        if (!scene.DocumentBoneIndex(slot, int(i), index, reason))
+            return false;
+        const auto& position = snapshot->bones[std::size_t(index)].worldPosition;
         auto point = transform({position[0], position[1], position[2], 1}, pipeline.shader.world);
         point = transform(point, pipeline.shader.view);
         point = transform(point, pipeline.shader.projection);

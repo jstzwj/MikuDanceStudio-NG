@@ -628,6 +628,9 @@ bool SceneRuntime::SetViewBasis(const std::array<float, 16>& basis, bool suppres
     return impl_ && impl_->session && !impl_->failed &&
            impl_->session->SetViewBasis(basis, suppressed);
 }
+bool SceneRuntime::SetCameraReference(unsigned mode) {
+    return impl_ && impl_->session && !impl_->failed && impl_->session->SetCameraReference(mode);
+}
 bool SceneRuntime::Edit(const std::function<void(format::PmmSceneDocument&)>& change,
                         std::string& reason) {
     if (!impl_ || !impl_->session || impl_->failed) {
@@ -759,6 +762,22 @@ const SceneCounters& SceneRuntime::Counters() const {
     static const SceneCounters empty;
     return impl_ ? impl_->counters : empty;
 }
+bool SceneRuntime::DocumentBoneIndex(int slot, int index, int& output, std::string& reason) const {
+    if (!impl_ || impl_->failed || slot < 0 || slot > 254 || index < 0) {
+        reason = "invalid-document-bone";
+        return false;
+    }
+    const auto item = impl_->items.find(std::uint8_t(slot));
+    if (item == impl_->items.end() ||
+        std::size_t(index) >= (impl_->session ? item->second.boneMap.size()
+                                              : item->second.resource->BoneNames().size())) {
+        reason = "invalid-document-bone";
+        return false;
+    }
+    output = impl_->session ? int(item->second.boneMap[std::size_t(index)]) : index;
+    reason.clear();
+    return true;
+}
 bool SceneRuntime::BoneAttachment(int slot, int index, cpu_math::Matrix& output,
                                   std::string& reason) const {
     if (slot < 0 || slot > 254 || !Snapshot(std::uint8_t(slot)) || index < 0 ||
@@ -795,9 +814,10 @@ bool SceneRuntime::AccessoryPlacement(std::uint8_t slot, cpu_math::Matrix& outpu
     matrix = Multiply(matrix, RotationY(p.rotation[1]));
     matrix = Multiply(matrix, Translation(p.position));
     if (p.parentModel >= 0) {
-        const int index = std::max(0, p.parentBone);
+        int index;
         Matrix attachment;
-        if (!BoneAttachment(p.parentModel, index, attachment, reason))
+        if (!DocumentBoneIndex(p.parentModel, std::max(0, p.parentBone), index, reason) ||
+            !BoneAttachment(p.parentModel, index, attachment, reason))
             return false;
         const auto& bone = Resource(std::uint8_t(p.parentModel))->Document().bones[index].fields;
         matrix =

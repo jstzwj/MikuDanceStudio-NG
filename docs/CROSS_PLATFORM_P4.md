@@ -418,3 +418,28 @@ DX11, DX12 and Vulkan and the 48-case D3DX camera math comparison. The applicati
 built without being launched. Camera reference-mode compensation, follow-toggle
 refresh semantics, event-dependent FOV rounding, original camera/output oracles,
 bone overlays and transform tools remain open; this batch does not close P4.
+
+[Run 41296145626](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41296145626)
+at `433f8fa` passed the preset/readout batch on Windows, macOS and Linux.
+
+Camera reference-center changes now compensate view offsets and distance without
+rebuilding the scene or consuming bone history. Model-center and active-bone
+references retain the native root fallback and stored parent-basis rules. The
+Qt checkboxes invoke this shared command and retain their mutually exclusive
+state. The opt-in Windows `editor_camera_oracle_test` loads a hash-verified
+original x64 executable without entering its application or creating a window.
+Its reference-switch function matched all 972 combinations of rotations,
+parent/reference modes and active bones with maximum absolute error zero.
+This is a command-kernel comparison using published skin matrices as inputs,
+not an independent full-scene or event-loop oracle. The original free-camera
+case with a stale attachment basis can change the picture; that behavior is
+retained rather than hidden by a general picture-invariance assertion.
+
+Document bone indices now resolve through the runtime's established name-bound
+mapping before camera parenting, active-bone pivots, accessory parenting and
+picking access resource bones. The reordered-name regression checks those
+paths, invalid-reference atomicity and PMM save/reopen. All 16 local P4 tests,
+the rebuilt scene-runtime regression and never-shown native Qt presentation
+on DX11, DX12 and Vulkan passed. The application built without being launched.
+Follow-toggle refresh, global-track application gates, event-dependent FOV
+rounding and the broader original-output/UI gates remain open.

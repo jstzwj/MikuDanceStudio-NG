@@ -39,6 +39,12 @@ public:
     bool SetViewCamera(const PmmEvaluatedCamera&, const std::array<float, 2>& offsets);
     bool PrepareEditorView(std::uint8_t model, bool playing, bool& changed);
     bool SetViewBasis(const std::array<float, 16>&, bool suppressed);
+    bool SetCameraReference(unsigned mode) {
+        if (!loaded_ || mode > 2)
+            return false;
+        scene_.timeline.cameraReferenceMode = std::uint8_t(mode);
+        return true;
+    }
     const std::optional<PmmEvaluatedCamera>& RuntimeAppliedCamera() const {
         return runtimeAppliedCamera_;
     }

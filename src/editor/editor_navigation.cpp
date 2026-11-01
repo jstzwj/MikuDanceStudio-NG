@@ -49,6 +49,76 @@ bool EditorSession::PrepareView(std::string& reason) {
     reason.clear();
     return true;
 }
+bool EditorSession::ViewReferencePoint(unsigned mode, bool fallbackToRoot, cpu_math::Vec3& out,
+                                       std::string& reason) const {
+    out = {};
+    if (mode != 1 && mode != 2)
+        return true;
+    const auto resource = runtime_->Resource(selection_.model);
+    const auto snapshot = runtime_->Snapshot(selection_.model);
+    if (!resource || !snapshot) {
+        reason = "editor-view-reference-expired";
+        return false;
+    }
+    if (mode == 1) {
+        const auto& skin = snapshot->bones[resource->CameraCenterBone()].skin;
+        std::copy_n(skin.begin() + 12, 3, out.begin());
+    } else {
+        int bone = ActiveBone();
+        if (fallbackToRoot)
+            bone = std::max(0, bone);
+        if (bone >= 0) {
+            int index;
+            if (!runtime_->DocumentBoneIndex(selection_.model, bone, index, reason))
+                return false;
+            out = snapshot->bones[std::size_t(index)].worldPosition;
+        }
+    }
+    return true;
+}
+bool EditorSession::SetCameraReference(unsigned mode, std::string& reason) {
+    if (mode > 2) {
+        reason = "invalid-camera-reference-mode";
+        return false;
+    }
+    const auto previous = Document().timeline.cameraReferenceMode;
+    if (previous == mode) {
+        reason.clear();
+        return true;
+    }
+    if (selection_.model != 255) {
+        using namespace cpu_math;
+        auto camera = runtime_->Session()->Pose().camera;
+        auto rotation =
+            Multiply(Multiply(RotationY(camera.rotation[1]), RotationX(camera.rotation[0])),
+                     RotationZ(camera.rotation[2]));
+        // The command uses the stored basis whenever there is a parent,
+        // independently of the frame's follow/suppression gates.
+        if (camera.parentModel >= 0)
+            rotation = Multiply(Document().appearance.cameraAttachmentBasis, rotation);
+        Vec3 oldPoint, newPoint;
+        if (!ViewReferencePoint(previous, true, oldPoint, reason) ||
+            !ViewReferencePoint(mode, true, newPoint, reason))
+            return false;
+        const auto oldOrigin =
+            Multiply(Translation({-oldPoint[0], -oldPoint[1], -oldPoint[2]}), rotation);
+        const auto newOrigin =
+            Multiply(Translation({-newPoint[0], -newPoint[1], -newPoint[2]}), rotation);
+        auto offsets = Offsets(*this);
+        offsets[0] -= oldOrigin[12] - newOrigin[12];
+        offsets[1] -= oldOrigin[13] - newOrigin[13];
+        camera.distance -= oldOrigin[14] - newOrigin[14];
+        if (!ApplyView(camera, offsets, reason))
+            return false;
+    }
+    if (!runtime_->SetCameraReference(mode)) {
+        reason = "editor-view-state-unavailable";
+        return false;
+    }
+    revision_ = nextRevision_++;
+    reason.clear();
+    return true;
+}
 bool EditorSession::ViewPreset(unsigned number, std::string& reason) {
     navigation::ViewPreset preset;
     if (playing_ || !navigation::Preset(number, preset)) {
@@ -76,25 +146,16 @@ bool EditorSession::ViewPreset(unsigned number, std::string& reason) {
         auto rotation =
             Multiply(Multiply(RotationY(camera.rotation[1]), RotationX(camera.rotation[0])),
                      RotationZ(camera.rotation[2]));
-        Vec3 reference{};
-        const auto resource = runtime_->Resource(selection_.model);
-        const auto snapshot = runtime_->Snapshot(selection_.model);
-        if (!resource || !snapshot) {
-            reason = "editor-view-reference-expired";
+        Vec3 reference;
+        if (!ViewReferencePoint(Document().timeline.cameraReferenceMode, camera.parentModel >= 0,
+                                reference, reason))
             return false;
-        }
-        if (Document().timeline.cameraReferenceMode == 1) {
-            const auto& skin = snapshot->bones[resource->CameraCenterBone()].skin;
-            std::copy_n(skin.begin() + 12, 3, reference.begin());
-        } else if (Document().timeline.cameraReferenceMode == 2) {
-            const int bone = camera.parentModel >= 0 ? std::max(0, ActiveBone()) : ActiveBone();
-            if (bone >= 0)
-                reference = snapshot->bones[std::size_t(bone)].worldPosition;
-        }
         if (camera.parentModel >= 0) {
             Matrix parent;
-            if (!runtime_->BoneAttachment(camera.parentModel, std::max(0, camera.parentBone),
-                                          parent, reason))
+            int index;
+            if (!runtime_->DocumentBoneIndex(camera.parentModel, std::max(0, camera.parentBone),
+                                             index, reason) ||
+                !runtime_->BoneAttachment(camera.parentModel, index, parent, reason))
                 return false;
             basis = Identity();
             for (unsigned r = 0; r < 3; ++r)

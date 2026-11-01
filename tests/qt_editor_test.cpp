@@ -152,6 +152,24 @@ int main(int argc, char** argv) {
         QApplication::sendEvent(view, &repeat);
         CHECK(s.Revision() == presetRevision);
         CHECK(s.Runtime().Counters().frames == presetFrames);
+        const auto referenceFrames = s.Runtime().Counters().frames;
+        const auto* referenceSnapshot = s.Runtime().Snapshot(0);
+        auto* modelReference =
+            qobject_cast<QAbstractButton*>(picking.Control(panel::kCameraRefModelCheckbox));
+        auto* boneReference =
+            qobject_cast<QAbstractButton*>(picking.Control(panel::kCameraRefBoneCheckbox));
+        CHECK(modelReference && boneReference);
+        modelReference->click();
+        CHECK(s.Document().timeline.cameraReferenceMode == 1);
+        CHECK(modelReference->isChecked() && !boneReference->isChecked());
+        boneReference->click();
+        CHECK(s.Document().timeline.cameraReferenceMode == 2);
+        CHECK(!modelReference->isChecked() && boneReference->isChecked());
+        boneReference->click();
+        CHECK(s.Document().timeline.cameraReferenceMode == 0);
+        CHECK(!modelReference->isChecked() && !boneReference->isChecked());
+        CHECK(s.Runtime().Counters().frames == referenceFrames &&
+              s.Runtime().Snapshot(0) == referenceSnapshot);
     }
     {
         qt::EditorWindow backgrounds(std::filesystem::absolute(argv[2]), true);
