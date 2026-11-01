@@ -264,6 +264,8 @@ bool SceneSession::SetViewCamera(const PmmEvaluatedCamera& camera,
             return false;
     }
     pose_.camera = camera;
+    if (playing_)
+        playback_.pose.camera = camera;
     std::copy(camera.position.begin(), camera.position.end(), scene_.cameraState.begin());
     std::copy(camera.rotation.begin(), camera.rotation.end(), scene_.cameraState.begin() + 6);
     std::copy(offsets.begin(), offsets.end(), scene_.cameraState.begin() + 3);
@@ -360,7 +362,7 @@ bool SceneSession::PrepareEditorView(std::uint8_t model, bool playing, bool& cha
     return true;
 }
 
-bool SceneSession::Seek(std::uint32_t frame) {
+bool SceneSession::Seek(std::uint32_t frame, PmmSceneApplication application) {
     if (!loaded_ || frame > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max()))
         return false;
     PmmSceneEvaluation evaluated;
@@ -371,6 +373,15 @@ bool SceneSession::Seek(std::uint32_t frame) {
     if (!EvaluatePmmLightTrack(scene_.lightKeys, frame, PmmLightInterpolation::FrameSeek,
                                evaluated.lightState))
         return false;
+    if (!application.globals) {
+        evaluated.camera = pose_.camera;
+        evaluated.lightState = pose_.lightState;
+        evaluated.selfShadowMode = pose_.selfShadowMode;
+        evaluated.selfShadowDistance = pose_.selfShadowDistance;
+        evaluated.gravity = pose_.gravity;
+    }
+    if (!application.accessories)
+        evaluated.accessories = pose_.accessories;
     StorePose(scene_, evaluated);
     pose_ = std::move(evaluated);
     playback_ = {};
@@ -378,11 +389,12 @@ bool SceneSession::Seek(std::uint32_t frame) {
     return true;
 }
 
-bool SceneSession::StartPlayback() {
+bool SceneSession::StartPlayback(PmmSceneApplication application) {
     if (!loaded_)
         return false;
-    PmmScenePlaybackState started;
-    if (!StartPmmScenePlayback(scene_, started))
+    PmmScenePlaybackState started = playback_;
+    started.pose = pose_;
+    if (!StartPmmScenePlayback(scene_, started, application))
         return false;
     playback_ = std::move(started);
     pose_ = playback_.pose;
@@ -391,11 +403,11 @@ bool SceneSession::StartPlayback() {
     return true;
 }
 
-bool SceneSession::Advance(float seconds) {
+bool SceneSession::Advance(float seconds, PmmSceneApplication application) {
     if (!loaded_ || !playing_)
         return false;
     PmmScenePlaybackState advanced = playback_;
-    if (!AdvancePmmScenePlayback(scene_, seconds, advanced))
+    if (!AdvancePmmScenePlayback(scene_, seconds, advanced, application))
         return false;
     playback_ = std::move(advanced);
     pose_ = playback_.pose;

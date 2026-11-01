@@ -1017,7 +1017,10 @@ bool EditorSession::Redo(std::string& reason) {
 bool EditorSession::Seek(std::uint32_t frame, std::string& reason) {
     EndGesture();
     auto history = FrameHistory();
-    if (!runtime_->Seek(frame, reason))
+    const bool globals = AppliesGlobalTracks();
+    if (!runtime_->Seek(frame, reason, {globals, globals}))
+        return false;
+    if (globals && !RefreshTrackedView(selection_.model != 255, reason))
         return false;
     runtime_->ClearPoseEditMarkers();
     for (auto& item : history)
@@ -1033,7 +1036,10 @@ bool EditorSession::Play(std::string& reason) {
     if (!settings.startAtCurrent && !Seek(std::uint32_t(settings.playStartFrame), reason))
         return false;
     auto history = FrameHistory();
-    if (!runtime_->StartPlayback(reason))
+    const bool globals = AppliesGlobalTracks();
+    if (!runtime_->StartPlayback(reason, {globals, true}))
+        return false;
+    if (globals && !RefreshTrackedView(false, reason))
         return false;
     runtime_->ClearPoseEditMarkers();
     for (auto& item : history)
@@ -1058,7 +1064,9 @@ bool EditorSession::Advance(double delta, std::string& reason) {
     if (cursor * 30 > settings.playStopFrame) {
         if (settings.playbackLoop) {
             if (!Seek(std::uint32_t(settings.playStartFrame), reason) ||
-                !runtime_->StartPlayback(reason))
+                !runtime_->StartPlayback(reason, {AppliesGlobalTracks(), true}))
+                return false;
+            if (AppliesGlobalTracks() && !RefreshTrackedView(false, reason))
                 return false;
             playing_ = true;
             ++playbackEpoch_;
@@ -1069,7 +1077,11 @@ bool EditorSession::Advance(double delta, std::string& reason) {
             return false;
         return true;
     }
-    if (!runtime_->Advance(float(cursor), float(delta), reason))
+    const bool globals = AppliesGlobalTracks();
+    const bool cameraActive = runtime_->Session()->Playback().camera.active;
+    if (!runtime_->Advance(float(cursor), float(delta), reason, {globals, true}))
+        return false;
+    if (globals && cameraActive && !RefreshTrackedView(false, reason))
         return false;
     cursorSeconds_ = cursor;
     return true;

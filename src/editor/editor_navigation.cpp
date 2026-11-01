@@ -38,6 +38,23 @@ bool EditorSession::SetCamera(const format::PmmEvaluatedCamera& camera, std::str
     }
     return ApplyView(camera, Offsets(*this), reason);
 }
+bool EditorSession::AppliesGlobalTracks() const {
+    return selection_.model == 255 || Document().appearance.followCamera;
+}
+bool EditorSession::RefreshTrackedView(bool reanchor, std::string& reason) {
+    auto camera = runtime_->Session()->Pose().camera;
+    std::array<float, 2> offsets{};
+    auto basis = Document().appearance.cameraAttachmentBasis;
+    if (reanchor && !ReanchorModelView(camera, offsets, basis, reason))
+        return false;
+    if (!ApplyView(camera, offsets, reason))
+        return false;
+    if (reanchor && !runtime_->SetViewBasis(basis, false)) {
+        reason = "editor-view-state-unavailable";
+        return false;
+    }
+    return true;
+}
 bool EditorSession::PrepareView(std::string& reason) {
     bool changed = false;
     if (!runtime_->PrepareEditorView(selection_.model, changed)) {

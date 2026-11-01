@@ -21,10 +21,10 @@ public:
     // linked tracks. Rejection leaves output unchanged. Uses saved current pose
     // rather than seeking (unregistered edits must remain visible).
     static bool Create(const PmmSceneDocument&, SceneSession& output, std::string& reason);
-    bool Seek(std::uint32_t frame);
-    bool StartPlayback();
+    bool Seek(std::uint32_t frame, PmmSceneApplication = {});
+    bool StartPlayback(PmmSceneApplication = {});
     // Absolute playback cursor in seconds, not a per-frame delta.
-    bool Advance(float seconds);
+    bool Advance(float seconds, PmmSceneApplication = {});
     // Optional host application gate: evaluating another subsystem does not
     // necessarily apply its camera/light tracks. Keep displayed state separate
     // from Pose while legacy playback gates remain in use. Standalone hosts

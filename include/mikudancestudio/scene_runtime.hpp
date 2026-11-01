@@ -22,13 +22,14 @@ public:
     bool LoadModel(const format::ModelDocument&, std::string&);
     bool BindMotion(std::uint8_t, std::shared_ptr<const MotionClip>, std::string&);
     bool BindGlobalMotion(const format::VmdDocument&, std::string&);
-    bool Seek(std::uint32_t, std::string&);
+    bool Seek(std::uint32_t, std::string&, format::PmmSceneApplication = {});
     bool SetPhysicsMode(unsigned mode, std::string& reason);
     bool Reset(std::string&);
-    bool StartPlayback(std::string&);
+    bool StartPlayback(std::string&, format::PmmSceneApplication = {});
     void Pause();
     bool Playing() const;
-    bool Advance(float absoluteSeconds, float deltaSeconds, std::string&);
+    bool Advance(float absoluteSeconds, float deltaSeconds, std::string&,
+                 format::PmmSceneApplication = {});
     bool Tick(float deltaSeconds, std::string&);
     bool Edit(const std::function<void(format::PmmSceneDocument&)>&, std::string&);
     void SetPanelExpanded(unsigned option, bool expanded);

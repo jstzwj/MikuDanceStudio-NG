@@ -60,19 +60,27 @@ struct PmmScenePlaybackState {
     PmmSceneEvaluation pose;
     std::vector<PmmModelPlaybackCursors> models;
     std::vector<PmmTrackCursor> accessories;
+    PmmTrackCursor camera, light, selfShadow, gravity;
     bool initialized = false;
+};
+// Evaluation and application are distinct: model editing can park global
+// tracks, while playback still applies accessory tracks. Defaults retain the
+// standalone scene/export path. Skipped groups retain both pose and cursors.
+struct PmmSceneApplication {
+    bool globals = true, accessories = true;
 };
 
 // Starts from the frame-0 keys. Advance consumes the same float-seconds
 // cursor as the Windows playback path and retains exhausted track state.
 // Call Start again to restart or seek backward. Does not model physics,
 // runtime bone-type gates, or external-parent transforms.
-bool StartPmmScenePlayback(const PmmSceneDocument& scene, PmmScenePlaybackState& state);
+bool StartPmmScenePlayback(const PmmSceneDocument& scene, PmmScenePlaybackState& state,
+                           PmmSceneApplication = {});
 // Legacy milliframe rounding and checked cursor range, shared with model
 // snapshot metadata. Failure leaves output unchanged.
 bool PmmPlaybackFrame(float cursorSeconds, double& output);
 bool AdvancePmmScenePlayback(const PmmSceneDocument& scene, float cursorSeconds,
-                             PmmScenePlaybackState& state);
+                             PmmScenePlaybackState& state, PmmSceneApplication = {});
 bool EvaluatePmmAccessoryTrack(const PmmKeyTrack<PmmAccessoryKey>& track, std::uint8_t slot,
                                double frame, PmmEvaluatedAccessory& output);
 bool EvaluatePmmSelfShadowTrack(const PmmKeyTrack<PmmSelfShadowKey>& track, double frame,

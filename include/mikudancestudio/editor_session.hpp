@@ -218,6 +218,8 @@ private:
     bool ApplyView(const format::PmmEvaluatedCamera&, const std::array<float, 2>&, std::string&);
     bool ReanchorModelView(format::PmmEvaluatedCamera&, std::array<float, 2>&,
                            cpu_math::Matrix& basis, std::string&) const;
+    bool AppliesGlobalTracks() const;
+    bool RefreshTrackedView(bool reanchor, std::string&);
     bool ViewReferencePoint(unsigned mode, bool fallbackToRoot, cpu_math::Vec3&,
                             std::string&) const;
 };

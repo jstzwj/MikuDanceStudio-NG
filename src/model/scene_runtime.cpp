@@ -31,6 +31,7 @@ struct SceneRuntime::Impl {
     std::optional<format::SceneSession> session;
     CpuSimulationState simulation;
     SceneCounters counters;
+    format::PmmSceneApplication trackApplication;
     int constraintId = 0;
     std::uint32_t frame = 0, randomState = 1;
     bool playing = false, failed = false;
@@ -347,7 +348,10 @@ struct SceneRuntime::Impl {
             return;
         }
         self.frame = std::uint32_t(evaluatedFrame);
-        if (self.session && !self.session->Advance(state.cursorSeconds)) {
+        const format::PmmSceneApplication application{!substep && self.trackApplication.globals,
+                                                      !substep &&
+                                                          self.trackApplication.accessories};
+        if (self.session && !self.session->Advance(state.cursorSeconds, application)) {
             self.failed = true;
             self.failure = "scene-track-advance-failed";
         }
@@ -501,12 +505,13 @@ bool SceneRuntime::BindMotion(std::uint8_t slot, std::shared_ptr<const MotionCli
         return false;
     return Seek(impl_->frame, reason);
 }
-bool SceneRuntime::Seek(std::uint32_t frame, std::string& reason) {
+bool SceneRuntime::Seek(std::uint32_t frame, std::string& reason,
+                        format::PmmSceneApplication application) {
     if (!impl_ || impl_->failed || frame > unsigned(std::numeric_limits<int>::max())) {
         reason = "invalid-scene-seek";
         return false;
     }
-    if (impl_->session && !impl_->session->Seek(frame)) {
+    if (impl_->session && !impl_->session->Seek(frame, application)) {
         reason = "scene-track-seek-failed";
         return false;
     }
@@ -542,15 +547,16 @@ bool SceneRuntime::SetPhysicsMode(unsigned mode, std::string& reason) {
 bool SceneRuntime::Reset(std::string& reason) {
     return Seek(0, reason);
 }
-bool SceneRuntime::StartPlayback(std::string& reason) {
+bool SceneRuntime::StartPlayback(std::string& reason, format::PmmSceneApplication application) {
     double evaluatedFrame;
     if (!impl_ || impl_->failed ||
         !format::PmmPlaybackFrame(impl_->simulation.cursorSeconds, evaluatedFrame)) {
         reason = "scene-not-ready";
         return false;
     }
-    if (impl_->session && (!impl_->session->StartPlayback() ||
-                           !impl_->session->Advance(impl_->simulation.cursorSeconds))) {
+    if (impl_->session &&
+        (!impl_->session->StartPlayback(application) ||
+         !impl_->session->Advance(impl_->simulation.cursorSeconds, application))) {
         reason = "scene-playback-start-failed";
         return false;
     }
@@ -569,7 +575,8 @@ void SceneRuntime::Pause() {
 bool SceneRuntime::Playing() const {
     return impl_ && impl_->playing;
 }
-bool SceneRuntime::Advance(float target, float delta, std::string& reason) {
+bool SceneRuntime::Advance(float target, float delta, std::string& reason,
+                           format::PmmSceneApplication application) {
     double evaluatedFrame;
     if (!impl_ || impl_->failed || !impl_->playing || !std::isfinite(target) ||
         !std::isfinite(delta) || delta < 0 || target < impl_->simulation.cursorSeconds ||
@@ -578,6 +585,7 @@ bool SceneRuntime::Advance(float target, float delta, std::string& reason) {
         return false;
     }
     impl_->simulation.remainingSeconds = delta;
+    impl_->trackApplication = application;
     if (!RunCpuSimulationCatchup(impl_->simulation, impl_->Context(), target, -1,
                                  {impl_.get(), Impl::AdvanceTracks, nullptr}) ||
         impl_->failed) {

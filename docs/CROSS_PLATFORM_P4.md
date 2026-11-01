@@ -466,3 +466,34 @@ on the actual checkbox passed with zero scene updates.
 All 16 local P4 tests, the rebuilt scene-runtime test and native hidden Qt
 presentation on DX11, DX12 and Vulkan passed. The application built without
 being launched. This batch does not close the global playback gates or P4.
+
+[Run 41297790963](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41297790963)
+at `1cc021b` passed follow-camera refresh on Windows, macOS and Linux.
+
+Global-track application is now explicit in the shared session/runtime API.
+Editor frame seeking in model mode with following off retains camera, light,
+self-shadow, gravity and accessories while seeking models. Camera mode or
+following reloads those tracks; followed model seeks then reanchor the view.
+Playback parks global tracks in plain model mode but always advances accessories.
+Physics catch-up substeps apply models only; the final call applies the enabled
+global/accessory groups. Standalone/export hosts retain the default full-track
+policy. Global tracks now have terminal cursors: their last key is applied once,
+so later manual camera adjustments survive subsequent playback frames.
+
+The new `editor_playback` regression covers these gates, current-frame starts,
+unregistered global state, gravity publication, strict terminal boundaries,
+manual camera changes and substep cursor retention. The opt-in Windows
+`editor_playback_oracle_test <original.exe>` invokes the hash-verified original
+x64 playback function with independently constructed native key records and no
+loaded models. Its only COM calls are intercepted by an in-memory recorder;
+no D3D device, window or message loop is created. All 1200 value checkpoints
+matched exactly, together with five track cursors and projection/light call
+gates. This validates the global/accessory advance kernel, not playback-start
+UI initialization, complete model scheduling or independent scene output.
+
+All 17 local P4 regressions and the 99 scene-runtime checkpoints passed after
+the complete rebuild. Never-shown native Qt presentation passed on DX11, DX12
+and Vulkan, including resize, seek, device replacement, window recreation and
+unload. The application built without being launched. Fractional playback-frame
+arithmetic, mode-switch initialization and the broader UI/output gates remain
+open; this batch does not close P4.

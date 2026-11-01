@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 
@@ -214,10 +215,25 @@ bool AdvanceModel(const PmmSceneModel& source, double frame, PmmModelPlaybackCur
 }
 }
 
-bool StartPmmScenePlayback(const PmmSceneDocument& scene, PmmScenePlaybackState& state) {
+bool StartPmmScenePlayback(const PmmSceneDocument& scene, PmmScenePlaybackState& state,
+                           PmmSceneApplication application) {
     PmmScenePlaybackState initial;
     if (!EvaluatePmmSceneFrame(scene, 0, initial.pose))
         return false;
+    initial.selfShadow.active = !scene.selfShadowKeys.dense.empty();
+    initial.gravity.active = !scene.gravityKeys.dense.empty();
+    if (!application.globals) {
+        initial.pose.camera = state.pose.camera;
+        initial.pose.lightState = state.pose.lightState;
+        initial.pose.selfShadowMode = state.pose.selfShadowMode;
+        initial.pose.selfShadowDistance = state.pose.selfShadowDistance;
+        initial.pose.gravity = state.pose.gravity;
+        const PmmTrackCursor parked{0, false};
+        initial.camera = state.initialized ? state.camera : parked;
+        initial.light = state.initialized ? state.light : parked;
+        initial.selfShadow = state.initialized ? state.selfShadow : parked;
+        initial.gravity = state.initialized ? state.gravity : parked;
+    }
     initial.models.reserve(scene.models.size());
     for (const auto& source : scene.models) {
         if (source.boneKeys.dense.size() != source.layout.boneCount ||
@@ -234,6 +250,16 @@ bool StartPmmScenePlayback(const PmmSceneDocument& scene, PmmScenePlaybackState&
         initial.models.push_back(std::move(cursors));
     }
     initial.accessories.resize(scene.accessories.size());
+    if (!application.accessories) {
+        if (state.pose.accessories.size() != scene.accessories.size())
+            return false;
+        initial.pose.accessories = state.pose.accessories;
+        if (state.initialized && state.accessories.size() == scene.accessories.size())
+            initial.accessories = state.accessories;
+        else
+            for (auto& cursor : initial.accessories)
+                cursor.active = false;
+    }
     initial.initialized = true;
     state = std::move(initial);
     return true;
@@ -253,7 +279,7 @@ bool PmmPlaybackFrame(float cursorSeconds, double& output) {
 }
 
 bool AdvancePmmScenePlayback(const PmmSceneDocument& scene, float cursorSeconds,
-                             PmmScenePlaybackState& state) {
+                             PmmScenePlaybackState& state, PmmSceneApplication application) {
     if (!state.initialized || !std::isfinite(cursorSeconds) || cursorSeconds < 0.0f ||
         state.models.size() != scene.models.size() ||
         state.pose.models.size() != scene.models.size() ||
@@ -266,32 +292,47 @@ bool AdvancePmmScenePlayback(const PmmSceneDocument& scene, float cursorSeconds,
     if (frame < state.frame)
         return false;
     PmmScenePlaybackState next = state;
-    TrackLookup<PmmLightKey> lights(scene.lightKeys);
-    if (!EvaluatePmmCameraTrack(scene.cameraKeys, frame, PmmCameraInterpolation::Playback,
-                                next.pose.camera))
-        return false;
-    const PmmLightKey *left = nullptr, *right = nullptr;
-    if (!lights.BracketAt(0, frame, left, right))
-        return false;
-    if (left == right) {
-        for (int i = 0; i < 3; ++i) {
-            next.pose.lightState[i] = right->color[i];
-            next.pose.lightState[i + 3] = right->direction[i];
-        }
-    } else if (!InterpolatePmmLightSegment(*left, *right, frame, PmmLightInterpolation::Playback,
-                                           next.pose.lightState))
-        return false;
-    if (!scene.selfShadowKeys.dense.empty() &&
-        !EvaluatePmmSelfShadowTrack(scene.selfShadowKeys, frame, next.pose.selfShadowMode,
-                                    next.pose.selfShadowDistance))
-        return false;
-    if (!scene.gravityKeys.dense.empty() &&
-        !EvaluatePmmGravityTrack(scene.gravityKeys, frame, next.pose.gravity))
-        return false;
+    if (application.globals) {
+        // A terminal key is copied once when its cursor is exhausted. Later
+        // manual edits survive rather than being overwritten on every frame.
+        const auto apply = [&](const auto& source, PmmTrackCursor& cursor, const auto& evaluate) {
+            if (!cursor.active)
+                return true;
+            using Key = typename std::decay_t<decltype(source.dense)>::value_type;
+            TrackLookup<Key> track(source);
+            const Key* key = nullptr;
+            bool exhausted = false;
+            return AdvanceCursor(track, frame, cursor, key, exhausted) && evaluate();
+        };
+        if (!apply(scene.cameraKeys, next.camera,
+                   [&] {
+                       return EvaluatePmmCameraTrack(scene.cameraKeys, frame,
+                                                     PmmCameraInterpolation::Playback,
+                                                     next.pose.camera);
+                   }) ||
+            !apply(scene.lightKeys, next.light,
+                   [&] {
+                       return EvaluatePmmLightTrack(scene.lightKeys, frame,
+                                                    PmmLightInterpolation::Playback,
+                                                    next.pose.lightState);
+                   }) ||
+            !apply(scene.selfShadowKeys, next.selfShadow,
+                   [&] {
+                       return EvaluatePmmSelfShadowTrack(scene.selfShadowKeys, frame,
+                                                         next.pose.selfShadowMode,
+                                                         next.pose.selfShadowDistance);
+                   }) ||
+            !apply(scene.gravityKeys, next.gravity, [&] {
+                return EvaluatePmmGravityTrack(scene.gravityKeys, frame, next.pose.gravity);
+            }))
+            return false;
+    }
     for (std::size_t i = 0; i < scene.models.size(); ++i)
         if (!AdvanceModel(scene.models[i], frame, next.models[i], next.pose.models[i]))
             return false;
     for (std::size_t i = 0; i < scene.accessories.size(); ++i) {
+        if (!application.accessories)
+            break;
         auto& cursor = next.accessories[i];
         if (!cursor.active)
             continue;
