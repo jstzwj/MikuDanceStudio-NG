@@ -1,6 +1,7 @@
 #include "editor_window.hpp"
 #include "mikudancestudio/panel_controls.hpp"
 #include "mikudancestudio/editor_rotation.hpp"
+#include "mikudancestudio/menu_commands.h"
 #include "interpolation_raster_reference.hpp"
 #include <QApplication>
 #include <QTest>
@@ -17,6 +18,8 @@
 #include <QFontDatabase>
 #include <QMouseEvent>
 #include <QSignalSpy>
+#include <QPointer>
+#include <QCloseEvent>
 #include <iostream>
 using namespace mikudancestudio;
 std::string reason;
@@ -57,6 +60,107 @@ int main(int argc, char** argv) {
     CHECK(QFontMetrics(window.font()).inFont(QChar('0')));
     CHECK(!window.isVisible());
     CHECK(window.SetLanguage("en"));
+    {
+        qt::EditorWindow detached(std::filesystem::absolute(argv[2]), true);
+        auto& session = detached.Session();
+        CHECK(session.ImportModel(root / "articulated.pmd", reason));
+        CHECK(session.SetBone(0, 0, {2, 0, 0}, {0, 0, 0, 1}, reason));
+        detached.centralWidget()->resize(1024, 700);
+        session.SetSidebarWidth(381);
+        detached.Refresh();
+        const auto command = [&](int id) -> QAction* {
+            for (auto* action : detached.findChildren<QAction*>())
+                if (action->property("mmdCommandId").toInt() == id)
+                    return action;
+            return nullptr;
+        };
+        const auto* runtime = &session.Runtime();
+        const auto* snapshot = session.Runtime().Snapshot(0);
+        const auto bodies = session.Runtime().Bodies(0);
+        const auto frames = session.Runtime().Counters().frames;
+        const auto revision = session.Revision();
+        const auto history = session.CanUndo();
+        QPointer<qt::Viewport> former = detached.RenderWindow();
+        command(MDS_CMD_TOGGLE_SEPARATE_WINDOW)->trigger();
+        CHECK(former.isNull());
+        QPointer<QWidget> floating = detached.SeparateWindow();
+        CHECK(floating && !floating->isVisible() && !detached.isVisible());
+        CHECK(command(MDS_CMD_TOGGLE_SEPARATE_WINDOW)->isChecked());
+        CHECK(session.Document().envelope.settings.editPanelWidth == 1021);
+        for (const QSize size : {QSize(801, 658), QSize(640, 480), QSize(1281, 721)}) {
+            floating->resize(size);
+            detached.Refresh();
+            const auto rect = ui::MmdSeparateViewport(size.width(), size.height(), 1024, 768);
+            CHECK(detached.RenderWindow()->size() == QSize(rect.width, rect.height));
+            for (const auto& control : ui::MmdViewportControls(-9, size.width(), rect)) {
+                auto* widget = detached.Control(control.id);
+                CHECK(widget->parentWidget() == floating);
+                const auto height = qobject_cast<QComboBox*>(widget) ? 20 : control.height;
+                CHECK(widget->geometry() == QRect(control.x, control.y, control.width, height));
+                CHECK(!widget->isHidden());
+            }
+            CHECK(detached.Control(panel::kUndoButton)->parentWidget() == detached.centralWidget());
+            for (const char* language : {"en", "ja", "zh_CN"}) {
+                CHECK(detached.SetLanguage(language));
+                CHECK(detached.SeparateWindow() == floating);
+                CHECK(floating->size() == size);
+                CHECK(floating->actions().size() == 2); // No obsolete shortcuts after rebuilding.
+            }
+        }
+        command(MDS_CMD_TOGGLE_ALWAYS_ON_TOP)->trigger();
+        CHECK(floating->windowFlags().testFlag(Qt::WindowStaysOnTopHint));
+        CHECK(command(MDS_CMD_TOGGLE_ALWAYS_ON_TOP)->isChecked());
+        CHECK(!floating->isVisible());
+        command(MDS_CMD_TOGGLE_ALWAYS_ON_TOP)->trigger();
+        CHECK(!floating->windowFlags().testFlag(Qt::WindowStaysOnTopHint));
+        detached.centralWidget()->resize(1280, 700);
+        detached.Refresh();
+        CHECK(session.Document().envelope.settings.editPanelWidth == 1277);
+        CHECK(&session.Runtime() == runtime && session.Runtime().Snapshot(0) == snapshot);
+        CHECK(session.Runtime().Bodies(0) == bodies &&
+              session.Runtime().Counters().frames == frames);
+        CHECK(session.Revision() == revision && session.CanUndo() == history);
+        // Header input follows the detached client origin and is cancelled on docking.
+        const auto rect = ui::MmdSeparateViewport(floating->width(), floating->height(), 1024, 768);
+        const QPointF zoom(floating->width() - 48, rect.y - 12);
+        QMouseEvent press(QEvent::MouseButtonPress, zoom, zoom, zoom, Qt::LeftButton,
+                          Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(floating, &press);
+        CHECK(detached.RenderWindow()->HeaderDragging());
+        former = detached.RenderWindow();
+        QCloseEvent close;
+        QCoreApplication::sendEvent(floating, &close);
+        CHECK(!close.isAccepted() && !detached.SeparateWindow());
+        CHECK(former.isNull() && !detached.RenderWindow()->HeaderDragging());
+        CHECK(!command(MDS_CMD_TOGGLE_SEPARATE_WINDOW)->isChecked());
+        CHECK(session.Document().envelope.settings.editPanelWidth == 381);
+        for (int id = panel::kModelEditToggle; id <= panel::kCoordAxisCheckbox; ++id)
+            CHECK(detached.Control(id)->parentWidget() == detached.centralWidget());
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        CHECK(floating.isNull());
+        CHECK(&session.Runtime() == runtime && session.Runtime().Snapshot(0) == snapshot);
+        CHECK(session.Runtime().Bodies(0) == bodies &&
+              session.Runtime().Counters().frames == frames);
+        CHECK(session.Revision() == revision && session.CanUndo() == history);
+        CHECK(session.Play(reason));
+        detached.Refresh();
+        const auto playbackFrames = session.Runtime().Counters().frames;
+        command(MDS_CMD_TOGGLE_SEPARATE_WINDOW)->trigger();
+        CHECK(session.Playing() && session.Runtime().Counters().frames == playbackFrames);
+        CHECK(detached.SeparateWindow()->size() == QSize(1281, 721));
+        detached.Tick(1. / 30);
+        CHECK(session.Playing() && session.Runtime().Counters().frames == playbackFrames + 1);
+        command(MDS_CMD_TOGGLE_SEPARATE_WINDOW)->trigger();
+        CHECK(session.Playing() && session.Runtime().Counters().frames == playbackFrames + 1);
+        session.Pause();
+        CHECK(session.UnloadModel(0, reason));
+        detached.Refresh();
+        command(MDS_CMD_TOGGLE_SEPARATE_WINDOW)->trigger();
+        CHECK(detached.SeparateWindow() && session.Document().models.empty());
+        CHECK(!detached.isVisible() && !detached.SeparateWindow()->isVisible());
+        CHECK(detached.RenderWindow()->Submissions() == 0 && detached.LastError().isEmpty());
+        // Destruction while detached also owns the separate window and its controls.
+    }
     {
         qt::EditorWindow clipboard(std::filesystem::absolute(argv[2]), true);
         auto& s = clipboard.Session();

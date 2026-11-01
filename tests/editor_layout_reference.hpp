@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <array>
 // Captured from hash-verified MMD v9.32 x64's RVA 1D250, by
 // editor_layout_oracle_test. Each hash covers the ordered 146 MoveWindow
 // records in all 128 camera/panel option combinations. Integers are LE32;
@@ -18,3 +19,11 @@ inline constexpr int kViewportFitBoundaries[]{5,   140, 157, 213, 230, 286, 303,
 // RVA 1FA90: 378 states each, main-window inset then separate-window inset.
 inline constexpr std::uint64_t kOriginalViewportLayouts[]{0x4becc342af12dfe6ull,
                                                           0x25cae338d64e521aull};
+inline constexpr int kSeparateClientWidths[]{1, 100, 639, 640, 641, 1279, 1280, 1281, 1920};
+inline constexpr int kSeparateClientHeights[]{1, 56, 57, 58, 479, 480, 481, 1080};
+inline constexpr std::array<int, 2> kSeparateRenderSizes[]{
+    {640, 480}, {1280, 720}, {1920, 1080}, {1001, 717}, {1, 1}};
+// RVA A4DA0 through A4F03: 360 exact client fits per mode, including tiny
+// windows and odd dimensions. Captured before the original graphics operations.
+inline constexpr std::uint64_t kOriginalSeparateViewportFits[]{0x7821e82aa0df027full,
+                                                               0x70ae0dfcd4fc4c24ull};

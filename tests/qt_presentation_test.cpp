@@ -1,8 +1,12 @@
 #include "viewport.hpp"
+#include "editor_window.hpp"
+#include "mikudancestudio/menu_commands.h"
 #include "portable_material_history_fixture.hpp"
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QThread>
+#include <QPointer>
+#include <QCloseEvent>
 #include <iostream>
 #ifdef MIKUDANCESTUDIO_RHI_VULKAN
 #include "mikudancestudio/rhi_vulkan.hpp"
@@ -189,6 +193,83 @@ int main(int argc, char** argv) {
         CHECK(materialViewport.FrameBuilds() == backgroundBuilds + 4);
         CHECK(materialViewport.Render(reason, true));
         CHECK(materialViewport.FrameBuilds() == backgroundBuilds + 4);
+        // Use the production editor container lifecycle, not only a standalone
+        // QWindow. Windows never exposes either top-level window; other systems
+        // reach this test only in the isolated display configured above.
+        qt::EditorWindow editor(std::filesystem::absolute(argv[2]), true);
+        auto& live = editor.Session();
+        CHECK(live.ImportModel(root / "articulated.pmd", reason));
+        CHECK(live.SetBone(0, 0, {2, 0, 0}, {0, 0, 0, 1}, reason));
+        editor.RenderWindow()->SetOptions(options);
+        editor.resize(640, 540);
+        editor.Refresh();
+#ifndef _WIN32
+        editor.show();
+        pump();
+#endif
+        CHECK(editor.RenderWindow()->Render(reason, true));
+        const auto* liveRuntime = &live.Runtime();
+        const auto* liveSnapshot = live.Runtime().Snapshot(0);
+        const auto liveBodies = live.Runtime().Bodies(0);
+        const auto liveFrames = live.Runtime().Counters().frames;
+        const auto liveRevision = live.Revision();
+        const auto liveCamera = live.Document().cameraState;
+        const auto command = [&](int id) -> QAction* {
+            for (auto* action : editor.findChildren<QAction*>())
+                if (action->property("mmdCommandId").toInt() == id)
+                    return action;
+            return nullptr;
+        };
+        for (unsigned cycle = 0; cycle < 3; ++cycle) {
+            QPointer<qt::Viewport> former = editor.RenderWindow();
+            command(MDS_CMD_TOGGLE_SEPARATE_WINDOW)->trigger();
+            CHECK(former.isNull() && editor.SeparateWindow());
+            CHECK(editor.RenderWindow()->Options().backend == backend);
+            CHECK(editor.RenderWindow()->Submissions() == 0);
+            editor.SeparateWindow()->resize(257 + cycle * 32, 249 + cycle * 24);
+            editor.Refresh();
+#ifndef _WIN32
+            editor.SeparateWindow()->show();
+            pump();
+#endif
+            CHECK(editor.RenderWindow()->Render(reason, true));
+            CHECK(editor.RenderWindow()->Reset(reason));
+            CHECK(editor.RenderWindow()->Render(reason, true));
+            command(MDS_CMD_TOGGLE_ALWAYS_ON_TOP)->trigger();
+#ifndef _WIN32
+            editor.SeparateWindow()->show();
+            pump();
+#endif
+            CHECK(editor.RenderWindow()->Render(reason, true));
+            CHECK(editor.SetLanguage(cycle == 0 ? "en" : cycle == 1 ? "ja" : "zh_CN"));
+            former = editor.RenderWindow();
+            QPointer<QWidget> floating = editor.SeparateWindow();
+            QCloseEvent close;
+            QCoreApplication::sendEvent(floating, &close);
+            CHECK(former.isNull() && !editor.SeparateWindow());
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+            CHECK(floating.isNull());
+            pump();
+            CHECK(editor.RenderWindow()->Render(reason, true));
+            CHECK(&live.Runtime() == liveRuntime && live.Runtime().Snapshot(0) == liveSnapshot);
+            CHECK(live.Runtime().Bodies(0) == liveBodies);
+            CHECK(live.Runtime().Counters().frames == liveFrames &&
+                  live.Revision() == liveRevision);
+            CHECK(live.Document().cameraState == liveCamera && live.CanUndo());
+#ifdef _WIN32
+            CHECK(!editor.isVisible());
+#endif
+        }
+        command(MDS_CMD_TOGGLE_SEPARATE_WINDOW)->trigger();
+#ifndef _WIN32
+        editor.SeparateWindow()->show();
+        pump();
+#endif
+        CHECK(live.UnloadModel(0, reason));
+        editor.Refresh();
+        CHECK(editor.RenderWindow()->Render(reason, true));
+        CHECK(editor.close());
+        CHECK(!editor.isVisible() && !editor.SeparateWindow()->isVisible());
 #ifdef _WIN32
         CHECK(!viewport.isVisible());
         CHECK(!materialViewport.isVisible());
@@ -196,6 +277,6 @@ int main(int argc, char** argv) {
     }
     CHECK(backends > 0);
     std::cout
-        << "Qt native surfaces: resize, seek, device replacement, destroy/recreate and unload passed on "
+        << "Qt native surfaces: resize, seek, device replacement, detach/dock, destroy/recreate and unload passed on "
         << backends << " backends\n";
 }

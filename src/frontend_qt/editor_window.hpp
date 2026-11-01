@@ -5,6 +5,7 @@
 #include "audio.hpp"
 #include "mikudancestudio/mmd_editor_layout.hpp"
 #include <QMainWindow>
+#include <QByteArray>
 #include <QElapsedTimer>
 #include <QTimer>
 #include <QAction>
@@ -20,6 +21,7 @@ public:
     Timeline* TimelineWidget() const { return timeline_; }
     Interpolation* InterpolationWidget() const { return interpolation_; }
     Viewport* RenderWindow() const { return viewport_; }
+    QWidget* SeparateWindow() const { return separate_; }
     bool SetLanguage(const QString&);
     QString CurrentLanguage() const { return language_.Code(); }
     bool Open(const std::filesystem::path&);
@@ -43,6 +45,11 @@ private:
     Interpolation* interpolation_ = nullptr;
     Viewport* viewport_ = nullptr;
     QWidget* viewportContainer_ = nullptr;
+    QWidget* separate_ = nullptr;
+    QByteArray separateGeometry_;
+    QSize separateSize_{800, 657};
+    int dockedSidebarWidth_ = 250;
+    bool separateOnTop_ = false;
     std::map<int, QWidget*> controls_;
     std::map<QString, QAction*> actions_;
     std::map<int, QAction*> menuActions_;
@@ -81,6 +88,8 @@ private:
     bool Result(bool, const std::string&);
     bool ConfirmUnsaved();
     void CreateViewport(const rhi::BackendOptions&);
+    void SetSeparateWindow(bool enabled);
+    void ToggleSeparateOnTop();
     void UpdateFrame();
 };
 std::filesystem::path Path(const QString&);

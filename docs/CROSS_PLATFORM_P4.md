@@ -1507,3 +1507,44 @@ The mode-clipboard commit `5d73716` passed all three editor jobs in
 The five-workload performance gate `5a39958` passed all three editor jobs in
 [run 41339877600](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41339877600).
 Both commits also passed the formats/rendering workflows.
+
+## Independent viewport window
+
+Native commands 280/281 now detach the Qt viewport and set its topmost preference.
+The original 22 viewport controls move with it; the main timeline expands to the
+client width minus three pixels and restores its previous sidebar width on
+docking. Closing the separate window docks it, while closing the editor also
+hides the separate window. Normal size, placement and topmost preference persist.
+Language rebuilds retain the same controls, scene and shortcut ownership.
+
+Each detach/dock creates a new native viewport and retires the previous GPU
+controller. CPU document, model resources, physical world, selection, camera,
+history and playback remain owned by the existing session. Qt's default geometry
+restore clamps sizes to its current screen; the editor explicitly preserves the
+native normal-size behavior, including windows larger than the available screen.
+
+The shared separate/fullscreen aspect-fit helper is also used by the Win32 path.
+The original x64 routine at RVA `A4DA0` was executed directly for **720 exact
+rectangles**, covering odd/tiny client dimensions and five render aspect ratios.
+The branch at `A4F03` is redirected to the original epilogue only after all fit
+calculations and before device/window work. No entrypoint, window, desktop DC or
+GPU is used. Frozen hashes are `7821e82aa0df027f` (separate) and
+`70ae0dfcd4fc4c24` (fullscreen); the earlier 128,760 control rectangles retain
+their exact hashes. Fullscreen geometry coverage does not yet implement or
+accept the fullscreen UI command.
+
+Qt offscreen coverage checks toolbar geometry, three languages, resize,
+topmost state, docking during a header drag, playback and unloading. The native
+presentation test additionally repeats detach/dock and device replacement on
+each available backend. Local Windows uses never-shown windows; Linux/macOS
+presentation remains restricted to explicitly isolated CI displays.
+
+The preceding deferred-reset commit `669bbda` passed all three editor jobs in
+[run 41340796548](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41340796548),
+plus the formats and rendering workflows. P4/C1 remains in progress.
+
+Final local validation for the independent-window batch passed all **29 P4
+regressions** (37.44 seconds), the Win32 layout regression, both Qt/legacy editor
+builds and the never-shown DX11/DX12/Vulkan lifecycle test. The 720 original fit
+rectangles and earlier control-layout hashes remained exact. Cross-platform
+native-window results are recorded after the corresponding CI run.

@@ -94,6 +94,8 @@ bool Implemented(int command) {
     case MDS_CMD_DELETE_BONE_CAMERA_FRAME_LINE:
     case MDS_CMD_DELETE_MORPH_LIGHT_FRAME_LINE:
     case MDS_CMD_TOGGLE_UI_LANGUAGE:
+    case MDS_CMD_TOGGLE_SEPARATE_WINDOW:
+    case MDS_CMD_TOGGLE_ALWAYS_ON_TOP:
         return true;
     default:
         return false;
@@ -182,6 +184,10 @@ void EditorWindow::BuildMenus() {
         a->setChecked(language_.Code() == code);
         connect(a, &QAction::triggered, this, [this, code] { SetLanguage(code); });
     }
+    if (separate_) {
+        separate_->addAction(actions_.at("undo"));
+        separate_->addAction(actions_.at("redo"));
+    }
 }
 
 void EditorWindow::RefreshMenus() {
@@ -219,6 +225,8 @@ void EditorWindow::RefreshMenus() {
     check(MDS_CMD_TOGGLE_GROUND_SHADOW, doc.view.groundShadow);
     check(MDS_CMD_TOGGLE_GROUND_SHADOW_TRANSPARENCY, doc.physics.projectedShadowBlend);
     check(MDS_CMD_TOGGLE_PHYSICS_FLOOR, doc.appearance.floorVisible);
+    check(MDS_CMD_TOGGLE_SEPARATE_WINDOW, separate_ != nullptr);
+    check(MDS_CMD_TOGGLE_ALWAYS_ON_TOP, separateOnTop_);
 }
 
 void EditorWindow::MenuCommand(int command) {
@@ -236,6 +244,14 @@ void EditorWindow::MenuCommand(int command) {
     if (command == MDS_CMD_TOGGLE_PHYSICS_FLOOR) {
         session_.SetPhysicsFloor(!session_.Document().appearance.floorVisible);
         Refresh();
+        return;
+    }
+    if (command == MDS_CMD_TOGGLE_SEPARATE_WINDOW) {
+        SetSeparateWindow(!separate_);
+        return;
+    }
+    if (command == MDS_CMD_TOGGLE_ALWAYS_ON_TOP) {
+        ToggleSeparateOnTop();
         return;
     }
     if (command == MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE ||

@@ -12,6 +12,7 @@
 #include "mikudancestudio/d3dx_dyn.hpp"
 #include "mikudancestudio/mmd_app.hpp"
 #include "mikudancestudio/model_input_bridge.hpp"
+#include "mikudancestudio/mmd_editor_layout.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
 
 namespace mikudancestudio {
@@ -163,35 +164,9 @@ void RefreshSeparateWindowViewport(MMDApp* app) { // 0x4290F0..0x42976B
     if (target == nullptr || !GetClientRect(target, &view))
         return;
 
-    int clientWidth = view.right;
-    int clientHeight = view.bottom;
-    int desiredWidth = clientHeight * renderWidth / renderHeight;
-    if (fullScreen) {
-        if (clientWidth < desiredWidth) {
-            const int fitted = clientWidth * renderHeight / renderWidth;
-            const int center = clientHeight / 2;
-            view.top = center - fitted / 2;
-            view.bottom = center + fitted / 2;
-        }
-    } else {
-        const int availableHeight = clientHeight - 57;
-        desiredWidth = availableHeight * renderWidth / renderHeight;
-        if (clientWidth >= desiredWidth) {
-            view.top += 25;
-            view.bottom -= 32;
-        } else {
-            const int fitted = clientWidth * renderHeight / renderWidth;
-            const int center = availableHeight / 2;
-            view.top = center - fitted / 2 + 25;
-            view.bottom = center + fitted / 2 + 25;
-        }
-    }
-    if (clientWidth >= desiredWidth) {
-        const int width = desiredWidth;
-        const int center = clientWidth / 2;
-        view.left = center - width / 2;
-        view.right = center + width / 2;
-    }
+    const auto rect =
+        ui::MmdSeparateViewport(view.right, view.bottom, renderWidth, renderHeight, fullScreen);
+    view = {rect.x, rect.y, rect.x + rect.width, rect.y + rect.height};
 
     D3DRenderer* wrapper = app->Renderer();
     if (wrapper == nullptr)

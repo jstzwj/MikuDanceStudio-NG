@@ -59,6 +59,22 @@ int main() {
         if (hash != kOriginalViewportLayouts[separate])
             return 1;
     }
-    std::puts("Original layout references: 1524 states and 128760 exact control rectangles passed");
+    for (bool fullScreen : {false, true}) {
+        std::uint64_t hash = 14695981039346656037ull;
+        for (int width : kSeparateClientWidths)
+            for (int height : kSeparateClientHeights)
+                for (auto size : kSeparateRenderSizes) {
+                    const auto r =
+                        ui::MmdSeparateViewport(width, height, size[0], size[1], fullScreen);
+                    for (auto value : {r.id, r.x, r.y, r.width, r.height})
+                        for (unsigned shift = 0; shift < 32; shift += 8)
+                            hash = (hash ^ std::uint8_t(std::uint32_t(value) >> shift)) *
+                                   1099511628211ull;
+                }
+        if (hash != kOriginalSeparateViewportFits[fullScreen])
+            return 1;
+    }
+    std::puts(
+        "Original layout references: 1524 states, 128760 controls and 720 separate/fullscreen fits passed");
     return 0;
 }

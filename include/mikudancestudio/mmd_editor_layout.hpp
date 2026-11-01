@@ -242,6 +242,27 @@ inline ControlRect MmdViewport(int width, int height, int sidebar, int renderWid
         bottom = top + 1;
     return {0, left, top, right - left, bottom - top};
 }
+inline ControlRect MmdSeparateViewport(int width, int height, int renderWidth, int renderHeight,
+                                       bool fullScreen = false) {
+    if (renderWidth <= 0 || renderHeight <= 0)
+        return {};
+    int left = 0, top = 0, right = width, bottom = height;
+    const int availableHeight = fullScreen ? height : height - 57;
+    const int fittedWidth = availableHeight * renderWidth / renderHeight;
+    if (width >= fittedWidth) {
+        left = width / 2 - fittedWidth / 2;
+        right = width / 2 + fittedWidth / 2;
+        if (!fullScreen) {
+            top += 25;
+            bottom -= 32;
+        }
+    } else {
+        const int fittedHeight = width * renderHeight / renderWidth;
+        top = availableHeight / 2 - fittedHeight / 2 + (fullScreen ? 0 : 25);
+        bottom = availableHeight / 2 + fittedHeight / 2 + (fullScreen ? 0 : 25);
+    }
+    return {0, left, top, right - left, bottom - top};
+}
 inline std::vector<ControlRect> MmdViewportControls(int sidebar, int right, ControlRect viewport) {
     std::vector<ControlRect> result;
     const int inset = sidebar + 9, stripY = viewport.y + viewport.height, rowY = viewport.y;

@@ -72,6 +72,18 @@ public:
         const std::array<unsigned char, 5> nop{0x90, 0x90, 0x90, 0x90, 0x90};
         Write(nop.data());
     }
+    Patch(const OriginalPhysicsModule& module, unsigned rva,
+          std::initializer_list<unsigned char> expected, unsigned target)
+        : address_(module.Function<unsigned char*>(rva)), saved_(expected.size()) {
+        std::memcpy(saved_.data(), address_, saved_.size());
+        Check(saved_.size() >= 5 && std::equal(saved_.begin(), saved_.end(), expected.begin()),
+              "original viewport geometry boundary identity");
+        std::vector<unsigned char> branch(saved_.size(), 0x90);
+        branch[0] = 0xe9;
+        const auto relative = std::int32_t(target - rva - 5);
+        std::memcpy(branch.data() + 1, &relative, sizeof relative);
+        Write(branch.data());
+    }
     ~Patch() { Write(saved_.data()); }
 };
 template <class T> void Store(std::vector<unsigned char>& app, unsigned offset, T value) {
@@ -194,6 +206,43 @@ int wmain(int argc, wchar_t** argv) try {
     }
     std::printf("Original x64 viewport layout: %u cases, %u exact controls; no windows or GPU\n",
                 cases, controls);
+    // Execute the original fit arithmetic, then jump directly to its normal
+    // epilogue before any D3D/device, background or overlay operations.
+    Patch geometryOnly(original, 0xa4f03, {0x33, 0xf6, 0x48, 0x39, 0xb3, 0xc0, 0x1d, 0x0a, 0x00},
+                       0xa54bb);
+    const auto separateViewport = original.Function<void (*)(void*)>(0xa4da0);
+    cases = 0;
+    for (bool fullScreen : {false, true}) {
+        std::uint64_t hash = 14695981039346656037ull;
+        for (int width : kSeparateClientWidths)
+            for (int height : kSeparateClientHeights)
+                for (auto size : kSeparateRenderSizes) {
+                    std::fill(app.begin(), app.end(), 0);
+                    client = {0, 0, width, height};
+                    Store(app, 0xa18f8, size[0]);
+                    Store(app, 0xa18fc, size[1]);
+                    Store(app, 0xa11e4, std::uint8_t(fullScreen));
+                    separateViewport(app.data());
+                    RECT actual;
+                    std::memcpy(&actual, app.data() + 0xa1dec, sizeof actual);
+                    const auto expected =
+                        ui::MmdSeparateViewport(width, height, size[0], size[1], fullScreen);
+                    Check(actual.left == expected.x && actual.top == expected.y &&
+                              actual.right - actual.left == expected.width &&
+                              actual.bottom - actual.top == expected.height,
+                          "original separate viewport rectangle");
+                    Hash(hash, {0, actual.left, actual.top, actual.right - actual.left,
+                                actual.bottom - actual.top});
+                    ++cases;
+                }
+        std::printf("Separate viewport fullScreen=%d: 0x%016llxull\n", int(fullScreen),
+                    static_cast<unsigned long long>(hash));
+        Check(hash == kOriginalSeparateViewportFits[fullScreen],
+              "original separate viewport frozen hash");
+    }
+    std::printf(
+        "Original separate/fullscreen viewport fit: %u exact rectangles; no windows or GPU\n",
+        cases);
     return 0;
 } catch (const std::exception& error) {
     std::fprintf(stderr, "%s\n", error.what());

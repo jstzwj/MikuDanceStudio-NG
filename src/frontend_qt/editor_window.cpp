@@ -63,11 +63,15 @@ QString Name(const std::vector<char>& bytes) {
 class Canvas final : public QWidget {
 public:
     Canvas(Language& language, editor::EditorSession& session, const std::filesystem::path& assets,
-           QWidget* p)
+           QWidget* p, bool viewportOnly = false)
         : QWidget(p), language_(language), session_(session),
-          viewTools_(Path(assets / "playing_indicator.bmp")) {
+          viewTools_(Path(assets / "playing_indicator.bmp")), viewportOnly_(viewportOnly) {
         setAutoFillBackground(true);
         setMouseTracking(true);
+    }
+    void SetDetached(bool value) {
+        detached_ = value;
+        update();
     }
     void paintEvent(QPaintEvent*) override {
         QPainter p(this);
@@ -95,19 +99,32 @@ public:
                                               bool(o[4]),
                                               bool(o[5]),
                                               bool(o[6])};
-        const auto viewport =
-            ui::MmdViewport(width(), height(), side, settings.renderWidth, settings.renderHeight);
-        p.fillRect(rect(), color(ui::kDefaultThemeColors[0]));
-        p.fillRect(side + 9, 0, width() - side - 9, height() - 160, Qt::black);
-        fill({0, bottom - 160, width(), bottom, ui::kDefaultThemeColors[0],
-              ui::kDefaultThemeColors[1], true});
-        for (const auto& f : ui::MmdPanelFills(side, bottom, options))
-            fill(f);
-        p.fillRect(side, 0, 6, bottom - 159, QColor(220, 220, 220));
-        fill({side + 9, viewport.y - 25, width(), viewport.y - 1, 0x969696, 0x646464, true});
-        p.drawImage(QPoint(width() - 58, viewport.y - 24), viewTools_);
-        fill({side + 9, viewport.y + viewport.height, width(), viewport.y + viewport.height + 32,
-              0x787878, 0xc8c8c8, true});
+        const auto viewport = viewportOnly_
+                                  ? ui::MmdSeparateViewport(width(), height(), settings.renderWidth,
+                                                            settings.renderHeight)
+                                  : ui::MmdViewport(width(), height(), side, settings.renderWidth,
+                                                    settings.renderHeight);
+        if (viewportOnly_) {
+            p.fillRect(rect(), Qt::black);
+        } else {
+            p.fillRect(rect(), color(ui::kDefaultThemeColors[0]));
+            if (!detached_)
+                p.fillRect(side + 9, 0, width() - side - 9, height() - 160, Qt::black);
+            fill({0, bottom - 160, width(), bottom, ui::kDefaultThemeColors[0],
+                  ui::kDefaultThemeColors[1], true});
+            for (const auto& f : ui::MmdPanelFills(side, bottom, options))
+                fill(f);
+            p.fillRect(side, 0, 6, bottom - 159, QColor(220, 220, 220));
+        }
+        if (viewportOnly_ || !detached_) {
+            const int inset = viewportOnly_ ? 0 : side + 9;
+            fill({inset, viewport.y - 25, width(), viewport.y - 1, 0x969696, 0x646464, true});
+            p.drawImage(QPoint(width() - 58, viewport.y - 24), viewTools_);
+            fill({inset, viewport.y + viewport.height, width(), viewport.y + viewport.height + 32,
+                  0x787878, 0xc8c8c8, true});
+        }
+        if (viewportOnly_)
+            return;
         p.setPen(Qt::white);
         for (const auto& label :
              ui::MmdPanelLabels(side, bottom, options, language_.Code() == "en")) {
@@ -123,6 +140,7 @@ private:
     Language& language_;
     editor::EditorSession& session_;
     QImage viewTools_;
+    bool viewportOnly_ = false, detached_ = false;
 };
 std::array<float, 4> Quaternion(float x, float y, float z) {
     return BoneRotationFromDegrees({x, y, z});
@@ -211,10 +229,17 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     if (!testing_) {
         QSettings settings;
         language_.Set(settings.value("language", language_.Code()).toString());
+        separateGeometry_ = settings.value("viewport/separateGeometry").toByteArray();
+        separateSize_ = settings.value("viewport/separateSize", separateSize_).toSize();
+        if (!separateSize_.isValid())
+            separateSize_ = QSize(800, 657);
+        separateOnTop_ = settings.value("viewport/alwaysOnTop", false).toBool();
     }
     BuildMenus();
     Texts();
     Refresh();
+    if (!testing_ && QSettings().value("viewport/separate", false).toBool())
+        SetSeparateWindow(true);
     connect(&timer_, &QTimer::timeout, this, [this] { Tick(clock_.restart() / 1000.); });
     clock_.start();
     if (!testing_)
@@ -249,10 +274,22 @@ void EditorWindow::Tick(double seconds) {
 EditorWindow::~EditorWindow() {
     timer_.stop();
     audio_.Stop();
+    if (!testing_) {
+        QSettings settings;
+        settings.setValue("viewport/separate", separate_ != nullptr);
+        settings.setValue("viewport/alwaysOnTop", separateOnTop_);
+        settings.setValue("viewport/separateGeometry",
+                          separate_ ? separate_->saveGeometry() : separateGeometry_);
+        settings.setValue("viewport/separateSize", separate_ && !separate_->isMaximized()
+                                                       ? separate_->size()
+                                                       : separateSize_);
+    }
     if (viewportContainer_)
         delete viewportContainer_;
     viewport_ = nullptr;
     viewportContainer_ = nullptr;
+    delete separate_;
+    separate_ = nullptr;
 }
 QWidget* EditorWindow::Control(int id) const {
     auto it = controls_.find(id);
@@ -273,7 +310,7 @@ void EditorWindow::CreateViewport(const rhi::BackendOptions& options) {
     // by EditorSession; retiring the old controller never evaluates a frame.
     auto* next = new Viewport(session_, assets_);
     next->SetOptions(options);
-    auto* container = QWidget::createWindowContainer(next, canvas_);
+    auto* container = QWidget::createWindowContainer(next, separate_ ? separate_ : canvas_);
     auto* old = viewportContainer_;
     viewport_ = next;
     viewport_->installEventFilter(this);
@@ -306,6 +343,63 @@ void EditorWindow::CreateViewport(const rhi::BackendOptions& options) {
     };
     Layout();
 }
+void EditorWindow::SetSeparateWindow(bool enabled) {
+    if (enabled == (separate_ != nullptr))
+        return;
+    FinishSidebarDrag();
+    viewport_->CancelInput();
+    auto options = viewport_->Options();
+    options.surface.reset();
+    QWidget* retired = nullptr;
+    if (enabled) {
+        dockedSidebarWidth_ = session_.Document().envelope.settings.editPanelWidth;
+        auto* window = new Canvas(language_, session_, assets_, nullptr, true);
+        window->setObjectName("mmd.separateViewport");
+        window->setWindowTitle("MMD");
+        window->setFont(font());
+        window->setWindowFlag(Qt::WindowStaysOnTopHint, separateOnTop_);
+        window->resize(separateSize_);
+        if (!separateGeometry_.isEmpty())
+            window->restoreGeometry(separateGeometry_);
+        // Qt clamps restored geometry to the current screen. MMD preserves the
+        // user's normal size, even when it exceeds the available desktop area.
+        if (!window->isMaximized())
+            window->resize(separateSize_);
+        separate_ = window;
+        window->installEventFilter(this);
+    } else {
+        retired = separate_;
+        separateGeometry_ = retired->saveGeometry();
+        if (!retired->isMaximized())
+            separateSize_ = retired->size();
+        retired->removeEventFilter(this);
+        separate_ = nullptr;
+        session_.SetSidebarWidth(dockedSidebarWidth_);
+        sidebarClientWidth_ = 0;
+    }
+    for (int id = kModelEditToggle; id <= kCoordAxisCheckbox; ++id)
+        Control(id)->setParent(separate_ ? separate_ : canvas_);
+    static_cast<Canvas*>(canvas_)->SetDetached(enabled);
+    CreateViewport(options);
+    BuildMenus();
+    Refresh();
+    if (separate_ && !testing_)
+        separate_->show();
+    if (retired) {
+        retired->hide();
+        retired->deleteLater(); // Closing the separate window never closes the project.
+    }
+}
+void EditorWindow::ToggleSeparateOnTop() {
+    separateOnTop_ = !separateOnTop_;
+    if (separate_) {
+        const bool visible = separate_->isVisible();
+        separate_->setWindowFlag(Qt::WindowStaysOnTopHint, separateOnTop_);
+        if (visible && !testing_)
+            separate_->show();
+    }
+    RefreshMenus();
+}
 bool EditorWindow::SetLanguage(const QString& language) {
     if (!language_.Set(language))
         return false;
@@ -328,7 +422,10 @@ void EditorWindow::Layout() {
         return;
     side_ = std::max(250, session_.Document().envelope.settings.editPanelWidth);
     const int clientWidth = canvas_->width();
-    if (clientWidth >= 255) {
+    if (separate_) {
+        side_ = std::max(250, clientWidth - 3);
+        session_.SetSidebarWidth(side_);
+    } else if (clientWidth >= 255) {
         if (!sidebarClientWidth_ || side_ != sidebarStoredWidth_)
             sidebarRatio_ = float(double(side_) / double(clientWidth));
         else if (clientWidth != sidebarClientWidth_) {
@@ -346,9 +443,13 @@ void EditorWindow::Layout() {
     layout_.bonePanelExpanded = options[4];
     layout_.morphPanelExpanded = options[5];
     layout_.selfShadowPanelExpanded = options[6];
-    const auto viewport = ui::MmdViewport(canvas_->width(), canvas_->height(), side_,
-                                          int(session_.Document().envelope.settings.renderWidth),
-                                          int(session_.Document().envelope.settings.renderHeight));
+    const auto viewport =
+        separate_ ? ui::MmdSeparateViewport(separate_->width(), separate_->height(),
+                                            int(session_.Document().envelope.settings.renderWidth),
+                                            int(session_.Document().envelope.settings.renderHeight))
+                  : ui::MmdViewport(canvas_->width(), canvas_->height(), side_,
+                                    int(session_.Document().envelope.settings.renderWidth),
+                                    int(session_.Document().envelope.settings.renderHeight));
     if (viewportContainer_) {
         viewportContainer_->setGeometry(viewport.x, viewport.y, std::max(1, viewport.width),
                                         std::max(1, viewport.height));
@@ -366,7 +467,8 @@ void EditorWindow::Layout() {
     };
     for (const auto& rect : ui::MmdEditorControls(side_, canvas_->height(), layout_))
         place(rect);
-    for (const auto& rect : ui::MmdViewportControls(side_, canvas_->width(), viewport))
+    for (const auto& rect : ui::MmdViewportControls(
+             separate_ ? -9 : side_, separate_ ? separate_->width() : canvas_->width(), viewport))
         place(rect);
     timeline_->setGeometry(6, 145, std::max(1, side_ - 25), std::max(1, canvas_->height() - 393));
     static_cast<QScrollBar*>(Control(kTimelineHScroll))
@@ -395,6 +497,8 @@ void EditorWindow::Layout() {
         pair.second->setVisible(show);
     }
     canvas_->update();
+    if (separate_)
+        separate_->update();
 }
 void EditorWindow::resizeEvent(QResizeEvent* event) {
     QMainWindow::resizeEvent(event);
@@ -582,9 +686,11 @@ bool EditorWindow::ConfirmUnsaved() {
     return !session_.Dirty();
 }
 void EditorWindow::closeEvent(QCloseEvent* e) {
-    if (ConfirmUnsaved())
+    if (ConfirmUnsaved()) {
+        if (separate_)
+            separate_->hide();
         e->accept();
-    else
+    } else
         e->ignore();
 }
 void EditorWindow::FileAction(const QString& id) {
@@ -1186,13 +1292,26 @@ void EditorWindow::FinishSidebarDrag() {
     canvas_->setCursor(sidebarCursor_);
 }
 bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
+    if (separate_ && object == separate_) {
+        if (event->type() == QEvent::Close) {
+            static_cast<QCloseEvent*>(event)->ignore();
+            SetSeparateWindow(false);
+            return true;
+        }
+        if (event->type() == QEvent::Resize) {
+            Layout();
+            UpdateFrame();
+        }
+    }
+    auto* viewCanvas = separate_ ? separate_ : canvas_;
     if (viewport_ && ((object == this && event->type() == QEvent::WindowDeactivate) ||
-                      (object == canvas_ &&
+                      (object == separate_ && event->type() == QEvent::WindowDeactivate) ||
+                      (object == viewCanvas &&
                        (event->type() == QEvent::Hide || event->type() == QEvent::UngrabMouse)))) {
         FinishSidebarDrag();
         viewport_->CancelInput();
     }
-    if (viewport_ && object == canvas_ &&
+    if (viewport_ && object == viewCanvas &&
         (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseMove ||
          event->type() == QEvent::MouseButtonRelease)) {
         auto* mouse = static_cast<QMouseEvent*>(event);
@@ -1211,12 +1330,13 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
                 FinishSidebarDrag();
             return true;
         }
-        const bool divider = ui::SidebarHit(point.x(), point.y(), side_, canvas_->height());
+        const bool divider =
+            !separate_ && ui::SidebarHit(point.x(), point.y(), side_, canvas_->height());
         if (event->type() == QEvent::MouseMove && !viewport_->HeaderDragging()) {
             if (divider)
                 canvas_->setCursor(Qt::SizeHorCursor);
             else
-                canvas_->unsetCursor();
+                viewCanvas->unsetCursor();
         }
         if (event->type() == QEvent::MouseButtonPress && mouse->button() == Qt::LeftButton &&
             divider && canvas_->width() >= 255 && !viewport_->HeaderDragging()) {
@@ -1229,13 +1349,13 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
         if (event->type() == QEvent::MouseButtonPress && mouse->button() == Qt::LeftButton) {
             const auto point = mouse->position().toPoint();
             const auto operation =
-                render::ViewportHeaderToolAt(point.x(), point.y(), canvas_->width(), origin.y());
+                render::ViewportHeaderToolAt(point.x(), point.y(), viewCanvas->width(), origin.y());
             if (operation) {
                 const auto restore =
-                    render::ViewportHeaderRestorePoint(operation, canvas_->width(), origin.y());
+                    render::ViewportHeaderRestorePoint(operation, viewCanvas->width(), origin.y());
                 return viewport_->BeginHeaderDrag(unsigned(operation), point - origin,
                                                   QPoint(restore[0], restore[1]) - origin,
-                                                  canvas_->window()->windowHandle());
+                                                  viewCanvas->window()->windowHandle());
             }
         } else if (viewport_->HeaderDragging()) {
             const QPointF point = mouse->position() - origin;
