@@ -38,6 +38,13 @@ class Reference {
     } window;
     ComPtr<IDirect3D9> api;
     ComPtr<IDirect3DDevice9> device;
+    struct EffectRuntime {
+        HMODULE library = LoadLibraryW(L"d3dx9_43.dll");
+        ~EffectRuntime() {
+            if (library)
+                FreeLibrary(library);
+        }
+    } runtime;
     ComPtr<ID3DXEffect> effect;
     ComPtr<IDirect3DTexture9> white;
     std::map<std::uint64_t, Target> targets;
@@ -122,16 +129,20 @@ class Reference {
         matrix("matLightViewProj", s.lightViewProjection);
         matrix("matWorldViewProj", s.worldViewProjection);
         matrix("matRotate", s.rotation);
+        if (s.accessory) {
+            matrix("matWorld", s.lightingWorld);
+            matrix("matWRotate", s.rotation);
+            color("DifColor", s.diffuse);
+        }
         color("EgColor", s.color);
         color("ToonColor", s.toonColor);
         color("SpcColor", s.specular);
         color("LightDir", s.lightDirection);
         color("Place", s.eye);
-        const float one[] = {1, 1, 1, 1}, zero[] = {0, 0, 0, 0};
-        Check(effect->SetFloatArray("TexCMul", one, 4));
-        Check(effect->SetFloatArray("SphCMul", one, 4));
-        Check(effect->SetFloatArray("TexCAdd", zero, 4));
-        Check(effect->SetFloatArray("SphCAdd", zero, 4));
+        color("TexCMul", s.textureMultiply);
+        color("SphCMul", s.sphereMultiply);
+        color("TexCAdd", s.textureAdd);
+        color("SphCAdd", s.sphereAdd);
         Check(effect->SetBool("parthf", s.perspective));
         Check(effect->SetBool("transp", s.transparent));
         IDirect3DTexture9 *base = nullptr, *sphere = nullptr;
@@ -155,6 +166,11 @@ class Reference {
                                 : sphere                               ? "BShadowSphiaTec"
                                 : base                                 ? "BShadowTextureTec"
                                                                        : "BufferShadowTec";
+        if (s.accessory && s.mode == BuiltinShadowMode::Material)
+            technique = base && sphere ? "DiffuseBSSphiaTexTec"
+                        : sphere       ? "DiffuseBSSphiaTec"
+                        : base         ? "DiffuseBSTextureTec"
+                                       : "DiffuseBufferShadowTec";
         if (s.mode == BuiltinShadowMode::None) {
             // The bare-model full-frame fixture has only fixed black PMD edges
             // outside the built-in effect; preserve its native transform path.
@@ -247,8 +263,14 @@ public:
                 p.PresentationInterval);
         Check(created, "CreateDevice");
         ComPtr<ID3DXBuffer> errors;
-        const auto hr = D3DXCreateEffectFromFileW(device.Get(), effectPath.c_str(), nullptr,
-                                                  nullptr, 0, nullptr, &effect, &errors);
+        auto createEffect = runtime.library
+                                ? reinterpret_cast<decltype(&D3DXCreateEffectFromFileW)>(
+                                      GetProcAddress(runtime.library, "D3DXCreateEffectFromFileW"))
+                                : nullptr;
+        if (!createEffect)
+            throw std::runtime_error("DX9 effect runtime unavailable");
+        const auto hr = createEffect(device.Get(), effectPath.c_str(), nullptr, nullptr, 0, nullptr,
+                                     &effect, &errors);
         if (FAILED(hr) && errors)
             throw std::runtime_error(static_cast<const char*>(errors->GetBufferPointer()));
         Check(hr, "D3DXCreateEffectFromFileW");
@@ -264,7 +286,8 @@ public:
             Target t;
             t.description = source.description;
             const auto& d = t.description;
-            if (d.format == TextureFormat::Depth24Stencil8)
+            if (d.format == TextureFormat::Depth24Stencil8 ||
+                d.format == TextureFormat::DepthStencil)
                 Check(device->CreateDepthStencilSurface(d.width, d.height, D3DFMT_D24S8,
                                                         D3DMULTISAMPLE_NONE, 0, FALSE, &t.surface,
                                                         nullptr));

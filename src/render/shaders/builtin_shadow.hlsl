@@ -6,6 +6,8 @@ cbuffer BuiltinShadow : register(b2) {
     uint4 shadowOptions; // mode, perspective, transparent, material stage roles
     float4 shadowDimensions;
     float4 textureMultiply, textureAdd, sphereMultiply, sphereAdd;
+    row_major float4x4 accessoryWorld;
+    float4 accessoryDiffuse;
 };
 Texture2D materialTextures[3] : register(t0);
 SamplerState materialSamplers[3] : register(s0);
@@ -36,6 +38,7 @@ struct ShadowPixel {
     float3 eye : TEXCOORD2;
     float2 uv : TEXCOORD3;
     float2 sphere : TEXCOORD4;
+    float4 color : COLOR0;
 };
 ShadowPixel shadow_vs(ShadowVertex v) {
     ShadowPixel o;
@@ -44,6 +47,13 @@ ShadowPixel shadow_vs(ShadowVertex v) {
     o.normal = v.normal; o.eye = shadowEye.xyz-v.position;
     o.uv = v.uv;
     o.sphere = mul(float4(v.normal,0),shadowRotation).xy;
+    o.color = shadowColor;
+    if (shadowOptions.w & 262144) {
+        o.normal = mul(float4(v.normal,0),accessoryWorld).xyz;
+        o.eye = shadowEye.xyz-mul(float4(v.position,1),accessoryWorld).xyz;
+        o.color = saturate(shadowColor+max(0,accessoryDiffuse*dot(normalize(o.normal),-shadowDirection.xyz)));
+        o.color.a = shadowColor.a;
+    }
     return o;
 }
 ShadowPixel shadow_outline_vs(float3 position : POSITION) {
@@ -63,7 +73,33 @@ float4 shadow_ps(ShadowPixel p) : SV_TARGET {
     if (!outside) {
         float difference = (shadowOptions.w & 65536) ? max(light.z-shadowTexture.Sample(shadowSampler,uv).r,0) : 0;
         comp = 1-saturate(shadowOptions.y ? difference*8000*uv.y-.3 : difference*1500-.3);
-        comp = min(saturate(dot(normal,-shadowDirection.xyz)*3),comp);
+        if (!(shadowOptions.w & 262144))
+            comp = min(saturate(dot(normal,-shadowDirection.xyz)*3),comp);
+    }
+    if (shadowOptions.w & 262144) {
+        float4 lit = p.color, ambient = shadowColor;
+        float alpha = p.color.a;
+        bool sphere = false;
+        float2 sphereUv = float2(p.sphere.x*.5+.5,p.sphere.y*-.5+.5);
+        [unroll] for (uint i=0;i<3;++i) {
+            uint role = (shadowOptions.w >> (i*4)) & 15;
+            if (role == 1) {
+                float4 sample = materialTextures[i].Sample(materialSamplers[i],p.uv);
+                lit *= sample; ambient *= sample; alpha *= sample.a;
+            } else if (role == 2 || role == 3) {
+                float4 sample = materialTextures[i].Sample(materialSamplers[i],sphereUv);
+                lit = role == 3 ? lit+sample : lit*sample;
+                ambient = role == 3 ? ambient+sample : ambient*sample;
+                sphere = true;
+            }
+        }
+        float4 result = lit+float4(specular,0);
+        if (!outside && comp != 1) {
+            result = result*comp+ambient*(1-comp);
+            // Native sphere effects override alpha only in their shadow branch.
+            if (sphere) result.a = alpha;
+        }
+        return shadow_output(result);
     }
     float4 color = shadowColor;
     float alpha = color.a;

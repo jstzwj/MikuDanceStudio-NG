@@ -161,11 +161,48 @@ int main(int argc, char** argv) {
     CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96, resetTint,
                           reason));
     CHECK(untinted == resetTint);
+    CHECK(session.New(reason) && session.ImportAccessory(root / "bound-varied.x", reason));
+    CHECK(session.Edit(
+        "accessory-shadow",
+        [](auto& d, auto&) {
+            d.view.groundGrid = d.view.groundShadow = 0;
+            d.selfShadowMode = 1;
+            d.accessories[0].state.position = {1, 2, 3};
+            d.accessories[0].state.rotation = {.1f, .2f, .3f};
+            d.accessories[0].state.scale = .2f;
+            return true;
+        },
+        reason));
+    sources.models.clear();
+    sources.accessories = session.Assets().accessoryPaths;
+    CHECK(producer.Load(session.Runtime(), sources, builtin, reason));
+    settings.shadow.mode = 1;
+    CHECK(producer.Build(session.Runtime(), settings, before, reason));
+    CHECK(before.passes[0].draws.size() == 2);
+    CHECK(before.passes[1].draws.size() == 2);
+    CHECK(before.passes[1].draws[0].pipeline.shadow.accessory);
+    CHECK(before.passes[1].draws[0].pipeline.shadow.lightingWorld[12] == 0);
+    CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96, image,
+                          reason));
+    QImage accessoryRepeat;
+    CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
+                          accessoryRepeat, reason));
+    CHECK(image == accessoryRepeat);
+    CHECK(session.Edit(
+        "accessory-additive",
+        [](auto& d, auto&) {
+            d.accessories[0].state.additiveBlend = 1;
+            return true;
+        },
+        reason));
+    CHECK(producer.Build(session.Runtime(), settings, after, reason));
+    CHECK(after.passes[0].draws.empty());
+    CHECK(after.passes[1].draws[0].pipeline.raster.destinationBlend == rhi::BlendFactor::One);
     CHECK(session.New(reason) && session.ImportAccessory(root / "screen.x", reason));
     CHECK(session.Edit(
         "screen-capture",
         [](auto& d, auto&) {
-            d.view.groundGrid = 0;
+            d.view.groundGrid = d.view.groundShadow = 0;
             d.selfShadowMode = 0;
             d.view.captureMode = 1;
             return true;

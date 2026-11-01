@@ -46,6 +46,14 @@ function(mds_add_qt_editor)
         set_tests_properties(qt_editor_render PROPERTIES LABELS "p4;offscreen;qt;gpu" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_presentation_test "${root}/tests/qt_presentation_test.cpp")
         target_link_libraries(qt_presentation_test PRIVATE mikudancestudio_frontend_qt)
+        if(WIN32)
+            # Explicit hidden DX9 oracle; never required on machines without a
+            # connected DX9 session. D3DX is loaded only inside this test.
+            add_executable(portable_scene_dx9_test "${root}/tests/portable_scene_dx9_test.cpp")
+            target_include_directories(portable_scene_dx9_test PRIVATE "${root}/third_party/mmeffect/include")
+            target_compile_definitions(portable_scene_dx9_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+            target_link_libraries(portable_scene_dx9_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render d3d9)
+        endif()
         # Native platform tests are invoked explicitly in isolated CI displays;
         # the normal p4 suite must remain safe for a developer's desktop.
     endif()

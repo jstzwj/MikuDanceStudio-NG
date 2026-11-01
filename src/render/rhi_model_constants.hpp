@@ -35,7 +35,11 @@ inline BuiltinShadowConstants BuildBuiltinShadowConstants(const ModelPipeline& p
                              s.textureMultiply,
                              s.textureAdd,
                              s.sphereMultiply,
-                             s.sphereAdd};
+                             s.sphereAdd,
+                             s.lightingWorld,
+                             s.diffuse};
+    if (s.accessory)
+        c.options[3] |= 262144u;
     if (s.textureMultiply != std::array<float, 4>{1, 1, 1, 1} ||
         s.sphereMultiply != std::array<float, 4>{1, 1, 1, 1} ||
         s.textureAdd != std::array<float, 4>{} || s.sphereAdd != std::array<float, 4>{})

@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cstdio>
+#include <cctype>
 #include <stdexcept>
 #include <set>
 namespace mikudancestudio::render {
@@ -311,7 +312,10 @@ bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRen
                 return Fail(reason, "accessory_geometry");
             for (const auto& m : resource->Materials()) {
                 Material saved;
-                saved.base = Path(m.texture);
+                const auto split = m.texture.find('*');
+                saved.base = Path(m.texture.substr(0, split));
+                if (split != std::string::npos)
+                    saved.sphere = Path(m.texture.substr(split + 1));
                 auto name = saved.base.filename().u8string();
                 std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) {
                     return c >= 'A' && c <= 'Z' ? char(c + 'a' - 'A') : char(c);
@@ -319,6 +323,8 @@ bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRen
                 saved.screen = name == "screen.bmp";
                 if (!saved.screen &&
                     !Texture(source->second.parent_path(), saved.base, saved.textures[1], reason))
+                    return false;
+                if (!Texture(source->second.parent_path(), saved.sphere, saved.textures[2], reason))
                     return false;
                 accessory->materials.push_back(std::move(saved));
             }
@@ -456,6 +462,8 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
     }
     const auto modelStart = main.draws.size();
     std::vector<ModelReplayDraw> projected, outlines;
+    std::map<unsigned, std::vector<ModelReplayDraw>> modelCasters, accessoryCasters,
+        accessoryProjected;
     std::vector<std::uint8_t> order;
     for (const auto& item : impl_->models)
         if (scene.Resource(item.first))
@@ -603,7 +611,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 draw.pipeline.viewport =
                     ModelViewport{0, 0, settings.shadow.mapSize, settings.shadow.mapSize, 0, 1};
                 draw.textures = {};
-                cast.draws.push_back(std::move(draw));
+                modelCasters[slot].push_back(std::move(draw));
             }
         unsigned edgeFirst = 0;
         for (const auto& pose : snapshot->materials) {
@@ -694,6 +702,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 input.material.shininess = material.shininess;
                 input.opacity = pose.opacity;
                 input.primaryTexture = bool(saved.textures[1]);
+                input.sphereTexture = bool(saved.textures[2]);
                 input.unboundScreen = saved.screen;
                 input.afterModelPass = int(item->order) >= doc->physics.accessoryRenderOrder;
                 input.additive = item->state.additiveBlend != 0;
@@ -706,13 +715,45 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                         ? 2
                     : saved.screen ? 3
                                    : 0;
+                if (input.sphereTexture) {
+                    auto ext = saved.sphere.extension().u8string();
+                    std::transform(ext.begin(), ext.end(), ext.begin(),
+                                   [](unsigned char c) { return char(std::tolower(c)); });
+                    input.textureType = ext == ".spa" ? 5 : 4;
+                }
                 ModelMaterialPacket packet;
                 packet.material = unsigned(packets.size());
                 packet.firstIndex = subset.firstIndex;
                 packet.indexCount = subset.indexCount;
                 if (!BuildAccessoryPassInputs(local, input, {}, packet.pipeline))
                     return Fail(reason, "accessory_pipeline");
+                if (mode && pose.shadowEnabled) {
+                    auto& s = packet.pipeline.shadow;
+                    s = shadow;
+                    s.accessory = true;
+                    s.lightViewProjection = Multiply(placement, shadow.lightViewProjection);
+                    s.worldViewProjection = Multiply(placement, shadow.worldViewProjection);
+                    s.lightingWorld = placement;
+                    s.lightingWorld[12] = s.lightingWorld[13] = s.lightingWorld[14] = 0;
+                    auto inverseScale = Identity();
+                    const auto inv = pose.scale == 0 ? 0 : 1.f / (pose.scale * 10.f);
+                    inverseScale[0] = inverseScale[5] = inverseScale[10] = inv;
+                    s.rotation =
+                        Multiply(Multiply(inverseScale, s.lightingWorld), frame.lightRotation);
+                    const auto& light = packet.pipeline.shader.lights[0];
+                    for (unsigned c = 0; c < 3; ++c) {
+                        s.color[c] =
+                            (material.ambient[c] * light.ambient[c] + material.emissive[c]) *
+                            doc->physics.projectedShadowAmbient;
+                        s.diffuse[c] = material.diffuse[c] * light.diffuse[c];
+                        s.specular[c] = material.specular[c] * light.specular[c];
+                    }
+                    s.color[3] = material.diffuse[3] * pose.opacity;
+                    s.diffuse[3] = 1;
+                    s.specular[3] = material.shininess == 0 ? .1f : material.shininess;
+                }
                 packet.textureResources[0] = saved.textures[1];
+                packet.textureResources[1] = saved.textures[2];
                 packets.push_back(std::move(packet));
             }
             ModelReplayStream stream;
@@ -720,11 +761,39 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                                                           main.color->clear, packets, stream);
             if (!built)
                 return Fail(reason, built.reason);
-            // Accessory projected/self-shadow policy remains explicit, never guessed.
-            if (mode && pose.shadowEnabled)
-                return Fail(reason, "accessory_self_shadow_not_migrated");
             const auto start = main.draws.size();
             append(stream);
+            for (std::size_t n = 0; n < packets.size(); ++n) {
+                const auto& subset = accessory.resource->Subsets()[n];
+                const auto& material = accessory.resource->Materials()[subset.material];
+                if (mode && pose.shadowEnabled && !item->state.additiveBlend &&
+                    material.diffuse[3] != .9800000190734863f) {
+                    auto draw = main.draws[start + n];
+                    draw.shadowTarget = 0;
+                    draw.pipeline.shadow.mode = BuiltinShadowMode::Depth;
+                    draw.pipeline.raster.alphaBlend = false;
+                    draw.pipeline.stencil = false;
+                    draw.pipeline.shader.alphaTest = false;
+                    draw.pipeline.shader.layout = {};
+                    draw.pipeline.viewport =
+                        ModelViewport{0, 0, settings.shadow.mapSize, settings.shadow.mapSize, 0, 1};
+                    draw.textures = {};
+                    accessoryCasters[pose.slot].push_back(std::move(draw));
+                }
+                if (pose.shadowEnabled && doc->view.groundShadow && frame.scene.lightState[4] < 0) {
+                    auto draw = main.draws[start + n];
+                    draw.shadowTarget = 0;
+                    if (!BuildScenePassInputs(frame, SceneDrawFamily::ProjectedModelShadow, passes,
+                                              draw.pipeline))
+                        return Fail(reason, "accessory_projected_pipeline");
+                    draw.pipeline.vertexLayout = VertexLayout::PositionNormalUv;
+                    draw.pipeline.shader.world = Multiply(placement, draw.pipeline.shader.world);
+                    draw.pipeline.shader.layout = {};
+                    draw.pipeline.shader.normalizeNormals = true;
+                    draw.textures = {};
+                    accessoryProjected[pose.slot].push_back(std::move(draw));
+                }
+            }
             for (std::size_t n = 0; n < accessory.resource->Subsets().size(); ++n)
                 if (accessory.materials.at(accessory.resource->Subsets()[n].material).screen) {
                     const auto& draw = main.draws.at(start + n);
@@ -738,11 +807,22 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
             }
         }
     }
+    // Native shadow passes walk accessory slots first, then model slots,
+    // independently of the material display order.
+    for (const auto* batches : {&accessoryCasters, &modelCasters})
+        for (const auto& batch : *batches)
+            cast.draws.insert(cast.draws.end(), batch.second.begin(), batch.second.end());
+    std::vector<ModelReplayDraw> groundAccessories;
+    for (const auto& batch : accessoryProjected)
+        groundAccessories.insert(groundAccessories.end(), batch.second.begin(), batch.second.end());
+    main.draws.insert(main.draws.begin() + modelStart + beforeModels, groundAccessories.begin(),
+                      groundAccessories.end());
     if (mode)
         result.passes.push_back(std::move(cast));
     std::vector<ScreenTextureConsumer> consumers;
     for (std::size_t n = 0; n < main.draws.size(); ++n)
-        if (screenDraws.count({main.draws[n].vertices.id, main.draws[n].firstIndex}))
+        if (main.draws[n].pipeline.raster.cull == BatchCull::CounterClockwise &&
+            screenDraws.count({main.draws[n].vertices.id, main.draws[n].firstIndex}))
             consumers.push_back({result.passes.size(), n});
     result.passes.push_back(std::move(main));
     result.finalColor = 1;

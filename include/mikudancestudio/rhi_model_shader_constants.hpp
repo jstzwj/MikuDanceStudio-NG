@@ -25,6 +25,8 @@ struct BuiltinShadowConstants {
     std::array<unsigned, 4> options;
     std::array<float, 4> dimensions;
     std::array<float, 4> textureMultiply, textureAdd, sphereMultiply, sphereAdd;
+    std::array<float, 16> lightingWorld;
+    std::array<float, 4> diffuse;
 };
-static_assert(sizeof(BuiltinShadowConstants) == 368, "HLSL shadow buffer layout");
+static_assert(sizeof(BuiltinShadowConstants) == 448, "HLSL shadow buffer layout");
 }

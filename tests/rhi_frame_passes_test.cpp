@@ -2,6 +2,7 @@
 #include "mikudancestudio/rhi_post_process.hpp"
 #include "material_sampling_fixture.hpp"
 #include <cstdio>
+#include <limits>
 using namespace mikudancestudio::rhi;
 #define CHECK(x)                                                                                   \
     do {                                                                                           \
@@ -11,6 +12,14 @@ using namespace mikudancestudio::rhi;
         }                                                                                          \
     } while (0)
 int main() {
+    BuiltinShadowState invalidShadow;
+    invalidShadow.mode = BuiltinShadowMode::Material;
+    invalidShadow.accessory = true;
+    invalidShadow.lightingWorld[0] = std::numeric_limits<float>::infinity();
+    CHECK(!ValidBuiltinShadowState(invalidShadow));
+    invalidShadow.lightingWorld[0] = 1;
+    invalidShadow.textureAdd[0] = std::numeric_limits<float>::quiet_NaN();
+    CHECK(!ValidBuiltinShadowState(invalidShadow));
     RenderFrame f;
     const auto access =
         TextureAccess::ColorAttachment | TextureAccess::Sampled | TextureAccess::CopySource;

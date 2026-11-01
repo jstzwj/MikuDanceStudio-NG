@@ -91,20 +91,27 @@ struct BuiltinShadowState {
     std::array<float, 16> lightViewProjection{}, worldViewProjection{}, rotation{};
     std::array<float, 4> color{}, toonColor{1, 1, 1, 1}, specular{}, lightDirection{}, eye{};
     bool perspective = false, transparent = false, receive = true;
-    std::array<float, 4> textureMultiply{1, 1, 1, 1}, textureAdd{},
-        sphereMultiply{1, 1, 1, 1}, sphereAdd{};
+    std::array<float, 4> textureMultiply{1, 1, 1, 1}, textureAdd{}, sphereMultiply{1, 1, 1, 1},
+        sphereAdd{};
+    // FX9 accessory lighting uses rotation/scale without translation, and
+    // interpolates diffuse light per vertex. Model/toon shading is separate.
+    bool accessory = false;
+    std::array<float, 16> lightingWorld{};
+    std::array<float, 4> diffuse{};
 };
 inline bool ValidBuiltinShadowState(const BuiltinShadowState& s) {
     if (unsigned(s.mode) > unsigned(BuiltinShadowMode::Outline))
         return false;
     if (s.mode == BuiltinShadowMode::None)
         return true;
-    for (const auto* a : {&s.lightViewProjection, &s.worldViewProjection, &s.rotation})
+    for (const auto* a :
+         {&s.lightViewProjection, &s.worldViewProjection, &s.rotation, &s.lightingWorld})
         for (float v : *a)
             if (!std::isfinite(v))
                 return false;
-    for (const auto* a : {&s.color, &s.toonColor, &s.specular, &s.lightDirection, &s.eye,
-                         &s.textureMultiply, &s.textureAdd, &s.sphereMultiply, &s.sphereAdd})
+    for (const auto* a :
+         {&s.color, &s.toonColor, &s.specular, &s.lightDirection, &s.eye, &s.textureMultiply,
+          &s.textureAdd, &s.sphereMultiply, &s.sphereAdd, &s.diffuse})
         for (float v : *a)
             if (!std::isfinite(v))
                 return false;

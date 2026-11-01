@@ -250,6 +250,7 @@ def write(directory):
     (root / 'sphere.pmd').write_bytes(pmd('s.sph'))
     (root / 'triangle.pmx').write_bytes(pmx())
     (root / 'tint-morph.pmx').write_bytes(pmx(tint_morphs=True))
+    (root / 'tint-shadow.pmx').write_bytes(pmx(0x1f, tint_morphs=True))
     (root / 'alpha98.pmd').write_bytes(pmd(alpha=.98))
     for flags in (0x1f, 0x17, 0x1b, 0x0c):
         (root / ('flags-%02x.pmx' % flags)).write_bytes(pmx(flags))
@@ -291,6 +292,11 @@ Material { 0.2;0.7;0.4;0.6;; 2.0; 0.0;0.0;0.0;; 0.1;0.0;0.0;; }
     varied = varied.replace('0.0;2.0;0.0', '0.875;2.25;-0.625')
     varied = varied.replace('0.0;0.0;-1.0', '0.37;-0.62;-0.41')
     (root / 'bound-varied.x').write_text(varied, encoding='ascii')
+    (root / 'sphere.sph').write_bytes((root / 'checker.bmp').read_bytes())
+    (root / 'sphere.spa').write_bytes((root / 'checker.bmp').read_bytes())
+    for filename, texture in [('sphere-mul.x', 'sphere.sph'), ('sphere-add.x', 'sphere.spa'),
+                              ('dual-sphere.x', 'checker.bmp*sphere.spa')]:
+        (root / filename).write_text(varied.replace('checker.bmp', texture), encoding='ascii')
     # X MSZIP: file size includes the uncompressed 16-byte header. Each
     # independent raw-DEFLATE block can use the previous 32 KiB as history.
     import zlib
