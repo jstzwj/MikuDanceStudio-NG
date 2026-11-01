@@ -44,6 +44,7 @@ int main(int argc, char** argv) try {
                       : arg.find("dx12") == 0 ? Backend::D3D12
                                               : Backend::Vulkan;
     options.debugLayer = arg.find("debug") != std::string::npos;
+    options.profiling = arg.find("profile") != std::string::npos;
     options.materialSampling = MaterialSamplingPolicy::PortableTrilinear;
     HiddenWindow window;
     ScenePreviewController controller;
@@ -128,7 +129,25 @@ int main(int argc, char** argv) try {
     auto frame = sampling_fixture::Fixture(0, SamplerFilter::Linear, 1, SamplerAddress::Clamp, .37f,
                                            true, true);
     frame.finalColor = 1;
-    CHECK(controller.Draw(frame) && controller.Close() && !IsWindowVisible(window.hwnd));
+    CHECK(controller.Draw(frame));
+    if (options.profiling && options.backend == Backend::Vulkan) {
+        auto& device = *controller.GetDevice();
+        const auto drain = [&] {
+            CHECK(device.WaitCompletion(device.SignalCompletion(), 5000) &&
+                  controller.GetRenderer()->Collect());
+        };
+        drain();
+        const auto before = QueryVulkanStats(device);
+        for (unsigned i = 0; i < 90; ++i)
+            CHECK(controller.Draw(frame));
+        drain();
+        const auto after = QueryVulkanStats(device);
+        CHECK(after.gpuTimingSupported && after.gpuFrames - before.gpuFrames == 90);
+        CHECK(after.readbacks == before.readbacks &&
+              after.presentations - before.presentations == 90);
+        std::printf("90 profiled hidden frames retained every timestamp sample\n");
+    }
+    CHECK(controller.Close() && !IsWindowVisible(window.hwnd));
     if (options.backend == Backend::Vulkan) {
         auto native = CreateBackendDevice(desc, options);
         CHECK(native);

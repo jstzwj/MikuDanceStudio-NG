@@ -736,3 +736,13 @@ regression passed; the 1296-case original drag comparison and 1800-case exact
 bone-overlay comparison also passed after extracting local axes. Offscreen Qt
 gestures passed at scale factors 1, 1.5 and 2. Complete exposed input, UI/font
 and C1 rasterization acceptance remain open.
+
+The first operation-axis CI run passed Windows/Linux but exposed a fixed D24S8
+attachment on macOS. It now uses the same capability-selected `DepthStencil`
+format as the main scene, preserving stencil on devices with D32S8. The parallel
+P3 macOS performance run also exposed a late query-availability sample: explicit
+completion drains now collect completed profiling queries before frame-slot
+reuse. Ordinary polling stays nonblocking and profiling remains opt-in. A local
+never-shown Vulkan presentation test retained all 90 timestamp samples with no
+new image readbacks. The Paravirtual driver's zero durations remain recorded as
+unavailable; budgets and image comparison criteria are unchanged.

@@ -622,7 +622,7 @@ public:
             return false;
         const auto state = PollCompletion(token);
         if (state != CompletionState::Pending)
-            return state == CompletionState::Complete && CollectResources();
+            return state == CompletionState::Complete && CollectResources(true);
         VkSemaphoreWaitInfo wait{VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO};
         wait.semaphoreCount = 1;
         wait.pSemaphores = &timeline;
@@ -632,16 +632,20 @@ public:
         const auto result = vkWaitSemaphores(native, &wait, std::uint64_t(timeout) * 1000000);
         if (profiling)
             stats.waitNanoseconds += Nanoseconds(start);
-        return Check(result) && CollectResources();
+        return Check(result) && CollectResources(true);
     }
-    bool CollectTimings(std::uint64_t completed) {
+    bool CollectTimings(std::uint64_t completed, bool wait = false) {
         for (auto& frame : frames) {
             if (!frame.timingCompletion || frame.timingCompletion > completed)
                 continue;
             std::uint64_t ticks[2]{};
-            const auto result =
-                vkGetQueryPoolResults(native, frame.timing, 0, 2, sizeof(ticks), ticks,
-                                      sizeof(ticks[0]), VK_QUERY_RESULT_64_BIT);
+            // A completed submission owns both timestamp writes. Some Metal
+            // drivers publish query availability after the timeline value.
+            // An explicit completion wait must drain these diagnostics before
+            // the frame slot can reset its query pool and lose a sample.
+            const auto result = vkGetQueryPoolResults(
+                native, frame.timing, 0, 2, sizeof(ticks), ticks, sizeof(ticks[0]),
+                VK_QUERY_RESULT_64_BIT | (wait ? VK_QUERY_RESULT_WAIT_BIT : 0));
             if (result == VK_NOT_READY)
                 continue;
             if (!Check(result))
@@ -655,12 +659,12 @@ public:
         }
         return true;
     }
-    bool CollectResources() {
+    bool CollectResources(bool waitTimings = false) {
         std::uint64_t completed = 0;
         if (!lost && !Check(vkGetSemaphoreCounterValue(native, timeline, &completed)))
             return false;
         stats.completed = completed;
-        if (!lost && !CollectTimings(completed))
+        if (!lost && !CollectTimings(completed, waitTimings))
             return false;
         for (auto i = retiring.begin(); i != retiring.end();)
             if (lost || i->lastUse <= completed) {

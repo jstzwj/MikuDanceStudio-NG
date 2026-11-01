@@ -260,7 +260,7 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
                         return Fail(reason, "editor_overlay_axis_transform_invalid");
                 constexpr std::uint64_t depth = 0x7000000000000010ull;
                 frame.targets.push_back({depth,
-                                         {width, height, TextureFormat::Depth24Stencil8,
+                                         {width, height, TextureFormat::DepthStencil,
                                           std::uint32_t(TextureAccess::DepthStencilAttachment)}});
                 axisPass.name = "editor_operation_axis";
                 axisPass.color = FrameAttachment{frame.finalColor, AttachmentLoad::Load};
