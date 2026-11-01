@@ -22,6 +22,7 @@ struct SceneRuntime::Impl {
         std::vector<std::uint8_t> inputIk;
         ModelTimeline timeline;
         std::vector<std::size_t> boneMap, morphMap, ikMap, selectorMap;
+        std::vector<std::size_t> boneDocumentMap, morphDocumentMap;
         bool visible = true;
     };
     PhysicsWorldState world;
@@ -125,6 +126,13 @@ struct SceneRuntime::Impl {
                 item.morphMap.resize(source.layout.morphCount);
                 std::iota(item.morphMap.begin(), item.morphMap.end(), 0);
             }
+            const auto invert = [](const auto& map, auto& inverse) {
+                inverse.resize(map.size());
+                for (std::size_t i = 0; i < map.size(); ++i)
+                    inverse[map[i]] = i;
+            };
+            invert(item.boneMap, item.boneDocumentMap);
+            invert(item.morphMap, item.morphDocumentMap);
             ModelEvaluation probe;
             if (!item.instance->Prepare(0, probe, reason))
                 return false;
@@ -1006,18 +1014,41 @@ const SceneCounters& SceneRuntime::Counters() const {
     return impl_ ? impl_->counters : empty;
 }
 bool SceneRuntime::DocumentBoneIndex(int slot, int index, int& output, std::string& reason) const {
+    return ChannelIndex(slot, index, false, false, output, reason);
+}
+bool SceneRuntime::DocumentMorphIndex(int slot, int index, int& output, std::string& reason) const {
+    return ChannelIndex(slot, index, true, false, output, reason);
+}
+bool SceneRuntime::ResourceBoneIndex(int slot, int index, int& output, std::string& reason) const {
+    return ChannelIndex(slot, index, false, true, output, reason);
+}
+bool SceneRuntime::ResourceMorphIndex(int slot, int index, int& output, std::string& reason) const {
+    return ChannelIndex(slot, index, true, true, output, reason);
+}
+bool SceneRuntime::ChannelIndex(int slot, int index, bool morph, bool inverse, int& output,
+                                std::string& reason) const {
+    const auto error = morph ? (inverse ? "invalid-resource-morph" : "invalid-document-morph")
+                             : (inverse ? "invalid-resource-bone" : "invalid-document-bone");
     if (!impl_ || impl_->failed || slot < 0 || slot > 254 || index < 0) {
-        reason = "invalid-document-bone";
+        reason = error;
         return false;
     }
     const auto item = impl_->items.find(std::uint8_t(slot));
-    if (item == impl_->items.end() ||
-        std::size_t(index) >= (impl_->session ? item->second.boneMap.size()
-                                              : item->second.resource->BoneNames().size())) {
-        reason = "invalid-document-bone";
+    if (item == impl_->items.end()) {
+        reason = error;
         return false;
     }
-    output = impl_->session ? int(item->second.boneMap[std::size_t(index)]) : index;
+    const auto& value = item->second;
+    const auto& map = morph ? (inverse ? value.morphDocumentMap : value.morphMap)
+                            : (inverse ? value.boneDocumentMap : value.boneMap);
+    const auto count = impl_->session ? map.size()
+                                      : (morph ? value.resource->MorphNames().size()
+                                               : value.resource->BoneNames().size());
+    if (std::size_t(index) >= count) {
+        reason = error;
+        return false;
+    }
+    output = impl_->session ? int(map[std::size_t(index)]) : index;
     reason.clear();
     return true;
 }

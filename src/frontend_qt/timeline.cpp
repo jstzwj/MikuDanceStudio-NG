@@ -20,7 +20,8 @@ void Timeline::Refresh() {
         if (m.slot == model && model != 255) {
             const auto resource = session_.Runtime().Resource(model);
             if (resource && rowsModel_ == model && rowsResource_.lock() == resource &&
-                rowsLanguage_ == language_.Code() && rowsGroupFlags_ == m.selection.groupFlags) {
+                rowsLanguage_ == language_.Code() && rowsGroupFlags_ == m.selection.groupFlags &&
+                rowsBoneNames_ == m.boneNames && rowsMorphNames_ == m.morphNames) {
                 update();
                 return;
             }
@@ -51,6 +52,20 @@ void Timeline::Refresh() {
                 rowsModel_ = model;
                 rowsLanguage_ = language_.Code();
                 rowsGroupFlags_ = m.selection.groupFlags;
+                rowsBoneNames_ = m.boneNames;
+                rowsMorphNames_ = m.morphNames;
+                const auto address =
+                    [&](const runtime::ModelDisplayEntry& entry) -> std::optional<KeyAddress> {
+                    int channel;
+                    std::string reason;
+                    if (!(entry.morph ? session_.Runtime().ResourceMorphIndex(
+                                            model, int(entry.index), channel, reason)
+                                      : session_.Runtime().ResourceBoneIndex(
+                                            model, int(entry.index), channel, reason)))
+                        return {};
+                    return KeyAddress{entry.morph ? Track::Morph : Track::Bone, model,
+                                      unsigned(channel), 0};
+                };
                 const auto name = [&](const runtime::ModelDisplayEntry& entry) {
                     const auto& names = entry.morph ? resource->Document().morphs[entry.index].names
                                                     : resource->Document().bones[entry.index].names;
@@ -65,8 +80,8 @@ void Timeline::Refresh() {
                     const auto& group = groups[i];
                     if (group.role == 0) {
                         if (!group.entries.empty())
-                            rows_.push_back({{Track::Bone, model, group.entries[0].index, 0},
-                                             name(group.entries[0])});
+                            if (const auto key = address(group.entries[0]))
+                                rows_.push_back({*key, name(group.entries[0])});
                     } else if (group.role == 1) {
                         rows_.push_back({{Track::Display, model, 0, 0}, language_.Text("display")});
                     } else {
@@ -86,14 +101,15 @@ void Timeline::Refresh() {
                             i < m.selection.groupFlags.size() && m.selection.groupFlags[i];
                         if (!header.expanded)
                             for (const auto& entry : group.entries)
-                                header.tracks.push_back({entry.morph ? Track::Morph : Track::Bone,
-                                                         model, entry.index, 0});
+                                if (const auto key = address(entry))
+                                    header.tracks.push_back(*key);
                         rows_.push_back(header);
                         if (header.expanded)
                             for (const auto& entry : group.entries) {
-                                Row row({entry.morph ? Track::Morph : Track::Bone, model,
-                                         entry.index, 0},
-                                        name(entry));
+                                const auto key = address(entry);
+                                if (!key)
+                                    continue;
+                                Row row(*key, name(entry));
                                 row.indent = 15;
                                 rows_.push_back(std::move(row));
                             }

@@ -70,6 +70,11 @@ public:
     // PMM bone indices address its name-bound order, which may differ from the
     // immutable resource. BoneAttachment itself takes a resource bone index.
     bool DocumentBoneIndex(int model, int documentBone, int& resourceBone, std::string&) const;
+    bool DocumentMorphIndex(int model, int documentMorph, int& resourceMorph, std::string&) const;
+    // Display groups and categories use resource order. Translate them back to
+    // document channels before editing, selecting or registering keys.
+    bool ResourceBoneIndex(int model, int resourceBone, int& documentBone, std::string&) const;
+    bool ResourceMorphIndex(int model, int resourceMorph, int& documentMorph, std::string&) const;
     // Read the last completed CPU frame in PMM bone order. Mode zero returns
     // the editable pose; other modes select the same physics backup as MMD's
     // register command. This never advances simulation or changes the model.
@@ -80,6 +85,7 @@ public:
     bool AccessoryPlacement(std::uint8_t, cpu_math::Matrix&, std::string&) const;
 
 private:
+    bool ChannelIndex(int model, int index, bool morph, bool inverse, int&, std::string&) const;
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };

@@ -671,9 +671,14 @@ void EditorWindow::Refresh() {
                 const auto old = c->currentData();
                 const auto resource = session_.Runtime().Resource(m.slot);
                 SyncComboItems(c, [&](auto add) {
-                    for (std::size_t i = 0; i < m.morphNames.size(); ++i)
-                        if (resource->Document().morphs[i].header.panel == panel + 1)
-                            add(Name(m.morphNames[i]), unsigned(i));
+                    for (std::size_t i = 0; i < resource->Document().morphs.size(); ++i)
+                        if (resource->Document().morphs[i].header.panel == panel + 1) {
+                            int channel;
+                            std::string reason;
+                            if (session_.Runtime().ResourceMorphIndex(m.slot, int(i), channel,
+                                                                      reason))
+                                add(Name(m.morphNames[channel]), unsigned(channel));
+                        }
                 });
                 int index = c->findData(old);
                 c->setCurrentIndex(index < 0 ? 0 : index);

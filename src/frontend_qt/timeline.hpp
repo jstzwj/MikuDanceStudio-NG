@@ -43,6 +43,7 @@ private:
     std::uint8_t rowsModel_ = 255;
     QString rowsLanguage_;
     std::vector<std::uint8_t> rowsGroupFlags_;
+    std::vector<std::vector<char>> rowsBoneNames_, rowsMorphNames_;
     int frameScroll_ = 0, rowScroll_ = 0;
     QPoint press_, pointer_;
     bool dragging_ = false;

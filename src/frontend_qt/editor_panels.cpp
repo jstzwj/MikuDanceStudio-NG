@@ -51,13 +51,19 @@ void EditorWindow::RefreshScopes() {
             scopeResources_[model] = resource;
         }
         const auto entry = [&](bool morph, unsigned index) {
+            int channel;
+            std::string reason;
+            if (!(morph ? session_.Runtime().ResourceMorphIndex(model, int(index), channel, reason)
+                        : session_.Runtime().ResourceBoneIndex(model, int(index), channel, reason)))
+                return;
             const auto& names = morph ? resource->Document().morphs[index].names
                                       : resource->Document().bones[index].names;
             const auto& bytes = names[language_.Code() == "en" && !names[1].empty() ? 1 : 0];
             std::string text;
             text::DecodeUtf16Le(bytes.data(), bytes.size(), text);
             add(QString::fromUtf8(text.c_str()),
-                {KeyScopeKind::Track, {morph ? Track::Morph : Track::Bone, model, index, 0}});
+                {KeyScopeKind::Track,
+                 {morph ? Track::Morph : Track::Bone, model, unsigned(channel), 0}});
         };
         kind("scope.all", KeyScopeKind::All);
         if (!resource->BoneNames().empty())
@@ -129,10 +135,9 @@ void EditorWindow::RefreshPanels() {
         if (m.slot == session_.Selected().model) {
             auto* c = static_cast<QComboBox*>(Control(kIkChainCombo));
             const auto old = c->currentData();
-            const auto resource = session_.Runtime().Resource(m.slot);
             SyncComboItems(c, [&](auto add) {
-                for (std::size_t i = 0; i < resource->IkBoneIndices().size(); ++i)
-                    add(Label(m.boneNames.at(resource->IkBoneIndices()[i])), unsigned(i));
+                for (std::size_t i = 0; i < m.ikSources.size(); ++i)
+                    add(Label(m.boneNames.at(m.ikSources[i])), unsigned(i));
             });
             c->setCurrentIndex(std::max(0, c->findData(old)));
             const auto ik = c->currentData().toUInt();

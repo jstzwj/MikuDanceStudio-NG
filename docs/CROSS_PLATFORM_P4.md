@@ -1727,5 +1727,26 @@ the entire all-Morph dispatcher, table exhaustion and full event loop remain
 outside this oracle's scope.
 
 All 30 local P4 tests passed (48.37 seconds), as did the rebuilt Win32 registration,
-history and session tests. The Qt application builds. This batch awaits its
-three-platform CI run; P4/C1 remains in progress.
+history and session tests. The Qt application builds.
+[Run 41347892063](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41347892063)
+subsequently passed all three platform jobs. P4/C1 remains in progress.
+
+## Name-bound editor channels
+
+PMM channel order can differ from the loaded PMD/PMX resource. The shared runtime
+now exposes both directions of its validated bone/Morph maps, including duplicate
+name handling inherited from resource binding. Reverse maps are built once when
+the binding layout changes. Invalid or unloaded lookups leave the caller's output
+unchanged. PMD base-Morph exclusion now uses the resolved resource index.
+
+Qt Morph categories, timeline rows and collapsed summaries, named range scopes
+and IK selectors use document channels for edits and resource channels for labels
+and category metadata. Timeline cache invalidation includes the bound names, even
+when the immutable resource and group flags remain unchanged. The new offscreen
+regression reverses PMM channels for four public PMD/PMX fixtures, exercises actual
+controls in three languages, and checks persistence and unload invalidation.
+
+Local validation passed all **31 P4 tests** (51.17 seconds), the separate scene
+runtime test, both touched Win32 tests and the 124-checkpoint original auxiliary
+oracle. The CPU performance gate remains unchanged. The application builds;
+three-platform CI for the mapping batch remains required.

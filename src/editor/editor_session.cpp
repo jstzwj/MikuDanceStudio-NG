@@ -873,13 +873,13 @@ bool EditorSession::RegisterMorphChannels(std::uint8_t slot,
             return false;
         }
     ClearModelKeyMarks(*model, next.selection);
-    const bool hasBase =
-        resource->SourceKind() == ModelKind::Pmd && !resource->MorphNames().empty();
-    const auto baseName = hasBase ? Name(resource->MorphNames()[0]) : std::vector<char>{};
     // Button commands ignore PMD's base Morph. Raw track insertion remains
     // available to import/paste, which use a different native registrar.
     for (auto channel : channels) {
-        if (hasBase && model->morphNames[channel] == baseName)
+        int resourceMorph;
+        if (!runtime_->DocumentMorphIndex(slot, int(channel), resourceMorph, reason))
+            return false;
+        if (resource->SourceKind() == ModelKind::Pmd && resourceMorph == 0)
             continue;
         PmmMorphKey key;
         key.frame = frame;
