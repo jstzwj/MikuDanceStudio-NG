@@ -73,16 +73,31 @@ int main(int argc, char** argv) try {
            << ",\"cold_prepare_ms\":" << coldMs << ",\"p95_budget_ms\":" << p95Budget
            << ",\"max_budget_ms\":" << maxBudget << ",\"cases\":[";
     bool withinBudget = true;
-    for (unsigned mode = 0; mode < 3; ++mode) {
-        const char* name = mode == 0 ? "static" : mode == 1 ? "navigation" : "animation";
+    for (unsigned mode = 0; mode < 5; ++mode) {
+        const char* name = mode == 0   ? "static"
+                           : mode == 1 ? "navigation"
+                           : mode == 2 ? "animation"
+                           : mode == 3 ? "paused_physics"
+                                       : "bone_edit";
         if (mode == 2)
             CHECK(session.Play(reason));
+        else if (mode == 3)
+            session.Pause();
+        if (mode == 4) {
+            CHECK(session.SelectBones({0}, 0, reason));
+            CHECK(session.BeginGesture());
+        }
+        unsigned editStep = 0;
         const auto step = [&] {
             if (mode == 1) {
                 CHECK(session.DragView(false, 1, 0, false, false, reason));
                 window.Refresh();
+            } else if (mode == 4) {
+                CHECK(
+                    session.SetBone(0, 0, {float(++editStep) * .001f, 0, 0}, {0, 0, 0, 1}, reason));
+                window.Refresh();
             } else
-                window.Tick(mode == 2 ? 1. / 60 : 0);
+                window.Tick(mode >= 2 ? 1. / 60 : 0);
         };
         for (unsigned i = 0; i < 10; ++i) {
             step();
@@ -91,6 +106,9 @@ int main(int argc, char** argv) try {
         std::vector<Sample> samples;
         samples.reserve(90);
         const auto updates = session.Runtime().Counters().frames;
+        const auto editorUpdates = session.Runtime().Counters().editorUpdates;
+        const auto cursor = session.CursorSeconds();
+        const auto revision = session.Revision();
         const auto builds = viewport->FrameBuilds();
         for (unsigned i = 0; i < 90; ++i) {
             allocation_counter::Begin();
@@ -104,7 +122,10 @@ int main(int argc, char** argv) try {
                                viewport->CpuTimings().overlay, Ms(start, end),
                                allocation_counter::count, allocation_counter::bytes});
         }
-        CHECK(session.Runtime().Counters().frames - updates == (mode == 2 ? 90 : 0));
+        CHECK(session.Runtime().Counters().frames - updates == (mode == 2 || mode == 3 ? 90 : 0));
+        CHECK(session.Runtime().Counters().editorUpdates - editorUpdates == (mode == 4 ? 90 : 0));
+        if (mode == 3)
+            CHECK(session.CursorSeconds() == cursor && session.Revision() == revision);
         CHECK(viewport->FrameBuilds() - builds == (mode ? 90 : 0));
         CHECK(session.Playing() == (mode == 2));
         CHECK(viewport->Submissions() == 0 && !window.isVisible());
@@ -136,6 +157,8 @@ int main(int argc, char** argv) try {
                << Percentile(samples, [](const auto& s) { return s.bytes; }, .95) << '}';
         std::cout << name << ": p95=" << p95 << "ms max=" << maximum << "ms\n";
         withinBudget = withinBudget && p95 <= p95Budget && maximum <= maxBudget;
+        if (mode == 4)
+            session.EndGesture();
     }
     for (std::size_t i = 0; i < retained.resources.size(); ++i)
         CHECK(retained.resources[i].bytes == retainedBytes[i]);

@@ -1447,3 +1447,27 @@ Win32 editor regressions, the Qt application build and the existing original
 clipboard oracle: 168 exact tables/captures, 168 fixed-axis cases and seven exact
 name cases. The original hashes and numeric limits were unchanged. Linux/macOS
 results for this commit must be recorded separately.
+
+## Paused-physics and bone-edit CPU performance
+
+The CPU preparation gate now distinguishes five workloads: zero-duration cached
+refresh, camera navigation, playback, paused physics and continuous bone edits
+within one gesture. The latter two verify simulation/editor publication counts,
+unchanged paused cursor/revision and retained-frame immutability. Paused physics
+uses the production Qt timer path; bone editing includes command validation,
+history grouping, CPU pose publication, Qt refresh and shared frame preparation.
+It does not include an additional timer physics step in the same sample.
+
+The existing budgets are unchanged: local P95 at most `33.333334 ms` and maximum
+`100 ms`; the shared CI profile uses `100/500 ms`. Both the generated 8,190-vertex
+input and external 139,692-vertex Sour Miku passed. In the final five-case Sour
+run, P95 was **24.82 ms playback**, **29.10 ms paused physics** and **30.14 ms bone
+editing**. The cold frame preparation took **3,055 ms**. This records CPU cost;
+GPU, presentation, cold texture budgets and combined event-loop/frame acceptance
+remain separate work. Full measurements and allocation counts are retained in
+[the editor-frame evidence](evidence/cross-platform-p4-editor-frames.json), without
+redistributing the external model or textures.
+
+The paused-frame implementation `c1d331f` passed all three editor jobs in
+[run 41339142378](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41339142378),
+and the formats/rendering workflows. P4/C1 remains in progress.

@@ -1,0 +1,156 @@
+{
+  "schema": 1,
+  "date": "2026-11-02",
+  "platform": "Windows x64",
+  "cpu": "Intel Core i7-10700, 8 cores / 16 logical processors",
+  "toolchain": "MSVC 2022 Release, Qt 6.8.3",
+  "source": "5d73716 plus five-case benchmark extension",
+  "scope": "EditorWindow Tick/Refresh and production Viewport PrepareFrame; CPU only, no GPU submissions, native surface or audio output. Bone edits exclude a simultaneous timer physics step. C++ allocation counts exclude Qt/driver allocators.",
+  "budgets": "Existing local P95 <= 33.333334 ms, maximum <= 100 ms; unchanged. CI P95 <= 100 ms, maximum <= 500 ms.",
+  "public_generated": {
+    "schema": 1,
+    "profile": "local",
+    "vertices": 8190,
+    "cold_prepare_ms": 11.0653,
+    "p95_budget_ms": 33.333334,
+    "max_budget_ms": 100,
+    "cases": [
+      {
+        "name": "static",
+        "samples": 90,
+        "update_p95_ms": 0.0001,
+        "prepare_p95_ms": 0.0004,
+        "scene_p95_ms": 0,
+        "overlay_p95_ms": 0,
+        "total_p95_ms": 0.0004,
+        "total_max_ms": 0.0004,
+        "cpp_allocations_p95": 0,
+        "cpp_bytes_p95": 0
+      },
+      {
+        "name": "navigation",
+        "samples": 90,
+        "update_p95_ms": 0.6951,
+        "prepare_p95_ms": 2.8135,
+        "scene_p95_ms": 0.9215,
+        "overlay_p95_ms": 1.8446,
+        "total_p95_ms": 3.4834,
+        "total_max_ms": 5.9581,
+        "cpp_allocations_p95": 797,
+        "cpp_bytes_p95": 6328178
+      },
+      {
+        "name": "animation",
+        "samples": 90,
+        "update_p95_ms": 1.8097,
+        "prepare_p95_ms": 2.733,
+        "scene_p95_ms": 0.9381,
+        "overlay_p95_ms": 1.6391,
+        "total_p95_ms": 4.2985,
+        "total_max_ms": 4.6883,
+        "cpp_allocations_p95": 770,
+        "cpp_bytes_p95": 5530652
+      },
+      {
+        "name": "paused_physics",
+        "samples": 90,
+        "update_p95_ms": 1.0219,
+        "prepare_p95_ms": 2.2564,
+        "scene_p95_ms": 0.7343,
+        "overlay_p95_ms": 1.7516,
+        "total_p95_ms": 3.2017,
+        "total_max_ms": 3.7203,
+        "cpp_allocations_p95": 760,
+        "cpp_bytes_p95": 6311939
+      },
+      {
+        "name": "bone_edit",
+        "samples": 90,
+        "update_p95_ms": 3.013,
+        "prepare_p95_ms": 3.3725,
+        "scene_p95_ms": 1.2717,
+        "overlay_p95_ms": 2.0301,
+        "total_p95_ms": 6.0987,
+        "total_max_ms": 9.2847,
+        "cpp_allocations_p95": 2063,
+        "cpp_bytes_p95": 9021655
+      }
+    ],
+    "retained_frame_immutable": true,
+    "gpu_submissions": 0
+  },
+  "sour_miku_external": {
+    "schema": 1,
+    "profile": "local",
+    "vertices": 139692,
+    "cold_prepare_ms": 3055.0995,
+    "p95_budget_ms": 33.333334,
+    "max_budget_ms": 100,
+    "cases": [
+      {
+        "name": "static",
+        "samples": 90,
+        "update_p95_ms": 0.0001,
+        "prepare_p95_ms": 0.0004,
+        "scene_p95_ms": 0,
+        "overlay_p95_ms": 0,
+        "total_p95_ms": 0.0005,
+        "total_max_ms": 0.0005,
+        "cpp_allocations_p95": 0,
+        "cpp_bytes_p95": 0
+      },
+      {
+        "name": "navigation",
+        "samples": 90,
+        "update_p95_ms": 0.9889,
+        "prepare_p95_ms": 9.6695,
+        "scene_p95_ms": 8.0688,
+        "overlay_p95_ms": 1.8588,
+        "total_p95_ms": 10.4421,
+        "total_max_ms": 11.524,
+        "cpp_allocations_p95": 2689,
+        "cpp_bytes_p95": 11658505
+      },
+      {
+        "name": "animation",
+        "samples": 90,
+        "update_p95_ms": 15.5434,
+        "prepare_p95_ms": 10.2111,
+        "scene_p95_ms": 9.0977,
+        "overlay_p95_ms": 1.4511,
+        "total_p95_ms": 24.8178,
+        "total_max_ms": 27.5789,
+        "cpp_allocations_p95": 3533,
+        "cpp_bytes_p95": 16978569
+      },
+      {
+        "name": "paused_physics",
+        "samples": 90,
+        "update_p95_ms": 16.176,
+        "prepare_p95_ms": 13.7799,
+        "scene_p95_ms": 11.5285,
+        "overlay_p95_ms": 2.2992,
+        "total_p95_ms": 29.0986,
+        "total_max_ms": 46.0597,
+        "cpp_allocations_p95": 2029,
+        "cpp_bytes_p95": 18210328
+      },
+      {
+        "name": "bone_edit",
+        "samples": 90,
+        "update_p95_ms": 20.7888,
+        "prepare_p95_ms": 9.4713,
+        "scene_p95_ms": 8.0592,
+        "overlay_p95_ms": 1.7834,
+        "total_p95_ms": 30.1429,
+        "total_max_ms": 32.8638,
+        "cpp_allocations_p95": 6920,
+        "cpp_bytes_p95": 50457758
+      }
+    ],
+    "retained_frame_immutable": true,
+    "gpu_submissions": 0
+  },
+  "external_assets": "Sour Miku is local user-provided input, not distributed.",
+  "p4_status": "in progress; this does not accept total-frame/GPU performance or C1"
+}
