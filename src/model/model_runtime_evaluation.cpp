@@ -55,9 +55,9 @@ bool ModelEvaluation::Initialize(std::string& reason) {
     chains_ = resource_->chains_;
     vertices_ = resource_->document_.vertices;
     const auto& model = resource_->document_;
-    std::vector<cpu_deform::BoneMorphState> boneMorphs(bones_.size());
-    std::vector<cpu_deform::MaterialPool> additive(model.materials.size()),
-        multiplicative(model.materials.size(), Multipliers());
+    boneMorphs_.assign(bones_.size(), {});
+    additive_.assign(model.materials.size(), {});
+    multiplicative_.assign(model.materials.size(), Multipliers());
     const auto apply = [&](const format::PmxMorphDocument& morph, float weight, float reference) {
         const unsigned type = morph.header.type;
         for (const auto& offset : morph.offsets) {
@@ -69,7 +69,7 @@ bool ModelEvaluation::Initialize(std::string& reason) {
                 entry.boneIndex = offset.index;
                 std::copy_n(offset.values, 3, entry.translation);
                 std::copy_n(offset.values + 3, 4, entry.rotation);
-                cpu_deform::AccumBoneEntry(boneMorphs.data(), entry, weight, reference);
+                cpu_deform::AccumBoneEntry(boneMorphs_.data(), entry, weight, reference);
             } else if (type >= 3 && type <= 7) {
                 auto& vertex = vertices_[offset.index];
                 if (type == 3)
@@ -84,11 +84,11 @@ bool ModelEvaluation::Initialize(std::string& reason) {
                 static_assert(sizeof(entry.channels) == 28 * sizeof(float));
                 std::memcpy(&entry.channels, offset.values, sizeof entry.channels);
                 const auto accumulate = [&](std::size_t n) {
-                    cpu_deform::ApplyMatSlot(additive[n], multiplicative[n], entry,
+                    cpu_deform::ApplyMatSlot(additive_[n], multiplicative_[n], entry,
                                              weight * reference);
                 };
                 if (offset.index < 0)
-                    for (std::size_t n = 0; n < additive.size(); ++n)
+                    for (std::size_t n = 0; n < additive_.size(); ++n)
                         accumulate(n);
                 else
                     accumulate(offset.index);
@@ -114,7 +114,7 @@ bool ModelEvaluation::Initialize(std::string& reason) {
     for (std::size_t n = 0; n < bones_.size(); ++n) {
         auto& bone = bones_[n];
         const auto& pose = snapshot_.bones[n];
-        const auto& morph = boneMorphs[n];
+        const auto& morph = boneMorphs_[n];
         std::copy(pose.translation.begin(), pose.translation.end(), bone.trans);
         std::copy(pose.rotation.begin(), pose.rotation.end(), bone.rotQuat);
         std::copy_n(morph.translation, 3, morphPose_[n].begin());
@@ -122,13 +122,13 @@ bool ModelEvaluation::Initialize(std::string& reason) {
         if (bone.slotIndex >= 0)
             slots = std::max(slots, std::size_t(bone.slotIndex + 1));
     }
-    bindings_.resize(slots);
+    bindings_.assign(slots, {});
     snapshot_.materials.resize(model.materials.size());
     for (std::size_t n = 0; n < model.materials.size(); ++n) {
         auto& material = snapshot_.materials[n];
         material.material = model.materials[n].fields;
-        const auto& add = additive[n].channels;
-        const auto& mul = multiplicative[n].channels;
+        const auto& add = additive_[n].channels;
+        const auto& mul = multiplicative_[n].channels;
         const auto base = Base(model.materials[n].fields).channels;
         const auto compose = [](float m, float b, float a) { return m * b + a; };
         for (int c = 0; c < 3; ++c) {
@@ -152,7 +152,7 @@ bool ModelEvaluation::Initialize(std::string& reason) {
         std::copy_n(add.sphereTint, 4, material.sphereAdd.begin());
         std::copy_n(add.toonTint, 4, material.toonAdd.begin());
         for (const auto* values : {&material.textureTint, &material.sphereTint, &material.toonTint,
-                                  &material.textureAdd, &material.sphereAdd, &material.toonAdd})
+                                   &material.textureAdd, &material.sphereAdd, &material.toonAdd})
             if (!Finite(*values)) {
                 reason = "nonfinite-texture-morph-output";
                 return false;
@@ -184,7 +184,7 @@ cpu_model::Model ModelEvaluation::View() {
 }
 bool ModelEvaluation::SetBindings(const std::vector<cpu_model::Binding>& bindings,
                                   std::string& reason) {
-    if (beforeSolved_ || bindings.size() != bindings_.size()) {
+    if (!prepared_ || beforeSolved_ || bindings.size() != bindings_.size()) {
         reason = "invalid-evaluation-bindings";
         return false;
     }
@@ -198,7 +198,7 @@ bool ModelEvaluation::SetBindings(const std::vector<cpu_model::Binding>& binding
     return true;
 }
 bool ModelEvaluation::SetIk(const std::vector<std::uint8_t>& enabled, std::string& reason) {
-    if (beforeSolved_ || enabled.size() != chains_.size()) {
+    if (!prepared_ || beforeSolved_ || enabled.size() != chains_.size()) {
         reason = "invalid-evaluation-ik";
         return false;
     }
@@ -213,7 +213,8 @@ bool ModelEvaluation::Solve(bool afterPhysics, cpu_model::Model* const* slots, i
         reason = "missing-evaluation-resource";
         return false;
     }
-    if (finished_ || (afterPhysics ? !beforeSolved_ || afterSolved_ : beforeSolved_)) {
+    if (!prepared_ || finished_ ||
+        (afterPhysics ? !beforeSolved_ || afterSolved_ : beforeSolved_)) {
         reason = "invalid-evaluation-stage";
         return false;
     }
@@ -239,12 +240,7 @@ bool ModelEvaluation::Solve(bool afterPhysics, cpu_model::Model* const* slots, i
         }
     }
     auto view = View();
-    std::vector<int> layers;
-    for (const auto& bone : bones_)
-        layers.push_back(bone.layer);
-    std::sort(layers.begin(), layers.end());
-    layers.erase(std::unique(layers.begin(), layers.end()), layers.end());
-    for (int layer : layers)
+    for (int layer : resource_->layers_)
         cpu_bone::TransformKernel<cpu_model::Traits>::Run(&view, afterPhysics, layer, slots,
                                                           physicsMode);
     for (std::size_t n = 0; n < bones_.size(); ++n) {
@@ -268,13 +264,12 @@ bool ModelEvaluation::Finish(std::string& reason) {
         reason = "missing-evaluation-resource";
         return false;
     }
-    if (!afterSolved_ || finished_) {
+    if (!prepared_ || !afterSolved_ || finished_) {
         reason = "invalid-evaluation-stage";
         return false;
     }
     constexpr cpu_math::Matrix zero{};
-    std::vector<VertexPose> output;
-    output.reserve(vertices_.size());
+    snapshot_.vertices.resize(vertices_.size());
     for (std::size_t n = 0; n < vertices_.size(); ++n) {
         const auto& v = vertices_[n];
         VertexPose out;
@@ -313,9 +308,8 @@ bool ModelEvaluation::Finish(std::string& reason) {
                 reason = "nonfinite-uv-output";
                 return false;
             }
-        output.push_back(out);
+        snapshot_.vertices[n] = out;
     }
-    snapshot_.vertices = std::move(output);
     finished_ = true;
     reason.clear();
     return true;

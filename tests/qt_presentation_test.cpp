@@ -68,6 +68,11 @@ int main(int argc, char** argv) {
             CHECK(viewport.Submissions() == submissions + 1);
             CHECK(session.Runtime().Counters().frames == updates);
             CHECK(session.Revision() == revision);
+            const auto builds = viewport.FrameBuilds();
+            CHECK(viewport.Render(reason, true));
+            CHECK(viewport.FrameBuilds() == builds);
+            CHECK(viewport.Submissions() == submissions + 2);
+            CHECK(session.Runtime().Counters().frames == updates);
             if (i == 2)
                 CHECK(viewport.Reset(reason));
         }
@@ -80,10 +85,25 @@ int main(int argc, char** argv) {
         pump();
 #endif
         CHECK(viewport.Render(reason, true));
+        const auto recreated = viewport.FrameBuilds();
         CHECK(session.UnloadModel(0, reason));
         CHECK(viewport.Render(reason, true));
+        CHECK(viewport.FrameBuilds() == recreated + 1);
         CHECK(session.Undo(reason));
         CHECK(viewport.Render(reason, true));
+        CHECK(viewport.FrameBuilds() == recreated + 2);
+        CHECK(session.Edit(
+            "capture-history",
+            [](auto& d, auto&) {
+                d.view.captureMode = 1;
+                return true;
+            },
+            reason));
+        CHECK(viewport.Render(reason, true));
+        const auto captured = viewport.FrameBuilds();
+        CHECK(viewport.Render(reason, true));
+        CHECK(viewport.FrameBuilds() == captured + 1);
+        CHECK(session.Undo(reason));
 #ifdef _WIN32
         CHECK(!viewport.isVisible());
 #endif

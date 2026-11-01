@@ -24,11 +24,13 @@ Viewport::~Viewport() {
     controller_.Close();
 }
 void Viewport::SetOptions(const rhi::BackendOptions& options) {
+    frameCached_ = false;
     controller_.Close();
     producer_.ResetHistory();
     options_ = options;
 }
 bool Viewport::Reset(std::string& reason) {
+    frameCached_ = false;
     producer_.ResetHistory();
     if (!controller_.ReplaceDevice()) {
         reason = controller_.Reason();
@@ -68,15 +70,28 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
             return false;
         loaded_ = assets;
         loadedAssets_ = true;
+        frameCached_ = false;
     }
     render::SceneRenderSettings settings;
     settings.width = w;
     settings.height = h;
-    rhi::RenderFrame frame;
-    if (!producer_.Build(session_.Runtime(), settings, frame, reason))
-        return false;
+    const auto revision = session_.Revision(), updates = session_.Runtime().Counters().frames;
+    const bool history = session_.Document().view.captureMode != 0;
+    if (!frameCached_ || history || cachedRevision_ != revision || cachedUpdates_ != updates ||
+        cachedWidth_ != w || cachedHeight_ != h) {
+        frameCached_ = false;
+        if (!producer_.Build(session_.Runtime(), settings, cachedFrame_, reason))
+            return false;
+        ++frameBuilds_;
+        cachedRevision_ = revision;
+        cachedUpdates_ = updates;
+        cachedWidth_ = w;
+        cachedHeight_ = h;
+        frameCached_ = !history;
+    }
     const auto submissions = Submissions();
-    if (!controller_.Draw(frame)) {
+    if (!controller_.Draw(cachedFrame_)) {
+        frameCached_ = false;
         reason = controller_.Reason();
         return false;
     }
@@ -93,6 +108,7 @@ bool Viewport::event(QEvent* event) {
     if (event->type() == QEvent::PlatformSurface &&
         static_cast<QPlatformSurfaceEvent*>(event)->surfaceEventType() ==
             QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
+        frameCached_ = false;
         controller_.Close();
         producer_.ResetHistory();
         options_.surface.reset();

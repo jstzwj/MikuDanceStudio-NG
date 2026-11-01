@@ -19,6 +19,7 @@ public:
     std::function<void(int)> zoom;
     std::function<void(QPoint)> pick;
     std::uint64_t Submissions() const;
+    std::uint64_t FrameBuilds() const { return frameBuilds_; }
 
 protected:
     bool event(QEvent*) override;
@@ -34,6 +35,10 @@ private:
     render::SceneFrameProducer producer_;
     rhi::FileAssetSource builtins_;
     editor::EditorAssets loaded_;
+    rhi::RenderFrame cachedFrame_;
+    std::uint64_t cachedRevision_ = 0, cachedUpdates_ = 0, frameBuilds_ = 0;
+    unsigned cachedWidth_ = 0, cachedHeight_ = 0;
+    bool frameCached_ = false;
     bool loadedAssets_ = false, pressed_ = false;
     QPoint previous_;
 };

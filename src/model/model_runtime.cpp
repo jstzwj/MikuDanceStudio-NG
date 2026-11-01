@@ -204,6 +204,11 @@ bool ModelResource::Create(const format::ModelDocument& source,
                        resource->boneNames_, resource->skeleton_, resource->chains_, reason))
         return false;
     resource->sourceKind_ = source.kind;
+    for (const auto& bone : resource->skeleton_)
+        resource->layers_.push_back(bone.layer);
+    std::sort(resource->layers_.begin(), resource->layers_.end());
+    resource->layers_.erase(std::unique(resource->layers_.begin(), resource->layers_.end()),
+                            resource->layers_.end());
     auto& groups = resource->displayGroups_;
     const auto decode = [](const format::PmxText& bytes) {
         std::string value;
@@ -493,6 +498,17 @@ bool ModelInstance::PreparePose(std::uint32_t frame,
                                 const std::vector<format::PmmEvaluatedBone>& poses,
                                 const std::vector<float>& morphs, ModelEvaluation& output,
                                 std::string& reason) const {
+    ModelEvaluation next;
+    if (!PreparePoseReusing(frame, poses, morphs, next, reason))
+        return false;
+    output = std::move(next);
+    return true;
+}
+bool ModelInstance::PreparePoseReusing(std::uint32_t frame,
+                                       const std::vector<format::PmmEvaluatedBone>& poses,
+                                       const std::vector<float>& morphs, ModelEvaluation& next,
+                                       std::string& reason) const {
+    next.prepared_ = next.beforeSolved_ = next.afterSolved_ = next.finished_ = false;
     if (!resource_)
         return Fail(reason, "missing-model-resource");
     if (frame > std::numeric_limits<std::int32_t>::max())
@@ -500,7 +516,6 @@ bool ModelInstance::PreparePose(std::uint32_t frame,
     if (poses.size() != resource_->BoneNames().size() ||
         morphs.size() != resource_->MorphNames().size())
         return Fail(reason, "pose-shape-mismatch");
-    ModelEvaluation next;
     next.resource_ = resource_;
     next.snapshot_.frame = frame;
     next.snapshot_.morphWeights = morphs;
@@ -518,7 +533,7 @@ bool ModelInstance::PreparePose(std::uint32_t frame,
         return false;
     for (std::size_t n = 0; n < poses.size(); ++n)
         next.bones_[n].physicsDisabled = poses[n].physicsDisabled != 0;
-    output = std::move(next);
+    next.prepared_ = true;
     reason.clear();
     return true;
 }
@@ -526,7 +541,9 @@ bool ModelInstance::Publish(ModelEvaluation&& state, std::string& reason) {
     if (!resource_ || state.resource_ != resource_ || !state.finished_ ||
         state.snapshot_.vertices.size() != resource_->Document().vertices.size())
         return Fail(reason, "evaluation-resource-mismatch");
-    snapshot_ = std::move(state.snapshot_);
+    // The displaced snapshot becomes next frame's unpublished storage.
+    std::swap(snapshot_, state.snapshot_);
+    state.prepared_ = state.finished_ = false;
     reason.clear();
     return true;
 }

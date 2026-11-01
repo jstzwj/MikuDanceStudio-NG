@@ -17,6 +17,9 @@ struct SceneRuntime::Impl {
         std::unique_ptr<ModelInstance> instance;
         std::unique_ptr<ModelPhysics> physics;
         ModelEvaluation evaluation;
+        std::vector<format::PmmEvaluatedBone> inputBones;
+        std::vector<float> inputMorphs;
+        std::vector<std::uint8_t> inputIk;
         ModelTimeline timeline;
         std::vector<std::size_t> boneMap, morphMap, ikMap, selectorMap;
         bool visible = true;
@@ -259,8 +262,10 @@ struct SceneRuntime::Impl {
             auto& item = items.at(slot);
             {
                 auto& timeline = item.timeline;
-                std::vector<format::PmmEvaluatedBone> bones(timeline.bones.size());
-                std::vector<float> morphs(timeline.morphs.size());
+                auto& bones = item.inputBones;
+                auto& morphs = item.inputMorphs;
+                bones.resize(timeline.bones.size());
+                morphs.resize(timeline.morphs.size());
                 for (std::size_t n = 0; n < bones.size(); ++n) {
                     std::copy_n(timeline.bones[n].trans, 3, bones[n].translation.begin());
                     std::copy_n(timeline.bones[n].rotQuat, 4, bones[n].rotation.begin());
@@ -268,13 +273,15 @@ struct SceneRuntime::Impl {
                 }
                 for (std::size_t n = 0; n < morphs.size(); ++n)
                     morphs[n] = timeline.morphs[n].value;
-                if (!item.instance->PreparePose(frame, bones, morphs, item.evaluation, reason))
+                if (!item.instance->PreparePoseReusing(frame, bones, morphs, item.evaluation,
+                                                       reason))
                     return false;
                 item.evaluation.Bones() = timeline.bones;
                 item.visible = timeline.visible != 0;
-                std::vector<std::uint8_t> enabled;
-                for (const auto& chain : timeline.chains)
-                    enabled.push_back(chain.enabled ? 1 : 0);
+                auto& enabled = item.inputIk;
+                enabled.resize(timeline.chains.size());
+                for (std::size_t i = 0; i < enabled.size(); ++i)
+                    enabled[i] = timeline.chains[i].enabled ? 1 : 0;
                 if (!item.evaluation.SetIk(enabled, reason) ||
                     !item.evaluation.SetBindings(timeline.bindings, reason))
                     return false;

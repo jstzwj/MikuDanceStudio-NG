@@ -1,6 +1,7 @@
 #pragma once
 #include "mikudancestudio/cpu_math.hpp"
 #include "mikudancestudio/cpu_model_state.hpp"
+#include "mikudancestudio/cpu_morph.hpp"
 #include "mikudancestudio/model_reader.hpp"
 #include "mikudancestudio/pmm_scene_evaluation.hpp"
 #include "mikudancestudio/vmd_format.hpp"
@@ -74,6 +75,7 @@ private:
     std::vector<ModelDisplayGroup> displayGroups_;
     std::uint32_t displayRoot_ = 0;
     std::vector<std::size_t> order_;
+    std::vector<int> layers_;
     ModelResource() = default;
 };
 class MotionClip final {
@@ -143,7 +145,9 @@ private:
     std::vector<cpu_model::Binding> bindings_;
     std::vector<format::PmxVertexData> vertices_;
     std::vector<std::array<float, 7>> morphPose_;
-    bool beforeSolved_ = false, afterSolved_ = false, finished_ = false;
+    std::vector<cpu_deform::BoneMorphState> boneMorphs_;
+    std::vector<cpu_deform::MaterialPool> additive_, multiplicative_;
+    bool prepared_ = false, beforeSolved_ = false, afterSolved_ = false, finished_ = false;
     bool Initialize(std::string& reason);
 };
 class ModelInstance final {
@@ -156,6 +160,11 @@ public:
     bool Prepare(std::uint32_t frame, ModelEvaluation&, std::string& reason) const;
     bool PreparePose(std::uint32_t frame, const std::vector<format::PmmEvaluatedBone>&,
                      const std::vector<float>& morphs, ModelEvaluation&, std::string& reason) const;
+    // Reuses caller-owned unpublished storage. On rejection the scratch is
+    // invalidated; the instance's published snapshot always remains untouched.
+    bool PreparePoseReusing(std::uint32_t frame, const std::vector<format::PmmEvaluatedBone>&,
+                            const std::vector<float>& morphs, ModelEvaluation& scratch,
+                            std::string& reason) const;
     bool Publish(ModelEvaluation&&, std::string& reason);
     const ModelSnapshot& Snapshot() const { return snapshot_; }
 

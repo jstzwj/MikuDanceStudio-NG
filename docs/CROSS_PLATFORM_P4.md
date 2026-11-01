@@ -160,3 +160,26 @@ detached records is still unsupported: the command rejects the entire edit with
 `native-root-reset-detached-keys-unsupported` rather than silently removing those
 records. Detached-record identity/topology and automatic bone-curve rebuilding
 remain requirements for complete deletion parity.
+
+[Run 41282592148](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41282592148)
+passed interpolation editing and the frozen GDI curve hashes on all platforms.
+The range-scope and root-reset batches also passed all platforms in
+[41283051387](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41283051387) and
+[41283316500](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41283316500).
+
+CPU evaluation now reuses private morph/skin/skeleton storage and exchanges two
+owned publication snapshots. Rejection invalidates only scratch storage; the last
+published snapshot remains valid. A generated 4,096-vertex test compares 120 frames
+exactly with fresh evaluations and counts zero C++ heap allocations after warmup.
+The same local test on Sour Miku (139,692 vertices) counted zero warm allocations,
+versus 2,880 allocations / 4,522,563,480 bytes on the fresh path; this run averaged
+18.52 versus 23.27 ms per evaluation. These are evaluation-only measurements, not
+editor frame timing or a physical-GPU performance claim.
+
+The Qt viewport reuses its immutable prepared CPU frame while revision, CPU
+publication count and dimensions remain unchanged. Resize, edit, seek, resource
+replacement, device reset and surface recreation invalidate it. Screen capture
+history deliberately continues building every submitted frame. The hidden Windows
+native test passed DX11/DX12/Vulkan, asserting repeated static submissions do not
+rebuild the frame, and checking history/lifecycle invalidation. Eight local
+core/Qt/render regressions passed; full-frame performance remains open.
