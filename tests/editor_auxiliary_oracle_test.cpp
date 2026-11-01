@@ -8,8 +8,10 @@
 #include "editor_physics_selection_fixture.hpp"
 #include "editor_reduction_fixture.hpp"
 #include "editor_morph_scale_fixture.hpp"
+#include "editor_camera_scale_fixture.hpp"
 #include "gravity_edit_reference.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
+#include "mikudancestudio/camera_key_math.hpp"
 #include "mikudancestudio/cpu_model_state.hpp"
 #include <cstdio>
 #include <cstdlib>
@@ -834,6 +836,97 @@ unsigned MorphScaleCommands(OriginalPhysicsModule& original, const std::filesyst
         }
     return cases;
 }
+unsigned CameraScaleCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    const unsigned char ret = 0xc3;
+    Patch seek(original.Function<void*>(0x59c30), &ret, 1);
+    Patch refresh(original.Function<void*>(0x20dd0), &ret, 1);
+    auto child = &ResetChild;
+    auto text = &RangeText;
+    Patch getChild(original.Function<void*>(0x128658), &child, sizeof child);
+    Patch getText(original.Function<void*>(0x128690), &text, sizeof text);
+    std::vector<unsigned char> app(0xa3000);
+    auto* pointer = app.data();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    unsigned cases = 0;
+    for (const char* file : {"facial.pmd", "articulated.pmx"})
+        for (unsigned variant = 0; variant < 11; ++variant) {
+            EditorSession portable;
+            std::string reason;
+            Check(CameraScaleFixture(portable, root, file, reason), reason.c_str());
+            const auto before = portable.Document().cameraKeys;
+            std::vector<mdl::CameraKey> native(10000);
+            const auto put = [&](unsigned i, const auto& key) {
+                auto& out = native.at(i);
+                out.frame = key.frame;
+                out.previous = key.previous;
+                out.next = key.next;
+                out.fov = keyframe_edit::SignedCameraFov(key.fov);
+                out.distance = key.distance;
+                out.selected = key.selected;
+                out.perspective = key.perspective;
+                out.parentModel = key.parentModel;
+                out.parentBone = key.parentBone;
+                std::copy(key.eye.begin(), key.eye.end(), out.eye);
+                std::copy(key.target.begin(), key.target.end(), out.target);
+                std::memcpy(out.interpolation, key.interpolation.data(), 24);
+            };
+            for (unsigned i = 0; i < before.dense.size(); ++i)
+                put(i, before.dense[i]);
+            for (const auto& key : before.sparse)
+                put(unsigned(key.index), key.value);
+            for (const auto& [i, key] : before.unused)
+                put(i, key);
+            const auto nativeBefore = native;
+            std::fill(app.begin(), app.end(), 0);
+            auto* keys = native.data();
+            std::memcpy(app.data() + 0x3d0, &keys, sizeof keys);
+            auto values = CameraScaleIdentity;
+            if (variant >= 1 && variant <= 8) {
+                values[2 * (variant - 1)] = -1.25f;
+                values[2 * (variant - 1) + 1] = 35.7f;
+            } else if (variant == 9) {
+                values.fill(0);
+            } else if (variant == 10) {
+                values[14] = 1e30f;
+                values[15] = -1e30f;
+            }
+            rangeFields.clear();
+            for (unsigned i = 0; i < values.size(); ++i) {
+                char field[24];
+                std::snprintf(field, sizeof field, "%.9g", double(values[i]));
+                rangeFields[686 + int(i)] = field;
+            }
+            original.Function<void (*)(HWND)>(0x9c330)(nullptr);
+            Check(portable.ScaleCameraKeys(values, reason), reason.c_str());
+            const auto& track = portable.Document().cameraKeys;
+            std::map<unsigned, PmmCameraKey> expected(track.unused.begin(), track.unused.end());
+            for (unsigned i = 0; i < track.dense.size(); ++i)
+                expected[i] = track.dense[i];
+            for (const auto& key : track.sparse)
+                expected[unsigned(key.index)] = key.value;
+            for (unsigned i = 0; i < native.size(); ++i) {
+                const auto& a = native[i];
+                if (!expected.count(i)) {
+                    Check(!std::memcmp(&a, &nativeBefore[i], sizeof a),
+                          "native free camera changed");
+                    continue;
+                }
+                const auto& b = expected.at(i);
+                Check(a.frame == b.frame && a.previous == b.previous && a.next == b.next &&
+                          a.selected == b.selected && std::uint32_t(a.fov) == b.fov &&
+                          a.parentModel == b.parentModel && a.parentBone == b.parentBone &&
+                          a.perspective == b.perspective &&
+                          !std::memcmp(&a.distance, &b.distance, 4) &&
+                          !std::memcmp(a.eye, b.eye.data(), 12) &&
+                          !std::memcmp(a.target, b.target.data(), 12) &&
+                          !std::memcmp(a.interpolation, b.interpolation.data(), 24),
+                      "native camera-scale full pool differs");
+            }
+            Check(app[0xa1b31], "native camera-scale dirty flag");
+            ++cases;
+        }
+    return cases;
+}
 unsigned reductionCount = 0, reductionMessages = 0;
 int WINAPI ReductionMessage(HWND, LPCSTR text, LPCSTR title, UINT flags) {
     Check(std::strcmp(title, "delete unused frame") == 0 && flags == MB_TOPMOST,
@@ -1098,6 +1191,9 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf(
         "%u original morph-scale applies: full pool bytes, prefix parsing and unused slots\n",
         MorphScaleCommands(original, argv[2]));
+    std::printf(
+        "%u original camera-scale applies: full pool bytes, angle conversion and signed FOV\n",
+        CameraScaleCommands(original, argv[2]));
     return 0;
 } catch (const std::exception& e) {
     std::fprintf(stderr, "%s\n", e.what());

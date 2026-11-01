@@ -172,11 +172,72 @@ struct NativePlayback {
         object.opacity = a.opacity;
     }
 };
+unsigned CameraFovCases(OriginalPhysicsModule& original) {
+    unsigned cases = 0;
+    for (const auto pair : {std::pair{60, 30},
+                            {30, 60},
+                            {-60, -30},
+                            {60, -30},
+                            {-60, 30},
+                            {2147483647, -2147483647 - 1},
+                            {-2147483647 - 1, 2147483647}})
+        for (bool curved : {false, true})
+            for (unsigned frame : {0u, 1u, 3u, 7u, 15u, 29u, 30u, 31u})
+                for (bool seek : {false, true}) {
+                    NativePlayback native(30);
+                    native.camera[0].fov = pair.first;
+                    native.camera[1].fov = pair.second;
+                    if (curved) {
+                        native.camera[1].interpolation[0][5] = 10;
+                        native.camera[1].interpolation[1][5] = 100;
+                        native.camera[1].interpolation[2][5] = 100;
+                        native.camera[1].interpolation[3][5] = 110;
+                    }
+                    const auto scene = native.Scene();
+                    format::PmmScenePlaybackState playback;
+                    Check(format::StartPmmScenePlayback(scene, playback), "FOV start");
+                    native.Current(playback.pose);
+                    float actual;
+                    if (seek) {
+                        native.app->currentFrame = int(frame);
+                        // The seek routine also sends controls notifications to a
+                        // null panel. No HWND or real device is created or targeted.
+                        original.Function<void (*)(void*)>(0x59c30)(native.app.get());
+                        format::PmmEvaluatedCamera camera;
+                        Check(format::EvaluatePmmCameraTrack(scene.cameraKeys, frame,
+                                                             format::PmmCameraInterpolation::Seek,
+                                                             camera),
+                              "FOV seek");
+                        actual = camera.fov;
+                    } else {
+                        native.app->optflag[0] = 1;
+                        native.app->playbackCursorSeconds = float(frame) / 30.f;
+                        original.Function<void (*)(void*, int)>(0x69a20)(native.app.get(), 0);
+                        Check(format::AdvancePmmScenePlayback(
+                                  scene, float(frame) / 30.f, playback,
+                                  {true, true, format::PmmPlaybackArithmetic::NativeFloat}),
+                              "FOV playback");
+                        actual = playback.pose.camera.fov;
+                    }
+                    if (actual != native.app->cameraFov) {
+                        std::fprintf(
+                            stderr,
+                            "FOV %d -> %d frame=%u seek=%d curved=%d actual=%.9g original=%.9g\n",
+                            pair.first, pair.second, frame, seek, curved, actual,
+                            native.app->cameraFov);
+                        Check(false, "native signed FOV differs");
+                    }
+                    ++cases;
+                }
+    return cases;
+}
 int wmain(int argc, wchar_t** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     if (argc != 2)
         return 2;
     OriginalPhysicsModule original(argv[1]);
+    std::printf("Original x64 camera FOV: %u exact seek/playback cases\n",
+                CameraFovCases(original));
     unsigned checkpoints = 0;
     float maximum = 0;
     const auto equal = [&](float a, float b) {

@@ -104,6 +104,7 @@ private:
     void EdgeThickness();
     void GravitySettings();
     void MorphScale();
+    void CameraScale();
     bool Result(bool, const std::string&);
     bool ConfirmUnsaved();
     void CreateViewport(const rhi::BackendOptions&);

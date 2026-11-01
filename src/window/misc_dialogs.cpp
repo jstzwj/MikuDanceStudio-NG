@@ -311,43 +311,15 @@ void CurvePanelRepaint(MMDApp* app) {                            // x64 0x7FF7CB
 // ReloadModels), PostViewRefresh, dirty 0xA0B0D = 1.
 // =========================================================================//
 void ApplyCameraFrameScaleAdd(MMDApp* app, HWND hDlg) { // VA 0x0043DAD0
-    float scale[8];
-    float add[8];
+    std::array<float, 16> values;
     char buf[20];
-    for (int pair = 0; pair < 8; ++pair) {
-        GetWindowTextA(GetDlgItem(hDlg, panel::kCamMulPosXScaleEdit + 2 * pair), buf, 20);
-        scale[pair] = static_cast<float>(atof(buf));
-        GetWindowTextA(GetDlgItem(hDlg, panel::kCamMulPosXOffsetEdit + 2 * pair), buf, 20);
-        add[pair] = static_cast<float>(atof(buf));
+    for (int field = 0; field < 16; ++field) {
+        GetWindowTextA(GetDlgItem(hDlg, panel::kCamMulPosXScaleEdit + field), buf, 20);
+        values[field] = static_cast<float>(atof(buf));
     }
-    // degree -> radian on the three target-angle adds (target.x negated)
-    add[3] = static_cast<float>(add[3] * -3.141592) / 180.0f;
-    add[4] = static_cast<float>(add[4] * 3.141592) / 180.0f;
-    add[5] = static_cast<float>(add[5] * 3.141592) / 180.0f;
-
     mdl::CameraKey* keys = app->CameraKeys();
-    for (std::size_t i = 0; i < mdl::kTimelineKeyCapacity; ++i) {
-        mdl::CameraKey& key = keys[i];
-        if (key.selected == 0)
-            continue;
-        if (scale[0] != 1.0f || add[0] != 0.0f)
-            key.eye[0] = static_cast<float>(scale[0] * key.eye[0]) + add[0];
-        if (scale[1] != 1.0f || add[1] != 0.0f)
-            key.eye[1] = static_cast<float>(scale[1] * key.eye[1]) + add[1];
-        if (scale[2] != 1.0f || add[2] != 0.0f)
-            key.eye[2] = static_cast<float>(scale[2] * key.eye[2]) + add[2];
-        if (scale[3] != 1.0f || add[3] != 0.0f)
-            key.target[0] = static_cast<float>(scale[3] * key.target[0]) + add[3];
-        if (scale[4] != 1.0f || add[4] != 0.0f)
-            key.target[1] = static_cast<float>(scale[4] * key.target[1]) + add[4];
-        if (scale[5] != 1.0f || add[5] != 0.0f)
-            key.target[2] = static_cast<float>(scale[5] * key.target[2]) + add[5];
-        if (scale[6] != 1.0f || add[6] != 0.0f)
-            key.distance = static_cast<float>(scale[6] * key.distance) + add[6];
-        if (scale[7] != 1.0f || add[7] != 0.0f)
-            key.fov = static_cast<int>(static_cast<float>(
-                static_cast<float>(static_cast<float>(key.fov) * scale[7]) + add[7]));
-    }
+    for (std::size_t i = 0; i < mdl::kTimelineKeyCapacity; ++i)
+        keyframe_edit::ScaleCameraKey(keys[i], values);
     ReloadModels(app);    // 0x42E640 (x64 sub_7FF7CB479C30)
     PostViewRefresh(app); // 0x40D130 (x64 sub_7FF7CB440DD0)
     app->SceneModified() = 1;

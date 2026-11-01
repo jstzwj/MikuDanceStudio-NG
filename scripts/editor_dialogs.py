@@ -13,7 +13,8 @@ NAMES = [('bone', 'en', 663), ('bone', 'ja', 648),
          ('screen', 'en', 653), ('screen', 'ja', 607),
          ('edge', 'en', 662), ('edge', 'ja', 645),
          ('gravity', 'en', 803), ('gravity', 'ja', 802),
-         ('morph_scale', 'en', 661), ('morph_scale', 'ja', 643)]
+         ('morph_scale', 'en', 661), ('morph_scale', 'ja', 643),
+         ('camera_scale', 'en', 657), ('camera_scale', 'ja', 623)]
 
 
 def source_dialogs():
@@ -21,7 +22,8 @@ def source_dialogs():
     result = {}
     for kind, language, ident in NAMES:
         command = {'screen': 'SCREEN_SIZE', 'edge': 'EDGE_THICKNESS', 'gravity': 'GRAVITY',
-                   'morph_scale': 'MORPH_MULTIPLY'}.get(kind, kind.upper() + '_NUMERIC_INPUT')
+                   'morph_scale': 'MORPH_MULTIPLY',
+                   'camera_scale': 'CAMERA_FRAME_MULTIPLY'}.get(kind, kind.upper() + '_NUMERIC_INPUT')
         tag = f'MDS_DLG_{command}_{"EN" if language == "en" else "JP"}'
         block = source.split(tag + ' DIALOGEX ', 1)[1].split('\n  END', 1)[0]
         geometry = list(map(int, block.splitlines()[0].split(', ')))
@@ -139,11 +141,15 @@ def run(check):
           'acceleration': '\u52a0\u901f\u5ea6', 'dir x': '\u65b9\u5411 x', 'y': 'y', 'z': 'z',
           'noize': '\u566a\u58f0', '-1                    0                    1': '-1                    0                    1',
           'multiply of facial expression ': '\u8868\u60c5\u5927\u5c0f\u4fee\u6b63',
-          'degree *': '\u5927\u5c0f *', '+': '+'}
+          'degree *': '\u5927\u5c0f *', '+': '+',
+          'multiply of camera frame position-angle': '\u76f8\u673a\u5173\u952e\u5e27\u4f4d\u7f6e\u89d2\u5ea6\u4fee\u6b63',
+          'camera': '\u76f8\u673a\u4e2d\u5fc3', 'angle': '\u89d2\u5ea6',
+          'X *': 'X *', 'Y *': 'Y *', 'Z *': 'Z *',
+          'dist *': '\u8ddd\u79bb *', 'v-angle *': '\u89c6\u89d2 *'}
     for language in ('en', 'ja', 'zh_CN'):
         path = ROOT / 'res/i18n' / (language + '.json')
         catalog = json.loads(path.read_text(encoding='utf-8'))
-        for kind in ('bone', 'camera', 'screen', 'edge', 'gravity', 'morph_scale'):
+        for kind in ('bone', 'camera', 'screen', 'edge', 'gravity', 'morph_scale', 'camera_scale'):
             dialog = source[(kind, 'ja' if language == 'ja' else 'en')]
             labels = {message(kind): dialog['title']}
             labels.update({message(kind, i): control['text']
@@ -156,7 +162,7 @@ def run(check):
             assert path.read_text(encoding='utf-8') == content, f'Stale generated file: {path}'
         else:
             path.write_text(content, encoding='utf-8', newline='\n')
-    print('Original numeric dialogs: twelve binary templates, control order/geometry and three catalogs verified')
+    print(f'Original numeric dialogs: {len(NAMES)} binary templates, control order/geometry and three catalogs verified')
 
 
 if __name__ == '__main__':

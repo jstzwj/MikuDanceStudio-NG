@@ -111,6 +111,7 @@ bool Implemented(int command) {
     case MDS_CMD_RESET_PHYSICS_BODIES:
     case MDS_CMD_EDGE_THICKNESS:
     case MDS_CMD_GRAVITY_SETTINGS:
+    case MDS_CMD_MULTIPLY_CAMERA_FRAMES:
         return true;
     default:
         return false;
@@ -226,6 +227,8 @@ void EditorWindow::RefreshMenus() {
         if (command >= MDS_CMD_SELECT_ALL_CAMERA_FRAMES &&
             command <= MDS_CMD_SELECT_ALL_ACCESSORY_FRAMES)
             enabled &= !model && !session_.Playing();
+        if (command == MDS_CMD_MULTIPLY_CAMERA_FRAMES)
+            enabled &= !model && !session_.Playing();
         action->setEnabled(enabled);
     }
     const auto check = [&](int command, bool value) {
@@ -282,6 +285,10 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_MULTIPLY_MORPH_FRAMES) {
         MorphScale();
+        return;
+    }
+    if (command == MDS_CMD_MULTIPLY_CAMERA_FRAMES) {
+        CameraScale();
         return;
     }
     if (command == MDS_CMD_TOGGLE_UI_LANGUAGE) {

@@ -275,6 +275,28 @@ void CheckCameraEvaluation() {
     Check(EvaluatePmmCameraTrack(scene.cameraKeys, 0.5,
                                  PmmCameraInterpolation::Playback, camera));
     Check(camera.position[0] == 0.0f);
+    scene.cameraKeys.sparse[0].value.frame = 10;
+    for (const auto mode : {PmmCameraInterpolation::Seek, PmmCameraInterpolation::Playback}) {
+        head.fov = 60;
+        scene.cameraKeys.sparse[0].value.fov = 30;
+        Check(EvaluatePmmCameraTrack(scene.cameraKeys, 5, mode, camera));
+        Check(camera.fov == 45.f);
+        head.fov = std::uint32_t(-60);
+        scene.cameraKeys.sparse[0].value.fov = std::uint32_t(-30);
+        Check(EvaluatePmmCameraTrack(scene.cameraKeys, 0, mode, camera));
+        Check(camera.fov == -60.f);
+        Check(EvaluatePmmCameraTrack(scene.cameraKeys, 5, mode, camera));
+        Check(camera.fov == -45.f);
+        Check(EvaluatePmmCameraTrack(scene.cameraKeys, 10, mode, camera));
+        Check(camera.fov == -30.f);
+        Check(EvaluatePmmCameraTrack(scene.cameraKeys, 12, mode, camera));
+        Check(camera.fov == -30.f);
+        // The original integer subtraction wraps before float conversion.
+        head.fov = 0x80000000u;
+        scene.cameraKeys.sparse[0].value.fov = 0x7fffffffu;
+        Check(EvaluatePmmCameraTrack(scene.cameraKeys, 5, mode, camera));
+        Check(camera.fov == -2147483648.f);
+    }
 }
 void CheckAccessoryEvaluation() {
     auto scene = Fixture();

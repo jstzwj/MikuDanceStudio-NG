@@ -1054,6 +1054,66 @@ bool EditorSession::ScaleMorphKeys(float scale, float add, std::string& reason) 
     // Even accepting identity or an empty selection dirties the native scene.
     return Commit(std::move(next), reason, history, false);
 }
+bool EditorSession::ScaleCameraKeys(const std::array<float, 16>& values, std::string& reason) {
+    if (playing_ || selection_.model != 255 ||
+        !std::all_of(values.begin(), values.end(), [](float v) { return std::isfinite(v); })) {
+        reason = "camera-key-scale-unavailable";
+        return false;
+    }
+    auto next = Current();
+    auto& d = next.document;
+    if (d.cameraKeys.dense.size() != 1 ||
+        std::any_of(d.cameraKeys.sparse.begin(), d.cameraKeys.sparse.end(),
+                    [](const auto& k) { return k.index < 1 || k.index >= 10000; }) ||
+        std::any_of(d.cameraKeys.unused.begin(), d.cameraKeys.unused.end(),
+                    [](const auto& k) { return k.first < 1 || k.first >= 10000; })) {
+        reason = "camera-key-scale-pool-index";
+        return false;
+    }
+    if (!SetPmmSelectedKeys(d, 255, selection_.keys)) {
+        reason = "camera-key-scale-selection-expired";
+        return false;
+    }
+    const auto apply = [&](auto& key) {
+        keyframe_edit::ScaleCameraKey(key, values);
+        return !key.selected || (std::isfinite(key.distance) &&
+                                 std::all_of(key.eye.begin(), key.eye.end(),
+                                             [](float v) { return std::isfinite(v); }) &&
+                                 std::all_of(key.target.begin(), key.target.end(),
+                                             [](float v) { return std::isfinite(v); }));
+    };
+    bool valid = true;
+    for (auto& key : d.cameraKeys.dense)
+        valid &= apply(key);
+    for (auto& key : d.cameraKeys.sparse)
+        valid &= apply(key.value);
+    for (auto& [index, key] : d.cameraKeys.unused)
+        valid &= apply(key);
+    if (!valid) {
+        reason = "camera-key-scale-not-finite";
+        return false;
+    }
+    PmmEvaluatedCamera camera;
+    if (!EvaluatePmmCameraTrack(d.cameraKeys, d.timeline.currentFrame, PmmCameraInterpolation::Seek,
+                                camera)) {
+        reason = "camera-key-scale-evaluation-failed";
+        return false;
+    }
+    // Native ReloadModels here reloads only the camera. Pending model poses,
+    // other global values and all bone history survive; view offsets reset.
+    std::copy(camera.position.begin(), camera.position.end(), d.cameraState.begin());
+    std::copy(camera.rotation.begin(), camera.rotation.end(), d.cameraState.begin() + 6);
+    d.cameraState[3] = d.cameraState[4] = 0;
+    d.cameraState[5] = camera.distance;
+    d.envelope.settings.cameraFov = camera.fov;
+    d.cameraPerspective = camera.perspective;
+    d.appearance.cameraParentModel = camera.parentModel;
+    d.appearance.cameraParentBone = camera.parentBone;
+    HistoryBatch history;
+    for (const auto& model : d.models)
+        history.emplace(model.slot, CaptureHistory(model, HistoryKind::None, 0));
+    return Commit(std::move(next), reason, history, false);
+}
 bool EditorSession::ResetRotation(std::string& reason) {
     if (playing_) {
         reason = "rotation-reset-during-playback";

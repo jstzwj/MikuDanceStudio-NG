@@ -3,6 +3,7 @@
 #include "mikudancestudio/vmd_bone_interpolation.hpp"
 #include "gravity_edit_reference.hpp"
 #include "editor_morph_scale_fixture.hpp"
+#include "editor_camera_scale_fixture.hpp"
 #include <fstream>
 #include <iostream>
 #include <cmath>
@@ -40,6 +41,78 @@ int main(int argc, char** argv) {
     CHECK(format::EncodeVmdBoneInterpolation(curve.data(), 1.1f, true) == expected);
     CHECK(format::DecodeVmdBoneInterpolation(expected) == curve);
     const auto root = std::filesystem::absolute(argv[1]);
+    for (const char* file : {"facial.pmd", "articulated.pmx"}) {
+        EditorSession camera;
+        CHECK(CameraScaleFixture(camera, root, file, reason));
+        const auto model = camera.Document().models[0];
+        const auto frames = camera.Runtime().Counters().frames;
+        const auto* runtime = &camera.Runtime();
+        const auto selection = camera.Selected().keys;
+        const auto maxFrame = camera.Document().timeline.lastRegisteredFrame;
+        CHECK(camera.Save(root / "camera-scale.pmm", Write, reason) && !camera.Dirty());
+        auto values = CameraScaleIdentity;
+        values[0] = -2;
+        values[1] = .5f;
+        values[7] = values[9] = values[11] = 90;
+        values[14] = 1.25f;
+        values[15] = .5f;
+        CHECK(camera.ScaleCameraKeys(values, reason) && camera.Dirty());
+        const auto& track = camera.Document().cameraKeys;
+        CHECK(track.dense[0].eye[0] == -2 && track.sparse[0].value.eye[0] == -5.5f);
+        CHECK(track.dense[0].fov == 75 && track.sparse[0].value.fov == 38 &&
+              track.unused.at(9999).fov == std::uint32_t(-37));
+        CHECK(track.sparse[1].value.eye[0] == 3 && track.sparse[2].value.eye[0] == 3 &&
+              track.unused.at(9998).fov == std::uint32_t(-30));
+        CHECK(std::abs(track.dense[0].target[0] - (.25f - 1.570796f)) < 1e-7f &&
+              std::abs(track.dense[0].target[1] - (-.125f + 1.570796f)) < 1e-7f);
+        CHECK(camera.Runtime().Session()->Pose().camera.fov == 64.f &&
+              camera.Document().cameraState[3] == 0 && camera.Document().cameraState[4] == 0);
+        CHECK(camera.Document().models[0].bonePose[0].components == model.bonePose[0].components &&
+              camera.Document().lightState[0] == .875f &&
+              camera.Document().lightKeys.dense[0].selected &&
+              camera.Document().models[0].boneKeys.dense[0].allocated);
+        CHECK(camera.Selected().keys == selection && &camera.Runtime() == runtime &&
+              camera.Runtime().Counters().frames == frames &&
+              camera.Document().timeline.lastRegisteredFrame == maxFrame);
+        const auto revision = camera.Revision();
+        values[0] = std::numeric_limits<float>::infinity();
+        CHECK(!camera.ScaleCameraKeys(values, reason) && camera.Revision() == revision);
+        values = CameraScaleIdentity;
+        values[0] = values[1] = std::numeric_limits<float>::max();
+        CHECK(!camera.ScaleCameraKeys(values, reason) && camera.Revision() == revision);
+        CHECK(camera.SelectModel(0, reason) && camera.CanUndo() && camera.CanRedo());
+        CHECK(!camera.ScaleCameraKeys(CameraScaleIdentity, reason));
+        CHECK(camera.Redo(reason) && camera.Document().models[0].bonePose[0].components[0] == 6);
+        CHECK(camera.SelectModel(255, reason));
+        CHECK(camera.Save(root / "camera-scale.pmm", Write, reason));
+        CHECK(camera.Open(root / "camera-scale.pmm", reason));
+        CHECK(camera.Document().cameraKeys.sparse[0].value.fov == 38);
+        CHECK(camera.Play(reason) && !camera.ScaleCameraKeys(CameraScaleIdentity, reason));
+        camera.Pause();
+        CHECK(camera.SetSelectedKeys({}, reason, {{Track::Camera, 255}}));
+        CHECK(camera.Save(root / "camera-scale.pmm", Write, reason) && !camera.Dirty());
+        CHECK(camera.ScaleCameraKeys(CameraScaleIdentity, reason) && camera.Dirty());
+    }
+    for (bool occupied : {false, true}) {
+        EditorSession invalid;
+        CHECK(invalid.Edit(
+            "invalid-camera-scale-index",
+            [occupied](auto& d, auto&) {
+                auto key = d.cameraKeys.dense[0];
+                key.selected = 1;
+                if (occupied) {
+                    key.frame = 10;
+                    d.cameraKeys.dense[0].next = 10000;
+                    d.cameraKeys.sparse.push_back({10000, 0, key});
+                } else
+                    d.cameraKeys.unused[10000] = key;
+                return true;
+            },
+            reason));
+        const auto revision = invalid.Revision();
+        CHECK(!invalid.ScaleCameraKeys(CameraScaleIdentity, reason) &&
+              reason == "camera-key-scale-pool-index" && invalid.Revision() == revision);
+    }
     for (const char* file : {"facial.pmd", "articulated.pmx"})
         for (const auto& coefficients :
              {std::array<float, 2>{1, 0}, {0, 0}, {-2, .5f}, {1.25f, -.125f}}) {

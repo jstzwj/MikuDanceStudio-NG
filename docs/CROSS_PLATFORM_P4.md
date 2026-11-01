@@ -2039,5 +2039,48 @@ path, template geometry and labels, cancel/accept, history preservation,
 save/reopen, empty selection, playback gating and atomic overflow rejection.
 The final targeted Qt numeric/menu and session regressions passed (13.44 seconds),
 as did the rebuilt Win32 session regression (4.23 seconds). The Qt application
-and legacy Win32 application builds both pass. Three-platform CI for this batch
-remains required; this does not complete P4.
+and legacy Win32 application builds both pass. All three editor jobs passed in
+[run 41359337435](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41359337435).
+This does not complete P4.
+
+## Camera-key scale and offset
+
+Menu 242 uses original templates 657/623 and the three language catalogs. All
+sixteen fields retain original order, geometry, initial focus, identity defaults
+and nineteen-byte prefix conversion. Cancel leaves the session unchanged; model
+mode and playback disable the command. The numeric resource generator now checks
+fourteen templates against the original binary resources.
+
+Win32 and the portable editor share the camera multiply/add kernel. It transforms
+selected records across the 10000-record pool, including unused slots, while
+preserving overlapping records' individual marks. Angle offsets use the original
+single-precision truncated pi, with X negated. FOV converts the signed integer
+through float and truncates back with the native overflow result. Identity skips
+the arithmetic and preserves float payloads. Acceptance dirties even an empty
+selection and reloads only the camera, resetting view offsets. Other global
+values, pending model poses, frame watermarks and bone Undo/Redo survive. Invalid
+input, nonfinite float output and out-of-pool indices are atomic failures.
+
+This uncovered and fixes an independent camera evaluation bug: the PMM FOV DWORD
+was treated as unsigned, so an ordinary 60-to-30 interpolation produced a huge
+positive delta. Seek and playback now interpret the values and wrapping difference
+as signed, with native float multiply/add. The optional playback oracle executes
+original **59C30/69A20** on in-memory device recorders: **224 exact FOV cases** cover
+ascending/descending/negative values, integer boundaries, nonlinear curves, exact
+keys and terminal frames. Its existing **403200 playback value checkpoints** also
+remain exact. No actual device or visible window is created.
+
+The auxiliary oracle executes original apply **9C330**, replacing control-text
+retrieval and seek/paint tails. **22 PMD/PMX cases** compare full camera pools,
+float bits, links, marks and dirty flags; the separate camera oracle above covers
+the evaluation tail. The auxiliary corpus now contains **364 checks/cases**,
+with native trackbar checks additional. Three-language Qt regression exercises
+the actual modal action, binary geometry/labels, tab order, cancellation,
+acceptance and gates; session regression checks history, resource identity,
+unchanged CPU counters, foreign state, save/reopen and rejected edits.
+
+The final x64 numeric/session/evaluation regressions passed (8.90 seconds), as did
+the menu regression, rebuilt playback/navigation/runtime tests (5.39 seconds),
+and rebuilt Win32 session/evaluation tests (4.93 seconds). Both the Qt application
+and legacy Win32 application build successfully. Three-platform CI for this batch
+remains required. P4 remains in progress.

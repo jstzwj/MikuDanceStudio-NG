@@ -1,5 +1,6 @@
 #include "mikudancestudio/pmm_scene_evaluation.hpp"
 #include "mikudancestudio/pmm_edit.hpp"
+#include "mikudancestudio/camera_key_math.hpp"
 #include <cmath>
 #include <unordered_map>
 #include <utility>
@@ -71,8 +72,10 @@ PmmEvaluatedBone EvaluateBone(const PmmBoneKey& key) {
     return {key.position, key.rotation, key.physicsDisabled};
 }
 PmmEvaluatedCamera CameraKeyPose(const PmmCameraKey& key) {
-    return {key.eye,         key.target,      key.distance,  static_cast<float>(key.fov),
-            key.perspective, key.parentModel, key.parentBone};
+    return {key.eye,         key.target,
+            key.distance,    static_cast<float>(keyframe_edit::SignedCameraFov(key.fov)),
+            key.perspective, key.parentModel,
+            key.parentBone};
 }
 float CameraEase(const PmmCameraKey& key, int channel, float t) {
     const auto& curve = key.interpolation;
@@ -170,12 +173,12 @@ bool EvaluatePmmCameraTrack(const PmmKeyTrack<PmmCameraKey>& track, double frame
                                                     static_cast<double>(left.distance)) +
                                                static_cast<double>(left.distance))
                           : distanceEase * (current->distance - left.distance) + left.distance;
-    result.fov =
-        mode == PmmCameraInterpolation::Seek
-            ? static_cast<float>(static_cast<double>(fovEase) *
-                                     static_cast<double>(current->fov - left.fov) +
-                                 left.fov)
-            : fovEase * static_cast<float>(current->fov - left.fov) + static_cast<float>(left.fov);
+    // Native seek and playback subtract DWORDs with wrapping, interpret the
+    // difference as signed, then multiply/add in float. Unsigned subtraction
+    // interpreted as positive breaks even an ordinary descending 60 -> 30 key.
+    const float delta = static_cast<float>(keyframe_edit::SignedCameraFov(current->fov - left.fov));
+    result.fov = static_cast<float>(fovEase * delta) +
+                 static_cast<float>(keyframe_edit::SignedCameraFov(left.fov));
     output = result;
     return true;
 }
