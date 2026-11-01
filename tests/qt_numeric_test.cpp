@@ -9,6 +9,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLabel>
+#include <QLocale>
 #include <QPushButton>
 #include <QTest>
 #include <QTimer>
@@ -109,6 +110,27 @@ int main(int argc, char** argv) {
             dialog.Field(1)->setText(QString(18, ' ') + "9.5");
             dialog.accept();
             CHECK(dialog.Values()[0] == 1 && dialog.Values()[1] == 9);
+            const QLocale previousLocale;
+            QLocale::setDefault(QLocale(QLocale::German));
+            for (const auto& item : std::vector<std::pair<QString, float>>{{".125rest", .125f},
+                                                                           {"-1.25e2suffix", -125},
+                                                                           {"+2.5E-1", .25f},
+                                                                           {"1e+oops", 1},
+                                                                           {"1,25", 1},
+                                                                           {"--1", 0},
+                                                                           {"0x10", 0}}) {
+                dialog.Field(0)->setText(item.first);
+                dialog.accept();
+                CHECK(dialog.Values()[0] == item.second);
+            }
+            for (const char* invalid : {"inf", "-infinity", "NaN", "1e99", "1e999", "1e-999"}) {
+                const auto before = dialog.Values();
+                dialog.setResult(QDialog::Rejected);
+                dialog.Field(0)->setText(invalid);
+                dialog.accept();
+                CHECK(dialog.result() == QDialog::Rejected && dialog.Values() == before);
+            }
+            QLocale::setDefault(previousLocale);
             CHECK(!dialog.isVisible());
             qt::NumericDialog keyboard(camera, language, initial);
             keyboard.show(); // Guarded above: the offscreen QPA never exposes a desktop window.

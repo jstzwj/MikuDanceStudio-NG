@@ -1,7 +1,8 @@
 #include "numeric_dialog.hpp"
 #include <QLabel>
+#include <QLocale>
 #include <QPushButton>
-#include <charconv>
+#include <QRegularExpression>
 #include <cmath>
 namespace mikudancestudio::qt {
 NumericDialog::NumericDialog(bool camera, const Language& language,
@@ -71,19 +72,21 @@ void NumericDialog::accept() {
         const char* end = begin + bytes.size();
         while (begin < end && (*begin == ' ' || (*begin >= '\t' && *begin <= '\r')))
             ++begin;
-        if (begin < end && *begin == '+') {
-            ++begin;
-            if (begin < end && (*begin == '+' || *begin == '-'))
-                begin = end;
-        }
+        // libc++ on our macOS baseline has no floating-point from_chars.
+        // Recognize the same decimal prefix, then convert in the C locale;
+        // the desktop's decimal separator must not change PMM input values.
+        static const QRegularExpression prefix(
+            QStringLiteral("^[+-]?(?:(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)"
+                           "(?:[eE][+-]?[0-9]+)?|inf(?:inity)?|nan)"),
+            QRegularExpression::CaseInsensitiveOption);
+        const auto match = prefix.match(QString::fromLatin1(begin, end - begin));
         double parsed = 0;
-        const auto result = std::from_chars(begin, end, parsed);
+        bool valid = true;
+        if (match.hasMatch())
+            parsed = QLocale::c().toDouble(match.captured(), &valid);
         // Native atof accepts a decimal prefix and maps nonnumeric text to 0.
         // Reject non-finite/overflow values at the shared editor's boundary.
-        if (result.ec == std::errc::invalid_argument)
-            parsed = 0;
-        if (result.ec == std::errc::result_out_of_range || !std::isfinite(parsed) ||
-            !std::isfinite(float(parsed))) {
+        if (!valid || !std::isfinite(parsed) || !std::isfinite(float(parsed))) {
             fields_[i]->setFocus(Qt::OtherFocusReason);
             fields_[i]->selectAll();
             return;
