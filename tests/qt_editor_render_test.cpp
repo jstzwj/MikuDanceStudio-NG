@@ -323,6 +323,39 @@ int main(int argc, char** argv) {
               renderer.ReadTarget(1, before.finalColor, second));
         CHECK(first.bytes == second.bytes);
     }
+    CHECK(session.New(reason) && session.ImportModel(root / "outline.pmx", reason));
+    CHECK(session.Edit(
+        "outline-view",
+        [](auto& d, auto&) {
+            d.view.groundGrid = d.view.groundShadow = d.selfShadowMode = 0;
+            return true;
+        },
+        reason));
+    CHECK(session.SelectModel(0, reason));
+    sources.models = session.Assets().modelPaths;
+    CHECK(producer.Load(session.Runtime(), sources, builtin, reason));
+    settings.shadow.mode = 0;
+    CHECK(producer.Build(session.Runtime(), settings, before, reason));
+    QImage edgeFirst, edgeThick, edgeRestored;
+    CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96, edgeFirst,
+                          reason));
+    const auto edgeFrames = session.Runtime().Counters().frames;
+    const auto edgeUpdates = session.Runtime().Counters().editorUpdates;
+    CHECK(session.SetEdgeThickness(8, reason));
+    CHECK(producer.Build(session.Runtime(), settings, after, reason));
+    CHECK(before.passes[0].draws.front().vertices.version ==
+          after.passes[0].draws.front().vertices.version);
+    CHECK(before.passes[0].draws.back().vertices.version <
+          after.passes[0].draws.back().vertices.version);
+    CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96, edgeThick,
+                          reason));
+    CHECK(edgeFirst != edgeThick);
+    CHECK(session.SetEdgeThickness(1, reason));
+    CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
+                          edgeRestored, reason));
+    CHECK(edgeFirst == edgeRestored);
+    CHECK(session.Runtime().Counters().frames == edgeFrames &&
+          session.Runtime().Counters().editorUpdates == edgeUpdates);
     CHECK(session.New(reason) && session.ImportModel(root / "tint-morph.pmx", reason));
     CHECK(session.Edit(
         "plain-morph-view",

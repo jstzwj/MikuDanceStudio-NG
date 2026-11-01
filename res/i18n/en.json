@@ -505,5 +505,8 @@
   "dialog.numeric.screen.control.4": "OK",
   "dialog.numeric.screen.control.5": "cancel",
   "dialog.screen.too_big": "too big for your PC!",
-  "dialog.screen.positive": "Width and height must be positive integers."
+  "dialog.screen.positive": "Width and height must be positive integers.",
+  "dialog.numeric.edge.title": "thickness of edge line",
+  "dialog.numeric.edge.control.0": "thickness",
+  "dialog.numeric.edge.control.3": "0                     1                    2"
 }

@@ -505,5 +505,8 @@
   "dialog.numeric.screen.control.4": "确定",
   "dialog.numeric.screen.control.5": "取消",
   "dialog.screen.too_big": "超出当前设备支持的尺寸！",
-  "dialog.screen.positive": "宽度和高度必须是正整数。"
+  "dialog.screen.positive": "宽度和高度必须是正整数。",
+  "dialog.numeric.edge.title": "描边粗细",
+  "dialog.numeric.edge.control.0": "粗细",
+  "dialog.numeric.edge.control.3": "0                     1                    2"
 }

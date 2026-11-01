@@ -972,6 +972,24 @@ bool EditorSession::ResetRotation(std::string& reason) {
 void EditorSession::ResetPhysicsBodies() {
     runtime_->RequestPhysicsReset();
 }
+bool EditorSession::SetEdgeThickness(float value, std::string& reason) {
+    reason.clear();
+    if (!std::isfinite(value)) {
+        reason = "edge-thickness-not-finite";
+        return false;
+    }
+    // The original open dialog remains usable after model/camera selection changes.
+    if (selection_.model == 255)
+        return true;
+    if (!runtime_->SetModelEdgeScale(selection_.model, value)) {
+        reason = "edge-model-unavailable";
+        return false;
+    }
+    // Even an unchanged accepted value marks the native document. Do not seek,
+    // pause, recalculate retained key watermarks or consume bone undo/redo.
+    revision_ = nextRevision_++;
+    return true;
+}
 bool EditorSession::SetRenderSize(unsigned width, unsigned height, std::string& reason) {
     if (!width || !height || width > 16384 || height > 16384) {
         reason = "render-size-out-of-range";

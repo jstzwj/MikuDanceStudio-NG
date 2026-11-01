@@ -50,7 +50,7 @@ def pmd(texture='checker.bmp', alpha=1, bones=None, bone_types=None, bone_parent
     return b
 
 
-def pmx(material_flags=0x11, tint_morphs=False, display_groups=False, extra_uv=0, subtexture=False, base=True, tail_offset=False, copies=1):
+def pmx(material_flags=0x11, tint_morphs=False, display_groups=False, extra_uv=0, subtexture=False, base=True, tail_offset=False, copies=1, outline=False):
     assert 1 <= copies <= 21845
     b = Bytes(b'PMX '); b.f(2); b.u8(8)
     b.extend(bytes((0, extra_uv, 2, 1, 1, 1, 1, 1)))
@@ -59,18 +59,26 @@ def pmx(material_flags=0x11, tint_morphs=False, display_groups=False, extra_uv=0
     for n in range(3 * copies):
         index = n % 3
         p = POSITIONS[index]
-        b.f(*p); b.f(0, 0, -1); b.f(index / 2, index % 2)
+        b.f(*p)
+        if outline:
+            length = (p[0] ** 2 + p[1] ** 2) ** .5
+            b.f(p[0] / length, p[1] / length, 0)
+        else:
+            b.f(0, 0, -1)
+        b.f(index / 2, index % 2)
         for u in range(extra_uv):
             b.f(1 - index / 2 + u * .125, index % 2 + .25, .25 + u, -.75 - u)
         b.u8(0); b.u8(0); b.f(1)  # BDEF1, edge scale
-    b.u32(3 * copies)
+    b.u32((6 if outline else 3) * copies)
     for index in range(3 * copies): b.u16(index)
+    if outline:
+        for index in reversed(range(3 * copies)): b.u16(index)
     b.u32(1); b.text('checker.bmp')
     b.u32(1); b.text('M'); b.text('')
     b.f(.8, .6, .4, 1, .1, .1, .1, 4, .3, .3, .3)
     b.u8(material_flags); b.f(0, 0, 0, 1, 1)  # explicit PMX material flags
     b.extend(bytes((0 if base else 255, 0 if subtexture else 255, 3 if subtexture else 0, 1, 0)))  # base, no sphere, shared Toon 1
-    b.text(''); b.u32(3 * copies)
+    b.text(''); b.u32((6 if outline else 3) * copies)
     b.u32(1); b.text('B'); b.text(''); b.f(0, 0, 0)
     b.u8(255); b.u32(0); b.u16(8 if tail_offset else 9)
     if tail_offset: b.f(4, 2, 0)
@@ -272,6 +280,7 @@ def write(directory):
     (root / 'facial.pmd').write_bytes(pmd(facial=True))
     (root / 'sphere.pmd').write_bytes(pmd('s.sph'))
     (root / 'triangle.pmx').write_bytes(pmx())
+    (root / 'outline.pmx').write_bytes(pmx(outline=True))
     (root / 'overlay-offset.pmx').write_bytes(pmx(tail_offset=True))
     (root / 'overlay-types.pmd').write_bytes(pmd(bones=tuple('T%d' % n for n in range(10)), bone_types=tuple(range(10))))
     (root / 'drag-roots.pmd').write_bytes(pmd(bones=('root', 'child', 'other'), bone_types=(1, 1, 1), bone_parents=(65535, 0, 65535)))

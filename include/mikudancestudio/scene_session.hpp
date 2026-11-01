@@ -3,6 +3,7 @@
 #include "mikudancestudio/pmm_scene_evaluation.hpp"
 #include "mikudancestudio/pmm_scene_world.hpp"
 #include <functional>
+#include <cmath>
 #include <optional>
 #include <string>
 
@@ -83,6 +84,17 @@ public:
     bool Edit(const std::function<void(PmmSceneDocument&)>& change);
     // The runtime also updates its ground body, without seeking the scene.
     void SetPhysicsFloor(bool enabled) { scene_.appearance.floorVisible = enabled; }
+    // Live model property: retain evaluated poses, playback and physics state.
+    bool SetModelEdgeScale(std::uint8_t slot, float value) {
+        if (!loaded_ || !std::isfinite(value))
+            return false;
+        for (auto& model : scene_.models)
+            if (model.slot == slot) {
+                model.edgeScale = value;
+                return true;
+            }
+        return false;
+    }
     // UI-only PMM metadata; does not seek or invalidate the evaluated pose.
     void SetPanelExpanded(unsigned option, bool expanded) {
         if (option > 0 && option < scene_.envelope.settings.options.size())

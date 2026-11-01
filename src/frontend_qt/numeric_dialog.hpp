@@ -3,6 +3,7 @@
 #include "mikudancestudio/mmd_numeric_dialogs.hpp"
 #include <QDialog>
 #include <QLineEdit>
+#include <QSlider>
 #include <array>
 #include <functional>
 #include <map>
@@ -14,10 +15,14 @@ public:
 protected:
     TemplateDialog(const ui::NumericTemplate&, const Language&, QWidget*);
     QLineEdit* Edit(int id) const { return edits_.at(id); }
+    QSlider* Slider(int id) const { return sliders_.at(id); }
+    void Prefill(int id, const QString&);
 
 private:
     const ui::NumericTemplate& template_;
+    bool english_;
     std::map<int, QLineEdit*> edits_;
+    std::map<int, QSlider*> sliders_;
 };
 class NumericDialog final : public TemplateDialog {
 public:
@@ -42,5 +47,14 @@ public:
 
 private:
     QSize value_, maximum_;
+};
+class EdgeThicknessDialog final : public TemplateDialog {
+public:
+    EdgeThicknessDialog(const Language&, float value, QWidget* parent = nullptr);
+    QLineEdit* Field() const { return Edit(646); }
+    QSlider* Trackbar() const { return Slider(647); }
+    // Modeless: Enter applies the field; closing discards uncommitted text.
+    void accept() override {}
+    std::function<void(float)> changed;
 };
 }

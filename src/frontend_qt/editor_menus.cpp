@@ -105,6 +105,7 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_FULL_SCREEN:
     case MDS_CMD_RESET_BONE_CAMERA_ROTATION:
     case MDS_CMD_RESET_PHYSICS_BODIES:
+    case MDS_CMD_EDGE_THICKNESS:
         return true;
     default:
         return false;
@@ -206,6 +207,8 @@ void EditorWindow::RefreshMenus() {
         bool enabled = Implemented(command);
         if (ModelCommand(command))
             enabled &= model && !session_.Playing();
+        if (command == MDS_CMD_EDGE_THICKNESS)
+            enabled &= model;
         if (command == MDS_CMD_RESET_BONE_CAMERA_ROTATION)
             enabled &= !session_.Playing();
         if (command == MDS_CMD_TOGGLE_SEPARATE_WINDOW)
@@ -248,6 +251,10 @@ void EditorWindow::MenuCommand(int command) {
         return;
     if (const auto* name = FileCommand(command)) {
         FileAction(name);
+        return;
+    }
+    if (command == MDS_CMD_EDGE_THICKNESS) {
+        EdgeThickness();
         return;
     }
     if (command == MDS_CMD_TOGGLE_UI_LANGUAGE) {

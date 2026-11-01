@@ -15,6 +15,7 @@
 #include <QTimer>
 #include <QInputMethodEvent>
 #include <iostream>
+#include <limits>
 using namespace mikudancestudio;
 std::string reason;
 #define CHECK(x)                                                                                   \
@@ -266,6 +267,185 @@ int main(int argc, char** argv) {
     CHECK(camera.rotation == editor::CameraNumericRotation({8.125f, 10, 0, 30, -12.5f, 0, 67.25f}));
     CHECK(&session.Runtime() == runtime && session.Runtime().Counters().frames == frames);
     CHECK(!window.isVisible());
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(language.Set(code));
+        qt::EdgeThicknessDialog dialog(language, .57f);
+        const auto expected =
+            reference[QString("edge.") + (language.Code() == "en" ? "en" : "ja")].toObject();
+        CHECK(dialog.Template().id == expected["id"].toInt());
+        const auto rect = expected["rect"].toArray();
+        const int unitY = language.Code() == "en" ? 15 : 12;
+        CHECK(dialog.size() ==
+              QSize((rect[2].toInt() * 7 + 2) / 4, (rect[3].toInt() * unitY + 4) / 8));
+        if (language.Code() != "zh_CN")
+            CHECK(dialog.windowTitle() == expected["title"].toString());
+        const auto controls = expected["controls"].toArray();
+        for (int i = 0; i < controls.size(); ++i) {
+            auto* widget = dialog.findChild<QWidget*>(QString("numeric.control.%1").arg(i));
+            CHECK(widget);
+            const auto control = controls[i].toObject();
+            const auto r = control["rect"].toArray();
+            CHECK(widget->geometry() ==
+                  QRect((r[0].toInt() * 7 + 2) / 4, (r[1].toInt() * unitY + 4) / 8,
+                        (r[2].toInt() * 7 + 2) / 4, (r[3].toInt() * unitY + 4) / 8));
+            CHECK(widget->property("mmdControlId").toInt() == control["id"].toInt());
+            if (auto* label = qobject_cast<QLabel*>(widget)) {
+                if (language.Code() != "zh_CN")
+                    CHECK(label->text() == control["text"].toString());
+            } else if (control["id"].toInt() == 646)
+                CHECK(widget == dialog.Field());
+            else
+                CHECK(widget == dialog.Trackbar());
+        }
+        CHECK(dialog.Field()->text() == "0.5" && dialog.Trackbar()->value() == 57);
+        CHECK(dialog.Trackbar()->minimum() == 0 && dialog.Trackbar()->maximum() == 200);
+        CHECK(dialog.Trackbar()->tickPosition() == QSlider::NoTicks);
+        CHECK(dialog.focusWidget() == dialog.Field() && dialog.Field()->selectedText() == "0.5");
+        unsigned edits = 0;
+        float value = .57f;
+        dialog.changed = [&](float next) {
+            ++edits;
+            value = next;
+        };
+        dialog.show(); // Main's offscreen QPA guard forbids exposing a desktop window.
+        QCoreApplication::processEvents();
+        dialog.Field()->setText("1.23456789");
+        dialog.Trackbar()->setFocus();
+        QCoreApplication::processEvents();
+        CHECK(edits == 0);
+        struct Input {
+            const char* text;
+            float value;
+            int slider;
+        };
+        for (const auto& item :
+             {Input{"1.23456789", 1.23456f, 123}, Input{"-0.25", -.25f, 0},
+              Input{"2.50", 2.5f, 200}, Input{"nonsense", 0, 0}, Input{"0.57", .57f, 57},
+              Input{"2e30", 2e30f, 0}, Input{"1,25", 1, 100}}) {
+            dialog.Field()->setText(item.text);
+            const auto before = edits;
+            QTest::keyClick(dialog.Field(), Qt::Key_Return);
+            CHECK(edits == before + 1 && value == item.value);
+            CHECK(dialog.Trackbar()->value() == item.slider);
+            CHECK(dialog.Field()->text() == item.text && dialog.isVisible());
+        }
+        for (const char* text : {"inf", "nan", "1e99"}) {
+            const auto before = edits;
+            dialog.Field()->setText(text);
+            QTest::keyClick(dialog.Field(), Qt::Key_Return);
+            CHECK(edits == before && dialog.Field()->selectedText() == text);
+        }
+        dialog.Trackbar()->setValue(57);
+        CHECK(value == .57f && dialog.Field()->text() == "0.5");
+        for (int position = 0; position <= 200; ++position) {
+            dialog.Trackbar()->setValue(position);
+            CHECK(value == float(position) / 100.f);
+            CHECK(dialog.Field()->text() == QString::asprintf("%3.2f", double(value)).left(3));
+        }
+        dialog.Trackbar()->setValue(57);
+        const auto before = edits;
+        dialog.Field()->setText("1.75");
+        dialog.close();
+        CHECK(edits == before && value == .57f && !dialog.isVisible());
+
+        qt::EditorWindow owner(std::filesystem::absolute(argv[2]), true);
+        auto& editor = owner.Session();
+        CHECK(owner.SetLanguage(code));
+        CHECK(editor.ImportModel(root / "pose.pmd", reason));
+        CHECK(editor.ImportModel(root / "articulated.pmx", reason));
+        CHECK(editor.SelectModel(0, reason));
+        CHECK(editor.SetBone(0, 0, {1, 2, 3}, {0, 0, 0, 1}, reason));
+        CHECK(editor.Undo(reason) && editor.CanRedo());
+        CHECK(owner.Save(root / "edge.pmm") && !editor.Dirty());
+        owner.Refresh();
+        const auto action = [&](int id) -> QAction* {
+            for (auto* candidate : owner.findChildren<QAction*>())
+                if (candidate->property("mmdCommandId").toInt() == id)
+                    return candidate;
+            return nullptr;
+        };
+        const auto findDialog = [&]() -> qt::EdgeThicknessDialog* {
+            for (auto* child : owner.findChildren<QDialog*>())
+                if (auto* result = dynamic_cast<qt::EdgeThicknessDialog*>(child))
+                    return result;
+            return nullptr;
+        };
+        CHECK(action(MDS_CMD_EDGE_THICKNESS)->isEnabled());
+        action(MDS_CMD_EDGE_THICKNESS)->trigger();
+        QPointer<qt::EdgeThicknessDialog> live = findDialog();
+        CHECK(live && !live->isVisible());
+        live->Field()->setText("1.75pending");
+        action(MDS_CMD_EDGE_THICKNESS)->trigger();
+        CHECK(findDialog() == live && live->Field()->text() == "1.75pending");
+        const auto frames = editor.Runtime().Counters().frames;
+        const auto maxFrame = editor.Document().timeline.lastRegisteredFrame;
+        const auto* runtime = &editor.Runtime();
+        live->Trackbar()->setValue(57);
+        CHECK(editor.Document().models[0].edgeScale == .57f && editor.Dirty());
+        CHECK(editor.Runtime().Counters().frames == frames);
+        CHECK(editor.CanRedo() && !editor.CanUndo());
+        CHECK(editor.Redo(reason) && editor.Document().models[0].edgeScale == .57f);
+        CHECK(editor.Undo(reason) && editor.Document().models[0].edgeScale == .57f);
+        CHECK(owner.Save(root / "edge.pmm") && !editor.Dirty());
+        live->Field()->setText("0.57"); // WM_SETTEXT can bypass the native insertion width limit.
+        QTest::keyClick(live->Field(), Qt::Key_Return);
+        CHECK(editor.Dirty()); // Even an accepted unchanged value sets the native modified flag.
+        CHECK(editor.SelectModel(1, reason));
+        live->Field()->setText("2.50");
+        QTest::keyClick(live->Field(), Qt::Key_Return);
+        CHECK(editor.Document().models[0].edgeScale == .57f &&
+              editor.Document().models[1].edgeScale == 2.5f);
+        CHECK(editor.SelectModel(255, reason));
+        owner.Refresh();
+        CHECK(!action(MDS_CMD_EDGE_THICKNESS)->isEnabled());
+        const auto revision = editor.Revision();
+        live->Trackbar()->setValue(17);
+        CHECK(editor.Revision() == revision && editor.Document().models[1].edgeScale == 2.5f);
+        CHECK(editor.SelectModel(0, reason));
+        CHECK(editor.Play(reason));
+        owner.Refresh();
+        const auto epoch = editor.PlaybackEpoch();
+        const auto cursor = editor.CursorSeconds();
+        const auto playbackFrames = runtime->Counters().frames;
+        live->Field()->setText("-0.25");
+        QTest::keyClick(live->Field(), Qt::Key_Return);
+        CHECK(editor.Playing() && editor.PlaybackEpoch() == epoch &&
+              editor.CursorSeconds() == cursor);
+        CHECK(editor.Document().models[0].edgeScale == -.25f &&
+              runtime->Counters().frames == playbackFrames);
+        editor.Pause();
+        CHECK(&editor.Runtime() == runtime &&
+              editor.Document().timeline.lastRegisteredFrame == maxFrame);
+        CHECK(owner.Save(root / "edge.pmm"));
+        CHECK(editor.UnloadModel(0, reason));
+        CHECK(editor.SelectModel(255, reason));
+        const auto unloadedRevision = editor.Revision();
+        live->Trackbar()->setValue(99);
+        CHECK(editor.Revision() == unloadedRevision);
+        live->Field()->setText("1.99");
+        live->close();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        CHECK(live.isNull());
+        CHECK(owner.Open(root / "edge.pmm"));
+        CHECK(editor.Document().models[0].edgeScale == -.25f &&
+              editor.Document().models[1].edgeScale == 2.5f);
+        CHECK(editor.SelectModel(1, reason));
+        owner.Refresh();
+        action(MDS_CMD_TOGGLE_SEPARATE_WINDOW)->trigger();
+        action(MDS_CMD_EDGE_THICKNESS)->trigger();
+        live = findDialog();
+        CHECK(live && live->Field()->text() == "2.5" &&
+              live->windowFlags().testFlag(Qt::WindowStaysOnTopHint));
+        CHECK(owner.Save(root / "edge.pmm"));
+        const auto savedRevision = editor.Revision();
+        CHECK(!editor.SetEdgeThickness(std::numeric_limits<float>::infinity(), reason));
+        CHECK(editor.Revision() == savedRevision && !editor.Dirty());
+        CHECK(!owner.isVisible() && !owner.SeparateWindow()->isVisible() && !live->isVisible());
+        live->Field()->setText("1.99");
+        CHECK(owner.close());
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        CHECK(live.isNull() && editor.Document().models[1].edgeScale == 2.5f);
+    }
     std::cout
         << "Numeric dialogs: binary geometry/labels, tab order, formatting, cancel and editor publication passed\n";
 }

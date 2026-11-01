@@ -9,8 +9,10 @@
 #include <QElapsedTimer>
 #include <QTimer>
 #include <QAction>
+#include <QPointer>
 #include <map>
 namespace mikudancestudio::qt {
+class EdgeThicknessDialog;
 class EditorWindow final : public QMainWindow {
 public:
     explicit EditorWindow(std::filesystem::path assets, bool testing = false,
@@ -47,6 +49,7 @@ private:
     Viewport* viewport_ = nullptr;
     QWidget* viewportContainer_ = nullptr;
     QWidget* separate_ = nullptr;
+    QPointer<EdgeThicknessDialog> edgeDialog_;
     QByteArray separateGeometry_;
     QSize separateSize_{800, 657};
     int dockedSidebarWidth_ = 250;
@@ -93,6 +96,7 @@ private:
     void FileAction(const QString&);
     void Numeric();
     void ScreenSize();
+    void EdgeThickness();
     bool Result(bool, const std::string&);
     bool ConfirmUnsaved();
     void CreateViewport(const rhi::BackendOptions&);

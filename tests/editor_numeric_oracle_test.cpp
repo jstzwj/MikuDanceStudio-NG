@@ -1,11 +1,16 @@
 #include <Windows.h>
 #include "mikudancestudio/editor_numeric.hpp"
+#include "mikudancestudio/mmd_dialog_edit_metrics.hpp"
+#include <commctrl.h>
 #include "editor_numeric_fixture.hpp"
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <stdexcept>
 #include <vector>
+#include <algorithm>
+#include <memory>
+#include <string>
 static void Check(bool ok, const char* reason) {
     if (!ok)
         throw std::runtime_error(reason);
@@ -40,6 +45,203 @@ public:
     }
     ~Patch() { Write(before_.data()); }
 };
+// Record original edge-dialog control calls without creating a window. The
+// seven-byte read, float arithmetic and current-model writes still execute in
+// the hash-verified original; this intentionally does not emulate EDIT clipping.
+std::string edgeText;
+int edgeSlider = 0, forwarded = 0;
+bool edgeDestroyed = false;
+INT_PTR CALLBACK HiddenDialog(HWND, UINT, WPARAM, LPARAM) {
+    return FALSE;
+}
+void EditWidthOracle(const wchar_t* path) {
+    HMODULE controls = LoadLibraryW(L"comctl32.dll");
+    Check(controls != nullptr, "load common controls");
+    const auto init = reinterpret_cast<BOOL(WINAPI*)(const INITCOMMONCONTROLSEX*)>(
+        GetProcAddress(controls, "InitCommonControlsEx"));
+    INITCOMMONCONTROLSEX config{sizeof config, ICC_BAR_CLASSES};
+    Check(init && init(&config), "initialize hidden trackbars");
+    HMODULE resources =
+        LoadLibraryExW(path, nullptr, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+    Check(resources != nullptr, "load original numeric resources");
+    unsigned checkpoints = 0;
+    for (int id : {662, 645, 663, 648, 664, 649, 653, 607}) {
+        HRSRC resource = FindResourceW(resources, MAKEINTRESOURCEW(id), MAKEINTRESOURCEW(5));
+        Check(resource != nullptr, "find original dialog resource");
+        const auto* bytes =
+            static_cast<const unsigned char*>(LockResource(LoadResource(resources, resource)));
+        DWORD style;
+        std::memcpy(&style, bytes + 12, sizeof style);
+        Check((style & WS_VISIBLE) == 0, "original dialog must never be shown");
+        HWND dialog = CreateDialogParamA(resources, MAKEINTRESOURCEA(id), nullptr, HiddenDialog, 0);
+        Check(dialog && !IsWindowVisible(dialog), "create hidden original dialog");
+        const bool edge = id == 662 || id == 645, screen = id == 653 || id == 607;
+        const bool english = id == 662 || id == 663 || id == 664 || id == 653;
+        HWND edit = GetDlgItem(dialog, edge ? 646 : screen ? 621 : 637);
+        RECT rectangle;
+        Check(edit && GetWindowRect(edit, &rectangle), "original edit geometry");
+        for (const char* text :
+             {"0.57", "1.37", "-0.25", "1.23456789", "111111", "......", "------", "  0.00",
+              "-1.00", "12.34", "100.00", "1e+2", "-.125", " 12.346", "-45.679"}) {
+            SendMessageA(edit, EM_SETSEL, 0, -1);
+            SendMessageA(edit, EM_REPLACESEL, 0, reinterpret_cast<LPARAM>(text));
+            char actual[128]{};
+            GetWindowTextA(edit, actual, sizeof actual);
+            const auto size = mikudancestudio::ui::NumericPrefillLength(
+                text, english, rectangle.right - rectangle.left);
+            Check(std::string(actual) == std::string(text).substr(0, size),
+                  "original EDIT prefill clipping");
+            ++checkpoints;
+        }
+        for (int position = 0; edge && position <= 200; ++position) {
+            char text[64], actual[64]{};
+            std::snprintf(text, sizeof text, "%3.2f", double(float(position) / 100.f));
+            SendMessageA(edit, EM_SETSEL, 0, -1);
+            SendMessageA(edit, EM_REPLACESEL, 0, reinterpret_cast<LPARAM>(text));
+            GetWindowTextA(edit, actual, sizeof actual);
+            Check(std::string(actual) ==
+                      std::string(text).substr(
+                          0, mikudancestudio::ui::NumericPrefillLength(
+                                 text, english, rectangle.right - rectangle.left)),
+                  "original slider edit clipping");
+            ++checkpoints;
+        }
+        DestroyWindow(dialog);
+    }
+    FreeLibrary(resources);
+    FreeLibrary(controls);
+    std::printf("Original hidden EDITs: %u prefill/slider width checkpoints; no shown windows\n",
+                checkpoints);
+}
+HWND WINAPI EdgeControl(HWND, int id) {
+    Check(id == 646 || id == 647, "original edge control identity");
+    return reinterpret_cast<HWND>(std::uintptr_t(id));
+}
+LRESULT WINAPI EdgeMessage(HWND control, UINT message, WPARAM, LPARAM value) {
+    if (control == EdgeControl(nullptr, 647)) {
+        if (message == 0x400)
+            return edgeSlider;
+        if (message == 0x405)
+            edgeSlider = std::clamp(int(value), 0, 200);
+        else
+            Check(message == 0x407 || message == 0x408 || message == 0x414,
+                  "original edge trackbar message");
+    } else if (message == 0xc2)
+        edgeText = reinterpret_cast<const char*>(value);
+    else
+        Check(message == 0xb1, "original edge edit message");
+    return 0;
+}
+int WINAPI EdgeRead(HWND, LPSTR out, int capacity) {
+    Check(capacity == 8, "original edge seven-byte read limit");
+    const auto count = std::min(edgeText.size(), std::size_t(capacity - 1));
+    std::memcpy(out, edgeText.data(), count);
+    out[count] = 0;
+    return int(count);
+}
+int WINAPI EdgeLength(HWND) {
+    return int(edgeText.size());
+}
+LONG_PTR WINAPI EdgeGetProc(HWND, int) {
+    return 1;
+}
+LONG_PTR WINAPI EdgeSetProc(HWND, int, LONG_PTR) {
+    return 1;
+}
+LRESULT WINAPI EdgeForward(WNDPROC, HWND, UINT, WPARAM, LPARAM) {
+    ++forwarded;
+    return 0;
+}
+BOOL WINAPI EdgeDestroy(HWND) {
+    edgeDestroyed = true;
+    return TRUE;
+}
+void EdgeOracle(OriginalPhysicsModule& original) {
+    std::vector<std::unique_ptr<Patch>> patches;
+    const auto patch = [&](unsigned offset, auto replacement) {
+        auto* pointer = reinterpret_cast<void*>(replacement);
+        patches.push_back(
+            std::make_unique<Patch>(original.Function<void*>(offset), &pointer, sizeof pointer));
+    };
+    patch(0x1445f8, app.data());
+    patch(0x128658, &EdgeControl);
+    patch(0x1287b8, &EdgeMessage);
+    patch(0x128690, &EdgeRead);
+    patch(0x1286c8, &EdgeLength);
+    patch(0x128748, &EdgeGetProc);
+    patch(0x128638, &EdgeSetProc);
+    patch(0x128620, &EdgeForward);
+    patch(0x128720, &EdgeDestroy);
+    const auto dialog = original.Function<DLGPROC>(0x56e50);
+    const auto edit = original.Function<WNDPROC>(0x57190);
+    std::fill(app.begin(), app.end(), 0);
+    std::array<std::vector<unsigned char>, 2> models{std::vector<unsigned char>(0x4000),
+                                                     std::vector<unsigned char>(0x4000)};
+    const auto get = [&](unsigned slot) {
+        float value;
+        std::memcpy(&value, models[slot].data() + 0x355c, 4);
+        return value;
+    };
+    for (unsigned slot = 0; slot < 2; ++slot) {
+        const auto pointer = models[slot].data();
+        std::memcpy(app.data() + 0xbe8 + slot * 8, &pointer, sizeof pointer);
+        const float initial = slot ? 1.25f : .57f;
+        std::memcpy(models[slot].data() + 0x355c, &initial, 4);
+    }
+    const auto window = reinterpret_cast<HWND>(std::uintptr_t(100));
+    std::memcpy(app.data() + 0xa1b80, &window, sizeof window);
+    dialog(window, WM_INITDIALOG, 0, 0);
+    Check(edgeText == "0.57" && edgeSlider == 57 && app[0xa1b31] == 0,
+          "original edge initialization");
+    edgeText = "1.75";
+    edit(EdgeControl(window, 646), WM_KILLFOCUS, 0, 0);
+    edit(EdgeControl(window, 646), WM_CHAR, VK_RETURN, 0);
+    Check(forwarded == 2 && get(0) == .57f && app[0xa1b31] == 0,
+          "original noncommitting edge messages");
+    struct Input {
+        const char* text;
+        float value;
+        int slider;
+    };
+    for (const auto& input :
+         {Input{"1.23456789", 1.23456f, 123}, Input{"-0.25", -.25f, 0}, Input{"2.50", 2.5f, 200},
+          Input{"nonsense", 0, 0}, Input{"0.57", .57f, 57}, Input{"2e30", 2e30f, 0},
+          Input{"1,25", 1, 100}}) {
+        edgeText = input.text;
+        app[0xa1b31] = app[0xa1e18] = 0;
+        edit(EdgeControl(window, 646), WM_KEYDOWN, VK_RETURN, 0);
+        Check(get(0) == input.value && edgeSlider == input.slider && edgeText == input.text &&
+                  app[0xa1b31] == 1 && app[0xa1e18] == 1,
+              "original edge text publication");
+    }
+    app[0x13e0] = 1;
+    for (int position = 0; position <= 200; ++position) {
+        edgeSlider = position;
+        dialog(window, WM_HSCROLL, 0, 0);
+        char formatted[64];
+        const float value = float(position) / 100.f;
+        std::snprintf(formatted, sizeof formatted, "%3.2f", double(value));
+        Check(get(0) == 1 && get(1) == value && edgeText == formatted,
+              "original edge slider/current-model publication");
+    }
+    app[0x328] = 1;
+    app[0xa1b31] = app[0xa1e18] = 0;
+    edgeText = ".75";
+    edit(EdgeControl(window, 646), WM_KEYDOWN, VK_RETURN, 0);
+    Check(get(1) == 2 && edgeSlider == 75 && app[0xa1b31] == 0 && app[0xa1e18] == 0,
+          "original camera mode ignores edge text");
+    edgeSlider = 17;
+    dialog(window, WM_HSCROLL, 0, 0);
+    Check(get(1) == 2 && edgeText == "0.17" && app[0xa1b31] == 0,
+          "original camera mode ignores edge slider");
+    edgeText = "1.99";
+    dialog(window, WM_COMMAND, IDCANCEL, 0);
+    HWND stored;
+    std::memcpy(&stored, app.data() + 0xa1b80, sizeof stored);
+    Check(edgeDestroyed && !stored && get(1) == 2, "original edge close discards pending text");
+    std::puts(
+        "Original edge dialog: 213 initialization/message/text/slider/model/close checkpoints; no windows");
+}
 }
 int wmain(int argc, wchar_t** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
@@ -58,6 +260,11 @@ int wmain(int argc, wchar_t** argv) try {
         Check(GetTextExtentPoint32W(dc, alphabet, 52, &extent),
               "numeric dialog base unit measurement");
         const bool equal = (extent.cx / 26 + 1) / 2 == 7 && extent.cy == font.second;
+        std::array<int, 95> advances{};
+        Check(GetCharWidth32W(dc, 32, 126, advances.data()), "original dialog ASCII glyph widths");
+        Check(advances == (font.second == 15 ? mikudancestudio::ui::kDialogArialAdvances
+                                             : mikudancestudio::ui::kDialogGothicAdvances),
+              "original dialog ASCII advance table");
         SelectObject(dc, previous);
         DeleteObject(handle);
         DeleteDC(dc);
@@ -121,6 +328,8 @@ int wmain(int argc, wchar_t** argv) try {
     }
     VirtualFree(memory, 0, MEM_RELEASE);
     Check(hash == 0xa78d309a17788cb1ull, "original camera numeric corpus hash");
+    EdgeOracle(original);
+    EditWidthOracle(argv[1]);
     std::printf(
         "Original camera numeric command: 256 exact input/output cases, hash %016llx; no windows or GPU\n",
         static_cast<unsigned long long>(hash));

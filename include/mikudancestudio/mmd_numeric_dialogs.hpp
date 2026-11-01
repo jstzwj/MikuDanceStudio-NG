@@ -5,7 +5,8 @@ namespace mikudancestudio::ui {
 enum class NumericControlKind {
     Static,
     Edit,
-    Button
+    Button,
+    Slider
 };
 struct NumericControl {
     int id, x, y, width, height;
@@ -122,4 +123,20 @@ inline constexpr NumericControl kNumericScreenJaControls[] = {
 };
 inline constexpr NumericTemplate kNumericScreenJa = {
     607, 100, 50, 9, "dialog.numeric.screen.title", kNumericScreenJaControls, 6};
+inline constexpr NumericControl kNumericEdgeEnControls[] = {
+    {-1, 3, 3, 40, 12, NumericControlKind::Static, "dialog.numeric.edge.control.0"},
+    {646, 112, 15, 18, 12, NumericControlKind::Edit, ""},
+    {647, 0, 15, 110, 13, NumericControlKind::Slider, ""},
+    {-1, 3, 30, 120, 12, NumericControlKind::Static, "dialog.numeric.edge.control.3"},
+};
+inline constexpr NumericTemplate kNumericEdgeEn = {
+    662, 135, 40, 9, "dialog.numeric.edge.title", kNumericEdgeEnControls, 4};
+inline constexpr NumericControl kNumericEdgeJaControls[] = {
+    {-1, 3, 3, 40, 12, NumericControlKind::Static, "dialog.numeric.edge.control.0"},
+    {646, 112, 15, 15, 12, NumericControlKind::Edit, ""},
+    {647, 0, 15, 110, 13, NumericControlKind::Slider, ""},
+    {-1, 3, 30, 120, 12, NumericControlKind::Static, "dialog.numeric.edge.control.3"},
+};
+inline constexpr NumericTemplate kNumericEdgeJa = {
+    645, 135, 40, 9, "dialog.numeric.edge.title", kNumericEdgeJaControls, 4};
 }

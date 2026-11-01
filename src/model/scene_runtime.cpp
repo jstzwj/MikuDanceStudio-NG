@@ -647,6 +647,10 @@ void SceneRuntime::RequestPhysicsReset() {
     if (impl_ && !impl_->failed)
         impl_->simulation.resetPending = 1;
 }
+bool SceneRuntime::SetModelEdgeScale(std::uint8_t slot, float value) {
+    return impl_ && !impl_->failed && impl_->session &&
+           impl_->session->SetModelEdgeScale(slot, value);
+}
 void SceneRuntime::SetPanelExpanded(unsigned option, bool expanded) {
     if (impl_ && impl_->session)
         impl_->session->SetPanelExpanded(option, expanded);

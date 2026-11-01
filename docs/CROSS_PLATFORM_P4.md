@@ -1749,7 +1749,9 @@ controls in three languages, and checks persistence and unload invalidation.
 Local validation passed all **31 P4 tests** (51.17 seconds), the separate scene
 runtime test, both touched Win32 tests and the 124-checkpoint original auxiliary
 oracle. The CPU performance gate remains unchanged. The application builds;
-three-platform CI for the mapping batch remains required.
+[Run 41348684659](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41348684659)
+subsequently passed all three platform jobs, including the new channel-binding
+test and native surface checks. Full P4/C1 acceptance remains open.
 
 ## Rotation reset and physics commands
 
@@ -1773,3 +1775,54 @@ with the Morph/display cases, this target passes **160 checkpoints** without
 creating windows. Qt menu tests exercise the three languages, Undo/Redo, no-op
 and playback gates. The continuity regression checks that the body reset keeps
 the live world and poses until the next tick, which consumes the request once.
+
+[Run 41349247733](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41349247733)
+passed all three platform jobs for these commands.
+
+## Modeless edge thickness
+
+The Qt edge window uses the original English/Japanese binary dialog templates
+(662/645) and translated catalog entries. It retains a single modeless instance;
+reopening the menu preserves pending text. A slider movement applies immediately
+to the currently selected model. Only Enter commits text, reading seven UTF-8
+bytes with the original decimal-prefix behavior. Enter leaves the text unchanged;
+the slider independently clamps to 0..200. Negative and greater-than-two finite
+model values remain legal. Nonfinite values are rejected before document mutation.
+Closing either the dialog or its owner discards uncommitted text.
+
+The live-property path updates model metadata and publication revision without
+seeking, pausing playback, resetting physics, evaluating CPU poses, recalculating
+key watermarks or consuming bone Undo/Redo. Camera-mode interaction is a no-op;
+changing the selected model while the dialog is open redirects subsequent edits.
+Save/reopen preserves the accepted value. Detached viewports make newly opened
+dialogs topmost, following the original rule.
+
+The optional numeric oracle now executes the original dialog and edit procedures
+at RVAs **56E50/57190**, replacing only their window-control calls. **213 exact
+checkpoints** cover initialization, noncommitting messages, seven text cases,
+all 201 slider positions, model/camera selection and close. The existing 256-case
+camera corpus retains hash `a78d309a17788cb1`. These kernel calls create no window.
+
+A subsequent probe of actual never-shown original EDIT controls exposed a second
+rule: numeric prefill and slider replacement use `EM_REPLACESEL` without
+`ES_AUTOHSCROLL`. The narrow edge edit stores `0.5` when supplied `0.57`; Enter
+therefore commits `0.5` unless the user changes the text. The portable prefill path
+now uses measured original Arial/MS PGothic ASCII advances and EDIT insets rather
+than host fallback-font widths. This applies to all eight numeric templates.
+Programmatic `setText`, like native `WM_SETTEXT`, remains distinct from insertion.
+The optional oracle verifies the glyph tables in memory DCs and **522** prefill/
+slider replacement results using actual hidden original controls. Full keyboard,
+clipboard, IME and window-manager acceptance remain separate input gates.
+
+Three-language offscreen tests cover the binary geometry and labels, focus loss,
+Enter/close, repeated opening, model changes, playback, unloading, Undo/Redo and
+PMM persistence. The generated two-sided `outline.pmx` additionally exercises
+actual color output: a larger edge changes the image, restoring the value restores
+the original bytes, and main deformation buffers/CPU evaluation counts stay
+unchanged. This batch does not close the overall P4/C1 acceptance gates.
+
+Local validation passed all **31 P4 tests** (53.04 seconds), the separate scene
+runtime test, and rebuilt Win32 session/physics-continuity tests. The complete Qt
+render regression also passed DX12 (27.90 seconds) and Vulkan (8.86 seconds),
+including strict restored-outline output. The Qt application builds. Three-platform
+CI for this batch remains required before extending its platform evidence.

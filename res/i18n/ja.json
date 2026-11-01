@@ -505,5 +505,8 @@
   "dialog.numeric.screen.control.4": "OK",
   "dialog.numeric.screen.control.5": "ｷｬﾝｾﾙ",
   "dialog.screen.too_big": "このPCで処理できる大きさを超えています",
-  "dialog.screen.positive": "幅と高さは正の整数で指定してください。"
+  "dialog.screen.positive": "幅と高さは正の整数で指定してください。",
+  "dialog.numeric.edge.title": "エッジ太さ設定",
+  "dialog.numeric.edge.control.0": "太さ",
+  "dialog.numeric.edge.control.3": "0                     1                    2"
 }

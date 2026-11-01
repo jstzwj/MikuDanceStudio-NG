@@ -283,6 +283,7 @@ void EditorWindow::Tick(double seconds) {
 EditorWindow::~EditorWindow() {
     timer_.stop();
     audio_.Stop();
+    delete edgeDialog_.data();
     if (!testing_) {
         QSettings settings;
         settings.setValue("viewport/separate", separate_ != nullptr || restoreSeparate_);
@@ -773,6 +774,8 @@ bool EditorWindow::ConfirmUnsaved() {
 }
 void EditorWindow::closeEvent(QCloseEvent* e) {
     if (ConfirmUnsaved()) {
+        if (edgeDialog_)
+            edgeDialog_->close();
         if (separate_)
             separate_->hide();
         e->accept();
@@ -1033,6 +1036,25 @@ void EditorWindow::Numeric() {
                                 BoneRotationFromDegrees({values[3], values[4], values[5]}), r),
                r);
     Refresh();
+}
+void EditorWindow::EdgeThickness() {
+    if (edgeDialog_ || session_.Selected().model == 255)
+        return;
+    for (const auto& model : session_.Document().models) {
+        if (model.slot != session_.Selected().model)
+            continue;
+        edgeDialog_ = new EdgeThicknessDialog(language_, model.edgeScale, this);
+        edgeDialog_->setAttribute(Qt::WA_DeleteOnClose);
+        edgeDialog_->setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+        edgeDialog_->changed = [this](float value) {
+            std::string reason;
+            if (Result(session_.SetEdgeThickness(value, reason), reason))
+                Refresh();
+        };
+        if (!testing_)
+            edgeDialog_->show();
+        break;
+    }
 }
 void EditorWindow::Dispatch(int id) {
     if (PanelCommand(id)) {
