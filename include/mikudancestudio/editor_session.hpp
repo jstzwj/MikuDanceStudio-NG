@@ -106,6 +106,8 @@ public:
     bool RegisterMorph(std::uint8_t, std::optional<std::uint32_t>, std::string&);
     bool RegisterAllMorphs(std::uint8_t, std::string&);
     bool ResetMorphs(std::uint8_t, std::string&);
+    bool ResetRotation(std::string&);
+    void ResetPhysicsBodies();
     bool SetAccessory(std::uint8_t, const format::PmmAccessoryState&, std::string&);
     bool SetCamera(const format::PmmEvaluatedCamera&, std::string&);
     bool SetRenderSize(unsigned width, unsigned height, std::string&);
@@ -181,6 +183,7 @@ public:
     bool SelectBones(const std::vector<std::uint32_t>&, int active, std::string&);
     bool SelectModel(std::uint8_t, std::string&);
     bool SelectAllBones(bool unregisteredOnly, std::string&);
+    bool SelectPhysicsBones(std::string&);
     bool PickBone(const std::vector<cpu_bone::ScreenPoint>&, int x, int y, bool additive,
                   std::string&);
     bool BoxSelectBones(const std::vector<cpu_bone::ScreenPoint>&, int left, int top, int right,

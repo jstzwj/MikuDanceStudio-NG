@@ -122,6 +122,18 @@ int main(int argc, char** argv) {
             CHECK(editor.Copy({}, reason));
             CHECK(editor.Paste(frame, false, reason) && !live->Simulation().resetPending);
 
+            const auto beforeReset = live->Bodies(0);
+            const auto resetFrames = live->Counters().frames;
+            const auto resetRevision = editor.Revision();
+            const auto resetUndo = editor.CanUndo(), resetRedo = editor.CanRedo();
+            editor.ResetPhysicsBodies();
+            editor.ResetPhysicsBodies(); // Multiple menu requests coalesce until the next tick.
+            CHECK(live->Simulation().resetPending && live->Bodies(0) == beforeReset &&
+                  live->Counters().frames == resetFrames && editor.Revision() == resetRevision &&
+                  editor.CanUndo() == resetUndo && editor.CanRedo() == resetRedo);
+            CHECK(editor.TickIdle(1. / 60, reason));
+            CHECK(!live->Simulation().resetPending && live->Counters().frames == resetFrames + 1);
+
             // Keep two independent worlds in lockstep. Metadata edits must retain
             // contacts, solver state, velocities and the deterministic noise clock,
             // as observed by subsequent steps, not just the immediate transforms.

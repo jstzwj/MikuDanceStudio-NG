@@ -77,6 +77,7 @@ bool ModelCommand(int command) {
     case MDS_CMD_SELECT_ALL_MORPH_FRAMES:
     case MDS_CMD_REGISTER_ALL_MORPH_FRAMES:
     case MDS_CMD_RESET_MORPHS:
+    case MDS_CMD_SELECT_PHYSICS_BONES:
         return true;
     default:
         return false;
@@ -102,6 +103,8 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_SEPARATE_WINDOW:
     case MDS_CMD_TOGGLE_ALWAYS_ON_TOP:
     case MDS_CMD_TOGGLE_FULL_SCREEN:
+    case MDS_CMD_RESET_BONE_CAMERA_ROTATION:
+    case MDS_CMD_RESET_PHYSICS_BODIES:
         return true;
     default:
         return false;
@@ -203,6 +206,8 @@ void EditorWindow::RefreshMenus() {
         bool enabled = Implemented(command);
         if (ModelCommand(command))
             enabled &= model && !session_.Playing();
+        if (command == MDS_CMD_RESET_BONE_CAMERA_ROTATION)
+            enabled &= !session_.Playing();
         if (command == MDS_CMD_TOGGLE_SEPARATE_WINDOW)
             enabled &= !fullScreen_;
         if (command == MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE ||
@@ -285,6 +290,18 @@ void EditorWindow::MenuCommand(int command) {
         return;
     }
     int control = 0;
+    if (command == MDS_CMD_RESET_BONE_CAMERA_ROTATION || command == MDS_CMD_SELECT_PHYSICS_BONES) {
+        std::string reason;
+        Result(command == MDS_CMD_RESET_BONE_CAMERA_ROTATION ? session_.ResetRotation(reason)
+                                                             : session_.SelectPhysicsBones(reason),
+               reason);
+        Refresh();
+        return;
+    }
+    if (command == MDS_CMD_RESET_PHYSICS_BODIES) {
+        session_.ResetPhysicsBodies();
+        return;
+    }
     if (command == MDS_CMD_REGISTER_ALL_MORPH_FRAMES || command == MDS_CMD_RESET_MORPHS) {
         std::string reason;
         Result(command == MDS_CMD_REGISTER_ALL_MORPH_FRAMES

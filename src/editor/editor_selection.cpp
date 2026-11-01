@@ -148,6 +148,26 @@ void EditorSession::SetEditMode(std::int32_t mode) {
     if (mode >= 0 && mode <= 4)
         runtime_->SetEditMode(mode);
 }
+bool EditorSession::SelectPhysicsBones(std::string& reason) {
+    const auto slot = selection_.model;
+    const auto resource = runtime_->Resource(slot);
+    if (playing_ || !resource) {
+        reason = "physics-bone-selection-unavailable";
+        return false;
+    }
+    std::vector<std::uint32_t> indices;
+    int active = ActiveBone();
+    for (unsigned i = 0; i < resource->EditingBones().size(); ++i) {
+        int mapped;
+        if (!runtime_->DocumentBoneIndex(slot, int(i), mapped, reason))
+            return false;
+        if (resource->EditingBones()[std::size_t(mapped)].hasRigidBody) {
+            indices.push_back(i);
+            active = int(i);
+        }
+    }
+    return SelectBones(indices, active, reason);
+}
 void EditorSession::CycleCoordinateSystem() {
     coordinateSystem_ = (coordinateSystem_ + 1) % (selection_.model == 255 ? 3u : 2u);
 }

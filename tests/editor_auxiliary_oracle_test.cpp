@@ -1,6 +1,7 @@
 #include <Windows.h>
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/editor_session.hpp"
+#include "mikudancestudio/menu_commands.h"
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -238,6 +239,111 @@ unsigned ResetCommand(OriginalPhysicsModule& original, const std::filesystem::pa
     VirtualFree(memory, 0, MEM_RELEASE);
     return count;
 }
+unsigned undoCalls = 0;
+void CaptureUndo(void*) {
+    ++undoCalls;
+}
+unsigned SceneCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    // Execute the full original dispatcher with a private application record.
+    // Stub only window refresh and history capture; the actual quaternion
+    // conversion, selection loop and deferred-reset writes execute unchanged.
+    const unsigned char ret = 0xc3;
+    Patch refresh(original.Function<void*>(0x20dd0), &ret, 1);
+    Patch readouts(original.Function<void*>(0x20ce0), &ret, 1);
+    Patch timeline(original.Function<void*>(0x5f7f0), &ret, 1);
+    std::vector<unsigned char> jump{0xff, 0x25, 0, 0, 0, 0};
+    const auto capture = reinterpret_cast<std::uintptr_t>(&CaptureUndo);
+    for (unsigned shift = 0; shift < 64; shift += 8)
+        jump.push_back(std::uint8_t(capture >> shift));
+    Patch undo(original.Function<void*>(0x26fd0), jump.data(), jump.size());
+    std::vector<unsigned char> app(0xa3000);
+    auto* pointer = app.data();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    const auto execute = original.Function<void (*)(HWND, WPARAM)>(0x3f550);
+    unsigned count = 0;
+    for (const char* file : {"articulated.pmd", "articulated.pmx", "triangle.pmd"})
+        for (int choice : {-1, 0, 1}) {
+            EditorSession portable;
+            std::string reason;
+            Check(portable.ImportModel(root / file, reason), reason.c_str());
+            const auto resource = portable.Runtime().Resource(0);
+            const auto bonesCount = unsigned(resource->BoneNames().size());
+            const int active = choice == 1 ? int(bonesCount - 1) : choice;
+            Check(portable.SelectBones({0}, active, reason), reason.c_str());
+            if (active >= 0)
+                Check(portable.SetBone(0, unsigned(active), {2, 3, 4}, {0, .6f, 0, .8f}, reason),
+                      reason.c_str());
+            NativeAuxiliary native(portable.Document().models[0],
+                                   resource->SourceKind() == ModelKind::Pmx);
+            auto* model = native.model.get();
+            std::vector<mdl::BoneRecord> bones(bonesCount);
+            std::vector<unsigned char> selected(bonesCount), edited(bonesCount);
+            selected[0] = 1;
+            model->boneTable = bones.data();
+            model->boneCount = bonesCount;
+            model->boneSelection = selected.data();
+            model->bonePhysicsState = edited.data();
+            model->selectedBone = active;
+            for (unsigned i = 0; i < bonesCount; ++i) {
+                const auto& pose = portable.Document().models[0].bonePose[i];
+                std::copy_n(pose.components.begin(), 3, bones[i].trans);
+                std::copy_n(pose.components.begin() + 3, 4, bones[i].rotQuat);
+                edited[i] = pose.flags[1];
+                bones[i].hasRigidBody = resource->EditingBones()[i].hasRigidBody;
+            }
+            std::fill(app.begin(), app.end(), 0);
+            std::memcpy(app.data() + 0xbe8, &model, sizeof model);
+            undoCalls = 0;
+            const auto frame = portable.Runtime().Counters().frames;
+            execute(nullptr, MDS_CMD_RESET_BONE_CAMERA_ROTATION);
+            Check(portable.ResetRotation(reason), reason.c_str());
+            Check(undoCalls == unsigned(active >= 0), "native rotation undo capture count");
+            Check(app[0xa1b31] == unsigned(active >= 0), "native rotation dirty gate");
+            for (unsigned i = 0; i < bonesCount; ++i) {
+                const auto& pose = portable.Document().models[0].bonePose[i];
+                Check(!std::memcmp(bones[i].trans, pose.components.data(), 12) &&
+                          !std::memcmp(bones[i].rotQuat, pose.components.data() + 3, 16) &&
+                          edited[i] == pose.flags[1],
+                      "native rotation reset pose");
+            }
+            ++count;
+            execute(nullptr, MDS_CMD_SELECT_PHYSICS_BONES);
+            Check(portable.SelectPhysicsBones(reason), reason.c_str());
+            for (unsigned i = 0; i < bonesCount; ++i)
+                Check(bool(selected[i]) == (std::find(portable.Selected().bones.begin(),
+                                                      portable.Selected().bones.end(),
+                                                      i) != portable.Selected().bones.end()),
+                      "native physics bone selection");
+            Check(model->selectedBone == portable.ActiveBone(), "native selected physics bone");
+            ++count;
+            execute(nullptr, MDS_CMD_RESET_PHYSICS_BODIES);
+            portable.ResetPhysicsBodies();
+            Check(app[0x9fcc1] == portable.Runtime().Simulation().resetPending && app[0x9fcc1] == 1,
+                  "native deferred physical reset");
+            Check(frame == portable.Runtime().Counters().frames, "commands advanced physics");
+            ++count;
+            Check(portable.SelectModel(255, reason), reason.c_str());
+            auto camera = portable.Runtime().Session()->Pose().camera;
+            camera.position = {1, 2, 3};
+            camera.rotation = {.2f, -.4f, .6f};
+            camera.distance = -17;
+            Check(portable.SetCamera(camera, reason), reason.c_str());
+            app[0x328] = 1;
+            app[0xa1b31] = 0;
+            std::memcpy(app.data() + 0x348, camera.rotation.data(), 12);
+            std::memcpy(app.data() + 0x36c, camera.position.data(), 12);
+            std::memcpy(app.data() + 0xa1900, &camera.distance, 4);
+            execute(nullptr, MDS_CMD_RESET_BONE_CAMERA_ROTATION);
+            Check(portable.ResetRotation(reason), reason.c_str());
+            const auto actual = portable.Runtime().Session()->Pose().camera;
+            Check(!std::memcmp(app.data() + 0x348, actual.rotation.data(), 12) &&
+                      !std::memcmp(app.data() + 0x36c, actual.position.data(), 12) &&
+                      !std::memcmp(app.data() + 0xa1900, &actual.distance, 4) && app[0xa1b31] == 1,
+                  "native camera rotation reset");
+            ++count;
+        }
+    return count;
+}
 }
 int wmain(int argc, wchar_t** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
@@ -295,6 +401,9 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf(
         "%u original reset-command branches: weights, controls, document and history flags\n",
         ResetCommand(original, argv[2]));
+    std::printf(
+        "%u original full-dispatch checks: rotation reset, physics selection and deferred reset\n",
+        SceneCommands(original, argv[2]));
     return 0;
 } catch (const std::exception& e) {
     std::fprintf(stderr, "%s\n", e.what());

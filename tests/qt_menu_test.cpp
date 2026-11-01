@@ -269,10 +269,72 @@ int main(int argc, char** argv) {
     QCoreApplication::sendEvent(window.Control(panel::kCopyFramesButton), &deleteCamera);
     CHECK(session.Document().cameraKeys.sparse[0].value.frame == 5);
     CHECK(session.Document().lightKeys.sparse[0].value.frame == 5);
+    for (const char* language : {"en", "ja", "zh_CN"})
+        for (const char* modelFile : {"articulated.pmd", "articulated.pmx", "triangle.pmd"}) {
+            CHECK(session.New(reason) && session.ImportModel(root / modelFile, reason));
+            CHECK(window.SetLanguage(language));
+            const auto count = unsigned(session.Document().models[0].bonePose.size());
+            const auto bone = count - 1;
+            CHECK(session.SelectBones({0, bone}, int(bone), reason));
+            CHECK(session.SetBone(0, bone, {2, 3, 4}, {0, .6f, 0, .8f}, reason));
+            CHECK(window.Save(root / "menu-reset.pmm"));
+            window.Refresh();
+            const auto* runtime = &session.Runtime();
+            const auto frames = runtime->Counters().frames;
+            command(MDS_CMD_RESET_BONE_CAMERA_ROTATION)->trigger();
+            CHECK(session.Dirty() && session.CanUndo());
+            const auto& pose = session.Document().models[0].bonePose[bone];
+            CHECK(pose.components[0] == 2 && pose.components[1] == 3 && pose.components[2] == 4);
+            CHECK(pose.components[3] == 0 && pose.components[4] == 0 && pose.components[5] == 0 &&
+                  pose.components[6] == 1 && pose.flags[1]);
+            CHECK(session.Undo(reason));
+            CHECK(session.Document().models[0].bonePose[bone].components[4] == .6f);
+            CHECK(session.Undo(reason) && !session.CanUndo());
+            const auto revision = session.Revision();
+            const auto active = session.ActiveBone();
+            window.Refresh();
+            command(MDS_CMD_SELECT_PHYSICS_BONES)->trigger();
+            CHECK(session.Revision() == revision && session.CanRedo());
+            CHECK(session.Selected().bones ==
+                  (count == 1 ? std::vector<std::uint32_t>{} : std::vector<std::uint32_t>{0}));
+            CHECK(session.ActiveBone() == (count == 1 ? active : 0));
+            command(MDS_CMD_RESET_PHYSICS_BODIES)->trigger();
+            CHECK(session.Runtime().Simulation().resetPending);
+            CHECK(session.Revision() == revision && session.CanRedo());
+            CHECK(runtime == &session.Runtime() && runtime->Counters().frames == frames);
+            CHECK(session.SelectBones({}, -1, reason));
+            const auto emptyRevision = session.Revision();
+            window.Refresh();
+            command(MDS_CMD_RESET_BONE_CAMERA_ROTATION)->trigger();
+            CHECK(session.Revision() == emptyRevision);
+            CHECK(session.SelectModel(255, reason));
+            auto camera = session.Runtime().Session()->Pose().camera;
+            camera.position = {1, 2, 3};
+            camera.rotation = {.2f, -.4f, .6f};
+            camera.distance = -17;
+            CHECK(session.SetCamera(camera, reason));
+            CHECK(window.Save(root / "menu-reset.pmm"));
+            window.Refresh();
+            command(MDS_CMD_RESET_BONE_CAMERA_ROTATION)->trigger();
+            const auto actual = session.Runtime().Session()->Pose().camera;
+            CHECK(actual.position == camera.position && actual.distance == camera.distance &&
+                  actual.rotation == (std::array<float, 3>{}));
+            CHECK(session.Dirty() && !session.CanUndo());
+            CHECK(window.Save(root / "menu-reset.pmm") && !session.Dirty());
+            command(MDS_CMD_RESET_BONE_CAMERA_ROTATION)->trigger();
+            CHECK(session.Dirty()); // Repeating zero rotation still marks the native document.
+            CHECK(session.Play(reason));
+            window.Refresh();
+            CHECK(!command(MDS_CMD_RESET_BONE_CAMERA_ROTATION)->isEnabled());
+            CHECK(command(MDS_CMD_RESET_PHYSICS_BODIES)->isEnabled());
+            command(MDS_CMD_RESET_PHYSICS_BODIES)->trigger();
+            CHECK(session.Playing() && session.Runtime().Simulation().resetPending);
+            session.Pause();
+        }
     unsigned implemented = 0;
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 48);
+    CHECK(implemented == 51);
     CHECK(window.LastError().isEmpty());
     CHECK(!window.isVisible() && window.RenderWindow()->Submissions() == 0);
     std::cout

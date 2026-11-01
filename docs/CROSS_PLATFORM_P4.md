@@ -1750,3 +1750,26 @@ Local validation passed all **31 P4 tests** (51.17 seconds), the separate scene
 runtime test, both touched Win32 tests and the 124-checkpoint original auxiliary
 oracle. The CPU performance gate remains unchanged. The application builds;
 three-platform CI for the mapping batch remains required.
+
+## Rotation reset and physics commands
+
+Qt now routes rotation reset, physics-bone selection and physical-body reset to
+shared commands. Rotation reset changes only the active bone, preserves its
+translation and records one pose Undo; without an active bone it does nothing.
+Camera mode clears all three angles without bone history and sets the modified
+flag even when the angles were already zero. Physics selection replaces the
+bone selection, uses validated document/resource mappings, and retains the
+former active bone if the model has no physical bones. Selection does not advance
+the scene or modify the document. Body reset only latches the existing next-frame
+reseat, including during playback; repeated requests coalesce.
+
+The optional auxiliary oracle now calls the original complete command dispatcher
+at RVA **`3F550`** for commands 268, 273 and 302. Only view/panel refresh and the
+history-capture call are stubbed; the original selection loop, D3DX quaternion
+conversion and deferred-reset writes execute. **36 checks** cover PMD/PMX,
+physical/nonphysical models, absent/first/last active bones and camera mode.
+Actual history content remains covered by the separate history oracle. Together
+with the Morph/display cases, this target passes **160 checkpoints** without
+creating windows. Qt menu tests exercise the three languages, Undo/Redo, no-op
+and playback gates. The continuity regression checks that the body reset keeps
+the live world and poses until the next tick, which consumes the request once.

@@ -934,6 +934,44 @@ bool EditorSession::ResetMorphs(std::uint8_t slot, std::string& reason) {
         savedRevision_ = revision_;
     return true;
 }
+bool EditorSession::ResetRotation(std::string& reason) {
+    if (playing_) {
+        reason = "rotation-reset-during-playback";
+        return false;
+    }
+    EndGesture();
+    if (selection_.model == 255) {
+        auto camera = runtime_->Session()->Pose().camera;
+        camera.rotation = {};
+        if (!SetCamera(camera, reason))
+            return false;
+        // Native command marks even an already-zero camera as modified.
+        revision_ = nextRevision_++;
+        return true;
+    }
+    const auto bone = ActiveBone();
+    if (bone < 0) {
+        reason.clear();
+        return true;
+    }
+    auto next = Current();
+    auto* model = Model(next.document, selection_.model);
+    if (!model || std::size_t(bone) >= model->bonePose.size()) {
+        reason = "bone-selection-expired";
+        return false;
+    }
+    HistoryBatch history{{model->slot, CaptureHistory(*model, HistoryKind::Pose,
+                                                      unsigned(next.document.timeline.currentFrame),
+                                                      {unsigned(bone)})}};
+    auto& pose = model->bonePose[std::size_t(bone)];
+    std::fill_n(pose.components.begin() + 3, 3, 0.f);
+    pose.components[6] = 1;
+    pose.flags[1] = 1;
+    return Commit(std::move(next), reason, history, false);
+}
+void EditorSession::ResetPhysicsBodies() {
+    runtime_->RequestPhysicsReset();
+}
 bool EditorSession::SetRenderSize(unsigned width, unsigned height, std::string& reason) {
     if (!width || !height || width > 16384 || height > 16384) {
         reason = "render-size-out-of-range";
