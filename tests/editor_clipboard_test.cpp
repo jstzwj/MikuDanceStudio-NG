@@ -153,5 +153,53 @@ int main(int argc, char** argv) {
     CHECK(ordered.SelectModel(0, reason));
     CHECK(ordered.Paste(200, false, reason));
     CHECK(ordered.Document().models[0].boneKeys.sparse.size() == 4);
-    std::cout << "168 original clipboard tables, PMD/PMX paste and partial history passed\n";
+    EditorSession scopes;
+    CHECK(scopes.ImportModel(root / "triangle.pmd", reason));
+    CHECK(scopes.ImportModel(root / "triangle.pmx", reason));
+    CHECK(scopes.SelectModel(0, reason));
+    CHECK(!scopes.CanPasteFrames() && !scopes.CanPasteFrames(true));
+    auto unchanged = scopes.Revision();
+    CHECK(scopes.Paste(10, false, reason) && scopes.Revision() == unchanged);
+    CHECK(scopes.Copy({{Track::Bone, 0, 0, 0}, {Track::Bone, 1, 0, 0}, {Track::Camera, 255, 0, 0}},
+                      reason));
+    CHECK(scopes.CanPasteFrames() && scopes.CanPasteFrames(true));
+    CHECK(scopes.SelectModel(255, reason));
+    CHECK(!scopes.CanPasteFrames() && !scopes.CanPasteFrames(true));
+    CHECK(scopes.Copy({{Track::Camera, 255, 0, 0}, {Track::Bone, 0, 0, 0}}, reason));
+    CHECK(scopes.CanPasteFrames() && !scopes.CanPasteFrames(true));
+    unchanged = scopes.Revision();
+    CHECK(scopes.Paste(9, true, reason) && scopes.Revision() == unchanged);
+    CHECK(scopes.Paste(10, false, reason));
+    CHECK(scopes.Document().cameraKeys.sparse.size() == 1);
+    CHECK(scopes.Document().models[0].boneKeys.sparse.empty() &&
+          scopes.Document().models[1].boneKeys.sparse.empty());
+    CHECK(scopes.SelectModel(0, reason));
+    CHECK(scopes.CanPasteFrames(true) && scopes.Paste(20, false, reason));
+    CHECK(scopes.Document().models[0].boneKeys.sparse.size() == 1 &&
+          scopes.Document().models[1].boneKeys.sparse.empty());
+    // An expired active-mode selection rejects atomically, retaining both copies.
+    CHECK(!scopes.Copy({{Track::Bone, 0, 0, 999}}, reason));
+    CHECK(scopes.CanPasteFrames(true));
+    CHECK(scopes.SelectModel(1, reason));
+    CHECK(scopes.Paste(30, false, reason)); // Model clipboard is shared between models.
+    CHECK(scopes.Document().models[1].boneKeys.sparse.size() == 1);
+    unchanged = scopes.Revision();
+    CHECK(scopes.Copy({}, reason) && !scopes.CanPasteFrames());
+    CHECK(scopes.Paste(40, false, reason) && scopes.Revision() == unchanged);
+    CHECK(scopes.SelectModel(255, reason) && scopes.CanPasteFrames());
+    CHECK(scopes.Paste(50, false, reason));
+    CHECK(scopes.Document().cameraKeys.sparse.size() == 2);
+    CHECK(scopes.Play(reason));
+    CHECK(!scopes.CanPasteFrames() && !scopes.Copy({}, reason) && !scopes.Paste(60, false, reason));
+    scopes.Pause();
+    CHECK(scopes.CanPasteFrames());
+    CHECK(scopes.Copy({}, reason) && !scopes.CanPasteFrames());
+    CHECK(scopes.SelectModel(0, reason) && !scopes.CanPasteFrames());
+    // Morph-only copy cannot enable reverse paste.
+    CHECK(scopes.Copy({{Track::Morph, 0, 0, 0}}, reason));
+    CHECK(scopes.CanPasteFrames() && !scopes.CanPasteFrames(true));
+    CHECK(scopes.New(reason) && !scopes.CanPasteFrames());
+    CHECK(scopes.ImportModel(root / "triangle.pmd", reason) && !scopes.CanPasteFrames());
+    std::cout
+        << "168 original clipboard tables, PMD/PMX paste, partial history and mode scopes passed\n";
 }

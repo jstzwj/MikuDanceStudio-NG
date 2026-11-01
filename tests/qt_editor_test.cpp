@@ -57,6 +57,47 @@ int main(int argc, char** argv) {
     CHECK(QFontMetrics(window.font()).inFont(QChar('0')));
     CHECK(!window.isVisible());
     CHECK(window.SetLanguage("en"));
+    {
+        qt::EditorWindow clipboard(std::filesystem::absolute(argv[2]), true);
+        auto& s = clipboard.Session();
+        CHECK(!clipboard.Control(panel::kPasteButton)->isEnabled());
+        CHECK(!clipboard.Control(panel::kReversePasteButton)->isEnabled());
+        clipboard.Dispatch(panel::kCopyFramesButton); // Empty copy is not an error.
+        CHECK(clipboard.LastError().isEmpty());
+        CHECK(s.ImportModel(root / "triangle.pmd", reason));
+        s.Selected().keys = {{editor::Track::Bone, 0, 0, 0}};
+        clipboard.Dispatch(panel::kCopyFramesButton);
+        CHECK(clipboard.Control(panel::kPasteButton)->isEnabled());
+        CHECK(clipboard.Control(panel::kReversePasteButton)->isEnabled());
+        CHECK(s.SelectModel(255, reason));
+        clipboard.Refresh();
+        CHECK(!clipboard.Control(panel::kPasteButton)->isEnabled());
+        s.Selected().keys = {{editor::Track::Camera, 255, 0, 0}};
+        clipboard.Dispatch(panel::kCopyFramesButton);
+        CHECK(clipboard.Control(panel::kPasteButton)->isEnabled());
+        CHECK(!clipboard.Control(panel::kReversePasteButton)->isEnabled());
+        CHECK(s.SelectModel(0, reason));
+        for (const char* language : {"en", "ja", "zh_CN"}) {
+            CHECK(clipboard.SetLanguage(language));
+            CHECK(clipboard.Control(panel::kPasteButton)->isEnabled());
+            CHECK(clipboard.Control(panel::kReversePasteButton)->isEnabled());
+        }
+        CHECK(s.Play(reason));
+        clipboard.Refresh();
+        CHECK(!clipboard.Control(panel::kCopyFramesButton)->isEnabled());
+        CHECK(!clipboard.Control(panel::kPasteButton)->isEnabled());
+        CHECK(!clipboard.Control(panel::kReversePasteButton)->isEnabled());
+        s.Pause();
+        s.Selected().keys.clear();
+        clipboard.Dispatch(panel::kCopyFramesButton);
+        CHECK(!clipboard.Control(panel::kPasteButton)->isEnabled());
+        CHECK(!clipboard.Control(panel::kReversePasteButton)->isEnabled());
+        CHECK(s.SelectModel(255, reason));
+        clipboard.Refresh();
+        CHECK(clipboard.Control(panel::kPasteButton)->isEnabled());
+        CHECK(!clipboard.Control(panel::kReversePasteButton)->isEnabled());
+        CHECK(clipboard.LastError().isEmpty() && !clipboard.isVisible());
+    }
     for (unsigned mode = 0; mode < 4; ++mode) {
         qt::EditorWindow idle(std::filesystem::absolute(argv[2]), true);
         auto& s = idle.Session();

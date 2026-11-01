@@ -420,6 +420,9 @@ void EditorWindow::Refresh() {
     };
     Control(kUndoButton)->setEnabled(session_.CanUndo());
     Control(kRedoButton)->setEnabled(session_.CanRedo());
+    Control(kCopyFramesButton)->setEnabled(!session_.Playing());
+    Control(kPasteButton)->setEnabled(session_.CanPasteFrames());
+    Control(kReversePasteButton)->setEnabled(session_.CanPasteFrames(true));
     actions_["undo"]->setEnabled(session_.CanUndo());
     actions_["redo"]->setEnabled(session_.CanRedo());
     const bool posePaste = session_.Selected().model != 255 && session_.HasBonePoseClipboard();

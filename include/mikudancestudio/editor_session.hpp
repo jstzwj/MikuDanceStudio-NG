@@ -127,6 +127,7 @@ public:
     bool RegistrationPhysics() const { return registrationPhysics_; }
     void SetRegistrationPhysics(bool enabled) { registrationPhysics_ = enabled; }
     bool Copy(const std::set<KeyAddress>&, std::string&);
+    bool CanPasteFrames(bool mirror = false) const;
     bool Paste(std::uint32_t frame, bool mirror, std::string&);
     InterpolationSelection Interpolation(unsigned channel) const;
     bool CopyInterpolation(unsigned channel, std::string&);
@@ -220,7 +221,8 @@ private:
     std::map<std::uint8_t, ModelHistory> histories_;
     using HistoryBatch = std::map<std::uint8_t, HistoryEntry>;
     std::set<std::uint8_t> gestureModels_;
-    std::vector<ClipboardKey> clipboard_;
+    // Native model and camera modes own independent keyframe clipboards.
+    std::array<std::vector<ClipboardKey>, 2> clipboards_;
     struct CopiedBonePose {
         std::vector<char> name;
         std::array<float, 3> position;

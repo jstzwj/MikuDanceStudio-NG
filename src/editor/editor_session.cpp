@@ -364,7 +364,8 @@ bool EditorSession::New(std::string& reason) {
     runtime_ = std::move(runtime);
     path_.clear();
     histories_.clear();
-    clipboard_.clear();
+    for (auto& clipboard : clipboards_)
+        clipboard.clear();
     interpolationCopied_ = false;
     selection_ = {};
     playing_ = false;
@@ -567,7 +568,8 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     if (!RestoreModelSelection(selection_.model, reason))
         RestoreModelSelection(255, reason);
     histories_.clear();
-    clipboard_.clear();
+    for (auto& clipboard : clipboards_)
+        clipboard.clear();
     playing_ = false;
     revision_ = savedRevision_ = nextRevision_++;
     cursorSeconds_ = Document().timeline.currentFrame / 30.;
@@ -1044,9 +1046,18 @@ bool EditorSession::Delete(const std::set<KeyAddress>& addresses, std::string& r
     return Commit(std::move(next), reason, history, false);
 }
 bool EditorSession::Copy(const std::set<KeyAddress>& addresses, std::string& reason) {
+    if (playing_) {
+        reason = "clipboard-copy-during-playback";
+        return false;
+    }
+    const bool cameraMode = selection_.model == 255;
     auto d = Document();
     std::vector<std::pair<std::uint32_t, ClipboardKey>> next;
     for (const auto& a : addresses) {
+        const bool modelTrack =
+            a.track == Track::Bone || a.track == Track::Morph || a.track == Track::Display;
+        if (cameraMode ? modelTrack : (!modelTrack || a.slot != selection_.model))
+            continue;
         Key key;
         if (!Get(d, a, key)) {
             reason = "key-selection-expired";
@@ -1078,37 +1089,51 @@ bool EditorSession::Copy(const std::set<KeyAddress>& addresses, std::string& rea
         }
         next.push_back({record, {a, key, std::move(name)}});
     }
-    if (next.empty()) {
-        reason = "no-selected-keys";
-        return false;
-    }
     std::stable_sort(next.begin(), next.end(), [](const auto& a, const auto& b) {
-        return std::tie(a.second.address.track, a.second.address.slot, a.first) <
-               std::tie(b.second.address.track, b.second.address.slot, b.first);
+        // Native accessory copy visits table index before accessory slot.
+        return std::tie(a.second.address.track, a.first, a.second.address.slot) <
+               std::tie(b.second.address.track, b.first, b.second.address.slot);
     });
-    clipboard_.clear();
+    auto& clipboard = clipboards_[cameraMode];
+    clipboard.clear(); // An empty selection clears only this mode's clipboard.
     for (auto& item : next)
-        clipboard_.push_back(std::move(item.second));
+        clipboard.push_back(std::move(item.second));
     reason.clear();
     return true;
 }
+bool EditorSession::CanPasteFrames(bool mirror) const {
+    if (playing_)
+        return false;
+    const bool cameraMode = selection_.model == 255;
+    const auto& clipboard = clipboards_[cameraMode];
+    if (!mirror)
+        return !clipboard.empty();
+    return !cameraMode && std::any_of(clipboard.begin(), clipboard.end(), [](const auto& item) {
+        return item.address.track == Track::Bone;
+    });
+}
 bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason) {
-    EndGesture();
-    if (clipboard_.empty()) {
-        reason = "clipboard-empty";
+    if (playing_) {
+        reason = "clipboard-paste-during-playback";
         return false;
     }
-    auto first = clipboard_.front().address.frame;
-    for (const auto& item : clipboard_)
+    if (!CanPasteFrames(mirror)) {
+        reason.clear();
+        return true; // Original empty/unsupported-mode paste is a no-op.
+    }
+    EndGesture();
+    const auto& clipboard = clipboards_[selection_.model == 255];
+    auto first = clipboard.front().address.frame;
+    for (const auto& item : clipboard)
         first = std::min(first, item.address.frame);
     auto next = Current();
     auto& d = next.document;
     auto* model = Model(d, selection_.model);
     const bool boneClipboard =
-        std::any_of(clipboard_.begin(), clipboard_.end(),
+        std::any_of(clipboard.begin(), clipboard.end(),
                     [](const auto& item) { return item.address.track == Track::Bone; });
     const bool modelClipboard =
-        boneClipboard || std::any_of(clipboard_.begin(), clipboard_.end(), [](const auto& item) {
+        boneClipboard || std::any_of(clipboard.begin(), clipboard.end(), [](const auto& item) {
             return item.address.track == Track::Morph || item.address.track == Track::Display;
         });
     HistoryBatch history;
@@ -1152,7 +1177,7 @@ bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason)
             history.emplace(model->slot, std::move(entry));
         }
     }
-    for (auto item : clipboard_) {
+    for (auto item : clipboard) {
         if (mirror && item.address.track != Track::Bone)
             continue;
         const auto offset = item.address.frame - first;

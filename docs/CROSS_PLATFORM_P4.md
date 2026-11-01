@@ -1414,3 +1414,36 @@ establish every original UI selection/reset/body-drag transition or full C1 pari
 Local validation passed all **29 P4 tests** (36.68 seconds), the Win32 playback
 and physics-continuity regressions, and the Qt application build. No local window
 was exposed and audio remained on the deterministic test sink.
+
+## Independent model/camera frame clipboards
+
+The frame clipboard now follows the two native mode scopes in
+`src/window/frame_clipboard.cpp`: bone/Morph/display data belongs to a shared
+model-mode clipboard, while camera/light/shadow/gravity/accessory data belongs to
+the camera-mode clipboard. Copy considers only the active model or active camera
+scope. Switching model/mode or language retains both buffers. Copying an empty
+selection successfully clears only the active buffer; a stale active-scope key
+rejects without replacing either buffer. Accessory ordering visits record index
+before slot, matching the recovered copy loop.
+
+Empty paste is a no-op. Mirrored paste is available only for model-mode bone
+content; Morph-only and camera buffers cannot enable it. Qt's Copy/Paste/Reverse
+Paste buttons reflect the shared queries, including playback gating. Generated
+integration tests cover interleaved mode copies, other-model selection exclusion,
+copy failure, empty copy, model switching, language changes, playback and New.
+
+This closes the prior shared-buffer/empty-copy mismatch. It uses the recovered
+native command contract plus public integration regressions; the optional
+original clipboard oracle still covers the bone registration kernels described
+above, not the entire UI copy command. Remaining Morph/display/global registrar,
+global paste application and chained-range parity remain separate exit work.
+
+The physical-world reuse commit `4921c3e` passed all three editor jobs in
+[run 41338618697](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41338618697),
+and the formats, rendering and Bullet workflows.
+
+Mode-clipboard validation passed all **29 local P4 tests** (37.53 seconds), three
+Win32 editor regressions, the Qt application build and the existing original
+clipboard oracle: 168 exact tables/captures, 168 fixed-axis cases and seven exact
+name cases. The original hashes and numeric limits were unchanged. Linux/macOS
+results for this commit must be recorded separately.
