@@ -2005,5 +2005,39 @@ and its gates. The legacy native-layout reduction corpus also passes after using
 the shared predicate. The final revision passed all **31 local P4 regressions**
 (69.83 seconds), scene runtime (1.76 seconds), rebuilt Win32 frame-line/history/
 session tests (19.84 seconds), and the legacy reduction corpus (2.48 seconds).
-The Qt application builds. Three-platform CI for this batch remains required;
+The Qt application builds. All three editor jobs passed in
+[run 41358526311](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41358526311);
 this batch does not close the wider clipboard, input or C1 gates.
+
+## Morph-key scale and offset
+
+Menu 252 now opens original templates 661/643 with English, Japanese and Chinese
+catalogs. The two fields start at `1.0` and `0.0`; the first receives focus and
+selection. Acceptance reads nineteen UTF-8 bytes per field with native decimal
+prefix conversion. Cancellation does not publish an edit. Input and arithmetic
+results must remain finite; rejection retains keys, history and active drag state.
+
+Win32 and the portable editor share the single-precision multiply/add operation.
+It visits selected Morph records across the full pool, including retained free
+slots and detached records, while preserving each overlapping record's own mark.
+Identity retains the original float payload. Accepted identity and empty selection
+still mark the project modified. The original apply tail seeks the active model,
+so its pending bone/display poses are refreshed too. Other models and globals,
+key links and watermarks, runtime identity and the bone Undo/Redo stacks survive.
+
+The optional auxiliary oracle calls original apply RVA **9D120**, replacing
+control-text retrieval and the seek/paint tails. **12 PMD/PMX cases** compare the
+entire 20000-record Morph pool, including float bits, marks and links, and check
+dirty/history flags. Cases include identity, zero, negative scales, fractional
+offsets, suffix text, malformed prefixes and the nineteen-byte read boundary.
+This increases the auxiliary command/value corpus to **342 checks/cases**, with
+native trackbar checks additional. The native model-evaluation tail continues to
+be covered separately by the CPU scene comparisons.
+
+Portable and three-language offscreen Qt tests exercise the actual menu/modal
+path, template geometry and labels, cancel/accept, history preservation,
+save/reopen, empty selection, playback gating and atomic overflow rejection.
+The final targeted Qt numeric/menu and session regressions passed (13.44 seconds),
+as did the rebuilt Win32 session regression (4.23 seconds). The Qt application
+and legacy Win32 application builds both pass. Three-platform CI for this batch
+remains required; this does not complete P4.

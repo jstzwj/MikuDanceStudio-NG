@@ -6,6 +6,7 @@
 #include "mikudancestudio/menu_commands.h"
 #include "editor_numeric_fixture.hpp"
 #include "gravity_edit_reference.hpp"
+#include "editor_morph_scale_fixture.hpp"
 #include <QApplication>
 #include <QFile>
 #include <QJsonArray>
@@ -644,6 +645,83 @@ int main(int argc, char** argv) {
         CHECK(owner.close());
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         CHECK(owner.findChildren<QDialog*>().empty() && owner.LastError().isEmpty());
+    }
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(language.Set(code));
+        qt::MorphScaleDialog form(language);
+        const auto expected =
+            reference[QString("morph_scale.") + (language.Code() == "en" ? "en" : "ja")].toObject();
+        const auto controls = expected["controls"].toArray();
+        const int unitY = language.Code() == "en" ? 15 : 12;
+        CHECK(form.Template().id == expected["id"].toInt() &&
+              form.size() == QSize(210, (45 * unitY + 4) / 8));
+        for (int i = 0; i < controls.size(); ++i) {
+            const auto control = controls[i].toObject();
+            const auto rect = control["rect"].toArray();
+            auto* widget = form.findChild<QWidget*>(QString("numeric.control.%1").arg(i));
+            CHECK(widget && widget->geometry() == QRect((rect[0].toInt() * 7 + 2) / 4,
+                                                        (rect[1].toInt() * unitY + 4) / 8,
+                                                        (rect[2].toInt() * 7 + 2) / 4,
+                                                        (rect[3].toInt() * unitY + 4) / 8));
+            if (language.Code() != "zh_CN") {
+                if (auto* label = qobject_cast<QLabel*>(widget))
+                    CHECK(label->text() == control["text"].toString());
+                if (auto* button = qobject_cast<QPushButton*>(widget))
+                    CHECK(button->text() == control["text"].toString());
+            }
+        }
+        CHECK(form.Field(0)->text() == "1.0" && form.Field(1)->text() == "0.0");
+        CHECK(form.focusWidget() == form.Field(0) && form.Field(0)->selectedText() == "1.0");
+        form.Field(0)->setText("-2.5suffix");
+        form.Field(1)->setText("nan");
+        form.accept();
+        CHECK(form.result() == QDialog::Rejected && form.Values() == (std::array<float, 2>{1, 0}));
+        form.Field(1)->setText(QString(18, ' ') + "9.5");
+        form.accept();
+        CHECK(form.Values() == (std::array<float, 2>{-2.5f, 9}));
+        form.Field(0)->setText("1.00000000000000000e9");
+        form.Field(1)->setText("not a number");
+        form.accept();
+        CHECK(form.Values() == (std::array<float, 2>{1, 0}));
+
+        qt::EditorWindow owner(std::filesystem::absolute(argv[2]), true);
+        CHECK(MorphScaleFixture(owner.Session(), root, "facial.pmd", reason));
+        CHECK(owner.SetLanguage(code));
+        QAction* action = nullptr;
+        for (auto* item : owner.findChildren<QAction*>())
+            if (item->property("mmdCommandId").toInt() == MDS_CMD_MULTIPLY_MORPH_FRAMES)
+                action = item;
+        CHECK(action && action->isEnabled());
+        const auto revision = owner.Session().Revision();
+        for (bool accept : {false, true}) {
+            bool interacted = false;
+            QTimer::singleShot(0, &owner, [&] {
+                auto* dialog =
+                    dynamic_cast<qt::MorphScaleDialog*>(QApplication::activeModalWidget());
+                if (!dialog) {
+                    QApplication::closeAllWindows();
+                    return;
+                }
+                interacted = dialog->Field(0)->text() == "1.0" && dialog->Field(1)->text() == "0.0";
+                dialog->Field(0)->setText("2.0");
+                dialog->Field(1)->setText("0.5");
+                if (accept)
+                    dialog->accept();
+                else
+                    dialog->reject();
+            });
+            action->trigger();
+            CHECK(interacted && owner.LastError().isEmpty());
+            if (!accept)
+                CHECK(owner.Session().Revision() == revision);
+            else {
+                CHECK(owner.Session().Revision() != revision);
+                CHECK(owner.Session().Document().models[0].morphKeys.sparse[0].value.value == 2.f);
+                CHECK(owner.Session().Document().models[0].morphKeys.unused.at(19999).value ==
+                      1.75f);
+            }
+        }
+        CHECK(!owner.isVisible());
     }
     std::cout
         << "Numeric dialogs: binary geometry/labels, tab order, formatting, cancel and editor publication passed\n";

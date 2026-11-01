@@ -12,14 +12,16 @@ NAMES = [('bone', 'en', 663), ('bone', 'ja', 648),
          ('camera', 'en', 664), ('camera', 'ja', 649),
          ('screen', 'en', 653), ('screen', 'ja', 607),
          ('edge', 'en', 662), ('edge', 'ja', 645),
-         ('gravity', 'en', 803), ('gravity', 'ja', 802)]
+         ('gravity', 'en', 803), ('gravity', 'ja', 802),
+         ('morph_scale', 'en', 661), ('morph_scale', 'ja', 643)]
 
 
 def source_dialogs():
     source = (ROOT / 'res/templates/dialog/dialogs.rc').read_text(encoding='utf-16')
     result = {}
     for kind, language, ident in NAMES:
-        command = {'screen': 'SCREEN_SIZE', 'edge': 'EDGE_THICKNESS', 'gravity': 'GRAVITY'}.get(kind, kind.upper() + '_NUMERIC_INPUT')
+        command = {'screen': 'SCREEN_SIZE', 'edge': 'EDGE_THICKNESS', 'gravity': 'GRAVITY',
+                   'morph_scale': 'MORPH_MULTIPLY'}.get(kind, kind.upper() + '_NUMERIC_INPUT')
         tag = f'MDS_DLG_{command}_{"EN" if language == "en" else "JP"}'
         block = source.split(tag + ' DIALOGEX ', 1)[1].split('\n  END', 1)[0]
         geometry = list(map(int, block.splitlines()[0].split(', ')))
@@ -104,7 +106,7 @@ def header(dialogs):
            '    const char* title;', '    const NumericControl* controls;',
            '    std::size_t count;', '};']
     for (kind, language), dialog in dialogs.items():
-        name = kind.title() + language.title()
+        name = kind.title().replace('_', '') + language.title()
         out.append(f'inline constexpr NumericControl kNumeric{name}Controls[] = {{')
         for i, control in enumerate(dialog['controls']):
             values = ', '.join(map(str, [control['id']] + control['rect']))
@@ -135,11 +137,13 @@ def run(check):
           '0                     1                    2': '0                     1                    2',
           'gravity setting': '\u91cd\u529b\u8bbe\u7f6e', 'register': '\u767b\u8bb0', 'close': '\u5173\u95ed',
           'acceleration': '\u52a0\u901f\u5ea6', 'dir x': '\u65b9\u5411 x', 'y': 'y', 'z': 'z',
-          'noize': '\u566a\u58f0', '-1                    0                    1': '-1                    0                    1'}
+          'noize': '\u566a\u58f0', '-1                    0                    1': '-1                    0                    1',
+          'multiply of facial expression ': '\u8868\u60c5\u5927\u5c0f\u4fee\u6b63',
+          'degree *': '\u5927\u5c0f *', '+': '+'}
     for language in ('en', 'ja', 'zh_CN'):
         path = ROOT / 'res/i18n' / (language + '.json')
         catalog = json.loads(path.read_text(encoding='utf-8'))
-        for kind in ('bone', 'camera', 'screen', 'edge', 'gravity'):
+        for kind in ('bone', 'camera', 'screen', 'edge', 'gravity', 'morph_scale'):
             dialog = source[(kind, 'ja' if language == 'ja' else 'en')]
             labels = {message(kind): dialog['title']}
             labels.update({message(kind, i): control['text']
@@ -152,7 +156,7 @@ def run(check):
             assert path.read_text(encoding='utf-8') == content, f'Stale generated file: {path}'
         else:
             path.write_text(content, encoding='utf-8', newline='\n')
-    print('Original numeric dialogs: ten binary templates, control order/geometry and three catalogs verified')
+    print('Original numeric dialogs: twelve binary templates, control order/geometry and three catalogs verified')
 
 
 if __name__ == '__main__':

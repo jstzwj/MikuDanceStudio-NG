@@ -89,6 +89,7 @@ public:
     bool RegisterMorph(std::uint8_t, std::optional<std::uint32_t>, std::string&);
     bool RegisterAllMorphs(std::uint8_t, std::string&);
     bool ResetMorphs(std::uint8_t, std::string&);
+    bool ScaleMorphKeys(float scale, float add, std::string&);
     bool ResetRotation(std::string&);
     void ResetPhysicsBodies();
     bool SetGravityChannel(unsigned, float, std::string&);

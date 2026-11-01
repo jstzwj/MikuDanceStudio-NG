@@ -103,6 +103,7 @@ private:
     void ScreenSize();
     void EdgeThickness();
     void GravitySettings();
+    void MorphScale();
     bool Result(bool, const std::string&);
     bool ConfirmUnsaved();
     void CreateViewport(const rhi::BackendOptions&);

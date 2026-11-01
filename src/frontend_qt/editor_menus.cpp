@@ -81,6 +81,7 @@ bool ModelCommand(int command) {
     case MDS_CMD_SELECT_PHYSICS_BONES:
     case MDS_CMD_SELECT_PHYSICS_ON_FRAMES:
     case MDS_CMD_DELETE_UNUSED_FRAMES:
+    case MDS_CMD_MULTIPLY_MORPH_FRAMES:
         return true;
     default:
         return false;
@@ -277,6 +278,10 @@ void EditorWindow::MenuCommand(int command) {
             message.setWindowFlag(Qt::WindowStaysOnTopHint);
             message.exec();
         }
+        return;
+    }
+    if (command == MDS_CMD_MULTIPLY_MORPH_FRAMES) {
+        MorphScale();
         return;
     }
     if (command == MDS_CMD_TOGGLE_UI_LANGUAGE) {

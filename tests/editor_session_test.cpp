@@ -2,9 +2,11 @@
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/vmd_bone_interpolation.hpp"
 #include "gravity_edit_reference.hpp"
+#include "editor_morph_scale_fixture.hpp"
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <limits>
 using namespace mikudancestudio;
 using namespace editor;
 std::string reason;
@@ -38,6 +40,76 @@ int main(int argc, char** argv) {
     CHECK(format::EncodeVmdBoneInterpolation(curve.data(), 1.1f, true) == expected);
     CHECK(format::DecodeVmdBoneInterpolation(expected) == curve);
     const auto root = std::filesystem::absolute(argv[1]);
+    for (const char* file : {"facial.pmd", "articulated.pmx"})
+        for (const auto& coefficients :
+             {std::array<float, 2>{1, 0}, {0, 0}, {-2, .5f}, {1.25f, -.125f}}) {
+            EditorSession scale;
+            CHECK(MorphScaleFixture(scale, root, file, reason));
+            CHECK(scale.SelectBones({0}, 0, reason));
+            CHECK(scale.SetBone(0, 0, {2, 3, 4}, {0, 0, 0, 1}, reason));
+            CHECK(scale.Undo(reason) && scale.CanRedo());
+            const auto before = scale.Document().models[0];
+            const auto selection = scale.Selected().keys;
+            const auto* runtime = &scale.Runtime();
+            const auto frames = runtime->Counters().frames;
+            const bool undo = scale.CanUndo(), redo = scale.CanRedo();
+            CHECK(scale.Save(root / "morph-scale.pmm", Write, reason) && !scale.Dirty());
+            CHECK(scale.ScaleMorphKeys(coefficients[0], coefficients[1], reason));
+            CHECK(scale.Dirty() && runtime == &scale.Runtime() &&
+                  runtime->Counters().frames == frames);
+            CHECK(scale.CanUndo() == undo && scale.CanRedo() == redo &&
+                  scale.Selected().keys == selection);
+            const auto& after = scale.Document().models[0];
+            CHECK(after.selection.maxFrame == before.selection.maxFrame);
+            const auto equal = [&](const auto& a, const auto& b) {
+                const float expected =
+                    a.allocated ? float(coefficients[0] * a.value) + coefficients[1] : a.value;
+                return b.value == expected && b.frame == a.frame && b.previous == a.previous &&
+                       b.next == a.next && b.allocated == a.allocated;
+            };
+            for (unsigned i = 0; i < before.morphKeys.dense.size(); ++i)
+                CHECK(equal(before.morphKeys.dense[i], after.morphKeys.dense[i]));
+            for (unsigned i = 0; i < before.morphKeys.sparse.size(); ++i)
+                CHECK(before.morphKeys.sparse[i].index == after.morphKeys.sparse[i].index &&
+                      equal(before.morphKeys.sparse[i].value, after.morphKeys.sparse[i].value));
+            for (const auto& [i, key] : before.morphKeys.unused)
+                CHECK(equal(key, after.morphKeys.unused.at(i)));
+            const auto revision = scale.Revision();
+            CHECK(!scale.ScaleMorphKeys(std::numeric_limits<float>::infinity(), 0, reason));
+            CHECK(!scale.ScaleMorphKeys(1, std::numeric_limits<float>::quiet_NaN(), reason));
+            CHECK(scale.Revision() == revision && scale.CanRedo() == redo);
+            CHECK(scale.Document().cameraKeys.dense[0].selected &&
+                  scale.Document().models[1].boneKeys.dense[0].allocated);
+            CHECK(scale.Save(root / "morph-scale.pmm", Write, reason));
+            CHECK(scale.Open(root / "morph-scale.pmm", reason));
+            CHECK(scale.Play(reason));
+            CHECK(!scale.ScaleMorphKeys(2, 0, reason) && scale.Playing());
+        }
+    {
+        EditorSession overflow;
+        CHECK(MorphScaleFixture(overflow, root, "facial.pmd", reason));
+        CHECK(overflow.SelectBones({0}, 0, reason) && overflow.BeginBoneDrag(1, reason));
+        const auto revision = overflow.Revision();
+        CHECK(!overflow.ScaleMorphKeys(std::numeric_limits<float>::max(),
+                                       std::numeric_limits<float>::max(), reason));
+        CHECK(overflow.Revision() == revision && reason == "morph-key-scale-not-finite");
+        CHECK(overflow.BoneDragMode() == 1 && overflow.Document().timeline.editMode == 5);
+        CHECK(overflow.ScaleMorphKeys(1, 0, reason));
+        CHECK(overflow.BoneDragMode() == 0 && overflow.Document().timeline.editMode == 3);
+    }
+    {
+        EditorSession empty;
+        CHECK(MorphScaleFixture(empty, root, "facial.pmd", reason));
+        CHECK(empty.SetSelectedKeys({}, reason, {{Track::Morph, 0}}));
+        CHECK(empty.SetBone(0, 0, {9, 8, 7}, {0, 0, 0, 1}, reason));
+        CHECK(empty.Save(root / "empty-morph-scale.pmm", Write, reason) && !empty.Dirty());
+        const bool undo = empty.CanUndo(), redo = empty.CanRedo();
+        CHECK(empty.ScaleMorphKeys(2, .5f, reason));
+        CHECK(empty.Dirty() && empty.CanUndo() == undo && empty.CanRedo() == redo);
+        CHECK(empty.Document().models[0].morphKeys.sparse[0].value.value == .75f &&
+              empty.Document().models[0].morphKeys.unused.at(19999).value == .625f);
+        CHECK(empty.Document().models[0].bonePose[0].components[0] == 0);
+    }
     for (bool occupied : {false, true}) {
         EditorSession invalid;
         CHECK(invalid.Edit(

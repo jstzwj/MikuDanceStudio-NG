@@ -259,6 +259,26 @@ int GravityPosition(float value) {
     return std::clamp(editor::GravityInteger(value * 100.f), -100, 100);
 }
 }
+MorphScaleDialog::MorphScaleDialog(const Language& language, QWidget* parent)
+    : TemplateDialog(language.Code() == "en" ? ui::kNumericMorphScaleEn : ui::kNumericMorphScaleJa,
+                     language, parent) {
+    setObjectName("mmd.morphScale");
+    Prefill(686, "1.0");
+    Prefill(687, "0.0");
+    Field(0)->setFocus(Qt::OtherFocusReason);
+    Field(0)->selectAll();
+}
+void MorphScaleDialog::accept() {
+    auto next = values_;
+    for (unsigned i = 0; i < 2; ++i)
+        if (!FloatPrefix(Field(i)->text(), 19, next[i])) {
+            Field(i)->setFocus(Qt::OtherFocusReason);
+            Field(i)->selectAll();
+            return;
+        }
+    values_ = next;
+    QDialog::accept();
+}
 GravityDialog::GravityDialog(const Language& language, const format::PmmEvaluatedGravity& value,
                              QWidget* parent)
     : TemplateDialog(language.Code() == "en" ? ui::kNumericGravityEn : ui::kNumericGravityJa,

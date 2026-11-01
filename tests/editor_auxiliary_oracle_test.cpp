@@ -7,6 +7,7 @@
 #include "mikudancestudio/menu_commands.h"
 #include "editor_physics_selection_fixture.hpp"
 #include "editor_reduction_fixture.hpp"
+#include "editor_morph_scale_fixture.hpp"
 #include "gravity_edit_reference.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
 #include "mikudancestudio/cpu_model_state.hpp"
@@ -760,6 +761,79 @@ void GravityHiddenControls(OriginalPhysicsModule& original, const wchar_t* path)
     std::printf(
         "8 original hidden gravity mirrors: real EDIT notifications and formatted values\n");
 }
+unsigned MorphScaleCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    const unsigned char ret = 0xc3;
+    Patch paint(original.Function<void*>(0x60ea0), &ret, 1);
+    Patch curve(original.Function<void*>(0x62bb0), &ret, 1);
+    Patch seek(original.Function<void*>(0xcbd90), &ret, 1);
+    Patch controls(original.Function<void*>(0xcd750), &ret, 1);
+    auto child = &ResetChild;
+    auto text = &RangeText;
+    Patch getChild(original.Function<void*>(0x128658), &child, sizeof child);
+    Patch getText(original.Function<void*>(0x128690), &text, sizeof text);
+    std::vector<unsigned char> app(0xa3000);
+    auto* pointer = app.data();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    struct Input {
+        const char* scaleText;
+        const char* addText;
+        float scale, add;
+    };
+    const Input inputs[]{{"1.0", "0.0", 1, 0},
+                         {"0", "0", 0, 0},
+                         {"-2suffix", ".5suffix", -2, .5f},
+                         {"1.25", "-.125", 1.25f, -.125f},
+                         {"nonnumeric", "1.5", 0, 1.5f},
+                         {"1.00000000000000000e9", "                  9.5", 1, 9}};
+    unsigned cases = 0;
+    for (const char* file : {"facial.pmd", "articulated.pmx"})
+        for (const auto& input : inputs) {
+            EditorSession portable;
+            std::string reason;
+            Check(MorphScaleFixture(portable, root, file, reason), reason.c_str());
+            const auto before = portable.Document().models[0];
+            NativeAuxiliary native(before,
+                                   portable.Runtime().Resource(0)->SourceKind() == ModelKind::Pmx);
+            const auto put = [&](unsigned i, const auto& key) {
+                auto& out = native.morphs.at(i);
+                out.frame = key.frame;
+                out.previous = key.previous;
+                out.next = key.next;
+                out.value = key.value;
+                out.allocated = key.allocated;
+            };
+            for (unsigned i = 0; i < before.morphKeys.dense.size(); ++i)
+                put(i, before.morphKeys.dense[i]);
+            for (const auto& key : before.morphKeys.sparse)
+                put(unsigned(key.index), key.value);
+            for (const auto& [i, key] : before.morphKeys.unused)
+                put(i, key);
+            auto* model = native.model.get();
+            std::fill(app.begin(), app.end(), 0);
+            std::memcpy(app.data() + 0xbe8, &model, sizeof model);
+            rangeFields = {{686, input.scaleText}, {687, input.addText}};
+            original.Function<void (*)(HWND)>(0x9d120)(nullptr);
+            Check(portable.ScaleMorphKeys(input.scale, input.add, reason), reason.c_str());
+            const auto& track = portable.Document().models[0].morphKeys;
+            std::map<unsigned, PmmMorphKey> expected(track.unused.begin(), track.unused.end());
+            for (unsigned i = 0; i < track.dense.size(); ++i)
+                expected[i] = track.dense[i];
+            for (const auto& key : track.sparse)
+                expected[unsigned(key.index)] = key.value;
+            for (unsigned i = 0; i < native.morphs.size(); ++i) {
+                const auto& a = native.morphs[i];
+                const auto b = expected.count(i) ? expected.at(i) : PmmMorphKey{};
+                Check(a.frame == b.frame && a.previous == b.previous && a.next == b.next &&
+                          a.allocated == b.allocated &&
+                          !std::memcmp(&a.value, &b.value, sizeof(float)),
+                      "native morph-scale full pool differs");
+            }
+            Check(app[0xa1b31] && model->UndoCursor() == 29 && model->LatestUndoCursor() == 29,
+                  "native morph-scale dirty/history contract");
+            ++cases;
+        }
+    return cases;
+}
 unsigned reductionCount = 0, reductionMessages = 0;
 int WINAPI ReductionMessage(HWND, LPCSTR text, LPCSTR title, UINT flags) {
     Check(std::strcmp(title, "delete unused frame") == 0 && flags == MB_TOPMOST,
@@ -1021,6 +1095,9 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf(
         "%u original reduction commands: complete pool marks, counts and detached records\n",
         ReductionCommands(original, argv[2]));
+    std::printf(
+        "%u original morph-scale applies: full pool bytes, prefix parsing and unused slots\n",
+        MorphScaleCommands(original, argv[2]));
     return 0;
 } catch (const std::exception& e) {
     std::fprintf(stderr, "%s\n", e.what());

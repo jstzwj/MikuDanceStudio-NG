@@ -521,5 +521,10 @@
   "dialog.numeric.gravity.control.9": "y",
   "dialog.numeric.gravity.control.12": "z",
   "dialog.numeric.gravity.control.13": "noize",
-  "dialog.numeric.gravity.control.15": "-1                    0                    1"
+  "dialog.numeric.gravity.control.15": "-1                    0                    1",
+  "dialog.numeric.morph_scale.title": "multiply of facial expression ",
+  "dialog.numeric.morph_scale.control.0": "degree *",
+  "dialog.numeric.morph_scale.control.2": "+",
+  "dialog.numeric.morph_scale.control.4": "OK",
+  "dialog.numeric.morph_scale.control.5": "cancel"
 }

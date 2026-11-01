@@ -10,6 +10,7 @@
 #include "mikudancestudio/bone_key_interpolation.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
 #include "mikudancestudio/key_reduction.hpp"
+#include "mikudancestudio/key_scale.hpp"
 #include <fstream>
 #include <cmath>
 #include <cstring>
@@ -1006,6 +1007,52 @@ bool EditorSession::ResetMorphs(std::uint8_t slot, std::string& reason) {
     if (clean)
         savedRevision_ = revision_;
     return true;
+}
+bool EditorSession::ScaleMorphKeys(float scale, float add, std::string& reason) {
+    if (playing_ || selection_.model == 255 || !std::isfinite(scale) || !std::isfinite(add)) {
+        reason = "morph-key-scale-unavailable";
+        return false;
+    }
+    auto next = Current();
+    auto* model = Model(next.document, selection_.model);
+    if (!model || !SetPmmSelectedKeys(next.document, selection_.model, selection_.keys)) {
+        reason = "morph-key-scale-selection-expired";
+        return false;
+    }
+    const auto apply = [&](auto& key) {
+        keyframe_edit::ScaleMorphKey(key, scale, add);
+        return !key.allocated || std::isfinite(key.value);
+    };
+    bool valid = true;
+    for (auto& key : model->morphKeys.dense)
+        valid &= apply(key);
+    for (auto& key : model->morphKeys.sparse)
+        valid &= apply(key.value);
+    for (auto& [index, key] : model->morphKeys.unused)
+        valid &= apply(key);
+    if (!valid) {
+        reason = "morph-key-scale-not-finite";
+        return false;
+    }
+    // The native apply tail seeks this model, replacing its pending bone and
+    // display poses too. Other models and the bone undo/redo stacks survive.
+    SceneSession evaluated;
+    if (!SceneSession::Create(next.document, evaluated, reason) ||
+        !evaluated.Seek(unsigned(next.document.timeline.currentFrame))) {
+        if (reason.empty())
+            reason = "morph-key-scale-evaluation-failed";
+        return false;
+    }
+    for (const auto& value : evaluated.Document().models)
+        if (value.slot == selection_.model)
+            *model = value;
+    HistoryBatch history;
+    for (const auto& value : next.document.models)
+        history.emplace(value.slot, CaptureHistory(value, HistoryKind::None, 0));
+    EndGesture();
+    next.document.timeline.editMode = Document().timeline.editMode;
+    // Even accepting identity or an empty selection dirties the native scene.
+    return Commit(std::move(next), reason, history, false);
 }
 bool EditorSession::ResetRotation(std::string& reason) {
     if (playing_) {

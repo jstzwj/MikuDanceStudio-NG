@@ -62,6 +62,16 @@ public:
     void accept() override {}
     std::function<void(float)> changed;
 };
+class MorphScaleDialog final : public TemplateDialog {
+public:
+    MorphScaleDialog(const Language&, QWidget* parent = nullptr);
+    QLineEdit* Field(unsigned index) const { return Edit(686 + int(index)); }
+    const std::array<float, 2>& Values() const { return values_; }
+    void accept() override;
+
+private:
+    std::array<float, 2> values_{1.f, 0.f};
+};
 class GravityDialog final : public TemplateDialog {
 public:
     GravityDialog(const Language&, const format::PmmEvaluatedGravity&, QWidget* parent = nullptr);

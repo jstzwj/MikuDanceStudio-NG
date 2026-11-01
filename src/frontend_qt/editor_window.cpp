@@ -1087,6 +1087,16 @@ void EditorWindow::EdgeThickness() {
         break;
     }
 }
+void EditorWindow::MorphScale() {
+    MorphScaleDialog dialog(language_, this);
+    dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    const auto& values = dialog.Values();
+    std::string reason;
+    Result(session_.ScaleMorphKeys(values[0], values[1], reason), reason);
+    Refresh();
+}
 void EditorWindow::GravitySettings() {
     if (gravityDialog_)
         return;

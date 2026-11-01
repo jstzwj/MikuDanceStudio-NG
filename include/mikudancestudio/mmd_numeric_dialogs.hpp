@@ -180,4 +180,24 @@ inline constexpr NumericControl kNumericGravityJaControls[] = {
 };
 inline constexpr NumericTemplate kNumericGravityJa = {
     802, 160, 102, 9, "dialog.numeric.gravity.title", kNumericGravityJaControls, 16};
+inline constexpr NumericControl kNumericMorphScaleEnControls[] = {
+    {-1, 6, 8, 80, 12, NumericControlKind::Static, "dialog.numeric.morph_scale.control.0"},
+    {686, 37, 5, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 71, 8, 80, 12, NumericControlKind::Static, "dialog.numeric.morph_scale.control.2"},
+    {687, 78, 5, 30, 12, NumericControlKind::Edit, ""},
+    {1, 26, 25, 30, 14, NumericControlKind::Button, "dialog.numeric.morph_scale.control.4"},
+    {2, 65, 25, 30, 14, NumericControlKind::Button, "dialog.numeric.morph_scale.control.5"},
+};
+inline constexpr NumericTemplate kNumericMorphScaleEn = {
+    661, 120, 45, 9, "dialog.numeric.morph_scale.title", kNumericMorphScaleEnControls, 6};
+inline constexpr NumericControl kNumericMorphScaleJaControls[] = {
+    {-1, 10, 8, 80, 12, NumericControlKind::Static, "dialog.numeric.morph_scale.control.0"},
+    {686, 37, 5, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 71, 8, 80, 12, NumericControlKind::Static, "dialog.numeric.morph_scale.control.2"},
+    {687, 78, 5, 30, 12, NumericControlKind::Edit, ""},
+    {1, 26, 25, 30, 14, NumericControlKind::Button, "dialog.numeric.morph_scale.control.4"},
+    {2, 65, 25, 30, 14, NumericControlKind::Button, "dialog.numeric.morph_scale.control.5"},
+};
+inline constexpr NumericTemplate kNumericMorphScaleJa = {
+    643, 120, 45, 9, "dialog.numeric.morph_scale.title", kNumericMorphScaleJaControls, 6};
 }

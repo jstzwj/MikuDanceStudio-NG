@@ -32,6 +32,7 @@
 #include "mikudancestudio/ported_funcs.hpp"
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/panel_controls.hpp"
+#include "mikudancestudio/key_scale.hpp"
 
 namespace mikudancestudio {
 
@@ -472,13 +473,8 @@ void ApplyMorphScaleAdd(MMDApp* app, HWND hDlg) { // VA 0x0043E680
     GetWindowTextA(GetDlgItem(hDlg, panel::kMorphMulOffsetEdit), buf, 20);
     const float add = static_cast<float>(atof(buf));
 
-    if (scale != 1.0f || add != 0.0f) {
-        mdl::MorphKey* keys = model->morphKeys;
-        for (std::size_t i = 0; i < mdl::kMorphKeyCapacity; ++i) {
-            if (keys[i].allocated != 0)
-                keys[i].value = static_cast<float>(scale * keys[i].value) + add;
-        }
-    }
+    for (std::size_t i = 0; i < mdl::kMorphKeyCapacity; ++i)
+        keyframe_edit::ScaleMorphKey(model->morphKeys[i], scale, add);
     PanelPaint(app);        // 0x414610 (x64 sub_7FF7CB480EA0)
     CurvePanelRepaint(app); // x64 sub_7FF7CB482BB0
     SeekModelFrame(*model, app->state.currentFrame,

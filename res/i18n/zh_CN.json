@@ -521,5 +521,10 @@
   "dialog.numeric.gravity.control.9": "y",
   "dialog.numeric.gravity.control.12": "z",
   "dialog.numeric.gravity.control.13": "噪声",
-  "dialog.numeric.gravity.control.15": "-1                    0                    1"
+  "dialog.numeric.gravity.control.15": "-1                    0                    1",
+  "dialog.numeric.morph_scale.title": "表情大小修正",
+  "dialog.numeric.morph_scale.control.0": "大小 *",
+  "dialog.numeric.morph_scale.control.2": "+",
+  "dialog.numeric.morph_scale.control.4": "确定",
+  "dialog.numeric.morph_scale.control.5": "取消"
 }
