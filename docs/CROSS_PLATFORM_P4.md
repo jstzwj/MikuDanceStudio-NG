@@ -696,3 +696,14 @@ frozen restoration-point checks passed. Actual exposed pointer interaction is
 still an isolated-runner acceptance item. Wayland cursor hiding/capture works
 through Qt, but client warping is prohibited; a pointer-lock/relative-motion
 adapter remains required for equivalent centered dragging there.
+
+The Windows Win32 foundation run exposed an evaluation-model leak: the public
+scene-runtime dependency propagated Bullet's `/arch:IA32` into portable editor
+commands and their tests. The scene API only forward-declares its physics world;
+the physics dependency is now private. Physics/runtime compilation retains the
+legacy setting, while editor arithmetic retains its specified binary32 boundary.
+The original frozen reset-pose bit pattern and exact camera-wheel assertion pass
+without changing expectations or tolerances.
+The full local Win32 foundation suite then passed (75 registered tests, with
+only the explicitly external PMM asset case skipped), including all P4 commands,
+scene/physics comparisons and the dependency audit.

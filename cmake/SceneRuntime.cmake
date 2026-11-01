@@ -6,7 +6,10 @@ function(mds_add_scene_runtime physics_target)
     add_library(mikudancestudio_scene_runtime STATIC "${mds_root}/src/physics/model_physics_runtime.cpp" "${mds_root}/src/model/scene_runtime.cpp")
     target_compile_definitions(mikudancestudio_scene_runtime PRIVATE NOMINMAX)
     target_compile_features(mikudancestudio_scene_runtime PUBLIC cxx_std_17)
-    target_link_libraries(mikudancestudio_scene_runtime PUBLIC mikudancestudio_model_runtime ${physics_target})
+    # The public scene API exposes no Bullet headers. Keep its IA32 evaluation
+    # model inside the physics/runtime boundary; propagating it to editor code
+    # changes the portable editor's specified binary32 arithmetic on Windows x86.
+    target_link_libraries(mikudancestudio_scene_runtime PUBLIC mikudancestudio_model_runtime PRIVATE ${physics_target})
     add_executable(mds_cpu_scene_cli "${mds_root}/src/tools/scene_runtime_cli.cpp")
     target_link_libraries(mds_cpu_scene_cli PRIVATE mikudancestudio_scene_runtime)
     if(MSVC)
