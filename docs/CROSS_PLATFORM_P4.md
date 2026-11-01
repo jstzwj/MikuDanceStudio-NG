@@ -822,6 +822,18 @@ The new Linux `qt_wayland_pointer_*` gate runs a separate Qt client against a
 private, memory-only Qt Wayland compositor, with real registry/seat/xdg-surface
 transport and scripted optional pointer protocols. It covers fractional motion,
 scales 1/1.5/2, duplicate absolute events, release hints, revocation, cancellation,
-missing protocols and an ungranted request. Linux execution is pending for this
-batch; local Windows synthetic gestures passed at all three scale factors.
+missing protocols and an ungranted request. All five Linux protocol cases and
+the three-platform editor workflow passed at `1edf61f`
+([run 41316100403](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41316100403));
+local Windows synthetic gestures passed at all three scale factors.
 No test connects to the user's Wayland socket or moves the desktop pointer.
+
+The opt-in Windows x64 `editor_layout_oracle_test <original.exe>` now calls the
+actual main layout routine at RVA `1D250`. Its seven window imports are replaced
+by memory-only recorders; four painting/refresh calls are excluded. All **768
+states / 112128 ordered control rectangles** matched exactly: six sidebar/client
+sizes and all 128 camera/panel option combinations, with 146 moves per state.
+The independent native record streams also supply six frozen hashes for the
+portable `editor_layout` regression on every platform. This checks main-control
+placement expressions and order. It does not compare native font metrics,
+collapsed combo geometry, visibility, viewport-tail controls or window chrome.
