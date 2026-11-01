@@ -56,7 +56,10 @@ private:
     std::shared_ptr<const runtime::ModelResource> dragResource_;
     editor::BoneDragInput boneDrag_;
     void FinishBoneDrag();
-    bool box_ = false;
+    QPoint DevicePoint(QPoint) const;
+    void FinishBoxSelection();
+    bool box_ = false, boxAdditive_ = false;
+    std::uint8_t boxModel_ = 255;
     QPoint anchor_;
     std::vector<cpu_bone::ScreenPoint> bonePoints_;
     QPoint previous_;

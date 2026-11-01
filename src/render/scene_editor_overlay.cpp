@@ -232,6 +232,9 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
         toolState.playing = playing;
         toolState.editMode = doc.timeline.editMode;
         AppendViewportTools(toolState, float(width), float(height), scale, quad);
+        if (toolState.selectionBox && !playing)
+            AppendSelectionBox(toolState.box[0], toolState.box[1], toolState.box[2],
+                               toolState.box[3], appendLine);
     }
     // The replay contract requires a pure clear to have no upload resources.
     // Drop leases only for that case and publish fresh versions on revival.

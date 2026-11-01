@@ -63,6 +63,18 @@ int main(int argc, char** argv) {
         CHECK(quads.size() == 5);
         CHECK(quads[3][0] == 1190 && quads[3][1] == 920);
     }
+    {
+        std::vector<std::array<float, 4>> lines;
+        render::AppendSelectionBox(70, 90, 10, 20,
+                                   [&](float x, float y, float ex, float ey, std::uint32_t color) {
+                                       lines.push_back({x, y, ex, ey});
+                                       if (color != 0xFFFFFFFFu)
+                                           throw std::runtime_error("selection color differs");
+                                   });
+        CHECK(lines ==
+              (std::vector<std::array<float, 4>>{
+                  {10, 20, 10, 90}, {10, 90, 70, 90}, {70, 90, 70, 20}, {70, 20, 10, 20}}));
+    }
     // Frozen native atlas cells and order. These checks do not obtain expected
     // UVs from the producer, and include the selected mode-1 physics exception.
     {
@@ -210,6 +222,21 @@ int main(int argc, char** argv) {
             CHECK(submit(frame, repeat) && repeat.bytes == actual.bytes);
             ++cases;
         }
+        // White box feedback loads finalColor and preserves all upload lifetimes.
+        render::ViewportTools tools;
+        tools.selectionBox = true;
+        tools.box = {300, 220, 120, 100};
+        session.SetEditMode(1);
+        CHECK(producer.Build(session.Runtime(), settings, scene, reason));
+        auto boxed = scene;
+        CHECK(overlay.Append(session.Runtime(), settings, session.Selected().bones, false, boxed,
+                             reason, &tools));
+        CHECK(submit(boxed, actual) && submit(boxed, repeat) && actual.bytes == repeat.bytes);
+        tools.selectionBox = false;
+        auto unboxed = scene;
+        CHECK(overlay.Append(session.Runtime(), settings, session.Selected().bones, false, unboxed,
+                             reason, &tools));
+        CHECK(submit(unboxed, repeat) && actual.bytes != repeat.bytes);
         CHECK(session.Runtime().Counters().frames == frames);
         CHECK(session.SelectModel(255, reason));
         settings.editorModel = 255;

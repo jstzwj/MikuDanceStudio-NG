@@ -7,7 +7,17 @@ struct ViewportTools {
     bool camera = true, playing = false;
     int coordinateSystem = 0, boneMode = 0, operation = 0, editMode = 0;
     int centerX = 393939, centerY = 393939;
+    bool selectionBox = false;
+    std::array<int, 4> box{}; // Physical pixel left/top/right/bottom.
 };
+template <class Append> void AppendSelectionBox(int x0, int y0, int x1, int y1, Append append) {
+    const float left = float(x0 < x1 ? x0 : x1), right = float(x0 < x1 ? x1 : x0);
+    const float top = float(y0 < y1 ? y0 : y1), bottom = float(y0 < y1 ? y1 : y0);
+    append(left, top, left, bottom, 0xFFFFFFFFu);
+    append(left, bottom, right, bottom, 0xFFFFFFFFu);
+    append(right, bottom, right, top, 0xFFFFFFFFu);
+    append(right, top, left, top, 0xFFFFFFFFu);
+}
 // The native operation-panel atlas geometry, independent of window or GPU.
 template <class Append>
 void AppendViewportTools(const ViewportTools& state, float right, float bottom, float scale,

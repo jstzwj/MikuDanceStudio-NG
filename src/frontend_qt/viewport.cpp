@@ -23,11 +23,14 @@ Viewport::Viewport(editor::EditorSession& session, const std::filesystem::path& 
         options_.driver = rhi::BackendDriver::Software;
 }
 Viewport::~Viewport() {
+    changed = {};
     FinishBoneDrag();
+    FinishBoxSelection();
     controller_.Close();
 }
 void Viewport::SetOptions(const rhi::BackendOptions& options) {
     FinishBoneDrag();
+    FinishBoxSelection();
     frameCached_ = false;
     controller_.Close();
     producer_.ResetHistory();
@@ -35,6 +38,7 @@ void Viewport::SetOptions(const rhi::BackendOptions& options) {
 }
 bool Viewport::Reset(std::string& reason) {
     FinishBoneDrag();
+    FinishBoxSelection();
     frameCached_ = false;
     producer_.ResetHistory();
     if (!controller_.ReplaceDevice()) {
@@ -100,6 +104,9 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         render::ViewportTools tools;
         tools.coordinateSystem = int(session_.CoordinateSystem());
         tools.operation = toolOperation_;
+        tools.selectionBox = box_;
+        const auto start = DevicePoint(anchor_), end = DevicePoint(previous_);
+        tools.box = {start.x(), start.y(), end.x(), end.y()};
         if (!overlay_.Append(session_.Runtime(), settings, session_.Selected().bones,
                              session_.Playing(), cachedFrame_, reason, &tools))
             return false;
@@ -157,6 +164,27 @@ std::uint64_t Viewport::Submissions() const {
     const auto* renderer = const_cast<rhi::ScenePreviewController&>(controller_).GetRenderer();
     return renderer ? renderer->Stats().submissions : 0;
 }
+QPoint Viewport::DevicePoint(QPoint point) const {
+    return {qRound(point.x() * devicePixelRatio()), qRound(point.y() * devicePixelRatio())};
+}
+void Viewport::FinishBoxSelection() {
+    if (!box_)
+        return;
+    std::string reason;
+    bool ok = true;
+    if (!session_.Playing() && session_.Selected().model == boxModel_) {
+        const auto bounds = QRect(DevicePoint(anchor_), DevicePoint(previous_)).normalized();
+        ok = session_.BoxSelectBones(bonePoints_, bounds.left(), bounds.top(), bounds.right(),
+                                     bounds.bottom(), boxAdditive_, true, reason);
+    }
+    box_ = false;
+    pressed_ = false;
+    frameCached_ = false;
+    if (isExposed())
+        setMouseGrabEnabled(false);
+    if (changed)
+        changed(ok, reason);
+}
 void Viewport::FinishBoneDrag() {
     if (!boneDragMode_)
         return;
@@ -173,6 +201,7 @@ bool Viewport::event(QEvent* event) {
         event->type() == QEvent::UngrabMouse) {
         const bool active = boneDragMode_ != 0;
         FinishBoneDrag();
+        FinishBoxSelection();
         if (active && changed)
             changed(true, {});
     }
@@ -180,6 +209,7 @@ bool Viewport::event(QEvent* event) {
         static_cast<QPlatformSurfaceEvent*>(event)->surfaceEventType() ==
             QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
         FinishBoneDrag();
+        FinishBoxSelection();
         frameCached_ = false;
         controller_.Close();
         producer_.ResetHistory();
@@ -206,9 +236,11 @@ void Viewport::mousePressEvent(QMouseEvent* e) {
                 changed(false, reason);
             return;
         }
-        if (!render::SceneBoneScreenPoints(session_.Runtime(), session_.Selected().model,
-                                           unsigned(width()), unsigned(height()), bonePoints_,
-                                           reason, session_.Selected().model)) {
+        if (!render::SceneBoneScreenPoints(
+                session_.Runtime(), session_.Selected().model,
+                unsigned(std::max(1, qRound(width() * devicePixelRatio()))),
+                unsigned(std::max(1, qRound(height() * devicePixelRatio()))), bonePoints_, reason,
+                session_.Selected().model)) {
             if (changed)
                 changed(false, reason);
             return;
@@ -257,8 +289,18 @@ void Viewport::mousePressEvent(QMouseEvent* e) {
         }
         anchor_ = previous_;
         box_ = session_.Document().timeline.editMode == 1;
+        if (box_) {
+            boxModel_ = session_.Selected().model;
+            boxAdditive_ = e->modifiers() & Qt::ShiftModifier;
+            frameCached_ = false;
+            if (isExposed())
+                setMouseGrabEnabled(true);
+            if (changed)
+                changed(true, {});
+        }
         if (session_.Document().timeline.editMode == 0) {
-            const bool ok = session_.PickBone(bonePoints_, previous_.x(), previous_.y(),
+            const bool ok = session_.PickBone(bonePoints_, DevicePoint(previous_).x(),
+                                              DevicePoint(previous_).y(),
                                               e->modifiers() & Qt::ShiftModifier, reason);
             if (changed)
                 changed(ok, reason);
@@ -316,7 +358,13 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
     previous_ = point;
     if (box_ && (e->buttons() & Qt::LeftButton)) {
         std::string reason;
-        const auto bounds = QRect(anchor_, point).normalized();
+        if (session_.Playing() || session_.Selected().model != boxModel_) {
+            FinishBoxSelection();
+            return;
+        }
+        boxAdditive_ = e->modifiers() & Qt::ShiftModifier;
+        frameCached_ = false;
+        const auto bounds = QRect(DevicePoint(anchor_), DevicePoint(point)).normalized();
         const bool ok = session_.BoxSelectBones(bonePoints_, bounds.left(), bounds.top(),
                                                 bounds.right(), bounds.bottom(),
                                                 e->modifiers() & Qt::ShiftModifier, false, reason);
@@ -335,14 +383,9 @@ void Viewport::mouseReleaseEvent(QMouseEvent* e) {
         return;
     }
     if (box_ && e->button() == Qt::LeftButton) {
-        std::string reason;
-        const auto bounds = QRect(anchor_, e->position().toPoint()).normalized();
-        const bool ok = session_.BoxSelectBones(bonePoints_, bounds.left(), bounds.top(),
-                                                bounds.right(), bounds.bottom(),
-                                                e->modifiers() & Qt::ShiftModifier, true, reason);
-        if (changed)
-            changed(ok, reason);
-        box_ = false;
+        previous_ = e->position().toPoint();
+        boxAdditive_ = e->modifiers() & Qt::ShiftModifier;
+        FinishBoxSelection();
     }
     pressed_ = false;
 }

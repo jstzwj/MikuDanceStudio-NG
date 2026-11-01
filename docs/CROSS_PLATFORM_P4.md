@@ -669,3 +669,13 @@ pose production or the complete native UI loop.
 Centered cursor warping/hiding/restoration, complete 3D axis drawing, box
 selection feedback, physical input and the complete original UI/DPI/font/audio
 acceptance gates remain open. P4/C1 is not yet accepted.
+
+
+Qt picking and box selection now use the same physical-pixel projection as bone
+dragging. The white selection rectangle shares its exact four-segment order and
+color with the Windows host. Press/move/release invalidate the viewport cache
+without adding pose history or evaluating the scene; focus loss and teardown
+finish the selection and remove feedback. Offscreen Qt gestures passed at
+scale factors 1, 1.5 and 2, including reverse-direction boxes and picking.
+This covers coordinate mapping for these operations, not the complete DPI or
+physical input acceptance gate.

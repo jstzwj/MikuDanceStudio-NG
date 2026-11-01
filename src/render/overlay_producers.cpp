@@ -13,6 +13,7 @@
 #include "mikudancestudio/mmd_app.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
 #include "vb_dump.hpp"
+#include "mikudancestudio/viewport_tools.hpp"
 
 namespace mikudancestudio {
 namespace {
@@ -174,8 +175,8 @@ void PrepareFrameTextOverlay(MMDApp* app) { // 0x423420
                319.0f / 512.0f, 159.0f / 512.0f, 0xFFFFFFFFu);
     }
 
-    app->ViewportRenderer().CaptureOverlay(EditorOverlay::Text, begin,
-                                           app->TextOverlayPrimitiveCount() * 3u, sizeof(TextVertex));
+    app->ViewportRenderer().CaptureOverlay(
+        EditorOverlay::Text, begin, app->TextOverlayPrimitiveCount() * 3u, sizeof(TextVertex));
     DumpVertexBatch("text", begin, app->TextOverlayPrimitiveCount(), 84);
     vb->Unlock();
 }
@@ -204,13 +205,13 @@ void PrepareFrameLineOverlay(MMDApp* app) { // 0x4757C3..0x4759D8
     const float right = static_cast<float>(std::max(app->BoneBoxStartX(), app->MouseX()));
     const float top = static_cast<float>(std::min(app->BoneBoxStartY(), app->MouseY()));
     const float bottom = static_cast<float>(std::max(app->BoneBoxStartY(), app->MouseY()));
-    const LineVertex vertices[8] = {
-        {left, top, 0.0f, 1.0f, 0xFFFFFFFFu},     {left, bottom, 0.0f, 1.0f, 0xFFFFFFFFu},
-        {left, bottom, 0.0f, 1.0f, 0xFFFFFFFFu},  {right, bottom, 0.0f, 1.0f, 0xFFFFFFFFu},
-        {right, bottom, 0.0f, 1.0f, 0xFFFFFFFFu}, {right, top, 0.0f, 1.0f, 0xFFFFFFFFu},
-        {right, top, 0.0f, 1.0f, 0xFFFFFFFFu},    {left, top, 0.0f, 1.0f, 0xFFFFFFFFu},
-    };
-    std::copy(std::begin(vertices), std::end(vertices), out);
+    LineVertex* cursor = out;
+    render::AppendSelectionBox(app->BoneBoxStartX(), app->BoneBoxStartY(), app->MouseX(),
+                               app->MouseY(),
+                               [&](float x, float y, float ex, float ey, std::uint32_t color) {
+                                   *cursor++ = {x, y, 0.f, 1.f, color};
+                                   *cursor++ = {ex, ey, 0.f, 1.f, color};
+                               });
     app->LineOverlayPrimitiveCount() = 4;
     app->ViewportRenderer().CaptureOverlay(EditorOverlay::Lines, out, 8, sizeof(LineVertex));
     if (right - left >= 20.0f && bottom - top >= 20.0f)

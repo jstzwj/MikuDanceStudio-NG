@@ -81,6 +81,21 @@ int main(int argc, char** argv) {
     CHECK(ok && session.Document().timeline.editMode == 4);
     CHECK(session.Undo(reason));
     CHECK(session.Document().models[0].bonePose[0].components == initial);
+    // Picking and a backwards box at fractional DPI use the same physical projection.
+    CHECK(session.SelectBones({}, -1, reason));
+    session.SetEditMode(0);
+    const QPointF center(points[0].x / ratio, points[0].y / ratio);
+    mouse(QEvent::MouseButtonPress, center, Qt::LeftButton, Qt::LeftButton);
+    mouse(QEvent::MouseButtonRelease, center, Qt::LeftButton, Qt::NoButton);
+    CHECK(session.ActiveBone() >= 0 && !session.Selected().bones.empty());
+    session.SetEditMode(1);
+    const QPointF near((points[0].x - 10) / ratio, (points[0].y - 10) / ratio);
+    const QPointF far((points[0].x + 10) / ratio, (points[0].y + 10) / ratio);
+    mouse(QEvent::MouseButtonPress, far, Qt::LeftButton, Qt::LeftButton);
+    mouse(QEvent::MouseMove, near, Qt::NoButton, Qt::LeftButton);
+    mouse(QEvent::MouseButtonRelease, near, Qt::LeftButton, Qt::NoButton);
+    CHECK(ok && session.Selected().bones == (std::vector<std::uint32_t>{0}));
+    CHECK(session.ActiveBone() == 0);
     CHECK(!viewport.isVisible() && viewport.Submissions() == 0);
     std::cout
         << "Qt synthetic bone gestures, axis hit, selection inheritance, focus loss, undo and DPR passed without a surface\n";
