@@ -1,0 +1,316 @@
+#include "editor_window.hpp"
+#include "mikudancestudio/text_encoding.hpp"
+#include <QAbstractButton>
+#include <QComboBox>
+#include <QLineEdit>
+#include <QSlider>
+#include <cmath>
+
+namespace mikudancestudio::qt {
+using namespace panel;
+namespace {
+QString Label(const std::vector<char>& bytes) {
+    std::string value;
+    text::DecodeCp932({bytes.data(), bytes.size()}, value);
+    return QString::fromUtf8(value.c_str());
+}
+constexpr double kPi = 3.141592025756836;
+}
+void EditorWindow::RefreshPanels() {
+    const auto& d = session_.Document();
+    const auto edit = [&](int id, double value) {
+        auto* e = static_cast<QLineEdit*>(Control(id));
+        if (!e->hasFocus())
+            e->setText(QString::number(value, 'g', 7));
+    };
+    const auto check = [&](int id, bool value) {
+        static_cast<QAbstractButton*>(Control(id))->setChecked(value);
+    };
+    const auto slider = [&](int id, int minimum, int maximum, int value) {
+        auto* s = static_cast<QSlider*>(Control(id));
+        s->setRange(minimum, maximum);
+        s->setValue(value);
+    };
+    for (int i = 0; i < 3; ++i) {
+        edit(kLightColorEditR + i, int(double(d.lightState[i]) * 256));
+        slider(kLightColorSliderR + i, 0, 255, int(double(d.lightState[i]) * 256));
+        edit(kLightDirEditX + i, d.lightState[i + 3]);
+        slider(kLightDirSliderX + i, -100, 100, int(double(d.lightState[i + 3]) * 100));
+    }
+    const int shadowDistance = int(10000. - double(d.physicsInterval) * 100000. + .5);
+    edit(kSelfShadowRangeEdit, shadowDistance);
+    slider(kSelfShadowRangeSlider, 0, 9999, shadowDistance);
+    for (int i = 0; i < 3; ++i)
+        check(kEditOffCheckbox + i, d.selfShadowMode == i);
+    check(kCoordAxisCheckbox, d.view.groundGrid);
+    check(kInfoCheckbox, d.view.fpsOverlay);
+    check(kFollowCameraCheckbox, d.appearance.followCamera);
+    check(kCameraRefModelCheckbox, d.timeline.cameraReferenceMode == 1);
+    check(kCameraRefBoneCheckbox, d.timeline.cameraReferenceMode == 2);
+    slider(kFrameVolumeSlider, 0, 100, 100 - frameNormalization_);
+    const bool model = session_.Selected().model != 255;
+    static_cast<QAbstractButton*>(Control(kModelEditToggle))
+        ->setText(language_.Text(model ? "mode.to_camera" : "mode.to_model"));
+    for (int id = kDeleteModelButton; id <= kIkOffRadio; ++id)
+        Control(id)->setEnabled(model);
+    const int editModes[]{0, 1, 4, 3};
+    for (int i = 0; i < 4; ++i)
+        check(kBoneSelectRadio + i, d.timeline.editMode == editModes[i]);
+    for (const auto& m : d.models)
+        if (m.slot == session_.Selected().model) {
+            auto* c = static_cast<QComboBox*>(Control(kIkChainCombo));
+            const auto old = c->currentData();
+            c->clear();
+            const auto resource = session_.Runtime().Resource(m.slot);
+            for (std::size_t i = 0; i < resource->IkBoneIndices().size(); ++i)
+                c->addItem(Label(m.boneNames.at(resource->IkBoneIndices()[i])), unsigned(i));
+            c->setCurrentIndex(std::max(0, c->findData(old)));
+            const auto ik = c->currentData().toUInt();
+            check(kIkOnRadio, !m.ikPose.empty() && m.ikPose.at(ik));
+            check(kIkOffRadio, !m.ikPose.empty() && !m.ikPose.at(ik));
+            Control(kIkOnRadio)->setEnabled(!m.ikPose.empty());
+            Control(kIkOffRadio)->setEnabled(!m.ikPose.empty());
+        }
+    const auto parentModels = [&](int id, int slot, const char* none) {
+        auto* c = static_cast<QComboBox*>(Control(id));
+        c->clear();
+        c->addItem(language_.Text(none), -1);
+        for (const auto& m : d.models)
+            c->addItem(Label(m.name), int(m.slot));
+        c->setCurrentIndex(c->findData(slot));
+    };
+    const auto parentBones = [&](int id, int slot, int bone) {
+        auto* c = static_cast<QComboBox*>(Control(id));
+        c->clear();
+        for (const auto& m : d.models)
+            if (m.slot == slot)
+                for (std::size_t i = 0; i < m.boneNames.size(); ++i)
+                    c->addItem(Label(m.boneNames[i]), int(i));
+        c->setCurrentIndex(c->findData(bone));
+        c->setEnabled(c->count() != 0);
+    };
+    parentModels(kMainComboNormal, d.appearance.cameraParentModel, "parent.none");
+    parentBones(kBoneRegisterCombo, d.appearance.cameraParentModel, d.appearance.cameraParentBone);
+    bool accessory = false;
+    for (const auto& a : d.accessories)
+        if (a.slot == session_.Selected().accessory) {
+            accessory = true;
+            const auto& p = a.state;
+            for (int i = 0; i < 3; ++i) {
+                edit(kAccPosXEdit + i, p.position[i]);
+                edit(kAccRotXEdit + i, double(p.rotation[i]) / kPi * 180);
+            }
+            edit(kAccScaleEdit, p.scale);
+            edit(kAccOpacityEdit, p.opacity);
+            check(kAccessoryVisibleCheckbox, p.visible);
+            check(kAccessoryShadowCheckbox, p.shadowEnabled);
+            check(kAccessoryAddBlendCheckbox, p.additiveBlend);
+            parentModels(kMainComboGround, p.parentModel, "parent.ground");
+            parentBones(kAttachBoneCombo, p.parentModel, p.parentBone);
+        }
+    for (int id = kDeleteAccessoryButton; id <= kRegisterAccessoryButton; ++id)
+        Control(id)->setEnabled(accessory && (id != kAttachBoneCombo ||
+                                              static_cast<QComboBox*>(Control(id))->count() != 0));
+}
+bool EditorWindow::PanelCommand(int id) {
+    std::string reason;
+    const struct {
+        int collapse, expand, option;
+    } panels[]{{kCollapseCameraPanelButton, kExpandCameraPanelButton, 1},
+               {kCollapseLightPanelButton, kExpandLightPanelButton, 2},
+               {kCollapseAccessoryPanelButton, kExpandAccessoryPanelButton, 3},
+               {kCollapseBonePanelButton, kExpandBonePanelButton, 4},
+               {kCollapseMorphPanelButton, kExpandMorphPanelButton, 5},
+               {kCollapseSelfShadowPanelButton, kExpandSelfShadowPanelButton, 6}};
+    for (const auto& p : panels)
+        if (id == p.collapse || id == p.expand) {
+            session_.SetPanelExpanded(p.option, id == p.expand);
+            return true;
+        }
+    if (id == kModelEditToggle) {
+        if (session_.Selected().model != 255) {
+            previousModel_ = session_.Selected().model;
+            session_.Selected().model = 255;
+        } else {
+            for (const auto& m : session_.Document().models)
+                if (m.slot == previousModel_)
+                    session_.Selected().model = m.slot;
+            if (session_.Selected().model == 255 && !session_.Document().models.empty())
+                session_.Selected().model = session_.Document().models.front().slot;
+        }
+        return true;
+    }
+    if (id >= kResetPositionXButton && id <= kCameraDistanceButton) {
+        const int field = id == kCameraDistanceButton
+                              ? kReadoutDistEdit
+                              : kReadoutPosXEdit + id - kResetPositionXButton;
+        static_cast<QLineEdit*>(Control(field))->setText("0");
+        EditField(field);
+        return true;
+    }
+    if (id == kResetLightButton || (id >= kEditOffCheckbox && id <= kEditMode2Checkbox) ||
+        (id >= kBoneSelectRadio && id <= kBoneRotateRadio) || id == kCoordAxisCheckbox ||
+        id == kInfoCheckbox || id == kFollowCameraCheckbox || id == kCameraRefBoneCheckbox ||
+        id == kCameraRefModelCheckbox || id == kIkOnRadio || id == kIkOffRadio) {
+        Result(session_.Edit(
+                   "panel-state",
+                   [&](auto& d, auto&) {
+                       if (id == kResetLightButton)
+                           d.lightState = {.602f, .602f, .602f, -.5f, -1.f, .5f};
+                       else if (id >= kEditOffCheckbox && id <= kEditMode2Checkbox)
+                           d.selfShadowMode = std::uint8_t(id - kEditOffCheckbox);
+                       else if (id >= kBoneSelectRadio && id <= kBoneRotateRadio)
+                           d.timeline.editMode =
+                               static_cast<QAbstractButton*>(Control(id))->isChecked()
+                                   ? (id == kBoneMoveRadio ? 4 : id - kBoneSelectRadio)
+                                   : 2;
+                       else if (id == kCameraRefModelCheckbox || id == kCameraRefBoneCheckbox)
+                           d.timeline.cameraReferenceMode =
+                               static_cast<QAbstractButton*>(Control(id))->isChecked()
+                                   ? (id == kCameraRefBoneCheckbox ? 2 : 1)
+                                   : 0;
+                       else if (id == kIkOnRadio || id == kIkOffRadio) {
+                           auto* combo = static_cast<QComboBox*>(Control(kIkChainCombo));
+                           if (!combo->count())
+                               return false;
+                           for (auto& m : d.models)
+                               if (m.slot == session_.Selected().model)
+                                   m.ikPose.at(combo->currentData().toUInt()) = id == kIkOnRadio;
+                       } else {
+                           const bool value =
+                               static_cast<QAbstractButton*>(Control(id))->isChecked();
+                           if (id == kCoordAxisCheckbox)
+                               d.view.groundGrid = value;
+                           if (id == kInfoCheckbox)
+                               d.view.fpsOverlay = value;
+                           if (id == kFollowCameraCheckbox)
+                               d.appearance.followCamera = value;
+                       }
+                       return true;
+                   },
+                   reason),
+               reason);
+        return true;
+    }
+    if (id == kAccessoryVisibleCheckbox || id == kAccessoryShadowCheckbox ||
+        id == kAccessoryAddBlendCheckbox) {
+        const bool value = static_cast<QAbstractButton*>(Control(id))->isChecked();
+        for (const auto& a : session_.Document().accessories)
+            if (a.slot == session_.Selected().accessory) {
+                auto state = a.state;
+                if (id == kAccessoryVisibleCheckbox)
+                    state.visible = value;
+                if (id == kAccessoryShadowCheckbox)
+                    state.shadowEnabled = value;
+                if (id == kAccessoryAddBlendCheckbox)
+                    state.additiveBlend = value;
+                Result(session_.SetAccessory(a.slot, state, reason), reason);
+                break;
+            }
+        return true;
+    }
+    // Previous/next selects a morph, rather than changing its weight.
+    for (int lane = 0; lane < 4; ++lane)
+        if (id == kMorphPreviousButton0 + lane * 5 || id == kMorphNextButton0 + lane * 5) {
+            auto* c = static_cast<QComboBox*>(Control(kMorphCombo0 + lane * 5));
+            if (c->count())
+                c->setCurrentIndex((c->currentIndex() +
+                                    (id == kMorphNextButton0 + lane * 5 ? 1 : c->count() - 1)) %
+                                   c->count());
+            return true;
+        }
+    return false;
+}
+bool EditorWindow::PanelEdit(int id, double value) {
+    std::string reason;
+    if (id >= kLightColorEditR && id <= kLightDirEditZ) {
+        Result(session_.Edit(
+                   "light-value",
+                   [&](auto& d, auto&) {
+                       d.lightState[id - kLightColorEditR] = float(
+                           id <= kLightColorEditB ? std::clamp(value, 0., 255.) / 256. : value);
+                       return true;
+                   },
+                   reason),
+               reason);
+        return true;
+    }
+    if (id == kSelfShadowRangeEdit) {
+        Result(session_.Edit(
+                   "shadow-distance",
+                   [&](auto& d, auto&) {
+                       d.physicsInterval = float((10000. - std::clamp(value, 0., 9999.)) / 100000.);
+                       return true;
+                   },
+                   reason),
+               reason);
+        return true;
+    }
+    if (id >= kAccPosXEdit && id <= kAccOpacityEdit) {
+        for (const auto& a : session_.Document().accessories)
+            if (a.slot == session_.Selected().accessory) {
+                auto state = a.state;
+                if (id <= kAccPosZEdit)
+                    state.position[id - kAccPosXEdit] = float(value);
+                else if (id <= kAccRotZEdit)
+                    state.rotation[id - kAccRotXEdit] = float(value / 180. * kPi);
+                else if (id == kAccScaleEdit)
+                    state.scale = float(value);
+                else
+                    state.opacity = float(std::clamp(value, 0., 1.));
+                Result(session_.SetAccessory(a.slot, state, reason), reason);
+                break;
+            }
+        return true;
+    }
+    for (int lane = 0; lane < 4; ++lane)
+        if (id == kMorphEdit0 + lane * 5) {
+            const auto* c = static_cast<QComboBox*>(Control(kMorphCombo0 + lane * 5));
+            if (c->count())
+                Result(session_.SetMorph(session_.Selected().model, c->currentData().toUInt(),
+                                         float(std::clamp(value, 0., 1.)), reason),
+                       reason);
+            return true;
+        }
+    return false;
+}
+bool EditorWindow::PanelSlider(int id, int value) {
+    if (id >= kLightColorSliderR && id <= kLightColorSliderB)
+        return PanelEdit(kLightColorEditR + id - kLightColorSliderR, value);
+    if (id >= kLightDirSliderX && id <= kLightDirSliderZ)
+        return PanelEdit(kLightDirEditX + id - kLightDirSliderX, value / 100.);
+    if (id == kSelfShadowRangeSlider)
+        return PanelEdit(kSelfShadowRangeEdit, value);
+    return false;
+}
+bool EditorWindow::PanelCombo(int id, int index) {
+    const auto* combo = static_cast<QComboBox*>(Control(id));
+    const int value = combo->itemData(index).toInt();
+    std::string reason;
+    if (id == kMainComboNormal || id == kBoneRegisterCombo) {
+        auto camera = session_.Runtime().Session()->Pose().camera;
+        if (id == kMainComboNormal) {
+            camera.parentModel = value;
+            camera.parentBone = 0;
+        } else
+            camera.parentBone = value;
+        Result(session_.SetCamera(camera, reason), reason);
+        return true;
+    }
+    if (id == kMainComboGround || id == kAttachBoneCombo) {
+        for (const auto& a : session_.Document().accessories)
+            if (a.slot == session_.Selected().accessory) {
+                auto state = a.state;
+                if (id == kMainComboGround) {
+                    state.parentModel = value;
+                    state.parentBone = 0;
+                } else
+                    state.parentBone = value;
+                Result(session_.SetAccessory(a.slot, state, reason), reason);
+                break;
+            }
+        return true;
+    }
+    return false;
+}
+}

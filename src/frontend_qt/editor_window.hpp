@@ -45,6 +45,8 @@ private:
     QElapsedTimer clock_;
     bool testing_ = false, refreshing_ = false;
     int side_ = 250;
+    int frameNormalization_ = 100;
+    std::uint8_t previousModel_ = 255;
     QString lastError_;
     format::VpdDocument poseClipboard_;
     AudioTransport audio_;
@@ -54,6 +56,11 @@ private:
     void EditField(int);
     void Slider(int, int);
     void Combo(int, int);
+    void RefreshPanels();
+    bool PanelCommand(int);
+    bool PanelEdit(int, double);
+    bool PanelSlider(int, int);
+    bool PanelCombo(int, int);
     void FileAction(const QString&);
     void Numeric();
     bool Result(bool, const std::string&);

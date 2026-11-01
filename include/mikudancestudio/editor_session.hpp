@@ -76,6 +76,7 @@ public:
     bool Undo(std::string&);
     bool Redo(std::string&);
     bool Seek(std::uint32_t, std::string&);
+    void SetPanelExpanded(unsigned option, bool expanded);
     bool Play(std::string&);
     void Pause();
     bool Advance(double deltaSeconds, std::string&);

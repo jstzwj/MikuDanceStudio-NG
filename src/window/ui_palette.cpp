@@ -69,135 +69,15 @@ constexpr char kJpCamLightAccessoryPanelFmt[] =
 } // namespace
 
 void HandlePaletteChanged(HDC hdc) {
-    MMDApp* app = g_Block; // original `this` (ecx)
-
+    MMDApp* app = g_Block;
     RECT rc;
-    GetClientRect(reinterpret_cast<HWND>(app->state.hwnd),
-                  &rc); // 0x42CEC5 (this+0xA06B8)
-    const std::int32_t bottom = rc.bottom;
-    const std::int32_t side = app->SidebarWidth();
-    const COLORREF colA = app->ThemeColor(UiThemeColor::ControlLight);
-    const COLORREF colB = app->ThemeColor(UiThemeColor::ControlDark);
-
-    // Row 1 (0x42CEF0..0x42CF1F): t1 = -45.0/((50.0-bottom)-161.0), all
-    // double math with a float truncation at the call boundary (x87
-    // fstp dword; the fld/fstp pair is register shuffling only).
-    float t = static_cast<float>(-45.0 / ((50.0 - static_cast<double>(bottom)) - 161.0));
-    std::uint32_t lerp = ColorLerp(colA, colB, t);            // 0x42CEFD (0x40AD00)
-    FillPanelBottom(hdc, 3, 50, side - 3, 95, colA, lerp, 1); // 0x42CF1F (0x40DF10)
-
-    // Row 2 (0x42CF24..0x42CF78): t2 = ((50.0-bottom)-228.0)/((50.0-bottom)-161.0).
-    t = static_cast<float>(((50.0 - static_cast<double>(bottom)) - 228.0) /
-                           ((50.0 - static_cast<double>(bottom)) - 161.0));
-    const std::uint32_t lerp2 = ColorLerp(colA, colB, t);         // 0x42CF5E
-    FillPanelBottom(hdc, 3, 95, 6, bottom - 228, lerp, lerp2, 1); // 0x42CF78
-
-    // Row 3 (0x42CF7D..0x42CFF6): the span (50.0-bottom)-161.0 (original
-    // decompiler name v30) is kept as a
-    // double (fst var_18 keeps it on the x87 stack); both quotients are
-    // double, each truncated to float for its ColorLerp.
-    const double row3Span = (50.0 - static_cast<double>(bottom)) - 161.0;
-    const std::uint32_t lerpNeg111 =
-        ColorLerp(colA, colB, static_cast<float>(-111.0 / row3Span)); // 0x42CFB5
-    const std::uint32_t lerpNeg94 =
-        ColorLerp(colA, colB, static_cast<float>(-94.0 / row3Span));               // 0x42CFD5
-    FillPanelBottom(hdc, side - 19, 144, side - 3, 161, lerpNeg94, lerpNeg111, 1); // 0x42CFF6
-
-    // Row 4 (0x42CFFB..0x42D05C): t4 = ((50.0-bottom)-248.0)/((50.0-bottom)-161.0).
-    t = static_cast<float>(((50.0 - static_cast<double>(bottom)) - 248.0) /
-                           ((50.0 - static_cast<double>(bottom)) - 161.0));
-    lerp = ColorLerp(colA, colB, t);                                              // 0x42D036
-    FillPanelBottom(hdc, 3, bottom - 248, side - 3, bottom - 161, lerp, colB, 1); // 0x42D05C
-
-    // Fixed rows from the colour-table pairs (colour.txt).
-    FillPanelBottom(hdc, 3, bottom - 157, 215, bottom - 3, app->ThemeColorAt(6),
-                    app->ThemeColorAt(7),
-                    1); // 0x42D089
-    FillPanelBottom(hdc, 3, 3, side - 3, 47, app->ThemeColorAt(4), app->ThemeColorAt(5),
-                    1); // 0x42D0B1
-    FillPanelBottom(hdc, 218, bottom - 157, 358, bottom - 3, app->ThemeColorAt(8),
-                    app->ThemeColorAt(9),
-                    1); // 0x42D0E1
-
-    // Block A (0x42D0E6..0x42D179): IK/FK-style width switch; left 0x169,
-    // top bottom-157, bottom bottom-3, colours 0xA0600/0xA0604.
-    const COLORREF colC = app->ThemeColorAt(10);
-    const COLORREF colD = app->ThemeColorAt(11);
-    const BottomPanelLayout panelLayout = ComputeBottomPanelLayout(app);
-    std::int32_t xOff = panelLayout.leading;
-    if (app->CameraMode() != 0) {                                                        // 0x2F8
-        if (app->PanelExpanded(UiPanel::Camera) != 0) {                                  // 0x2F9
-            FillPanelBottom(hdc, 0x169, bottom - 157, 0x202, bottom - 3, colC, colD, 1); // 0x42D123
-        } else {
-            FillPanelBottom(hdc, 0x169, bottom - 157, 0x17B, bottom - 3, colC, colD, 1); // 0x42D13B
-        }
-    } else if (app->PanelExpanded(UiPanel::Bone) != 0) {                             // 0x2FC
-        FillPanelBottom(hdc, 0x169, bottom - 157, 0x22E, bottom - 3, colC, colD, 1); // 0x42D15C
-    } else {
-        FillPanelBottom(hdc, 0x169, bottom - 157, 0x17B, bottom - 3, colC, colD, 1); // 0x42D174
-    }
-
-    // Block B (0x42D17E..0x42D218): colours 0xA0608/0xA060C; the offset is
-    // subtracted from both edges and optionally grown.
-    const COLORREF colE = app->ThemeColorAt(12);
-    const COLORREF colF = app->ThemeColorAt(13);
-    if (app->CameraMode() != 0) {                      // 0x2F8
-        if (app->PanelExpanded(UiPanel::Light) != 0) { // 0x2FA
-            FillPanelBottom(hdc, 0x1F3 - xOff, bottom - 157, 0x2A7 - xOff, bottom - 3, colE, colF,
-                            1); // 0x42D1C1
-        } else {
-            FillPanelBottom(hdc, 0x1F3 - xOff, bottom - 157, 0x205 - xOff, bottom - 3, colE, colF,
-                            1); // 0x42D1D5
-        }
-    } else if (app->PanelExpanded(UiPanel::Morph) != 0) { // 0x2FD
-        FillPanelBottom(hdc, 0x254 - xOff, bottom - 157, 0x361 - xOff, bottom - 3, colE, colF,
-                        1); // 0x42D1FF
-    } else {
-        FillPanelBottom(hdc, 0x254 - xOff, bottom - 157, 0x266 - xOff, bottom - 3, colE, colF,
-                        1); // 0x42D213
-    }
-    xOff = panelLayout.afterLightOrFace;
-
-    // Block C (0x42D21E..0x42D27E): only when 0x2F8 set; note the swapped
-    // colour roles - colour 0xA0628, edge 0xA0604 (push ho=0xA0604 first).
-    if (app->CameraMode() != 0) { // 0x2F8
-        const COLORREF colG = app->ThemeColorAt(20);
-        if (app->PanelExpanded(UiPanel::SelfShadow) != 0) { // 0x2FE
-            FillPanelBottom(hdc, 0x2AA - xOff, bottom - 157, 0x35B - xOff, bottom - 3, colG, colD,
-                            1); // 0x42D265
-        } else {
-            FillPanelBottom(hdc, 0x2AA - xOff, bottom - 157, 0x2BC - xOff, bottom - 3, colG, colD,
-                            1); // 0x42D279
-        }
-    }
-    xOff = panelLayout.afterSelfShadow;
-
-    // Block D (0x42D284..0x42D2E0): only when 0x2F8 set; colours 0xA0610/4.
-    if (app->CameraMode() != 0) { // 0x2F8
-        const COLORREF colH = app->ThemeColorAt(14);
-        const COLORREF colI = app->ThemeColorAt(15);
-        if (app->PanelExpanded(UiPanel::Accessory) != 0) { // 0x2FB
-            FillPanelBottom(hdc, 0x35E - xOff, bottom - 157, 0x422 - xOff, bottom - 3, colH, colI,
-                            1); // 0x42D2C7
-        } else {
-            FillPanelBottom(hdc, 0x35E - xOff, bottom - 157, 0x370 - xOff, bottom - 3, colH, colI,
-                            1); // 0x42D2DB
-        }
-    }
-
-    // Final offset (0x42D2E6..0x42D2FA): 0x2F8 set -> -180, else +13.
-    const std::int32_t xFinal = panelLayout.final;
-
-    // Three closing rows (0x42D2FA..0x42D38E).
-    FillPanelBottom(hdc, 0x371 - xFinal, bottom - 157, 0x412 - xFinal, bottom - 0x52,
-                    app->ThemeColorAt(16), app->ThemeColorAt(17),
-                    1); // 0x42D330
-    FillPanelBottom(hdc, 0x371 - xFinal, bottom - 0x4F, 0x3F3 - xFinal, bottom - 3,
-                    app->ThemeColorAt(18), app->ThemeColorAt(19),
-                    1); // 0x42D361
-    FillPanelBottom(hdc, 0x3F6 - xFinal, bottom - 0x4F, 0x412 - xFinal, bottom - 3,
-                    app->ThemeColorAt(18), app->ThemeColorAt(19),
-                    1); // 0x42D38E
+    GetClientRect(reinterpret_cast<HWND>(app->state.hwnd), &rc);
+    std::array<std::uint32_t, 35> colors;
+    for (unsigned i = 0; i < colors.size(); ++i)
+        colors[i] = app->ThemeColorAt(i);
+    for (const auto& p :
+         ui::MmdPanelFills(app->SidebarWidth(), rc.bottom, EditorLayout(app), colors))
+        FillPanelBottom(hdc, p.left, p.top, p.right, p.bottom, p.color, p.color2, p.vertical);
 }
 
 // ===========================================================================

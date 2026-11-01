@@ -272,9 +272,18 @@ const PmmSceneDocument& EditorSession::Document() const {
 EditorSession::State EditorSession::Current() const {
     State out = state_;
     out.document = Document();
+    out.document.envelope.settings.options[0] = selection_.model == 255;
     out.selection = selection_;
     out.revision = revision_;
     return out;
+}
+void EditorSession::SetPanelExpanded(unsigned option, bool expanded) {
+    runtime_->SetPanelExpanded(option, expanded);
+    // Panel layout is not a pose edit and must survive undo/redo unchanged.
+    for (auto* history : {&undo_, &redo_})
+        for (auto& state : *history)
+            if (option > 0 && option < state.document.envelope.settings.options.size())
+                state.document.envelope.settings.options[option] = expanded;
 }
 bool EditorSession::Prepare(State& state, std::unique_ptr<runtime::SceneRuntime>& out,
                             std::string& reason) const try {
@@ -314,6 +323,28 @@ bool EditorSession::New(std::string& reason) {
     return true;
 }
 bool EditorSession::Commit(State next, std::string& reason) {
+    const auto last = [](const auto& track) {
+        std::uint32_t result = 0;
+        for (const auto& k : track.dense)
+            result = std::max(result, k.frame);
+        for (const auto& k : track.sparse)
+            result = std::max(result, k.value.frame);
+        return result;
+    };
+    auto& d = next.document;
+    std::uint32_t end = std::max(
+        {last(d.cameraKeys), last(d.lightKeys), last(d.selfShadowKeys), last(d.gravityKeys)});
+    for (auto& m : d.models) {
+        m.selection.maxFrame = std::max({last(m.boneKeys), last(m.morphKeys), last(m.displayKeys)});
+        end = std::max(end, m.selection.maxFrame);
+    }
+    for (const auto& a : d.accessories)
+        end = std::max(end, last(a.keyRecords));
+    if (end > 0x7fffffffu) {
+        reason = "frame-out-of-range";
+        return false;
+    }
+    d.timeline.lastRegisteredFrame = int(end);
     std::unique_ptr<runtime::SceneRuntime> runtime;
     if (!Prepare(next, runtime, reason))
         return false;

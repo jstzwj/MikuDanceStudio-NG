@@ -8,6 +8,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/language.cpp"
         "${root}/src/frontend_qt/timeline.cpp"
         "${root}/src/frontend_qt/editor_window.cpp"
+        "${root}/src/frontend_qt/editor_panels.cpp"
         "${root}/src/frontend_qt/viewport.cpp"
         "${root}/src/frontend_qt/surface.cpp")
     target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/audio.cpp" "${root}/src/frontend_qt/export.cpp")

@@ -369,9 +369,9 @@ PmmSceneDocument NewPmmScene() {
     d.cameraState = {0, 10, 0, 0, 0, -45, 0, 0, 0};
     PmmLightKey light;
     light.color = {.602f, .602f, .602f};
-    light.direction = {-.5f, -1, -.5f};
+    light.direction = {-.5f, -1, .5f};
     d.lightKeys.dense = {light};
-    d.lightState = {.602f, .602f, .602f, -.5f, -1, -.5f};
+    d.lightState = {.602f, .602f, .602f, -.5f, -1, .5f};
     PmmGravityKey gravity;
     gravity.acceleration = 9.8000002f;
     gravity.noise = 10;
@@ -383,7 +383,7 @@ PmmSceneDocument NewPmmScene() {
     d.physics.playbackMode = 2;
     PmmSelfShadowKey shadow;
     shadow.mode = 1;
-    shadow.distance = .011f;
+    shadow.distance = .01125f;
     d.selfShadowKeys.dense = {shadow};
     d.selfShadowMode = 1;
     d.physicsInterval = shadow.distance;

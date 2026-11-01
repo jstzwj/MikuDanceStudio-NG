@@ -52,6 +52,11 @@ public:
     // Existing key values and current poses can be edited; track topology is
     // fixed by the PMM writer.
     bool Edit(const std::function<void(PmmSceneDocument&)>& change);
+    // UI-only PMM metadata; does not seek or invalidate the evaluated pose.
+    void SetPanelExpanded(unsigned option, bool expanded) {
+        if (option > 0 && option < scene_.envelope.settings.options.size())
+            scene_.envelope.settings.options[option] = expanded;
+    }
     bool Save(WritePmmBytes write, void* context) const;
     bool KinematicWorld(std::uint8_t slot,
                         std::vector<std::optional<std::array<float, 16>>>& world) const;

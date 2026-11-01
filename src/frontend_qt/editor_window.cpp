@@ -3,6 +3,7 @@
 #include "mikudancestudio/mmd_control_specs.hpp"
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/editor_rotation.hpp"
+#include "mikudancestudio/mmd_editor_labels.hpp"
 #include <QApplication>
 #include <QAbstractButton>
 #include <QPushButton>
@@ -57,20 +58,62 @@ QString Name(const std::vector<char>& bytes) {
 }
 class Canvas final : public QWidget {
 public:
-    explicit Canvas(QWidget* p) : QWidget(p) { setAutoFillBackground(true); }
+    Canvas(Language& language, editor::EditorSession& session, QWidget* p)
+        : QWidget(p), language_(language), session_(session) {
+        setAutoFillBackground(true);
+    }
     void paintEvent(QPaintEvent*) override {
         QPainter p(this);
-        p.fillRect(rect(), QColor(240, 240, 240));
-        p.setPen(QColor(128, 128, 128));
-        p.drawLine(0, height() - 161, width(), height() - 161);
-        const QColor colors[]{QColor(210, 210, 245), QColor(210, 240, 210), QColor(245, 220, 220),
-                              QColor(230, 230, 190)};
-        const int x[]{216, 358, 520, 700, 880};
-        for (int i = 0; i < 4; ++i) {
-            p.fillRect(x[i], height() - 158, x[i + 1] - x[i] - 4, 18, colors[i]);
-            p.drawRect(x[i], height() - 158, x[i + 1] - x[i] - 4, 156);
+        const auto color = [](std::uint32_t value) {
+            return QColor(value & 255, (value >> 8) & 255, (value >> 16) & 255);
+        };
+        const auto fill = [&](const ui::PanelFill& f) {
+            const auto a = color(f.color), b = color(f.color2);
+            QLinearGradient gradient(f.left, f.top, f.vertical ? f.left : f.right,
+                                     f.vertical ? f.bottom : f.top);
+            gradient.setColorAt(0, a);
+            gradient.setColorAt(1, b);
+            p.fillRect(QRect(f.left, f.top, f.right - f.left, f.bottom - f.top), gradient);
+            p.setPen(Qt::black);
+            p.setBrush(Qt::NoBrush);
+            p.drawRect(QRect(f.left, f.top, f.right - f.left, f.bottom - f.top));
+        };
+        const auto& settings = session_.Document().envelope.settings;
+        const int side = std::max(250, settings.editPanelWidth), bottom = height();
+        const auto& o = settings.options;
+        const ui::EditorLayoutOptions options{session_.Selected().model == 255,
+                                              bool(o[1]),
+                                              bool(o[2]),
+                                              bool(o[3]),
+                                              bool(o[4]),
+                                              bool(o[5]),
+                                              bool(o[6])};
+        const auto viewport =
+            ui::MmdViewport(width(), height(), side, settings.renderWidth, settings.renderHeight);
+        p.fillRect(rect(), color(ui::kDefaultThemeColors[0]));
+        p.fillRect(side + 9, 0, width() - side - 9, height() - 160, Qt::black);
+        fill({0, bottom - 160, width(), bottom, ui::kDefaultThemeColors[0],
+              ui::kDefaultThemeColors[1], true});
+        for (const auto& f : ui::MmdPanelFills(side, bottom, options))
+            fill(f);
+        p.fillRect(side, 0, 6, bottom - 159, QColor(220, 220, 220));
+        fill({side + 9, viewport.y - 25, width(), viewport.y - 1, 0x969696, 0x646464, true});
+        fill({side + 9, viewport.y + viewport.height, width(), viewport.y + viewport.height + 32,
+              0x787878, 0xc8c8c8, true});
+        p.setPen(Qt::white);
+        for (const auto& label :
+             ui::MmdPanelLabels(side, bottom, options, language_.Code() == "en")) {
+            QFont font = this->font();
+            font.setPixelSize(label.size);
+            p.setFont(font);
+            p.drawText(QRect(label.x, label.y, 250, label.size + 3), Qt::AlignTop | Qt::AlignLeft,
+                       language_.Text(label.id));
         }
     }
+
+private:
+    Language& language_;
+    editor::EditorSession& session_;
 };
 std::array<float, 4> Quaternion(float x, float y, float z) {
     return BoneRotationFromDegrees({x, y, z});
@@ -82,10 +125,12 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing)
     setMinimumSize(640, 480);
     resize(1024, 768);
     menuBar()->setNativeMenuBar(false);
-    QFont font("MS UI Gothic");
+    QFont font;
+    font.setFamilies({"MS UI Gothic", "Noto Sans CJK SC", "Microsoft YaHei", "Hiragino Sans",
+                      "PingFang SC", "DejaVu Sans"});
     font.setPixelSize(12);
     setFont(font);
-    canvas_ = new Canvas(this);
+    canvas_ = new Canvas(language_, session_, this);
     setCentralWidget(canvas_);
     timeline_ = new Timeline(session_, language_, canvas_);
     timeline_->changed = [this] { Refresh(); };
@@ -203,7 +248,10 @@ void EditorWindow::CreateViewport(const rhi::BackendOptions& options) {
         delete old;
     viewport_->zoom = [this](int delta) {
         auto camera = session_.Runtime().Session()->Pose().camera;
-        camera.distance += delta / 120.f;
+        if (session_.Selected().model == 255 && camera.parentModel >= 0)
+            camera.position[2] = float(delta) * .05f + camera.position[2];
+        else
+            camera.distance = float(delta) * .05f + camera.distance;
         std::string r;
         Result(session_.SetCamera(camera, r), r);
         Refresh();
@@ -329,8 +377,15 @@ void EditorWindow::Texts() {
 void EditorWindow::Layout() {
     if (!canvas_)
         return;
-    side_ = std::max(250, int(canvas_->width() * .245));
+    side_ = std::max(250, session_.Document().envelope.settings.editPanelWidth);
     layout_.cameraMode = session_.Selected().model == 255;
+    const auto& options = session_.Document().envelope.settings.options;
+    layout_.cameraPanelExpanded = options[1];
+    layout_.lightPanelExpanded = options[2];
+    layout_.accessoryPanelExpanded = options[3];
+    layout_.bonePanelExpanded = options[4];
+    layout_.morphPanelExpanded = options[5];
+    layout_.selfShadowPanelExpanded = options[6];
     const auto viewport = ui::MmdViewport(canvas_->width(), canvas_->height(), side_,
                                           int(session_.Document().envelope.settings.renderWidth),
                                           int(session_.Document().envelope.settings.renderHeight));
@@ -353,18 +408,23 @@ void EditorWindow::Layout() {
     for (const auto& pair : controls_) {
         const auto id = pair.first;
         bool show = true;
-        if (id >= kBoneSelectRadio && id <= kExpandBonePanelButton)
-            show = !layout_.cameraMode;
-        if (id >= kMorphCombo0 && id <= kExpandMorphPanelButton)
-            show = !layout_.cameraMode;
-        if (id >= kResetCameraButton && id <= kCollapseAccessoryPanelButton)
-            show = layout_.cameraMode;
-        if (id >= kSelfShadowRangeSlider && id <= kCollapseSelfShadowPanelButton)
-            show = layout_.cameraMode;
-        if (id == kExpandCameraPanelButton || id == kExpandLightPanelButton ||
-            id == kExpandAccessoryPanelButton || id == kExpandBonePanelButton ||
-            id == kExpandMorphPanelButton || id == kExpandSelfShadowPanelButton)
-            show = false;
+        const struct {
+            int first, collapse, expand, option;
+            bool camera;
+        } groups[]{
+            {kPerspectiveCheckbox, kCollapseCameraPanelButton, kExpandCameraPanelButton, 1, true},
+            {kLightColorSliderR, kCollapseLightPanelButton, kExpandLightPanelButton, 2, true},
+            {kAccessoryCombo, kCollapseAccessoryPanelButton, kExpandAccessoryPanelButton, 3, true},
+            {kBoneSelectRadio, kCollapseBonePanelButton, kExpandBonePanelButton, 4, false},
+            {kMorphCombo0, kCollapseMorphPanelButton, kExpandMorphPanelButton, 5, false},
+            {kSelfShadowRangeSlider, kCollapseSelfShadowPanelButton, kExpandSelfShadowPanelButton,
+             6, true}};
+        for (const auto& group : groups) {
+            if (id >= group.first && id <= group.collapse)
+                show = layout_.cameraMode == group.camera && options[group.option];
+            if (id == group.expand)
+                show = layout_.cameraMode == group.camera && !options[group.option];
+        }
         pair.second->setVisible(show);
     }
     canvas_->update();
@@ -471,6 +531,7 @@ void EditorWindow::Refresh() {
     if (session_.Selected().accessory == 255 && !doc.accessories.empty())
         session_.Selected().accessory = doc.accessories[0].slot;
     accessories->setCurrentIndex(accessories->findData(session_.Selected().accessory));
+    RefreshPanels();
     timeline_->Refresh();
     auto* hs = qobject_cast<QScrollBar*>(Control(kTimelineHScroll));
     hs->setRange(0, std::max(doc.appearance.maxFrame, doc.timeline.currentFrame) + 100);
@@ -724,6 +785,10 @@ void EditorWindow::Numeric() {
     Refresh();
 }
 void EditorWindow::Dispatch(int id) {
+    if (PanelCommand(id)) {
+        Refresh();
+        return;
+    }
     std::string r;
     bool ok = true;
     const auto current = unsigned(session_.Document().timeline.currentFrame);
@@ -744,7 +809,8 @@ void EditorWindow::Dispatch(int id) {
         ok = session_.Seek(0, r);
         break;
     case kLastFrameButton:
-        ok = session_.Seek(unsigned(std::max(0, session_.Document().appearance.maxFrame)), r);
+        ok = session_.Seek(unsigned(std::max(0, session_.Document().timeline.lastRegisteredFrame)),
+                           r);
         break;
     case kPreviousKeyframeButton:
     case kNextKeyframeButton: {
@@ -944,6 +1010,10 @@ void EditorWindow::EditField(int id) {
     const auto value = field->text().toDouble(&valid);
     if (!valid || !std::isfinite(value))
         return;
+    if (PanelEdit(id, value)) {
+        Refresh();
+        return;
+    }
     std::string r;
     bool ok = true;
     if (id == kCurrentFrameEdit)
@@ -963,7 +1033,7 @@ void EditorWindow::EditField(int id) {
             r);
     else if (id == kFovEdit) {
         auto c = session_.Runtime().Session()->Pose().camera;
-        c.fov = float(value);
+        c.fov = float(std::clamp(value, 1., 125.));
         ok = session_.SetCamera(c, r);
     } else if (id >= kReadoutPosXEdit && id <= kReadoutDistEdit) {
         const int pos[]{kReadoutPosXEdit, kReadoutPosYEdit, kReadoutPosZEdit},
@@ -1009,6 +1079,10 @@ void EditorWindow::EditField(int id) {
     Refresh();
 }
 void EditorWindow::Slider(int id, int value) {
+    if (PanelSlider(id, value)) {
+        Refresh();
+        return;
+    }
     if (id == kTimelineHScroll) {
         timeline_->SetFrameScroll(value);
         return;
@@ -1019,7 +1093,7 @@ void EditorWindow::Slider(int id, int value) {
     }
     std::string r;
     if (id == kFrameVolumeSlider) {
-        audio_.Volume(value / 100.f);
+        frameNormalization_ = 100 - value;
         return;
     }
     if (id == kFovSlider) {
@@ -1043,6 +1117,10 @@ void EditorWindow::Combo(int id, int index) {
     auto* c = static_cast<QComboBox*>(Control(id));
     if (index < 0)
         return;
+    if (PanelCombo(id, index)) {
+        Refresh();
+        return;
+    }
     if (id == kMainComboModel) {
         session_.Selected() = {};
         session_.Selected().model = std::uint8_t(c->itemData(index).toUInt());

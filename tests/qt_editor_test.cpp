@@ -5,8 +5,15 @@
 #include <QTest>
 #include <QPushButton>
 #include <QLineEdit>
+#include <QSlider>
+#include <QComboBox>
 #include <QTemporaryDir>
 #include <QStyleFactory>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QFile>
+#include <QPainter>
+#include <QFontDatabase>
 #include <iostream>
 using namespace mikudancestudio;
 std::string reason;
@@ -19,10 +26,18 @@ std::string reason;
     } while (false)
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
+#ifdef _WIN32
+    // Qt's offscreen QPA has no native Windows font database. Load installed
+    // fonts explicitly for raster/IME tests; never copy them into the repository.
+    for (const char* name : {"arial.ttf", "msgothic.ttc", "msyh.ttc"})
+        QFontDatabase::addApplicationFont(qEnvironmentVariable("WINDIR") + "/Fonts/" + name);
+#endif
     app.setStyle(QStyleFactory::create("Fusion"));
     CHECK(argc == 3);
     const auto root = std::filesystem::absolute(argv[1]);
     qt::EditorWindow window(std::filesystem::absolute(argv[2]), true);
+    CHECK(QFontMetrics(window.font()).inFont(QChar('A')));
+    CHECK(QFontMetrics(window.font()).inFont(QChar('0')));
     CHECK(!window.isVisible());
     CHECK(window.SetLanguage("en"));
     CHECK(window.Control(400));
@@ -75,11 +90,81 @@ int main(int argc, char** argv) {
     window.Dispatch(panel::kUndoButton);
     CHECK(window.Session().Document().models[0].bonePose[0].components[4] == 0);
     CHECK(window.Session().Document().models[0].bonePose[0].components[0] == 12.5f);
+    const auto beforeCollapse = window.Session().Revision();
+    const auto beforeCollapseFrames = window.Session().Runtime().Counters().frames;
+    window.Dispatch(panel::kCollapseBonePanelButton);
+    CHECK(window.Session().Document().envelope.settings.options[4] == 0);
+    CHECK(window.Control(panel::kBoneMoveRadio)->isHidden());
+    CHECK(!window.Control(panel::kExpandBonePanelButton)->isHidden());
+    CHECK(window.Session().Revision() == beforeCollapse);
+    CHECK(window.Session().Runtime().Counters().frames == beforeCollapseFrames);
+    window.Dispatch(panel::kExpandBonePanelButton);
+    window.Dispatch(panel::kModelEditToggle);
+    CHECK(window.Session().Selected().model == 255);
+    CHECK(!window.Control(panel::kFovEdit)->isHidden());
+    CHECK(window.Control(panel::kBoneMoveRadio)->isHidden());
+    const auto enter = [&](int id, const char* value) {
+        auto* e = qobject_cast<QLineEdit*>(window.Control(id));
+        e->selectAll();
+        QTest::keyClicks(e, value);
+        QTest::keyClick(e, Qt::Key_Return);
+    };
+    enter(panel::kLightColorEditR, "128");
+    CHECK(window.Session().Document().lightState[0] == .5f);
+    static_cast<QSlider*>(window.Control(panel::kLightDirSliderX))->setValue(-25);
+    CHECK(window.Session().Document().lightState[3] == -.25f);
+    enter(panel::kSelfShadowRangeEdit, "8000");
+    CHECK(window.Session().Document().physicsInterval == .02f);
+    window.Dispatch(panel::kEditMode2Checkbox);
+    CHECK(window.Session().Document().selfShadowMode == 2);
+    CHECK(static_cast<QAbstractButton*>(window.Control(panel::kEditMode2Checkbox))->isChecked());
+    CHECK(!static_cast<QAbstractButton*>(window.Control(panel::kEditMode1Checkbox))->isChecked());
+    CHECK(window.Session().ImportAccessory(root / "bound.x", reason));
+    window.Refresh();
+    enter(panel::kAccPosXEdit, "3.25");
+    enter(panel::kAccRotYEdit, "90");
+    enter(panel::kAccOpacityEdit, "0.75");
+    CHECK(window.Session().Document().accessories[0].state.position[0] == 3.25f);
+    CHECK(std::abs(window.Session().Document().accessories[0].state.rotation[1] - 1.570796f) <
+          1e-6f);
+    CHECK(window.Session().Document().accessories[0].state.opacity == .75f);
+    auto* parent = static_cast<QComboBox*>(window.Control(panel::kMainComboGround));
+    parent->setCurrentIndex(parent->findData(0));
+    parent->activated(parent->currentIndex());
+    CHECK(window.Session().Document().accessories[0].state.parentModel == 0);
+    window.Dispatch(panel::kCollapseLightPanelButton);
+    CHECK(window.Control(panel::kLightColorEditR)->isHidden());
     CHECK(window.Save(root / "qt-save.pmm"));
     CHECK(window.Open(root / "qt-save.pmm"));
     CHECK(window.Session().Document().models[0].bonePose[0].components[1] == 5);
+    CHECK(window.Session().Document().envelope.settings.options[2] == 0);
+    CHECK(window.Session().Document().accessories[0].state.opacity == .75f);
     CHECK(!window.isVisible());
     CHECK(window.RenderWindow()->Submissions() == 0);
+    QStringList catalogKeys;
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        QFile catalog(QString(":/i18n/%1.json").arg(language));
+        CHECK(catalog.open(QIODevice::ReadOnly));
+        const auto data = QJsonDocument::fromJson(catalog.readAll()).object();
+        if (catalogKeys.isEmpty())
+            catalogKeys = data.keys();
+        CHECK(catalogKeys == data.keys());
+        for (const auto& key : catalogKeys) {
+            CHECK(data[key].isString());
+            CHECK(!data[key].toString().contains("??"));
+        }
+    }
+    const auto artifact = qEnvironmentVariable("MDS_QT_ARTIFACT");
+    if (!artifact.isEmpty()) {
+        window.resize(1280, 800);
+        QImage pixels(window.size(), QImage::Format_ARGB32);
+        pixels.fill(Qt::transparent);
+        QPainter painter(&pixels);
+        window.render(&painter);
+        painter.end();
+        CHECK(pixels.save(artifact));
+        CHECK(!window.isVisible());
+    }
     std::cout
         << "Qt offscreen: original control positions, language state, edit/undo and saved reload passed\n";
 }

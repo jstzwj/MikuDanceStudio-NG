@@ -39,16 +39,21 @@ struct SceneRuntime::Impl {
     }
     bool Add(std::uint8_t slot, const format::ModelDocument& model, std::string& reason) {
         std::shared_ptr<const ModelResource> resource;
-        return ModelResource::Create(model, resource, reason) && Add(slot, std::move(resource), reason);
+        return ModelResource::Create(model, resource, reason) &&
+               Add(slot, std::move(resource), reason);
     }
-    bool Add(std::uint8_t slot, std::shared_ptr<const ModelResource> resource, std::string& reason) {
+    bool Add(std::uint8_t slot, std::shared_ptr<const ModelResource> resource,
+             std::string& reason) {
         if (slot == 255 || items.count(slot)) {
             reason = "duplicate-or-invalid-model-slot";
             return false;
         }
         Item item;
         item.resource = std::move(resource);
-        if (!item.resource) { reason = "missing-model-resource"; return false; }
+        if (!item.resource) {
+            reason = "missing-model-resource";
+            return false;
+        }
         item.instance = std::make_unique<ModelInstance>(item.resource);
         item.physics = std::make_unique<ModelPhysics>();
         if (!item.physics->Create(item.resource, world.world, constraintId, reason))
@@ -384,9 +389,10 @@ bool SceneRuntime::Load(format::SceneSession session,
             return false;
     return LoadResources(std::move(session), resources, reason, useSavedPose);
 }
-bool SceneRuntime::LoadResources(format::SceneSession session,
-                        const std::map<std::uint8_t, std::shared_ptr<const ModelResource>>& models,
-                        std::string& reason, bool useSavedPose) {
+bool SceneRuntime::LoadResources(
+    format::SceneSession session,
+    const std::map<std::uint8_t, std::shared_ptr<const ModelResource>>& models, std::string& reason,
+    bool useSavedPose) {
     if (!session.Loaded()) {
         reason = "scene-session-not-loaded";
         return false;
@@ -577,6 +583,10 @@ bool SceneRuntime::Tick(float delta, std::string& reason) {
     }
     impl_->simulation.remainingSeconds = delta;
     return impl_->Frame(delta, reason);
+}
+void SceneRuntime::SetPanelExpanded(unsigned option, bool expanded) {
+    if (impl_ && impl_->session)
+        impl_->session->SetPanelExpanded(option, expanded);
 }
 bool SceneRuntime::Edit(const std::function<void(format::PmmSceneDocument&)>& change,
                         std::string& reason) {
