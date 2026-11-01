@@ -679,3 +679,20 @@ finish the selection and remove feedback. Offscreen Qt gestures passed at
 scale factors 1, 1.5 and 2, including reverse-direction boxes and picking.
 This covers coordinate mapping for these operations, not the complete DPI or
 physical input acceptance gate.
+
+
+The shared bone drag batch at `500f9bb` passed the 21-test editor workflow on
+Windows, macOS and Linux
+([run 41307364939](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41307364939)).
+
+Centered bone-axis dragging now hides the Qt window cursor and restores its
+previous shape when the drag ends or loses focus. On exposed Windows/Cocoa/X11
+viewports it centers the pointer on press and restores the native operation-cell
+center on release. Restoration coordinates share one helper with the Windows
+host. Focus loss, teardown and backend replacement release the cursor without
+warping into an inactive window. Offscreen tests exercise cursor state only and
+never move the global pointer; the local 1/1.5/2 scale-factor gesture tests and
+frozen restoration-point checks passed. Actual exposed pointer interaction is
+still an isolated-runner acceptance item. Wayland cursor hiding/capture works
+through Qt, but client warping is prohibited; a pointer-lock/relative-motion
+adapter remains required for equivalent centered dragging there.

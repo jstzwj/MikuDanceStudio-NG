@@ -198,26 +198,10 @@ void RestoreViewportToolCursor(MMDApp* app, ViewportToolAction operation) {
         point.x = client.right - (operation == ViewportToolAction::CameraOrbit ? 48 : 18);
         point.y = view.top - 12;
     } else {
-        const int column = operation == ViewportToolAction::TransformAxisX ||
-                                   operation == ViewportToolAction::PhysicsAxisX ||
-                                   operation == ViewportToolAction::CameraAdjustX ||
-                                   operation == ViewportToolAction::AngleAdjustX
-                               ? 0
-                           : operation == ViewportToolAction::TransformAxisY ||
-                                   operation == ViewportToolAction::PhysicsAxisY ||
-                                   operation == ViewportToolAction::CameraAdjustY ||
-                                   operation == ViewportToolAction::AngleAdjustY
-                               ? 1
-                               : 2;
-        const bool upper = operation == ViewportToolAction::TransformAxisX ||
-                           operation == ViewportToolAction::TransformAxisY ||
-                           operation == ViewportToolAction::TransformAxisZ ||
-                           operation == ViewportToolAction::AngleAdjustX ||
-                           operation == ViewportToolAction::AngleAdjustY ||
-                           operation == ViewportToolAction::AngleAdjustZ;
-        static constexpr float kCenterX[3] = {110.0f, 70.0f, 30.0f};
-        point.x = view.right - static_cast<int>(kCenterX[column] * scale);
-        point.y = view.bottom - static_cast<int>((upper ? 65.0f : 25.0f) * scale);
+        const auto restore = render::ViewportToolRestorePoint(static_cast<int>(operation),
+                                                              view.right, view.bottom, scale);
+        point.x = restore[0];
+        point.y = restore[1];
     }
     WarpCursor(app, point);
     while (ShowCursor(TRUE) < 0) {}

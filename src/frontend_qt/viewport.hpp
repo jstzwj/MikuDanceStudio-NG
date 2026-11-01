@@ -55,7 +55,11 @@ private:
     std::uint8_t dragModel_ = 255;
     std::shared_ptr<const runtime::ModelResource> dragResource_;
     editor::BoneDragInput boneDrag_;
-    void FinishBoneDrag();
+    void FinishBoneDrag(bool restorePosition = false);
+    void BeginCenteredCursor(int operation);
+    bool centeredCursor_ = false, cursorWarped_ = false;
+    QPoint restoreCursor_;
+    QCursor savedCursor_;
     QPoint DevicePoint(QPoint) const;
     void FinishBoxSelection();
     bool box_ = false, boxAdditive_ = false;

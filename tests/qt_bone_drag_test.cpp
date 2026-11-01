@@ -46,11 +46,12 @@ int main(int argc, char** argv) {
     const auto start = axis(0, false);
     const auto initial = session.Document().models[0].bonePose[0].components;
     mouse(QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
+    CHECK(viewport.cursor().shape() == Qt::BlankCursor);
     CHECK(session.CanUndo()); // press snapshot, before first movement
     mouse(QEvent::MouseMove, start - QPointF(0, 10), Qt::NoButton, Qt::LeftButton);
     mouse(QEvent::MouseMove, start - QPointF(0, 20), Qt::NoButton, Qt::LeftButton);
     mouse(QEvent::MouseButtonRelease, start - QPointF(0, 20), Qt::LeftButton, Qt::NoButton);
-    CHECK(ok && changes >= 4);
+    CHECK(ok && changes >= 4 && viewport.cursor().shape() != Qt::BlankCursor);
     CHECK(std::abs(session.Document().models[0].bonePose[0].components[0] -
                    viewport.devicePixelRatio()) < 1e-6);
     CHECK(session.Document().models[0].bonePose[1].components[0] == 0);
@@ -62,6 +63,7 @@ int main(int argc, char** argv) {
           Qt::ControlModifier);
     QFocusEvent focus(QEvent::FocusOut);
     QCoreApplication::sendEvent(&viewport, &focus);
+    CHECK(viewport.cursor().shape() != Qt::BlankCursor);
     CHECK(ok && session.BeginGesture()); // focus loss must end drag and gesture
     session.EndGesture();
     CHECK(session.Undo(reason));

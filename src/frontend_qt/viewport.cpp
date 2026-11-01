@@ -3,6 +3,8 @@
 #include <QPlatformSurfaceEvent>
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <QGuiApplication>
+#include <QCursor>
 namespace mikudancestudio::qt {
 namespace {
 render::SceneRenderSources Sources(const editor::EditorAssets& assets) {
@@ -185,7 +187,27 @@ void Viewport::FinishBoxSelection() {
     if (changed)
         changed(ok, reason);
 }
-void Viewport::FinishBoneDrag() {
+void Viewport::BeginCenteredCursor(int operation) {
+    if (operation < 9)
+        return;
+    const auto ratio = devicePixelRatio();
+    const int w = qRound(width() * ratio), h = qRound(height() * ratio);
+    const auto restore =
+        render::ViewportToolRestorePoint(operation, w, h, render::BackgroundViewScale(w));
+    restoreCursor_ = {qRound(restore[0] / ratio), qRound(restore[1] / ratio)};
+    savedCursor_ = cursor();
+    centeredCursor_ = true;
+    setCursor(Qt::BlankCursor);
+    // Hidden/offscreen tests exercise state only. Global pointer movement is
+    // reserved for an exposed native viewport. Wayland prohibits client warps;
+    // its pointer-lock/relative-motion adapter remains a separate platform gate.
+    cursorWarped_ = isExposed() && !QGuiApplication::platformName().startsWith("wayland");
+    if (cursorWarped_) {
+        previous_ = {qRound((w / 2) / ratio), qRound((h / 2) / ratio)};
+        QCursor::setPos(mapToGlobal(previous_));
+    }
+}
+void Viewport::FinishBoneDrag(bool restorePosition) {
     if (!boneDragMode_)
         return;
     session_.EndBoneDrag();
@@ -193,6 +215,13 @@ void Viewport::FinishBoneDrag() {
     dragResource_.reset();
     pressed_ = false;
     toolOperation_ = 0;
+    if (centeredCursor_) {
+        const bool warp = cursorWarped_ && restorePosition && isExposed();
+        centeredCursor_ = cursorWarped_ = false;
+        setCursor(savedCursor_);
+        if (warp)
+            QCursor::setPos(mapToGlobal(restoreCursor_));
+    }
     if (isExposed())
         setMouseGrabEnabled(false);
 }
@@ -281,6 +310,7 @@ void Viewport::mousePressEvent(QMouseEvent* e) {
             dragModel_ = session_.Selected().model;
             dragResource_ = session_.Runtime().Resource(dragModel_);
             toolOperation_ = operation;
+            BeginCenteredCursor(operation);
             if (isExposed())
                 setMouseGrabEnabled(true);
             if (changed)
@@ -377,7 +407,7 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
 }
 void Viewport::mouseReleaseEvent(QMouseEvent* e) {
     if (boneDragMode_ && e->button() == Qt::LeftButton) {
-        FinishBoneDrag();
+        FinishBoneDrag(true);
         if (changed)
             changed(true, {});
         return;

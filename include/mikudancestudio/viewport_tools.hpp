@@ -10,6 +10,16 @@ struct ViewportTools {
     bool selectionBox = false;
     std::array<int, 4> box{}; // Physical pixel left/top/right/bottom.
 };
+// Pixel coordinates of the native operation-cell centers on pointer restoration.
+inline std::array<int, 2> ViewportToolRestorePoint(int operation, int right, int bottom,
+                                                   float scale) {
+    if (operation < 9 || operation > 20)
+        return {right / 2, bottom / 2};
+    const int column = (operation - 9) % 3;
+    const bool upper = operation <= 11 || operation >= 18;
+    return {right - int(std::array{110.f, 70.f, 30.f}[column] * scale),
+            bottom - int((upper ? 65.f : 25.f) * scale)};
+}
 template <class Append> void AppendSelectionBox(int x0, int y0, int x1, int y1, Append append) {
     const float left = float(x0 < x1 ? x0 : x1), right = float(x0 < x1 ? x1 : x0);
     const float top = float(y0 < y1 ? y0 : y1), bottom = float(y0 < y1 ? y1 : y0);

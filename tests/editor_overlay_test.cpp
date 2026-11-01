@@ -75,6 +75,10 @@ int main(int argc, char** argv) {
               (std::vector<std::array<float, 4>>{
                   {10, 20, 10, 90}, {10, 90, 70, 90}, {70, 90, 70, 20}, {70, 20, 10, 20}}));
     }
+    CHECK(render::ViewportToolRestorePoint(9, 1280, 960, 1) == (std::array<int, 2>{1170, 895}));
+    CHECK(render::ViewportToolRestorePoint(14, 1280, 960, 1) == (std::array<int, 2>{1250, 935}));
+    CHECK(render::ViewportToolRestorePoint(18, 511, 383, .4790625f) ==
+          (std::array<int, 2>{459, 352}));
     // Frozen native atlas cells and order. These checks do not obtain expected
     // UVs from the producer, and include the selected mode-1 physics exception.
     {
