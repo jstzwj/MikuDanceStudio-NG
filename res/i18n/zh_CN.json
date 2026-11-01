@@ -344,5 +344,12 @@
   "chrome.FlameStart": "从当前帧",
   "chrome.FlameStop": "返回起始帧",
   "chrome.text.vol": "vol",
-  "chrome.Volume": "音量"
+  "chrome.Volume": "音量",
+  "interpolation.0": "X 轴移动",
+  "interpolation.1": "Y 轴移动",
+  "interpolation.2": "Z 轴移动",
+  "interpolation.3": "旋转",
+  "interpolation.4": "距离",
+  "interpolation.5": "视角",
+  "interpolation.all": "全部"
 }

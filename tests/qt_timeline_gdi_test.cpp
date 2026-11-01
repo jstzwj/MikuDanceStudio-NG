@@ -2,6 +2,8 @@
 #define NOMINMAX
 #include <Windows.h>
 #include "timeline.hpp"
+#include "interpolation.hpp"
+#include "interpolation_raster_reference.hpp"
 #include <QApplication>
 #include <QPainter>
 #include <iostream>
@@ -38,8 +40,8 @@ struct Raster {
         DeleteObject(pen);
         DeleteObject(brush);
     }
-    void Line(COLORREF color, int x, int y, int ex, int ey) {
-        auto pen = CreatePen(PS_SOLID, 1, color);
+    void Line(COLORREF color, int x, int y, int ex, int ey, int width = 1) {
+        auto pen = CreatePen(PS_SOLID, width, color);
         auto op = SelectObject(dc, pen);
         MoveToEx(dc, x, y, nullptr);
         LineTo(dc, ex, ey);
@@ -47,10 +49,88 @@ struct Raster {
         DeleteObject(pen);
     }
 };
+bool Curves() {
+    // Independent translation of sub_7FF7CB483530 / sub_7FF7CB483790.
+    std::vector<editor::InterpolationCurve> curves(kCurveInputs.begin(), kCurveInputs.end());
+    std::uint32_t seed = 3187;
+    for (unsigned i = 0; i < 128; ++i) {
+        editor::InterpolationCurve curve;
+        for (auto& c : curve) {
+            seed = seed * 1664525u + 1013904223u;
+            c = int(seed >> 24) - (i < 64 ? 128 : 0);
+            if (i >= 64)
+                c &= 127;
+        }
+        curves.push_back(curve);
+    }
+    unsigned caseIndex = 0;
+    for (const auto& curve : curves)
+        for (bool highlight : {false, true}) {
+            editor::InterpolationSelection selection;
+            selection.curves = {curve};
+            selection.uniform = highlight;
+            const auto actual = qt::InterpolationImage(selection);
+            Raster expected(128, 128);
+            expected.Rect(0xffffff, 0, 0, 128, 128);
+            int oldX = 0, oldY = 126;
+            const int x1 = curve[0], y1 = curve[1], x2 = curve[2], y2 = curve[3];
+            for (int step = 1; step < 100; ++step) {
+                const float t = float(step) / 100.f;
+                const float ax = float(x1) * t, ay = float(y1) * t;
+                const float bx = float(x1) + float(x2 - x1) * t;
+                const float by = float(y1) + float(y2 - y1) * t;
+                const float cx = float(x2) + float(128 - x2) * t;
+                const float cy = float(y2) + float(128 - y2) * t;
+                const float dx = ax + (bx - ax) * t, dy = ay + (by - ay) * t;
+                const float ex = bx + (cx - bx) * t, ey = by + (cy - by) * t;
+                const int x = int(dx + (ex - dx) * t), y = 126 - int(dy + (ey - dy) * t);
+                expected.Line(0xff0000, oldX, oldY, x, y);
+                oldX = x;
+                oldY = y;
+            }
+            if (highlight) {
+                expected.Line(0xff, x1 - 3, 124 - y1, x1 + 3, 130 - y1, 2);
+                expected.Line(0xff, x1 + 3, 124 - y1, x1 - 3, 130 - y1, 2);
+                expected.Line(0xff, x2 - 3, 124 - y2, x2 + 3, 130 - y2, 2);
+                expected.Line(0xff, x2 + 3, 124 - y2, x2 - 3, 130 - y2, 2);
+                expected.Line(0, 0, 127, x1, 127 - y1);
+                expected.Line(0, 127, 0, x2, 127 - y2);
+            }
+            GdiFlush();
+            const auto* pixels = static_cast<const unsigned*>(expected.bits);
+            unsigned differences = 0;
+            for (int y = 0; y < 128; ++y)
+                for (int x = 0; x < 128; ++x)
+                    if ((actual.pixel(x, y) & 0xffffffu) != (pixels[y * 128 + x] & 0xffffffu)) {
+                        if (differences++ < 4)
+                            std::cerr << "curve pixel x=" << x << " y=" << y << " Qt=" << std::hex
+                                      << actual.pixel(x, y) << " GDI=" << pixels[y * 128 + x]
+                                      << std::dec << '\n';
+                    }
+            if (differences) {
+                std::cerr << "curve " << x1 << ',' << y1 << ',' << x2 << ',' << y2
+                          << " highlight=" << highlight << " differences=" << differences << '\n';
+                return false;
+            }
+            if (caseIndex++ < 10) {
+                std::uint64_t hash = 14695981039346656037ull;
+                for (unsigned i = 0; i < 128 * 128; ++i)
+                    for (int shift : {16, 8, 0})
+                        hash = (hash ^ ((pixels[i] >> shift) & 255)) * 1099511628211ull;
+                if (hash != kCurveRasterHashes[caseIndex - 1]) {
+                    std::cerr << "Independent GDI curve baseline changed\n";
+                    return false;
+                }
+            }
+        }
+    return true;
+}
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
     if (argc != 2)
         return 2;
+    if (!Curves())
+        return 1;
     const auto assets = std::filesystem::absolute(argv[1]);
     auto sheet =
         static_cast<HBITMAP>(LoadImageW(nullptr, (assets / "sidebar_icon_sheet.bmp").c_str(),
@@ -114,5 +194,5 @@ int main(int argc, char** argv) {
     DeleteDC(icons);
     DeleteObject(sheet);
     std::cout
-        << "Timeline GDI oracle: exact grid, palette and selected/unselected atlas pixels, 18 cases\n";
+        << "GDI oracle: exact timeline pixels (18 cases) and interpolation pixels (266 cases)\n";
 }

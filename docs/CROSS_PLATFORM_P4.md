@@ -128,3 +128,17 @@ sequence into a memory DIB, without any window or desktop DC. All pixels in the
 key-grid region match Qt exactly across 18 size/scroll/selection cases. Text,
 physics-key icons and the complete timeline interaction model are not covered
 by that pixel oracle and remain open requirements.
+
+[Run 41281826086](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41281826086)
+at `c943bdd` passed all three platforms, including display-group interaction,
+PMM persistence and the Windows timeline GDI oracle.
+
+Interpolation editing now supports four bone/six camera channels, the all-channel
+consistency rule, independent curve clipboard, linear reset and live point drag.
+A continuous drag creates one history entry; unchanged drags create none. The
+shared command regression covers channel isolation, model-to-camera clipboard,
+clamping, mixed selections, undo/redo and PMM reload. Qt offscreen input exercises
+the actual controls. The Windows memory-DIB oracle matches all 128x128 pixels for
+266 curve/highlight cases, including signed control bytes; ten independent GDI
+hashes also gate the Qt raster on other systems. This does not close the broader
+per-model versus camera history, input, font or dialog parity requirements.

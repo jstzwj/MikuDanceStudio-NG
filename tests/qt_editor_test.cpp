@@ -1,6 +1,7 @@
 #include "editor_window.hpp"
 #include "mikudancestudio/panel_controls.hpp"
 #include "mikudancestudio/editor_rotation.hpp"
+#include "interpolation_raster_reference.hpp"
 #include <QApplication>
 #include <QTest>
 #include <QPushButton>
@@ -34,6 +35,20 @@ int main(int argc, char** argv) {
 #endif
     app.setStyle(QStyleFactory::create("Fusion"));
     CHECK(argc == 3);
+    unsigned rasterCase = 0;
+    for (const auto& curve : kCurveInputs)
+        for (bool highlight : {false, true}) {
+            editor::InterpolationSelection selected;
+            selected.curves = {curve};
+            selected.uniform = highlight;
+            const auto image = qt::InterpolationImage(selected);
+            std::uint64_t hash = 14695981039346656037ull;
+            for (int y = 0; y < 128; ++y)
+                for (int x = 0; x < 128; ++x)
+                    for (int shift : {16, 8, 0})
+                        hash = (hash ^ ((image.pixel(x, y) >> shift) & 255)) * 1099511628211ull;
+            CHECK(hash == kCurveRasterHashes[rasterCase++]);
+        }
     const auto root = std::filesystem::absolute(argv[1]);
     qt::EditorWindow window(std::filesystem::absolute(argv[2]), true);
     CHECK(QFontMetrics(window.font()).inFont(QChar('A')));
@@ -47,6 +62,37 @@ int main(int argc, char** argv) {
     CHECK(window.Control(400)->geometry().y() == 21);
     CHECK(window.Session().ImportModel(root / "bone-only.pmd", reason));
     window.Refresh();
+    {
+        window.Session().Selected().model = 0;
+        window.Session().Selected().keys = {{editor::Track::Bone, 0, 0, 0}};
+        window.Refresh();
+        auto* combo = static_cast<QComboBox*>(window.Control(panel::kInterpCurveCombo));
+        CHECK(combo->count() == 5 && combo->currentIndex() == 3);
+        CHECK(combo->itemText(3) == "rotation");
+        CHECK(window.Control(panel::kCurveCopyButton)->isEnabled());
+        CHECK(!window.Control(panel::kCurvePasteButton)->isEnabled());
+        auto* curve = window.InterpolationWidget();
+        const auto before = window.Session().Revision();
+        QTest::mousePress(curve, Qt::LeftButton, Qt::NoModifier, QPoint(20, 107));
+        QMouseEvent move(QEvent::MouseMove, QPointF(50, 70), QPointF(50, 70), Qt::NoButton,
+                         Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(curve, &move);
+        CHECK(window.Session().Interpolation(3).curves.front()[0] == 50);
+        QTest::mouseRelease(curve, Qt::LeftButton, Qt::NoModifier, QPoint(70, 50));
+        CHECK(window.Session().Interpolation(3).curves.front() ==
+              (editor::InterpolationCurve{70, 77, 107, 107}));
+        window.Dispatch(panel::kCurveCopyButton);
+        CHECK(window.Control(panel::kCurvePasteButton)->isEnabled());
+        window.Dispatch(panel::kUndoButton);
+        CHECK(window.Session().Revision() == before);
+        CHECK(window.Session().Interpolation(3).curves.front() ==
+              (editor::InterpolationCurve{20, 20, 107, 107}));
+        window.Dispatch(panel::kCurvePasteButton);
+        CHECK(window.Session().Interpolation(3).curves.front()[0] == 70);
+        window.Dispatch(panel::kCurveLinearButton);
+        CHECK(window.Session().Interpolation(3).curves.front()[0] == 20);
+        CHECK(!curve->isVisible());
+    }
     const auto revision = window.Session().Revision(),
                updates = window.Session().Runtime().Counters().frames;
     CHECK(window.SetLanguage("ja"));

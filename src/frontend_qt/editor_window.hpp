@@ -1,5 +1,6 @@
 #pragma once
 #include "timeline.hpp"
+#include "interpolation.hpp"
 #include "viewport.hpp"
 #include "audio.hpp"
 #include "mikudancestudio/mmd_editor_layout.hpp"
@@ -17,6 +18,7 @@ public:
     editor::EditorSession& Session() { return session_; }
     QWidget* Control(int id) const;
     Timeline* TimelineWidget() const { return timeline_; }
+    Interpolation* InterpolationWidget() const { return interpolation_; }
     Viewport* RenderWindow() const { return viewport_; }
     bool SetLanguage(const QString&);
     QString CurrentLanguage() const { return language_.Code(); }
@@ -38,6 +40,7 @@ private:
     std::filesystem::path assets_;
     QWidget* canvas_ = nullptr;
     Timeline* timeline_ = nullptr;
+    Interpolation* interpolation_ = nullptr;
     Viewport* viewport_ = nullptr;
     QWidget* viewportContainer_ = nullptr;
     std::map<int, QWidget*> controls_;

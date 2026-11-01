@@ -8,6 +8,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/language.cpp"
         "${root}/src/frontend_qt/audio_output.cpp"
         "${root}/src/frontend_qt/timeline.cpp"
+        "${root}/src/frontend_qt/interpolation.cpp"
         "${root}/src/frontend_qt/editor_window.cpp"
         "${root}/src/frontend_qt/editor_panels.cpp"
         "${root}/src/frontend_qt/viewport.cpp"
@@ -15,6 +16,9 @@ function(mds_add_qt_editor)
     target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/audio.cpp" "${root}/src/frontend_qt/export.cpp")
     target_include_directories(mikudancestudio_frontend_qt PUBLIC "${root}/src/frontend_qt")
     target_link_libraries(mikudancestudio_frontend_qt PUBLIC mikudancestudio_editor_core mikudancestudio_scene_render Qt6::Widgets Qt6::Multimedia)
+    if(NOT MSVC)
+        target_compile_options(mikudancestudio_frontend_qt PRIVATE -ffp-contract=off)
+    endif()
     if(MSVC)
         target_compile_options(mikudancestudio_frontend_qt PRIVATE /utf-8 /fp:precise)
     elseif(APPLE)

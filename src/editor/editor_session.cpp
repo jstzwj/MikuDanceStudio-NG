@@ -321,6 +321,7 @@ bool EditorSession::Prepare(State& state, std::unique_ptr<runtime::SceneRuntime>
     return false;
 }
 bool EditorSession::New(std::string& reason) {
+    EndGesture();
     State next;
     next.document = NewPmmScene();
     std::unique_ptr<runtime::SceneRuntime> runtime;
@@ -332,6 +333,7 @@ bool EditorSession::New(std::string& reason) {
     undo_.clear();
     redo_.clear();
     clipboard_.clear();
+    interpolationCopied_ = false;
     selection_ = {};
     playing_ = false;
     cursorSeconds_ = 0;
@@ -365,7 +367,10 @@ bool EditorSession::Commit(State next, std::string& reason) {
     std::unique_ptr<runtime::SceneRuntime> runtime;
     if (!Prepare(next, runtime, reason))
         return false;
-    undo_.push_back(Current());
+    if (!gesture_ || !gestureCommitted_)
+        undo_.push_back(Current());
+    if (gesture_)
+        gestureCommitted_ = true;
     if (undo_.size() > 100)
         undo_.erase(undo_.begin());
     redo_.clear();
@@ -387,6 +392,7 @@ bool EditorSession::Edit(const std::string&,
     return Commit(std::move(next), reason);
 }
 bool EditorSession::Open(const std::filesystem::path& path, std::string& reason) {
+    EndGesture();
     const auto absolute = std::filesystem::absolute(path).lexically_normal();
     SceneResourceResolver resolver(absolute);
     resolver.SetPathDecoder([](const std::string& bytes) -> std::optional<std::filesystem::path> {
@@ -826,6 +832,7 @@ bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason)
         reason);
 }
 bool EditorSession::Undo(std::string& reason) {
+    EndGesture();
     if (undo_.empty()) {
         reason = "undo-empty";
         return false;
@@ -845,6 +852,7 @@ bool EditorSession::Undo(std::string& reason) {
     return true;
 }
 bool EditorSession::Redo(std::string& reason) {
+    EndGesture();
     if (redo_.empty()) {
         reason = "redo-empty";
         return false;
@@ -864,6 +872,7 @@ bool EditorSession::Redo(std::string& reason) {
     return true;
 }
 bool EditorSession::Seek(std::uint32_t frame, std::string& reason) {
+    EndGesture();
     if (!runtime_->Seek(frame, reason))
         return false;
     playing_ = false;
@@ -871,6 +880,7 @@ bool EditorSession::Seek(std::uint32_t frame, std::string& reason) {
     return true;
 }
 bool EditorSession::Play(std::string& reason) {
+    EndGesture();
     const auto settings = Document().timeline;
     playOrigin_ = std::uint32_t(settings.currentFrame);
     if (!settings.startAtCurrent && !Seek(std::uint32_t(settings.playStartFrame), reason))

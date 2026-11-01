@@ -135,6 +135,11 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     setCentralWidget(canvas_);
     timeline_ = new Timeline(session_, language_, assets_, canvas_);
     timeline_->changed = [this] { Refresh(); };
+    interpolation_ = new Interpolation(session_, canvas_);
+    interpolation_->changed = [this](bool ok, const std::string& reason) {
+        Result(ok, reason);
+        Refresh();
+    };
     for (const auto& spec : ui::kControls) {
         QWidget* widget = nullptr;
         const auto cls =
@@ -412,6 +417,7 @@ void EditorWindow::Layout() {
     for (const auto& rect : ui::MmdViewportControls(side_, canvas_->width(), viewport))
         place(rect);
     timeline_->setGeometry(6, 145, std::max(1, side_ - 25), std::max(1, canvas_->height() - 393));
+    interpolation_->move(8, canvas_->height() - 135);
     for (const auto& pair : controls_) {
         const auto id = pair.first;
         bool show = true;
@@ -540,6 +546,21 @@ void EditorWindow::Refresh() {
     accessories->setCurrentIndex(accessories->findData(session_.Selected().accessory));
     RefreshPanels();
     timeline_->Refresh();
+    auto* curves = static_cast<QComboBox*>(Control(kInterpCurveCombo));
+    const unsigned curveCount = session_.Selected().model == 255 ? 6 : 4;
+    const int curveChannel = curves->count() == int(curveCount + 1) ? curves->currentIndex() : 3;
+    curves->clear();
+    for (unsigned i = 0; i < curveCount; ++i)
+        curves->addItem(language_.Text(QString("interpolation.%1").arg(i)));
+    curves->addItem(language_.Text("interpolation.all"));
+    curves->setCurrentIndex(curveChannel);
+    interpolation_->SetChannel(unsigned(curveChannel));
+    const auto selectedCurves = session_.Interpolation(unsigned(curveChannel));
+    Control(kCurveCopyButton)->setEnabled(selectedCurves.canCopy);
+    Control(kCurvePasteButton)
+        ->setEnabled(selectedCurves.found && session_.HasInterpolationClipboard() &&
+                     !session_.Playing());
+    Control(kCurveLinearButton)->setEnabled(selectedCurves.found && !session_.Playing());
     auto* hs = qobject_cast<QScrollBar*>(Control(kTimelineHScroll));
     hs->setRange(0, std::max(doc.appearance.maxFrame, doc.timeline.currentFrame) + 100);
     hs->setPageStep(std::max(1, (side_ - 100) / 13));
@@ -800,6 +821,15 @@ void EditorWindow::Dispatch(int id) {
     bool ok = true;
     const auto current = unsigned(session_.Document().timeline.currentFrame);
     switch (id) {
+    case kCurveCopyButton:
+        ok = session_.CopyInterpolation(interpolation_->Channel(), r);
+        break;
+    case kCurvePasteButton:
+        ok = session_.PasteInterpolation(interpolation_->Channel(), r);
+        break;
+    case kCurveLinearButton:
+        ok = session_.LinearInterpolation(interpolation_->Channel(), r);
+        break;
     case kUndoButton:
         ok = session_.Undo(r);
         break;

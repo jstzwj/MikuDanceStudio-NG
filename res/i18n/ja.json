@@ -344,5 +344,12 @@
   "chrome.FlameStart": "ﾌﾚ･ｽﾀｰﾄ",
   "chrome.FlameStop": "ﾌﾚ･ｽﾄｯﾌﾟ",
   "chrome.text.vol": "vol",
-  "chrome.Volume": "音量"
+  "chrome.Volume": "音量",
+  "interpolation.0": "Ｘ移動",
+  "interpolation.1": "Ｙ移動",
+  "interpolation.2": "Ｚ移動",
+  "interpolation.3": "回　転",
+  "interpolation.4": "距　離",
+  "interpolation.5": "視野角",
+  "interpolation.all": "すべて"
 }
