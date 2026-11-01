@@ -49,7 +49,7 @@ CLI 支持 PMD／PMX／PMM、VMD、Seek、播放、奇数尺寸缩放和设备�
 
 ## 退出条件与证据
 
-初始交付基线为 `0a7cce1`；最终补验基线为 `543d296`，补齐交换链图像、Surface 丢失恢复与性能分项。三平台记录见 [版本化证据](evidence/cross-platform-p3.json)，最终成功运行见 [P3 CI](https://github.com/jstzwj/MikuDanceStudio/actions/runs/41270434909)。同一提交的[四列基础 CI](https://github.com/jstzwj/MikuDanceStudio/actions/runs/41270434952)也全部通过。后续 `next` 推送继续运行同一工作流。
+初始交付基线为 `0a7cce1`；最终补验基线为 `543d296`，补齐交换链图像、Surface 丢失恢复与性能分项。三平台记录见 [版本化证据](evidence/cross-platform-p3.json)，最终成功运行见 [P3 CI](https://github.com/jstzwj/MikuDanceStudio/actions/runs/41270434909)。同一提交的[四列基础 CI](https://github.com/jstzwj/MikuDanceStudio/actions/runs/41270434952)也全部通过。以上链接保留迁移前的原始验收记录；后续 NG 仓库的 `main` 推送继续运行同一工作流。
 
 | 环境 | 实际运行结果 |
 |---|---|

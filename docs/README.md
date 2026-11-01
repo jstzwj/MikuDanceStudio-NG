@@ -6,6 +6,8 @@
 
 | 文档 | 内容 |
 |---|---|
+| [跨平台计划](../cross_platform_plan.md) | NG 独立维护路线、P0–P3 验收和后续阶段 |
+| [P3 验收](CROSS_PLATFORM_P3.md) | 三平台渲染／呈现、恢复、性能预算及硬件测量边界 |
 | [架构](ARCHITECTURE.md) | 子系统、模块边界与有意保留的兼容偏差 |
 | [可移植内核](M1_PORTABLE_CORE.md) | 格式文档、场景会话和 Windows 适配边界 |
 | [RHI 架构](RHI_ARCHITECTURE.md) | 资源生命周期、CPU 场景输入及 DX9／DX11／DX12 预览 |

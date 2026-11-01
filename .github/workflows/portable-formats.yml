@@ -2,7 +2,7 @@ name: Portable formats
 
 on:
   push:
-    branches: [next, 'validation/rhi-resources-*']
+    branches: [main]
   pull_request:
   workflow_dispatch:
 

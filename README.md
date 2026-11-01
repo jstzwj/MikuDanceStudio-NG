@@ -1,4 +1,20 @@
-# MikuDanceStudio
+# MikuDanceStudio NG
+
+This repository independently maintains the former `next` branch of
+[MikuDanceStudio](https://github.com/jstzwj/MikuDanceStudio), with its full commit
+history, on `main`. The cross-platform work has completed P0–P3; see the
+[porting plan](cross_platform_plan.md) and [P3 acceptance](docs/CROSS_PLATFORM_P3.md).
+The cross-platform editor and standalone MME frontend are planned for P4 and P5.
+The Windows application described below remains available during that work.
+
+本仓库独立维护原 MikuDanceStudio 的 `next` 分支，默认分支为 `main`，完整提交历史保留。
+跨平台改造已完成 P0–P3，后续按[跨平台计划](cross_platform_plan.md)推进 P4 编辑器与 P5 MME。
+原仓库继续维护 Windows 兼容分支；历史 CI 和验收证据链接保留原始来源。
+
+```sh
+git clone https://github.com/jstzwj/MikuDanceStudio-NG.git
+cd MikuDanceStudio-NG
+```
 
 Product version: [VERSION](VERSION). Release instructions: [RELEASES.md](docs/RELEASES.md).
 

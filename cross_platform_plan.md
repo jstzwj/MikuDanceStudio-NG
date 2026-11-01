@@ -1,5 +1,7 @@
 # MikuDanceStudio 跨平台移植计划
 
+当前独立维护仓库：[MikuDanceStudio-NG](https://github.com/jstzwj/MikuDanceStudio-NG)，默认分支 `main`，由原仓库 `next@9afd91a` 保留完整历史迁入。下文初始 `main`／`next` 基线和历史验收链接均指迁移前的 MikuDanceStudio 仓库。
+
 更新时间：2026-11-01。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
 
 实施状态：**P0 已完成**。三平台基础构建、两轮精确文件／数值回归、统一 Bullet 包装与分配／销毁验证、macOS 无窗口 Vulkan 探测均已执行；Windows x64／x86 编辑器构建通过。能力表、最低环境决策、依赖图、证据和仍未覆盖的范围见 [P0 实施与验收记录](docs/CROSS_PLATFORM_P0.md)。
