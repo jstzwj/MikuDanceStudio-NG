@@ -1,10 +1,31 @@
 #include "mikudancestudio/pmm_edit.hpp"
+#include "mikudancestudio/bone_key_interpolation.hpp"
 #include <cmath>
 #include <cstring>
 #include <limits>
 #include <stdexcept>
 
 namespace mikudancestudio::format {
+bool RebuildPmmBoneInterpolation(PmmKeyTrack<PmmBoneKey>& track, std::size_t channel,
+                                  std::uint32_t frame) {
+    std::vector<std::vector<PmmBoneKey>> checked;
+    if (!PmmTrackChains(track, checked) || channel >= track.dense.size())
+        return false;
+    std::map<std::uint32_t, PmmBoneKey*> keys;
+    for (std::uint32_t i = 0; i < track.dense.size(); ++i)
+        keys.emplace(i, &track.dense[i]);
+    for (auto& key : track.sparse)
+        keys.emplace(std::uint32_t(key.index), &key.value);
+    auto index = std::uint32_t(channel);
+    while (keys.at(index)->frame < frame && keys.at(index)->next)
+        index = keys.at(index)->next;
+    if (keys.at(index)->frame != frame)
+        return false;
+    for (unsigned lane = 0; lane < 4; ++lane)
+        keyframe_edit::RebuildBoneCurve([&](auto i) -> auto& { return *keys.at(i); },
+                                        std::uint32_t(track.dense.size()), index, lane);
+    return true;
+}
 namespace {
 struct Writer {
     std::vector<std::uint8_t> bytes;

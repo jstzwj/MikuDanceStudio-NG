@@ -147,6 +147,9 @@ int main(int argc, char** argv) {
         CHECK(!curves.PasteInterpolation(6, reason));
     }
     EditorSession editor;
+    // The roundtrip/playback fixture below intentionally registers linear
+    // curves. Default automatic smoothing is covered by editor_auto_interpolation.
+    editor.SetAutoInterpolation(false);
     {
         EditorSession roots;
         CHECK(roots.ImportModel(root / "grouped.pmx", reason));

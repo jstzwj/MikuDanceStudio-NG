@@ -423,6 +423,7 @@ void EditorWindow::Refresh() {
     edit(kPlayStopFrameEdit, doc.timeline.playStopFrame);
     check(kPlaybackLoopCheckbox, doc.timeline.playbackLoop);
     check(kPlaybackReturnCheckbox, doc.timeline.returnToStart);
+    check(kPhysicsFrameCheckbox, session_.AutoInterpolation());
     check(kPlaybackFromCurrentCheckbox, doc.timeline.startAtCurrent);
     if (auto* b = qobject_cast<QAbstractButton*>(Control(kPlayButton)))
         b->setText(language_.Text(session_.Playing() ? "stop" : "control.408"));
@@ -824,6 +825,10 @@ void EditorWindow::Dispatch(int id) {
     bool ok = true;
     const auto current = unsigned(session_.Document().timeline.currentFrame);
     switch (id) {
+    case kPhysicsFrameCheckbox:
+        session_.SetAutoInterpolation(
+            static_cast<QAbstractButton*>(Control(id))->isChecked());
+        break;
     case kCurveCopyButton:
         ok = session_.CopyInterpolation(interpolation_->Channel(), r);
         break;

@@ -4,6 +4,7 @@
 #include "mikudancestudio/vmd_scene_tracks.hpp"
 #include "mikudancestudio/wave_format.hpp"
 #include "mikudancestudio/background_placement.hpp"
+#include "mikudancestudio/bone_key_interpolation.hpp"
 #include <fstream>
 #include <cmath>
 #include <cstring>
@@ -798,12 +799,32 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
                                            std::uint32_t(next.document.timeline.currentFrame)));
         }
         Key key;
-        if (!Pose(next.document, address, key) || !Put(next.document, address, key)) {
+        if (!Pose(next.document, address, key)) {
             reason = "key-registration-failed";
             return false;
         }
-        if (address.track == Track::Bone)
-            Model(next.document, address.slot)->bonePose.at(address.channel).flags[1] = 0;
+        if (address.track == Track::Bone) {
+            auto& boneKey = std::get<PmmBoneKey>(key);
+            Key existing;
+            if (Get(next.document, address, existing))
+                boneKey.interpolation = std::get<PmmBoneKey>(existing).interpolation;
+            else
+                for (unsigned lane = 0; lane < 4; ++lane)
+                    keyframe_edit::ResetBoneCurve(boneKey, lane);
+        }
+        if (!Put(next.document, address, key)) {
+            reason = "key-registration-failed";
+            return false;
+        }
+        if (address.track == Track::Bone) {
+            auto* model = Model(next.document, address.slot);
+            if (autoInterpolation_ &&
+                !RebuildPmmBoneInterpolation(model->boneKeys, address.channel, address.frame)) {
+                reason = "bone-auto-interpolation-failed";
+                return false;
+            }
+            model->bonePose.at(address.channel).flags[1] = 0;
+        }
     }
     if (addresses.empty()) {
         reason = "no-selected-keys";

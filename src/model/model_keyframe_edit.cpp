@@ -21,6 +21,7 @@
 
 #include "mikudancestudio/ported_funcs.hpp"
 #include "mikudancestudio/model.hpp"
+#include "mikudancestudio/bone_key_interpolation.hpp"
 #include "mikudancestudio/panel_controls.hpp"
 
 namespace mikudancestudio {
@@ -118,75 +119,15 @@ void SnapshotPose(mdl::ModelRecord* model, mdl::UndoRecord& undo) {
     }
 }
 
-float BoneKeyValue(const mdl::BoneKey* keys, int index, int lane) {
-    return keys[index].position[lane];
-}
-
 void ResetBoneInterpolation(mdl::BoneKey& record, int lane) {
-    record.interpolation[lane] = 20;
-    record.interpolation[lane + 4] = 20;
-    record.interpolation[lane + 8] = 107;
-    record.interpolation[lane + 12] = 107;
+    keyframe_edit::ResetBoneCurve(record, unsigned(lane));
 }
 
-// VA 0x0049D4D0: regenerate one automatically-smoothed position lane after
-// inserting/overwriting a bone key.  Rotation (lane 3) always receives the
-// original default Bezier tuple.
+// Shared native automatic interpolation, including neighboring key handles.
 void RebuildBoneInterpolation(mdl::ModelRecord* model, int index, int lane) {
-    mdl::BoneKey* const keys = model->boneKeys;
-    mdl::BoneKey& record = keys[index];
-    if (lane >= 3 || index < static_cast<int>(model->boneCount)) {
-        ResetBoneInterpolation(record, lane);
-        return;
-    }
-
-    const int previous = static_cast<int>(record.previous);
-    const float currentValue = BoneKeyValue(keys, index, lane);
-    float previousValue = BoneKeyValue(keys, previous, lane);
-    if (previousValue == currentValue) {
-        ResetBoneInterpolation(record, lane);
-        return;
-    }
-
-    if (previous < static_cast<int>(model->boneCount)) {
-        record.interpolation[lane] = 64;
-        record.interpolation[lane + 4] = 0;
-    } else {
-        mdl::BoneKey& previousRecord = keys[previous];
-        const int beforePrevious = static_cast<int>(previousRecord.previous);
-        const float beforeValue = BoneKeyValue(keys, beforePrevious, lane);
-        if ((previousValue - beforeValue) * (currentValue - previousValue) > 0.0f) {
-            previousRecord.interpolation[lane + 8] = 87;
-            previousRecord.interpolation[lane + 12] = 87;
-            record.interpolation[lane] = 40;
-            record.interpolation[lane + 4] = 40;
-        } else {
-            previousRecord.interpolation[lane + 8] = 64;
-            previousRecord.interpolation[lane + 12] = 127;
-            record.interpolation[lane] = 64;
-            record.interpolation[lane + 4] = 0;
-        }
-    }
-
-    const int next = static_cast<int>(record.next);
-    if (next == 0) {
-        record.interpolation[lane + 8] = 64;
-        record.interpolation[lane + 12] = 127;
-        return;
-    }
-    mdl::BoneKey& nextRecord = keys[next];
-    const float nextValue = BoneKeyValue(keys, next, lane);
-    if ((nextValue - currentValue) * (currentValue - previousValue) <= 0.0f) {
-        record.interpolation[lane + 8] = 64;
-        record.interpolation[lane + 12] = 127;
-        nextRecord.interpolation[lane] = 64;
-        nextRecord.interpolation[lane + 4] = 0;
-    } else {
-        record.interpolation[lane + 8] = 87;
-        record.interpolation[lane + 12] = 87;
-        nextRecord.interpolation[lane] = 40;
-        nextRecord.interpolation[lane + 4] = 40;
-    }
+    keyframe_edit::RebuildBoneCurve(
+        [&](auto i) -> auto& { return model->boneKeys[i]; },
+        model->boneCount, unsigned(index), unsigned(lane));
 }
 
 void BoneKeyOverflow(mdl::ModelRecord* model) {

@@ -71,6 +71,7 @@ int main(int argc, char** argv) {
     };
     for (auto track : {Track::Bone, Track::Morph, Track::Camera, Track::Light}) {
         EditorSession session;
+        session.SetAutoInterpolation(false); // This fixture intentionally uses linear key curves.
         CHECK(session.ImportModel(root / "triangle.pmx", reason));
         CHECK(session.ImportModel(root / "pose.pmd", reason));
         CHECK(session.SelectModel(track == Track::Bone || track == Track::Morph ? 0 : 255, reason));

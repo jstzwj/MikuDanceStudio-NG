@@ -1039,3 +1039,38 @@ Local validation passed all **25 P4 tests**, the Qt application build, and
 Win32 frame-line/history/PMM editing tests. The new public test is included in
 each of the three editor CI build lists. All local runs remained offscreen or
 headless, with no audio device output.
+
+The insertion batch passed all three editor jobs at `37461af` in
+[run 41325408397](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41325408397),
+including native surface checks.
+
+## Automatic bone-key interpolation
+
+The Qt automatic-interpolation checkbox (native control 530) now starts enabled
+and controls actual bone-key registration. Its setting survives new/open and
+language changes without altering document history or rebuilding the runtime.
+Overwriting a key with automatic interpolation disabled preserves its hand-edited
+curve; a new key receives the original default curve instead of copying a
+possibly modified frame-zero curve. Automatic registration updates neighboring
+handles and includes those changes in the same bone-key undo entry.
+
+The Windows host and portable editor use the same `bone_key_interpolation.hpp`
+kernel. The optional `bone_key_interpolation_oracle_test <original-x64.exe>`
+calls original RVA `C9070` directly, without an entrypoint, UI, GPU or patched
+instructions. All **200 complete key-table comparisons** passed. The public
+fixture freezes its output-curve checksum `ef40b2f667094778` and exercises roots,
+all four lanes, first/interior/last keys, increasing/decreasing/turning/equal
+positions and finite extreme/tiny values. The finite-overflow case also fixes
+the old host's unordered-product branch to match the original `COMISS/JBE`.
+
+The new session test checks default smoothing, neighbor changes, repeated
+undo/redo, manual overwrites, new linear keys, atomic rejection and PMM
+save/reopen. Existing linear playback/insertion fixtures explicitly disable
+automatic interpolation and retain their previous strict numeric assertions.
+The Qt test checks the real checkbox, language changes and unchanged runtime
+identity/revision. This covers registration smoothing; frame-line deletion and
+its native interpolation/history topology remain the next timeline work.
+
+Local validation passed all **26 P4 tests**, the Qt and legacy Windows
+application builds, four Win32 editor tests, and the legacy hidden-window
+`undo_frame_test` plus PMM editing regression. No comparison tolerance changed.

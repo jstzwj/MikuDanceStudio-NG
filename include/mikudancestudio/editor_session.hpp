@@ -121,6 +121,8 @@ public:
     bool Register(const std::vector<KeyAddress>&, std::string&);
     bool Delete(const std::set<KeyAddress>&, std::string&);
     bool InsertFrameLine(Track, std::string&, bool fromMenu = false);
+    bool AutoInterpolation() const { return autoInterpolation_; }
+    void SetAutoInterpolation(bool enabled) { autoInterpolation_ = enabled; }
     bool Copy(const std::set<KeyAddress>&, std::string&);
     bool Paste(std::uint32_t frame, bool mirror, std::string&);
     InterpolationSelection Interpolation(unsigned channel) const;
@@ -222,6 +224,7 @@ private:
     std::filesystem::path path_;
     std::uint64_t revision_ = 0, savedRevision_ = 0, nextRevision_ = 1;
     bool playing_ = false;
+    bool autoInterpolation_ = true;
     unsigned coordinateSystem_ = 0, boneDragMode_ = 0;
     double cursorSeconds_ = 0;
     std::uint32_t playOrigin_ = 0;

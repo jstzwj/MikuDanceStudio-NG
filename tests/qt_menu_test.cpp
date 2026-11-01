@@ -36,6 +36,18 @@ int main(int argc, char** argv) {
     const auto root = std::filesystem::absolute(argv[1]);
     qt::EditorWindow window(std::filesystem::absolute(argv[2]), true);
     auto& session = window.Session();
+    auto* autoCurve = static_cast<QAbstractButton*>(window.Control(panel::kPhysicsFrameCheckbox));
+    CHECK(autoCurve->isChecked() && session.AutoInterpolation());
+    const auto autoRevision = session.Revision();
+    const auto* autoRuntime = &session.Runtime();
+    autoCurve->click();
+    CHECK(!session.AutoInterpolation() && !autoCurve->isChecked());
+    CHECK(session.Revision() == autoRevision && &session.Runtime() == autoRuntime);
+    window.SetLanguage("ja");
+    CHECK(!session.AutoInterpolation() && !autoCurve->isChecked());
+    window.SetLanguage("en");
+    autoCurve->click();
+    CHECK(session.AutoInterpolation() && session.Revision() == autoRevision);
     CHECK(session.Document().appearance.floorVisible == 1);
     const auto command = [&](int id) -> QAction* {
         for (auto* action : window.findChildren<QAction*>())
