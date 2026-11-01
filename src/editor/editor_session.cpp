@@ -3,6 +3,7 @@
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/vmd_scene_tracks.hpp"
 #include "mikudancestudio/wave_format.hpp"
+#include "mikudancestudio/background_placement.hpp"
 #include <fstream>
 #include <cmath>
 #include <cstring>
@@ -11,6 +12,27 @@
 namespace mikudancestudio::editor {
 using namespace format;
 namespace {
+bool ReadPicture(const std::filesystem::path& path, std::shared_ptr<const rhi::RgbaImage>& image,
+                 bool& opened, std::string& reason) {
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    opened = bool(file);
+    const auto size = file ? file.tellg() : std::streampos(-1);
+    if (size < 0 || size > (256u << 20)) {
+        reason = "picture-file-read-failed";
+        return false;
+    }
+    std::vector<std::uint8_t> bytes(std::size_t(size), 0);
+    file.seekg(0);
+    auto decoded = std::make_shared<rhi::RgbaImage>();
+    if (!file.read(reinterpret_cast<char*>(bytes.data()), std::streamsize(bytes.size())) ||
+        !rhi::DecodeTextureRgba(bytes.data(), bytes.size(), *decoded)) {
+        reason = "picture-decode-failed";
+        return false;
+    }
+    decoded->pixels.Seal();
+    image = std::move(decoded);
+    return true;
+}
 int Read(void* p, void* dst, std::size_t n) {
     auto& f = *static_cast<std::istream*>(p);
     f.read(static_cast<char*>(dst), std::streamsize(n));
@@ -478,6 +500,22 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
         next.assets.wave =
             (absolute.parent_path() / std::filesystem::u8path(decoded)).lexically_normal();
     }
+    const auto& picturePath = next.document.picture.pathBytes;
+    if (picturePath[0]) {
+        std::string decoded;
+        const auto end = std::find(picturePath.begin(), picturePath.end(), 0);
+        if (!text::DecodeCp932({picturePath.data(), std::size_t(end - picturePath.begin())},
+                               decoded)) {
+            reason = "invalid-picture-path";
+            return false;
+        }
+        std::replace(decoded.begin(), decoded.end(), '\\', '/');
+        next.assets.picturePath =
+            (absolute.parent_path() / std::filesystem::u8path(decoded)).lexically_normal();
+        bool opened = false;
+        if (!ReadPicture(next.assets.picturePath, next.assets.picture, opened, reason))
+            return false;
+    }
     std::unique_ptr<runtime::SceneRuntime> runtime;
     if (!Prepare(next, runtime, reason))
         return false;
@@ -511,6 +549,10 @@ bool EditorSession::Save(const std::filesystem::path& path, const AtomicWrite& w
             return false;
     if (next.document.wave.enabled &&
         !DiskPath(next.assets.wave, absolute.parent_path(), next.document.wave.pathBytes, reason))
+        return false;
+    if (!next.assets.picturePath.empty() &&
+        !DiskPath(next.assets.picturePath, absolute.parent_path(), next.document.picture.pathBytes,
+                  reason))
         return false;
     SceneSession session;
     std::vector<std::uint8_t> bytes;
@@ -624,6 +666,57 @@ bool EditorSession::ImportWave(const std::filesystem::path& path, std::string& r
     if (!DiskPath(absolute, absolute.parent_path(), next.document.wave.pathBytes, reason))
         return false;
     return Commit(std::move(next), reason);
+}
+bool EditorSession::ImportPicture(const std::filesystem::path& path, unsigned viewWidth,
+                                  unsigned viewHeight, std::string& reason) {
+    if (!viewWidth || !viewHeight || viewWidth > 16384 || viewHeight > 16384) {
+        reason = "invalid-picture-viewport";
+        return false;
+    }
+    const auto absolute = std::filesystem::absolute(path).lexically_normal();
+    auto next = Current();
+    bool opened = false;
+    std::shared_ptr<const rhi::RgbaImage> image;
+    if (!ReadPicture(absolute, image, opened, reason)) {
+        const auto failure = reason;
+        // The native loader clears the stored path on either failure. An open
+        // failure retains the old texture; a decode failure releases it first.
+        next.document.picture.pathBytes.fill(0);
+        next.assets.picturePath.clear();
+        if (opened)
+            next.assets.picture.reset();
+        if (!Commit(std::move(next), reason))
+            return false;
+        reason = failure;
+        return false;
+    }
+    if (!DiskPath(absolute, absolute.parent_path(), next.document.picture.pathBytes, reason))
+        return false;
+    render::BackgroundView view;
+    view.width = int(viewWidth);
+    view.height = int(viewHeight);
+    view.scale = render::BackgroundViewScale(view.width);
+    const auto fit = render::FitBackground(int(image->width), int(image->height), view);
+    next.document.picture.offsetX = fit.x;
+    next.document.picture.offsetY = fit.y;
+    next.document.picture.scale = fit.scale;
+    next.document.picture.enabled = 1;
+    next.assets.picturePath = absolute;
+    next.assets.picture = std::move(image);
+    return Commit(std::move(next), reason);
+}
+bool EditorSession::ShowPicture(bool visible, std::string& reason) {
+    if (visible && !state_.assets.picture) {
+        reason = "picture-not-loaded";
+        return false;
+    }
+    return Edit(
+        "background-picture-visible",
+        [&](auto& doc, auto&) {
+            doc.picture.enabled = visible ? 1 : 0;
+            return true;
+        },
+        reason);
 }
 bool EditorSession::SetBone(std::uint8_t slot, std::uint32_t bone,
                             const std::array<float, 3>& position,

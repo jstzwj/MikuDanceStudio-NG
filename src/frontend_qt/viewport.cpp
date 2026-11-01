@@ -8,6 +8,7 @@ render::SceneRenderSources Sources(const editor::EditorAssets& assets) {
     render::SceneRenderSources out;
     out.models = assets.modelPaths;
     out.accessories = assets.accessoryPaths;
+    out.picture = assets.picture;
     return out;
 }
 }
@@ -65,7 +66,7 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
     const auto& assets = session_.Assets();
     if (!loadedAssets_ || assets.models != loaded_.models ||
         assets.accessories != loaded_.accessories || assets.modelPaths != loaded_.modelPaths ||
-        assets.accessoryPaths != loaded_.accessoryPaths) {
+        assets.accessoryPaths != loaded_.accessoryPaths || assets.picture != loaded_.picture) {
         if (!producer_.Load(session_.Runtime(), Sources(assets), builtins_, reason))
             return false;
         loaded_ = assets;

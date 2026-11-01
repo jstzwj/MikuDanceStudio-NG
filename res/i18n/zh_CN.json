@@ -356,5 +356,15 @@
   "scope.selected_bones": "选定骨骼",
   "scope.selected_morphs": "选定表情",
   "scope.morphs": "全部表情帧",
-  "scope.bones": "全部骨骼帧"
+  "scope.bones": "全部骨骼帧",
+  "menu.background": "背景(&B)",
+  "background.black": "黑色背景(&D)",
+  "background.load": "载入背景图片(&R)",
+  "background.show": "显示背景图片(&P)",
+  "background.capture.0": "关闭屏幕捕获(&V)",
+  "background.capture.1": "模式一（全画面）(&M)",
+  "background.capture.2": "模式二（4:3 比例）(&N)",
+  "background.capture.3": "模式三（背景 AVI）(&B)",
+  "background.load_title": "载入背景图片",
+  "background.image_filter": "所有图片文件 (*.bmp *.png *.tga);;BMP 图片 (*.bmp);;PNG 图片 (*.png);;TGA 图片 (*.tga)"
 }

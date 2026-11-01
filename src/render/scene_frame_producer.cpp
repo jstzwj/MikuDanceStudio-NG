@@ -5,6 +5,8 @@
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/cpu_edge.hpp"
 #include "mikudancestudio/rhi_screen_texture.hpp"
+#include "mikudancestudio/background_placement.hpp"
+#include "background_quad.hpp"
 #include <algorithm>
 #include <cstring>
 #include <cstdio>
@@ -176,6 +178,9 @@ struct SceneFrameProducer::Impl {
     std::map<std::uint8_t, std::unique_ptr<Accessory>> accessories;
     AtlasAsset helper;
     ScreenTextureHistory history;
+    std::shared_ptr<const RgbaImage> picture;
+    ModelReplayResource pictureTexture, pictureVertices;
+    bool rendered = false;
     bool sphereAdd = false, pendingSphereAdd = false, pendingMaterialRebuild = false;
     bool hasMaterialHistory = false, pending = false;
 };
@@ -186,6 +191,24 @@ bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRen
     auto next = std::make_unique<Impl>();
     if (impl_)
         next->sphereAdd = impl_->sphereAdd;
+    if (impl_)
+        next->rendered = impl_->rendered;
+    if (sources.picture) {
+        if (nextId_ > UINT64_MAX - 0x100000000ull)
+            return Fail(reason, "scene_resource_id_exhausted");
+        next->picture = sources.picture;
+        next->pictureTexture.key = {nextId_, 1};
+        next->pictureVertices.key = {nextId_ + 1, 1};
+        nextId_ += 0x100000000ull;
+        next->pictureTexture.kind = ReplayResourceKind::Texture;
+        RgbaImage image;
+        if (!PrepareBackgroundImage(*sources.picture, image))
+            return Fail(reason, "background_texture_preparation");
+        PreparedMipChain chain;
+        if (!PreparePortableMipChain(image, MipPreparationPolicy::BoxLinear, chain))
+            return Fail(reason, "background_mip_preparation");
+        next->pictureTexture.texture.levels = std::move(chain.levels);
+    }
     if (!LoadAtlas(builtins, AssetId::AccessoryHelper, next->helper))
         return Fail(reason, "scene_shadow_helper_asset");
     ToonTextureResolver toons(sources.sharedToons, builtins);
@@ -365,7 +388,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
     for (unsigned slot = 0; slot < 256; ++slot)
         if (scene.Resource(std::uint8_t(slot)) && !impl_->models.count(std::uint8_t(slot)))
             return Fail(reason, "model_resource_changed_reload_required");
-    if (doc && (doc->avi.enabled || doc->picture.enabled))
+    if (doc && doc->avi.enabled)
         return Fail(reason, "scene_background_requires_media_service");
     const int mode = settings.shadow.mode < 0 ? (session ? session->Pose().selfShadowMode : 0)
                                               : settings.shadow.mode;
@@ -413,6 +436,72 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
     main.color->clear =
         doc && doc->appearance.blackBackground ? ClearColor{0, 0, 0, 0} : ClearColor{1, 1, 1, 0};
     main.depthStencil = FrameAttachment{2};
+    const bool picture = doc && doc->picture.enabled && impl_->picture;
+    if (picture) {
+        const auto& placement = doc->picture;
+        if (!std::isfinite(placement.scale))
+            return Fail(reason, "background_placement_not_finite");
+        BackgroundView view;
+        view.width = int(settings.width);
+        view.height = int(settings.height);
+        view.scale = BackgroundViewScale(view.width);
+        const auto rect =
+            PlaceBackground({placement.offsetX, placement.offsetY, int(impl_->picture->width),
+                             int(impl_->picture->height), placement.scale},
+                            view);
+        std::array<TexturedScreenVertex, 6> screen;
+        WriteBackgroundQuad(screen.data(), rect.left, rect.top, rect.right, rect.bottom);
+        std::array<std::array<float, 8>, 6> vertices{};
+        for (unsigned i = 0; i < 6; ++i) {
+            vertices[i][0] = screen[i].x * 2.f / settings.width - 1.f;
+            vertices[i][1] = 1.f - screen[i].y * 2.f / settings.height;
+            vertices[i][6] = screen[i].u;
+            vertices[i][7] = screen[i].v;
+        }
+        SnapshotBytes bytes;
+        bytes.resize(sizeof vertices);
+        std::memcpy(bytes.data(), vertices.data(), sizeof vertices);
+        auto& vb = impl_->pictureVertices;
+        if (vb.bytes != bytes) {
+            if (vb.key.version == UINT64_MAX)
+                return Fail(reason, "background_vertex_version_exhausted");
+            ++vb.key.version;
+            bytes.Seal();
+            vb.bytes = std::move(bytes);
+        }
+        ModelReplayDraw draw;
+        draw.vertices = vb.key;
+        draw.textures[0] = impl_->pictureTexture.key;
+        draw.indexed = false;
+        draw.drawVertexCount = 6;
+        auto& p = draw.pipeline;
+        p.viewport = frame.view.viewport;
+        p.raster.depthTest = p.raster.depthWrite = false;
+        p.raster.cull = BatchCull::None;
+        p.raster.alphaBlend = impl_->rendered;
+        p.separateAlpha = true;
+        p.alphaOperation = ModelBlendOp::Max;
+        p.shader.world = p.shader.view = p.shader.projection = p.shader.normalView = Identity();
+        p.shader.diffuse = p.shader.nativeDiffuse = {1, 1, 1, 1};
+        p.shader.alphaTest = true;
+        p.shader.alphaTestFixed12 = true;
+        p.shader.alphaCompare = DepthComparison::GreaterEqual;
+        p.shader.alphaReference = 1;
+        p.shader.textureTransforms[0] = Identity();
+        auto& stage = p.shader.layout.stages[0];
+        stage.role = MaterialTextureRole::Base;
+        stage.color = MaterialCombine::Modulate;
+        stage.colorArg2 = MaterialColorSource::LitDiffuse;
+        p.shader.samplers[0].u = p.shader.samplers[0].v = SamplerAddress::Wrap;
+        main.draws.push_back(std::move(draw));
+    }
+    // Visibility does not unload the native picture. Keep its resource lease
+    // while hidden so showing it cannot resurrect a retired version.
+    if (impl_->picture) {
+        result.resources.push_back(impl_->pictureTexture);
+        if (!impl_->pictureVertices.bytes.empty())
+            result.resources.push_back(impl_->pictureVertices);
+    }
     FramePass cast;
     cast.name = "self_shadow";
     if (mode) {
@@ -869,8 +958,10 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
     result.passes.push_back(std::move(main));
     result.finalColor = 1;
     if (settings.postProcessCopy &&
-        !AppendPostProcess(result, 1, 5, settings.width, settings.height))
-        return Fail(reason, "scene_post_process");
+        !AppendPostProcess(result, 1, 5, settings.width, settings.height)) {
+        const auto check = ValidateRenderFrame(result);
+        return Fail(reason, check ? "scene_post_process" : check.reason);
+    }
     if (doc && (!consumers.empty() || doc->view.captureMode) &&
         !impl_->history.Apply(result, consumers, ScreenCaptureKind(doc->view.captureMode),
                               result.finalColor))
@@ -882,7 +973,8 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         return Fail(reason, valid.reason);
     output = std::move(result);
     impl_->pendingSphereAdd = sphereAdd;
-    impl_->pendingMaterialRebuild = inherited && sphereAdd != impl_->sphereAdd;
+    impl_->pendingMaterialRebuild =
+        (inherited && sphereAdd != impl_->sphereAdd) || (picture && !impl_->rendered);
     impl_->pending = true;
     reason.clear();
     return true;
@@ -894,16 +986,18 @@ bool SceneFrameProducer::Commit() {
         return false;
     impl_->history.Commit();
     impl_->sphereAdd = impl_->pendingSphereAdd;
+    impl_->rendered = true;
     impl_->pending = false;
     return impl_->pendingMaterialRebuild;
 }
 bool SceneFrameProducer::HasMaterialHistory() const {
-    return impl_ && impl_->hasMaterialHistory;
+    return impl_ && (impl_->hasMaterialHistory || impl_->picture);
 }
 void SceneFrameProducer::ResetHistory() {
     if (impl_) {
         impl_->history.Reset();
         impl_->sphereAdd = false;
+        impl_->rendered = false;
         impl_->pending = false;
     }
 }

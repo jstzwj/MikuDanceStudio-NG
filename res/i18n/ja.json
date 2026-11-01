@@ -356,5 +356,15 @@
   "scope.selected_bones": "選択ﾎﾞｰﾝ",
   "scope.selected_morphs": "選択表情",
   "scope.morphs": "全表情ﾌﾚｰﾑ",
-  "scope.bones": "全ボーンﾌﾚｰﾑ"
+  "scope.bones": "全ボーンﾌﾚｰﾑ",
+  "menu.background": "背景(&B)",
+  "background.black": "背景黒化(&D)",
+  "background.load": "背景画像ファイル読込(&R)",
+  "background.show": "背景画像表示(&P)",
+  "background.capture.0": "ｽｸﾘｰﾝ用ｷｬﾌﾟﾁｬOFF(&V)",
+  "background.capture.1": "ON･モード１(全画面) (&M)",
+  "background.capture.2": "ON･モード２(4:3比率) (&N)",
+  "background.capture.3": "ON･モード３(背景AVI) (&B)",
+  "background.load_title": "背景画像データ読込",
+  "background.image_filter": "全ての対応フォーマット (*.bmp *.png *.tga);;Bmp files(*.bmp) (*.bmp);;Png files(*.png) (*.png);;Tga files(*.tga) (*.tga)"
 }

@@ -102,6 +102,30 @@ int wmain(int argc, wchar_t** argv) try {
                 }
             }
         Hr(texture->UnlockRect(0), "unlock native pixels");
+        rhi::PreparedMipChain mips;
+        Check(rhi::PreparePortableMipChain(prepared, rhi::MipPreparationPolicy::BoxLinear, mips),
+              "portable mips");
+        unsigned mipDifferences = 0, mipMaximum = 0;
+        for (unsigned level = 1; level < texture->GetLevelCount(); ++level) {
+            Hr(texture->LockRect(level, &lock, nullptr, D3DLOCK_READONLY), "native mip");
+            const auto& portable = mips.levels.at(level);
+            for (unsigned y = 0; y < portable.height; ++y)
+                for (unsigned x = 0; x < portable.width; ++x) {
+                    const auto* native =
+                        static_cast<const std::uint8_t*>(lock.pBits) + y * lock.Pitch + x * 4;
+                    for (unsigned c = 0; c < 4; ++c) {
+                        const auto error = unsigned(
+                            std::abs(int(portable.pixels[(y * portable.width + x) * 4 + c]) -
+                                     int(native[c < 3 ? 2 - c : c])));
+                        mipMaximum = std::max(mipMaximum, error);
+                        mipDifferences += error != 0;
+                    }
+                }
+            Hr(texture->UnlockRect(level), "unlock native mip");
+        }
+        std::printf("  mip max=%u different=%u\n", mipMaximum, mipDifferences);
+        Check(texture->GetLevelCount() == mips.levels.size() && !mipDifferences,
+              "background mip chain differs from native D3DX");
         if (!output.empty()) {
             Com<IDirect3DTexture9> floating;
             Hr(D3DXCreateTextureFromFileInMemoryEx(fixture.device, bmp.data(), unsigned(bmp.size()),

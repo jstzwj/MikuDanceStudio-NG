@@ -7,6 +7,7 @@ namespace mikudancestudio::render {
 struct SceneRenderSources {
     std::map<std::uint8_t, std::filesystem::path> models, accessories;
     std::filesystem::path sharedToons;
+    std::shared_ptr<const rhi::RgbaImage> picture;
 };
 struct SceneRenderSettings {
     unsigned width = 640, height = 480;

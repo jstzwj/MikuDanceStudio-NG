@@ -71,6 +71,10 @@ function(mds_add_qt_editor)
             target_include_directories(portable_scene_dx9_test PRIVATE "${root}/third_party/mmeffect/include")
             target_compile_definitions(portable_scene_dx9_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
             target_link_libraries(portable_scene_dx9_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render d3d9)
+            add_executable(portable_background_dx9_test "${root}/tests/portable_background_dx9_test.cpp")
+            target_include_directories(portable_background_dx9_test PRIVATE "${root}/third_party/mmeffect/include")
+            target_compile_definitions(portable_background_dx9_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+            target_link_libraries(portable_background_dx9_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render d3d9)
         endif()
         # Native platform tests are invoked explicitly in isolated CI displays;
         # the normal p4 suite must remain safe for a developer's desktop.

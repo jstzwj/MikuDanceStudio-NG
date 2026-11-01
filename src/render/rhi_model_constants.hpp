@@ -114,7 +114,8 @@ inline bool BuildModelConstants(const ModelPipeline& p, const ModelViewport& vie
         vc.lightAmbient[i] = l.ambient;
         vc.lightSpecular[i] = l.specular;
     }
-    pc.alpha = {s.alphaTest, static_cast<unsigned>(s.alphaCompare), s.alphaReference,
+    pc.alpha = {s.alphaTest ? (s.alphaTestFixed12 ? 2u : 1u) : 0u,
+                static_cast<unsigned>(s.alphaCompare), s.alphaReference,
                 s.lighting && s.specularEnabled};
     for (unsigned i = 0; i < 3; ++i) {
         vc.coordinates[i] = static_cast<unsigned>(s.layout.stages[i].coordinates);

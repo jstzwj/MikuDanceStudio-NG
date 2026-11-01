@@ -221,6 +221,11 @@ int main() {
     if(EvaluateMaterialTextureCascade(rejected,{1,1,1,1},sampled,shaded) || shaded!=std::array<float,4>{})return 43;
     if(!MaterialAlphaTest(127.8f/255,true,DepthComparison::GreaterEqual,128) ||
        MaterialAlphaTest(127.49f/255,true,DepthComparison::GreaterEqual,128))return 44;
+    // Native screen alpha conversion truncates the input to 12 fractional bits.
+    if(MaterialAlphaTest(.5f/255,true,DepthComparison::GreaterEqual,1,true) ||
+       !MaterialAlphaTest(.5f/255,true,DepthComparison::GreaterEqual,1) ||
+       !MaterialAlphaTest(1.5f/255,true,DepthComparison::Equal,1,true) ||
+       !MaterialAlphaTest(2.5f/255,true,DepthComparison::Equal,2,true))return 45;
     std::puts("Base/Sphere/Toon resolution, BMP/PNG RGBA, shader layout, upload/bind/reuse/revision/reset/replacement/release: PASS");
     return 0;
 }

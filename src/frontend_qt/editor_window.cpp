@@ -287,6 +287,11 @@ void EditorWindow::CreateViewport(const rhi::BackendOptions& options) {
     Layout();
 }
 void EditorWindow::BuildMenus() {
+    // QMenuBar::clear does not destroy its menus. Language/backend rebuilds
+    // must release the old action tree as well as remove it from the bar.
+    for (auto* entry : menuBar()->actions())
+        if (auto* menu = entry->menu())
+            delete menu;
     menuBar()->clear();
     actions_.clear();
     const auto action = [&](QMenu* menu, const QString& id, const QKeySequence& shortcut = {}) {
@@ -368,6 +373,15 @@ void EditorWindow::BuildMenus() {
         a->setChecked(language_.Code() == code);
         connect(a, &QAction::triggered, this, [this, code] { SetLanguage(code); });
     }
+    auto* background = menuBar()->addMenu(language_.Text("menu.background"));
+    action(background, "background.black")->setCheckable(true);
+    background->addSeparator();
+    action(background, "background.load");
+    background->addSeparator();
+    action(background, "background.show")->setCheckable(true);
+    background->addSeparator();
+    for (unsigned i = 0; i < 4; ++i)
+        action(background, QString("background.capture.%1").arg(i))->setCheckable(true);
 }
 bool EditorWindow::SetLanguage(const QString& language) {
     if (!language_.Set(language))
@@ -535,6 +549,10 @@ void EditorWindow::Refresh() {
         }
     for (unsigned i = 0; i < 4; ++i)
         actions_[QString("physics.%1").arg(i)]->setChecked(doc.physics.playbackMode == i);
+    actions_["background.black"]->setChecked(doc.appearance.blackBackground != 0);
+    actions_["background.show"]->setChecked(doc.picture.enabled != 0);
+    for (unsigned i = 0; i < 4; ++i)
+        actions_[QString("background.capture.%1").arg(i)]->setChecked(doc.view.captureMode == i);
     auto* accessories = qobject_cast<QComboBox*>(Control(kAccessoryCombo));
     accessories->clear();
     for (const auto& a : doc.accessories) {
@@ -612,6 +630,43 @@ void EditorWindow::closeEvent(QCloseEvent* e) {
         e->ignore();
 }
 void EditorWindow::FileAction(const QString& id) {
+    if (id == "background.load") {
+        const auto path =
+            QFileDialog::getOpenFileName(this, language_.Text("background.load_title"), {},
+                                         language_.Text("background.image_filter"));
+        if (path.isEmpty())
+            return;
+        std::string r;
+        Result(session_.ImportPicture(Path(path), unsigned(viewport_->width()),
+                                      unsigned(viewport_->height()), r),
+               r);
+        Refresh();
+        return;
+    }
+    if (id == "background.show") {
+        std::string r;
+        // Native toggle is a no-op if no image has ever been loaded.
+        if (session_.Document().picture.enabled || session_.Assets().picture)
+            Result(session_.ShowPicture(!session_.Document().picture.enabled, r), r);
+        Refresh();
+        return;
+    }
+    if (id == "background.black" || id.startsWith("background.capture.")) {
+        std::string r;
+        Result(session_.Edit(
+                   "background",
+                   [&](auto& d, auto&) {
+                       if (id == "background.black")
+                           d.appearance.blackBackground = !d.appearance.blackBackground;
+                       else
+                           d.view.captureMode = std::uint32_t(id.section('.', -1).toUInt());
+                       return true;
+                   },
+                   r),
+               r);
+        Refresh();
+        return;
+    }
     if (id == "file.new") {
         if (ConfirmUnsaved()) {
             std::string r;

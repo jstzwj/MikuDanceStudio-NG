@@ -55,6 +55,41 @@ int main(int argc, char** argv) {
     CHECK(QFontMetrics(window.font()).inFont(QChar('0')));
     CHECK(!window.isVisible());
     CHECK(window.SetLanguage("en"));
+    {
+        qt::EditorWindow backgrounds(std::filesystem::absolute(argv[2]), true);
+        CHECK(backgrounds.SetLanguage("en"));
+        auto* show = backgrounds.findChild<QAction*>("background.show");
+        CHECK(show && show->text() == "show background picture file(&P)");
+        show->trigger();
+        CHECK(!backgrounds.Session().Document().picture.enabled);
+        CHECK(backgrounds.Session().ImportPicture(
+            std::filesystem::absolute(argv[2]) / "hud_sprites.png", 640, 480, reason));
+        backgrounds.Refresh();
+        CHECK(show->isChecked());
+        const auto picture = backgrounds.Session().Assets().picture;
+        const auto before = backgrounds.Session().Revision();
+        for (const char* language : {"ja", "zh_CN", "en"}) {
+            CHECK(backgrounds.SetLanguage(language));
+            CHECK(backgrounds.findChildren<QAction*>("background.show").size() == 1);
+            CHECK(backgrounds.findChild<QAction*>("background.show")->isChecked());
+            CHECK(backgrounds.Session().Revision() == before);
+            CHECK(backgrounds.Session().Assets().picture == picture);
+        }
+        backgrounds.findChild<QAction*>("background.show")->trigger();
+        CHECK(!backgrounds.Session().Document().picture.enabled);
+        backgrounds.findChild<QAction*>("background.show")->trigger();
+        CHECK(backgrounds.Session().Document().picture.enabled);
+        for (unsigned i = 0; i < 4; ++i) {
+            backgrounds.findChild<QAction*>(QString("background.capture.%1").arg(i))->trigger();
+            CHECK(backgrounds.Session().Document().view.captureMode == int(i));
+            for (unsigned j = 0; j < 4; ++j)
+                CHECK(backgrounds.findChild<QAction*>(QString("background.capture.%1").arg(j))
+                          ->isChecked() == (i == j));
+        }
+        backgrounds.findChild<QAction*>("background.black")->trigger();
+        CHECK(backgrounds.Session().Document().appearance.blackBackground);
+        CHECK(!backgrounds.isVisible());
+    }
     CHECK(window.Control(400));
     CHECK(window.Control(567));
     CHECK(qobject_cast<QAbstractButton*>(window.Control(400))->text() == "undo");

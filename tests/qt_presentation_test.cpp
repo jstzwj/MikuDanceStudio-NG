@@ -124,6 +124,24 @@ int main(int argc, char** argv) {
         CHECK(materialViewport.Render(reason, true));
         CHECK(materialViewport.Render(reason, true));
         CHECK(materialViewport.FrameBuilds() == materialBuilds + 3);
+        CHECK(materialSession.ImportPicture(std::filesystem::absolute(argv[2]) / "hud_sprites.png",
+                                            127, 91, reason));
+        CHECK(materialViewport.Render(reason, true));
+        const auto backgroundBuilds = materialViewport.FrameBuilds();
+        CHECK(materialViewport.Render(reason, true));
+        CHECK(materialViewport.FrameBuilds() == backgroundBuilds);
+        CHECK(materialSession.ShowPicture(false, reason));
+        CHECK(materialViewport.Render(reason, true));
+        CHECK(materialViewport.FrameBuilds() == backgroundBuilds + 1);
+        CHECK(materialSession.ShowPicture(true, reason));
+        CHECK(materialViewport.Render(reason, true));
+        CHECK(materialViewport.FrameBuilds() == backgroundBuilds + 2);
+        CHECK(materialViewport.Reset(reason));
+        CHECK(materialViewport.Render(reason, true));
+        CHECK(materialViewport.Render(reason, true));
+        CHECK(materialViewport.FrameBuilds() == backgroundBuilds + 4);
+        CHECK(materialViewport.Render(reason, true));
+        CHECK(materialViewport.FrameBuilds() == backgroundBuilds + 4);
 #ifdef _WIN32
         CHECK(!viewport.isVisible());
         CHECK(!materialViewport.isVisible());

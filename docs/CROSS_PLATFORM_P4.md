@@ -254,3 +254,38 @@ implementation. The earlier public 106x106 constant/impulse counterexample also
 now matches exactly at 128x128. These results cover RGBA8 preparation against the
 x64 runtime, not all codecs, compressed textures, x86 arithmetic or complete
 background scene rendering.
+
+
+[Run 41287592528](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41287592528)
+at `336a055` passed the 22 frozen native texture-preparation cases and existing
+P4 gates on Windows, Linux and macOS.
+
+The editor now loads BMP/PNG/true-color TGA background pictures, retains them
+while hidden, saves relative references and reloads them independently of the
+visibility flag. Shared frame production uses the native placement, 1024-square
+texture and full box mip chain. The hidden D3DX test compares all mip levels of
+all 22 fixtures exactly. Menus use the original English/Japanese labels and the
+Simplified Chinese catalog; language changes preserve the document and picture.
+
+The explicit `portable_background_dx9_test res/assets <backend>` compares the
+final frame against native fixed-function DX9, with independently D3DX-created
+textures and mip levels. DX11, DX12 and Vulkan each passed 36 cases exactly:
+three generated alpha/noise textures, three viewport widths, offset/scaled
+placement and initial/subsequent frames. Both sides use the approved portable
+trilinear profile. The background alpha test explicitly uses the previously
+measured 12-fractional-bit truncation before byte conversion; nearest rounding
+alone failed transparent-edge coverage. This policy is scoped to background
+quads, not silently applied to the existing material path. The result is measured
+compatibility for this device/profile, not proof of all DX9 hardware behavior.
+
+Successful submission advances initial blend state; failed/repeated preparation
+does not. Resource reload retains it and device replacement resets it. Export
+warms prior frames so later-range output matches a full sequence. Remaining image
+codecs, background interaction, native undo semantics, and the broader P4 gates
+above remain open.
+
+Local command/language/save/reopen tests passed, and offscreen render/export
+regressions passed separately on DX11, DX12 and Vulkan. The never-shown Qt native
+viewport test passed all three backends, including hide/show, retained resource
+versions and device replacement. The NG executable built successfully; it was
+not launched on the desktop.

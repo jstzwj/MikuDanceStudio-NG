@@ -356,5 +356,15 @@
   "scope.selected_bones": "Sel Bone",
   "scope.selected_morphs": "Sel facial",
   "scope.morphs": "All facial",
-  "scope.bones": "All bone"
+  "scope.bones": "All bone",
+  "menu.background": "background(&B)",
+  "background.black": "black background(&D)",
+  "background.load": "load background picture file(&R)",
+  "background.show": "show background picture file(&P)",
+  "background.capture.0": "screen capture mode OFF(&V)",
+  "background.capture.1": "ON.mode01(&M)",
+  "background.capture.2": "ON.mode02(&N)",
+  "background.capture.3": "ON.mode03(&B)",
+  "background.load_title": "load picture data",
+  "background.image_filter": "All Picture files (*.bmp *.png *.tga);;Bmp files(*.bmp) (*.bmp);;Png files(*.png) (*.png);;Tga files(*.tga) (*.tga)"
 }

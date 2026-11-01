@@ -38,6 +38,52 @@ int main(int argc, char** argv) {
     CHECK(format::DecodeVmdBoneInterpolation(expected) == curve);
     const auto root = std::filesystem::absolute(argv[1]);
     {
+        // Original image fixture, top-origin TGA; no GUI or GPU decoder.
+        std::vector<std::uint8_t> tga(18);
+        tga[2] = 2;
+        tga[12] = 3;
+        tga[14] = 2;
+        tga[16] = 32;
+        tga[17] = 0x28;
+        for (unsigned i = 0; i < 6; ++i)
+            tga.insert(tga.end(), {std::uint8_t(i * 31), 91, 173, std::uint8_t(i * 51)});
+        CHECK(Write(root / "picture.tga", tga, reason));
+        EditorSession pictures;
+        CHECK(!pictures.ShowPicture(true, reason));
+        CHECK(pictures.ImportPicture(root / "picture.tga", 640, 480, reason));
+        const auto image = pictures.Assets().picture;
+        CHECK(image && image->width == 3 && image->height == 2);
+        CHECK(image->pixels[0] == 173 && image->pixels[2] == 0 && image->pixels[3] == 0);
+        CHECK(pictures.Document().picture.offsetX == 0 &&
+              pictures.Document().picture.offsetY == 26);
+        CHECK(std::abs(pictures.Document().picture.scale - 426.6666667f) < .0001f);
+        CHECK(pictures.ShowPicture(false, reason));
+        CHECK(pictures.Assets().picture == image);
+        std::filesystem::create_directories(root / "picture-save");
+        CHECK(pictures.Save(root / "picture-save/scene.pmm", Write, reason));
+        EditorSession loaded;
+        CHECK(loaded.Open(root / "picture-save/scene.pmm", reason));
+        CHECK(!loaded.Document().picture.enabled && loaded.Assets().picture);
+        CHECK(loaded.Assets().picturePath == root / "picture.tga");
+        CHECK(loaded.Assets().picture->pixels == image->pixels);
+        CHECK(loaded.ShowPicture(true, reason));
+        CHECK(loaded.Undo(reason) && !loaded.Document().picture.enabled);
+        CHECK(loaded.Redo(reason) && loaded.Document().picture.enabled);
+        const auto retained = loaded.Assets().picture;
+        CHECK(!loaded.ImportPicture(root / "missing-picture.tga", 640, 480, reason));
+        CHECK(loaded.Assets().picture == retained);
+        CHECK(loaded.Assets().picturePath.empty() && !loaded.Document().picture.pathBytes[0]);
+        CHECK(loaded.Document().picture.enabled);
+        CHECK(Write(root / "bad-picture.tga", {1, 2, 3}, reason));
+        CHECK(!loaded.ImportPicture(root / "bad-picture.tga", 640, 480, reason));
+        CHECK(!loaded.Assets().picture && loaded.Document().picture.enabled);
+        CHECK(loaded.Undo(reason) && loaded.Assets().picture == retained);
+        CHECK(loaded.Undo(reason) && loaded.Assets().picturePath == root / "picture.tga");
+        const auto revision = loaded.Revision();
+        CHECK(!loaded.ImportPicture(root / "picture.tga", 0, 480, reason));
+        CHECK(loaded.Revision() == revision);
+    }
+    {
         EditorSession curves;
         CHECK(curves.ImportModel(root / "bone-only.pmd", reason));
         curves.Selected().model = 0;

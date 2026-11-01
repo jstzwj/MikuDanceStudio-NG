@@ -31,9 +31,82 @@ int main(int argc, char** argv) {
     options.backend = rhi::Backend::Vulkan;
     if (qEnvironmentVariable("MDS_GPU_BACKEND") == "d3d11")
         options.backend = rhi::Backend::D3D11;
+    if (qEnvironmentVariable("MDS_GPU_BACKEND") == "d3d12")
+        options.backend = rhi::Backend::D3D12;
     options.vulkanLibrary = qEnvironmentVariable("MDS_TEST_VULKAN_LIBRARY").toStdString();
     if (qEnvironmentVariable("MDS_GPU_DRIVER") == "software")
         options.driver = rhi::BackendDriver::Software;
+    {
+        QImage picture(79, 43, QImage::Format_RGBA8888);
+        for (int y = 0; y < picture.height(); ++y)
+            for (int x = 0; x < picture.width(); ++x)
+                picture.setPixelColor(
+                    x, y,
+                    QColor(x * 255 / 78, y * 255 / 42, (x + y) % 2 ? 224 : 32, x < 39 ? 96 : 255));
+        CHECK(picture.save(qt::Path(root / "background.png")));
+        editor::EditorSession background;
+        CHECK(background.ImportPicture(root / "background.png", 128, 96, reason));
+        CHECK(background.Edit(
+            "plain-background",
+            [](auto& d, auto&) {
+                d.view.groundGrid = d.view.groundShadow = d.selfShadowMode = 0;
+                return true;
+            },
+            reason));
+        render::SceneRenderSources imageSources;
+        imageSources.picture = background.Assets().picture;
+        rhi::FileAssetSource files(assets);
+        render::SceneFrameProducer images;
+        CHECK(images.Load(background.Runtime(), imageSources, files, reason));
+        render::SceneRenderSettings size;
+        size.width = 128;
+        size.height = 96;
+        size.shadow.mode = 0;
+        rhi::RenderFrame a, b;
+        CHECK(images.Build(background.Runtime(), size, a, reason));
+        CHECK(a.passes.front().draws.size() == 1);
+        CHECK(!a.passes.front().draws[0].pipeline.raster.alphaBlend);
+        auto gpu = rhi::CreateOffscreenBackendDevice(128, 96, options);
+        CHECK(gpu);
+        rhi::SceneRenderer renderer(*gpu.device);
+        const auto read = [&](const rhi::RenderFrame& frame, rhi::AttachmentReadback& out) {
+            rhi::PreparedModelFrame prepared;
+            rhi::CompletionToken token;
+            return renderer.Prepare(1, frame, prepared) && renderer.Submit(prepared, token) &&
+                   renderer.ReadTarget(1, frame.finalColor, out);
+        };
+        rhi::AttachmentReadback first, next, stable;
+        CHECK(read(a, first));
+        CHECK(images.Commit());
+        CHECK(images.Build(background.Runtime(), size, b, reason));
+        CHECK(b.passes.front().draws[0].pipeline.raster.alphaBlend);
+        CHECK(read(b, next) && first.bytes != next.bytes);
+        CHECK(!images.Commit());
+        CHECK(read(b, stable) && next.bytes == stable.bytes);
+        CHECK(images.Load(background.Runtime(), imageSources, files, reason));
+        CHECK(images.Build(background.Runtime(), size, b, reason));
+        CHECK(read(b, stable) && next.bytes == stable.bytes);
+        images.ResetHistory();
+        CHECK(images.Build(background.Runtime(), size, b, reason));
+        CHECK(read(b, stable) && first.bytes == stable.bytes);
+        const auto oldVertices = b.passes.front().draws[0].vertices;
+        size.width = 193;
+        size.height = 111;
+        CHECK(images.Build(background.Runtime(), size, b, reason));
+        CHECK(b.passes.front().draws[0].vertices.id == oldVertices.id);
+        CHECK(b.passes.front().draws[0].vertices.version > oldVertices.version);
+        CHECK(read(b, stable) && stable.bytes.size() == 193 * 111 * 4);
+        CHECK(background.ShowPicture(false, reason));
+        CHECK(images.Build(background.Runtime(), size, b, reason));
+        CHECK(b.passes.front().draws.empty());
+        CHECK(background.ShowPicture(true, reason));
+        CHECK(qt::ExportSequence(background, assets, options, root / "background-full", 0, 2, 128,
+                                 96, {}, reason));
+        CHECK(qt::ExportSequence(background, assets, options, root / "background-late", 1, 2, 128,
+                                 96, {}, reason));
+        CHECK(QImage(qt::Path(root / "background-full/frame_00000001.png")) ==
+              QImage(qt::Path(root / "background-late/frame_00000001.png")));
+    }
     CHECK(qt::ExportSequence(session, assets, options, root / "frames", 0, 3, 128, 96, {}, reason));
     CHECK(qt::ExportSequence(session, assets, options, root / "frames-repeat", 0, 3, 128, 96, {},
                              reason));

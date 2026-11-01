@@ -54,6 +54,7 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
     render::SceneRenderSources sources;
     sources.models = editor.Assets().modelPaths;
     sources.accessories = editor.Assets().accessoryPaths;
+    sources.picture = editor.Assets().picture;
     if (!producer.Load(scene, sources, files, reason))
         return false;
     render::SceneRenderSettings settings;

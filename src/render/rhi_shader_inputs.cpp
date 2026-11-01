@@ -36,12 +36,15 @@ bool EvaluateMaterialTextureCascade(const MaterialTextureLayout& layout,
     output = current;
     return true;
 }
-bool MaterialAlphaTest(float alpha, bool enabled, DepthComparison compare, std::uint8_t reference) {
+bool MaterialAlphaTest(float alpha, bool enabled, DepthComparison compare, std::uint8_t reference,
+                       bool fixed12) {
     if (!std::isfinite(alpha) || alpha < 0 || alpha > 1 || static_cast<unsigned>(compare) > 7)
         return false;
     if (!enabled)
         return true;
-    alpha = std::floor(alpha * 255.0f + 0.5f);
+    if (fixed12)
+        alpha = std::floor(alpha * 4096.f) / 4096.f;
+    alpha = std::floor(alpha * 255.f + .5f);
     const float value = reference;
     switch (compare) {
     case DepthComparison::Never:

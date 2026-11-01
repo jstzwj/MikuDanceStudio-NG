@@ -130,6 +130,9 @@ struct MaterialShaderInputs {
     bool lighting = false;
     bool srgbSample[3]{};
     bool alphaTest = false;
+    // Measured DX9 screen-quad policy: truncate alpha to 12 fractional bits
+    // before byte conversion. Other material paths retain their byte policy.
+    bool alphaTestFixed12 = false;
     DepthComparison alphaCompare = DepthComparison::Always;
     std::uint8_t alphaReference = 0;
     // Color combines in cascade order; sampled alpha multiplies current alpha.
@@ -147,7 +150,7 @@ bool EvaluateMaterialTextureCascade(const MaterialTextureLayout& layout,
                                     const std::array<std::array<float, 4>, 3>& samples,
                                     std::array<float, 4>& output);
 bool MaterialAlphaTest(float alpha, bool enabled, DepthComparison comparison,
-                       std::uint8_t reference);
+                       std::uint8_t reference, bool fixed12 = false);
 std::array<float, 4> TransformShaderVector(const std::array<float, 4>& vector,
                                            const std::array<float, 16>& matrix);
 // Shared files take precedence over builtin bytes. Default slot uses builtin

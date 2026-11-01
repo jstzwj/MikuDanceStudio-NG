@@ -6,7 +6,7 @@ SamplerState samplers[3] : register(s0);
 cbuffer Cascade : register(b0) {
     // x: enabled, y: Add(3) / Modulate(2), z/w reserved.
     uint4 stages[3];
-    // x: alpha-test enabled, y: portable DepthComparison, z: byte ref,
+    // x: alpha-test disabled/half-up/nearest-even (0/1/2), y: comparison, z: byte ref,
     // w: native specular-stage enabled (measured compatibility only).
     uint4 alphaTest;
 };
@@ -77,7 +77,8 @@ float4 main(PixelInput input) : SV_TARGET {
         float fixedAlpha = floor(saturate(color.a) * 4096.0) / 4096.0;
         float comparedAlpha = round(fixedAlpha * 255.0);
 #else
-        float comparedAlpha = floor(saturate(color.a) * 255.0 + 0.5);
+        float comparedAlpha = alphaTest.x == 2 ? round(floor(saturate(color.a) * 4096.0) * (255.0 / 4096.0))
+                                              : floor(saturate(color.a) * 255.0 + 0.5);
 #endif
         float reference = alphaTest.z;
         bool accepted = alphaTest.y == 7 ||

@@ -1,6 +1,7 @@
 #pragma once
 #include "scene_runtime.hpp"
 #include "pmm_edit.hpp"
+#include "rhi_image.hpp"
 #include <filesystem>
 #include <variant>
 
@@ -61,6 +62,8 @@ struct EditorAssets {
     std::map<std::uint8_t, std::shared_ptr<const runtime::AccessoryResource>> accessories;
     std::map<std::uint8_t, std::filesystem::path> modelPaths, accessoryPaths;
     std::filesystem::path wave;
+    std::filesystem::path picturePath;
+    std::shared_ptr<const rhi::RgbaImage> picture;
 };
 // No window/GPU objects in documents, commands, selection or undo history.
 // Hosts supply the atomic disk replacement policy (QSaveFile in the Qt host).
@@ -75,6 +78,9 @@ public:
     bool ImportModel(const std::filesystem::path&, std::string&);
     bool ImportAccessory(const std::filesystem::path&, std::string&);
     bool ImportWave(const std::filesystem::path&, std::string&);
+    bool ImportPicture(const std::filesystem::path&, unsigned viewWidth, unsigned viewHeight,
+                       std::string&);
+    bool ShowPicture(bool visible, std::string&);
     bool UnloadModel(std::uint8_t, std::string&);
     bool UnloadAccessory(std::uint8_t, std::string&);
     bool ImportMotion(const format::VmdDocument&, std::uint8_t slot, std::string&);
