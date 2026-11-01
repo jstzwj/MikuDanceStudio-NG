@@ -82,6 +82,16 @@ public:
 private:
     std::array<float, 16> values_{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0};
 };
+class BoneScaleDialog final : public TemplateDialog {
+public:
+    BoneScaleDialog(const Language&, QWidget* parent = nullptr);
+    QLineEdit* Field(unsigned index) const { return Edit(686 + int(index)); }
+    const std::array<float, 12>& Values() const { return values_; }
+    void accept() override;
+
+private:
+    std::array<float, 12> values_{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0};
+};
 class GravityDialog final : public TemplateDialog {
 public:
     GravityDialog(const Language&, const format::PmmEvaluatedGravity&, QWidget* parent = nullptr);

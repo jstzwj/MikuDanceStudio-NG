@@ -4,6 +4,7 @@
 #include "gravity_edit_reference.hpp"
 #include "editor_morph_scale_fixture.hpp"
 #include "editor_camera_scale_fixture.hpp"
+#include "editor_bone_scale_fixture.hpp"
 #include <fstream>
 #include <iostream>
 #include <cmath>
@@ -41,6 +42,81 @@ int main(int argc, char** argv) {
     CHECK(format::EncodeVmdBoneInterpolation(curve.data(), 1.1f, true) == expected);
     CHECK(format::DecodeVmdBoneInterpolation(expected) == curve);
     const auto root = std::filesystem::absolute(argv[1]);
+    for (const char* file : {"facial.pmd", "articulated.pmx"}) {
+        EditorSession bone;
+        CHECK(BoneScaleFixture(bone, root, file, {0, 0, 0, 1}, reason));
+        const auto before = bone.Document().models[0].boneKeys;
+        const auto frames = bone.Runtime().Counters().frames;
+        const auto* runtime = &bone.Runtime();
+        const auto last = bone.Document().timeline.lastRegisteredFrame;
+        CHECK(bone.Save(root / "bone-scale.pmm", Write, reason) && !bone.Dirty());
+        auto values = BoneScaleIdentity;
+        values[0] = -2;
+        values[1] = .5f;
+        values[7] = 90;
+        CHECK(bone.ScaleBoneKeys(values, reason) && bone.CanUndo() && bone.Dirty());
+        const auto scaled = bone.Document().models[0].boneKeys;
+        CHECK(scaled.dense[0].position[0] == -2 && scaled.sparse[0].value.position[0] == -5.5f);
+        CHECK(scaled.sparse[1].value.position[0] == 3 && scaled.sparse[2].value.position[0] == 3 &&
+              scaled.unused.at(99998).position[0] == 3 &&
+              scaled.unused.at(99999).position[0] == -5.5f);
+        CHECK(std::abs(scaled.dense[0].rotation[0] - .7071067f) < 2e-6f);
+        CHECK(bone.Document().models[0].morphKeys.dense[0].allocated &&
+              bone.Document().models[1].boneKeys.dense[0].allocated &&
+              bone.Document().cameraKeys.dense[0].selected);
+        CHECK(&bone.Runtime() == runtime && bone.Runtime().Counters().frames == frames &&
+              bone.Document().timeline.lastRegisteredFrame == last);
+        // Changing the visible selection after apply must not merge the two
+        // physical records at frame 10 or lose the marked unused record.
+        CHECK(bone.SetSelectedKeys({{Track::Bone, 0, 0, 20}}, reason, {{Track::Bone, 0}}));
+        for (unsigned cycle = 0; cycle < 2; ++cycle) {
+            CHECK(bone.Undo(reason));
+            const auto& undone = bone.Document().models[0].boneKeys;
+            CHECK(undone.dense[0].position == before.dense[0].position &&
+                  undone.dense[0].rotation == before.dense[0].rotation);
+            CHECK(undone.sparse[0].value.allocated && undone.sparse[1].value.allocated &&
+                  !undone.sparse[2].value.allocated && undone.unused.at(99999).allocated);
+            CHECK(undone.unused.at(99999).position == before.unused.at(99999).position);
+            CHECK(bone.Redo(reason));
+            const auto& redone = bone.Document().models[0].boneKeys;
+            CHECK(redone.dense[0].position == scaled.dense[0].position &&
+                  redone.dense[0].rotation == scaled.dense[0].rotation);
+            CHECK(!redone.sparse[0].value.allocated && redone.sparse[1].value.allocated &&
+                  !redone.sparse[2].value.allocated && !redone.unused.at(99999).allocated);
+        }
+        CHECK(bone.Save(root / "bone-scale.pmm", Write, reason));
+        CHECK(bone.Open(root / "bone-scale.pmm", reason));
+        CHECK(bone.Document().models[0].boneKeys.dense[0].rotation == scaled.dense[0].rotation);
+        CHECK(bone.Play(reason) && !bone.ScaleBoneKeys(values, reason));
+        bone.Pause();
+        CHECK(bone.SelectModel(255, reason) && !bone.ScaleBoneKeys(values, reason));
+    }
+    for (bool selected : {false, true}) {
+        EditorSession bone;
+        CHECK(BoneScaleFixture(bone, root, "facial.pmd", {0, 0, 0, 1}, reason));
+        CHECK(bone.SetBone(0, 0, {9, 8, 7}, {0, 0, 0, 1}, reason));
+        CHECK(bone.Undo(reason) && bone.CanRedo());
+        if (!selected)
+            CHECK(bone.SetSelectedKeys({}, reason, {{Track::Bone, 0}}));
+        CHECK(bone.ScaleBoneKeys(BoneScaleIdentity, reason));
+        CHECK(bone.CanRedo() == !selected);
+        CHECK(bone.Save(root / "bone-identity.pmm", Write, reason) && !bone.Dirty());
+        CHECK(bone.ScaleBoneKeys(BoneScaleIdentity, reason) && bone.Dirty());
+    }
+    {
+        EditorSession bone;
+        CHECK(BoneScaleFixture(bone, root, "facial.pmd", {0, 0, 0, 1}, reason));
+        CHECK(bone.SelectBones({0}, 0, reason) && bone.BeginBoneDrag(1, reason));
+        const auto revision = bone.Revision();
+        auto values = BoneScaleIdentity;
+        values[0] = values[1] = std::numeric_limits<float>::max();
+        CHECK(!bone.ScaleBoneKeys(values, reason) && bone.Revision() == revision &&
+              bone.BoneDragMode() == 1);
+        values[0] = std::numeric_limits<float>::quiet_NaN();
+        CHECK(!bone.ScaleBoneKeys(values, reason) && bone.Revision() == revision);
+        CHECK(bone.ScaleBoneKeys(BoneScaleIdentity, reason) && bone.BoneDragMode() == 0 &&
+              bone.Document().timeline.editMode == 3);
+    }
     for (const char* file : {"facial.pmd", "articulated.pmx"}) {
         EditorSession camera;
         CHECK(CameraScaleFixture(camera, root, file, reason));

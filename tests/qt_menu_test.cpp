@@ -380,7 +380,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 57);
+    CHECK(implemented == 58);
     CHECK(window.LastError().isEmpty());
     CHECK(!window.isVisible() && window.RenderWindow()->Submissions() == 0);
     std::cout

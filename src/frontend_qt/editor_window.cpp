@@ -1106,6 +1106,15 @@ void EditorWindow::CameraScale() {
     Result(session_.ScaleCameraKeys(dialog.Values(), reason), reason);
     Refresh();
 }
+void EditorWindow::BoneScale() {
+    BoneScaleDialog dialog(language_, this);
+    dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    std::string reason;
+    Result(session_.ScaleBoneKeys(dialog.Values(), reason), reason);
+    Refresh();
+}
 void EditorWindow::GravitySettings() {
     if (gravityDialog_)
         return;

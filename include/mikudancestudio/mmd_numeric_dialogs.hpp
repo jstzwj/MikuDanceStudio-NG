@@ -280,4 +280,68 @@ inline constexpr NumericControl kNumericCameraScaleJaControls[] = {
 };
 inline constexpr NumericTemplate kNumericCameraScaleJa = {
     623, 120, 190, 9, "dialog.numeric.camera_scale.title", kNumericCameraScaleJaControls, 36};
+inline constexpr NumericControl kNumericBoneScaleEnControls[] = {
+    {-1, 8, 5, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.0"},
+    {-1, 26, 17, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.1"},
+    {686, 40, 15, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 74, 17, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.3"},
+    {687, 82, 15, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 26, 32, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.5"},
+    {688, 40, 30, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 74, 32, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.7"},
+    {689, 82, 30, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 26, 47, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.9"},
+    {690, 40, 45, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 74, 47, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.11"},
+    {691, 82, 45, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 8, 62, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.13"},
+    {-1, 26, 72, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.14"},
+    {692, 40, 70, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 74, 72, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.16"},
+    {693, 82, 70, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 26, 87, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.18"},
+    {694, 40, 85, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 74, 87, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.20"},
+    {695, 82, 85, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 26, 102, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.22"},
+    {696, 40, 100, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 74, 102, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.24"},
+    {697, 82, 100, 30, 12, NumericControlKind::Edit, ""},
+    {1, 25, 130, 30, 14, NumericControlKind::Button, "dialog.numeric.bone_scale.control.26"},
+    {2, 65, 130, 30, 14, NumericControlKind::Button, "dialog.numeric.bone_scale.control.27"},
+};
+inline constexpr NumericTemplate kNumericBoneScaleEn = {
+    660, 120, 150, 9, "dialog.numeric.bone_scale.title", kNumericBoneScaleEnControls, 28};
+inline constexpr NumericControl kNumericBoneScaleJaControls[] = {
+    {-1, 8, 5, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.0"},
+    {-1, 26, 17, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.1"},
+    {686, 40, 15, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 74, 17, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.3"},
+    {687, 82, 15, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 26, 32, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.5"},
+    {688, 40, 30, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 74, 32, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.7"},
+    {689, 82, 30, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 26, 47, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.9"},
+    {690, 40, 45, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 74, 47, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.11"},
+    {691, 82, 45, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 8, 62, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.13"},
+    {-1, 26, 72, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.14"},
+    {692, 40, 70, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 74, 72, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.16"},
+    {693, 82, 70, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 26, 87, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.18"},
+    {694, 40, 85, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 74, 87, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.20"},
+    {695, 82, 85, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 26, 102, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.22"},
+    {696, 40, 100, 30, 12, NumericControlKind::Edit, ""},
+    {-1, 74, 102, 80, 12, NumericControlKind::Static, "dialog.numeric.bone_scale.control.24"},
+    {697, 82, 100, 30, 12, NumericControlKind::Edit, ""},
+    {1, 25, 130, 30, 14, NumericControlKind::Button, "dialog.numeric.bone_scale.control.26"},
+    {2, 65, 130, 30, 14, NumericControlKind::Button, "dialog.numeric.bone_scale.control.27"},
+};
+inline constexpr NumericTemplate kNumericBoneScaleJa = {
+    636, 120, 150, 9, "dialog.numeric.bone_scale.title", kNumericBoneScaleJaControls, 28};
 }

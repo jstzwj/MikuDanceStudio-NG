@@ -148,6 +148,14 @@ bool EditorSession::ApplyHistory(bool redo, std::string& reason) {
         reason = "history-model-expired";
         return false;
     }
+    // Public command callers can still edit the UI selection directly. Apply
+    // only changed addresses before capturing record marks; unchanged addresses
+    // retain overlapping records' independent bytes and unused-slot payloads.
+    if (entry.partialKeys &&
+        !format::SetPmmSelectedKeys(next.document, selection_.model, next.selection.keys)) {
+        reason = "history-key-selection-expired";
+        return false;
+    }
     std::vector<std::uint32_t> indices;
     for (const auto& pose : entry.poses)
         indices.push_back(pose.index);
@@ -168,14 +176,15 @@ bool EditorSession::ApplyHistory(bool redo, std::string& reason) {
             }
             std::set<std::uint32_t> selected;
             const auto remember = [&](std::uint32_t index, const auto& key) {
-                if (next.selection.keys.count(
-                        {Track::Bone, selection_.model, channels.at(index), key.frame}))
+                if (key.allocated)
                     selected.insert(index);
             };
             for (unsigned i = 0; i < model->boneKeys.dense.size(); ++i)
                 remember(i, model->boneKeys.dense[i]);
             for (const auto& key : model->boneKeys.sparse)
                 remember(unsigned(key.index), key.value);
+            for (const auto& [index, key] : model->boneKeys.unused)
+                remember(index, key);
             displaced.partialKeys = true;
             displaced.keys = {};
             for (const auto& [index, key] : entry.keyRecords) {
@@ -207,6 +216,8 @@ bool EditorSession::ApplyHistory(bool redo, std::string& reason) {
                 restoreSelection(i, model->boneKeys.dense[i]);
             for (auto& key : model->boneKeys.sparse)
                 restoreSelection(unsigned(key.index), key.value);
+            for (auto& [index, key] : model->boneKeys.unused)
+                key.allocated = selected.count(index) != 0;
         } else {
             model->boneKeys = entry.keys;
         }

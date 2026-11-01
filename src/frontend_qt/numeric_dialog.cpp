@@ -300,6 +300,26 @@ void CameraScaleDialog::accept() {
     values_ = next;
     QDialog::accept();
 }
+BoneScaleDialog::BoneScaleDialog(const Language& language, QWidget* parent)
+    : TemplateDialog(language.Code() == "en" ? ui::kNumericBoneScaleEn : ui::kNumericBoneScaleJa,
+                     language, parent) {
+    setObjectName("mmd.boneScale");
+    for (unsigned i = 0; i < 12; ++i)
+        Prefill(686 + int(i), i % 2 ? "0.0" : "1.0");
+    Field(0)->setFocus(Qt::OtherFocusReason);
+    Field(0)->selectAll();
+}
+void BoneScaleDialog::accept() {
+    auto next = values_;
+    for (unsigned i = 0; i < 12; ++i)
+        if (!FloatPrefix(Field(i)->text(), 19, next[i])) {
+            Field(i)->setFocus(Qt::OtherFocusReason);
+            Field(i)->selectAll();
+            return;
+        }
+    values_ = next;
+    QDialog::accept();
+}
 GravityDialog::GravityDialog(const Language& language, const format::PmmEvaluatedGravity& value,
                              QWidget* parent)
     : TemplateDialog(language.Code() == "en" ? ui::kNumericGravityEn : ui::kNumericGravityJa,

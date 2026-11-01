@@ -33,6 +33,7 @@
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/panel_controls.hpp"
 #include "mikudancestudio/key_scale.hpp"
+#include "mikudancestudio/bone_key_scale.hpp"
 
 namespace mikudancestudio {
 
@@ -365,56 +366,15 @@ void ApplyBoneFrameScaleAdd(MMDApp* app, HWND hDlg) { // VA 0x0043E000
     if (model == nullptr)
         return;
 
-    d3dx::Api& api = d3dx::Get();
-
-    float scale[6];
-    float add[6];
+    std::array<float, 12> values;
     char buf[20];
-    for (int pair = 0; pair < 6; ++pair) {
-        GetWindowTextA(GetDlgItem(hDlg, panel::kBoneMulPosXScaleEdit + 2 * pair), buf, 20);
-        scale[pair] = static_cast<float>(atof(buf));
-        GetWindowTextA(GetDlgItem(hDlg, panel::kBoneMulPosXOffsetEdit + 2 * pair), buf, 20);
-        add[pair] = static_cast<float>(atof(buf));
+    for (int field = 0; field < 12; ++field) {
+        GetWindowTextA(GetDlgItem(hDlg, panel::kBoneMulPosXScaleEdit + field), buf, 20);
+        values[field] = static_cast<float>(atof(buf));
     }
-    // degree -> radian on the three rotation adds (X positive, Y/Z negated)
-    add[3] = static_cast<float>(add[3] * 3.141592) / 180.0f;
-    add[4] = static_cast<float>(add[4] * -3.141592) / 180.0f;
-    add[5] = static_cast<float>(add[5] * -3.141592) / 180.0f;
-
     SnapshotSelectedKeysForUndo(model, app->state.currentFrame);
-
-    mdl::BoneKey* keys = model->boneKeys;
-    d3dx::D3DXMATRIXF quatMatrix{};
-    d3dx::D3DXMATRIXF rotation{};
-    d3dx::D3DXMATRIXF axis{};
-    for (std::size_t i = 0; i < mdl::kBoneKeyCapacity; ++i) {
-        mdl::BoneKey& key = keys[i];
-        if (key.allocated == 0)
-            continue;
-        if (scale[0] != 1.0f || add[0] != 0.0f)
-            key.position[0] = static_cast<float>(scale[0] * key.position[0]) + add[0];
-        if (scale[1] != 1.0f || add[1] != 0.0f)
-            key.position[1] = static_cast<float>(scale[1] * key.position[1]) + add[1];
-        if (scale[2] != 1.0f || add[2] != 0.0f)
-            key.position[2] = static_cast<float>(scale[2] * key.position[2]) + add[2];
-        if (scale[3] != 1.0f || scale[4] != 1.0f || scale[5] != 1.0f || add[3] != 0.0f ||
-            add[4] != 0.0f || add[5] != 0.0f) {
-            api.matrixRotationQuaternion(&quatMatrix, key.rotation);
-            float zAngle = atan2f(quatMatrix.m[0][1], quatMatrix.m[1][1]);
-            float xAngle = asinf(-quatMatrix.m[2][1]);
-            float yAngle = atan2f(quatMatrix.m[2][0], quatMatrix.m[2][2]);
-            if (1e-6f > fabsf(cosf(xAngle))) { // gimbal lock
-                zAngle += quatMatrix.m[0][1] > 0.0f ? 3.141592f : -3.141592f;
-                yAngle += quatMatrix.m[2][0] > 0.0f ? 3.141592f : -3.141592f;
-            }
-            api.rotZ(&rotation, zAngle * scale[5] + add[5]);
-            api.rotX(&axis, xAngle * scale[3] + add[3]);
-            api.multiply(&rotation, &rotation, &axis);
-            api.rotY(&axis, yAngle * scale[4] + add[4]);
-            api.multiply(&rotation, &rotation, &axis);
-            api.quatFromMatrix(key.rotation, &rotation);
-        }
-    }
+    for (std::size_t i = 0; i < mdl::kBoneKeyCapacity; ++i)
+        keyframe_edit::ScaleBoneKey(model->boneKeys[i], values);
     PanelPaint(app);        // 0x414610 (x64 sub_7FF7CB480EA0)
     CurvePanelRepaint(app); // x64 sub_7FF7CB482BB0
     SeekModelFrame(*model, app->state.currentFrame,

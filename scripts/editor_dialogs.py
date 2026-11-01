@@ -14,7 +14,8 @@ NAMES = [('bone', 'en', 663), ('bone', 'ja', 648),
          ('edge', 'en', 662), ('edge', 'ja', 645),
          ('gravity', 'en', 803), ('gravity', 'ja', 802),
          ('morph_scale', 'en', 661), ('morph_scale', 'ja', 643),
-         ('camera_scale', 'en', 657), ('camera_scale', 'ja', 623)]
+         ('camera_scale', 'en', 657), ('camera_scale', 'ja', 623),
+         ('bone_scale', 'en', 660), ('bone_scale', 'ja', 636)]
 
 
 def source_dialogs():
@@ -23,7 +24,8 @@ def source_dialogs():
     for kind, language, ident in NAMES:
         command = {'screen': 'SCREEN_SIZE', 'edge': 'EDGE_THICKNESS', 'gravity': 'GRAVITY',
                    'morph_scale': 'MORPH_MULTIPLY',
-                   'camera_scale': 'CAMERA_FRAME_MULTIPLY'}.get(kind, kind.upper() + '_NUMERIC_INPUT')
+                   'camera_scale': 'CAMERA_FRAME_MULTIPLY',
+                   'bone_scale': 'BONE_FRAME_MULTIPLY'}.get(kind, kind.upper() + '_NUMERIC_INPUT')
         tag = f'MDS_DLG_{command}_{"EN" if language == "en" else "JP"}'
         block = source.split(tag + ' DIALOGEX ', 1)[1].split('\n  END', 1)[0]
         geometry = list(map(int, block.splitlines()[0].split(', ')))
@@ -145,11 +147,13 @@ def run(check):
           'multiply of camera frame position-angle': '\u76f8\u673a\u5173\u952e\u5e27\u4f4d\u7f6e\u89d2\u5ea6\u4fee\u6b63',
           'camera': '\u76f8\u673a\u4e2d\u5fc3', 'angle': '\u89d2\u5ea6',
           'X *': 'X *', 'Y *': 'Y *', 'Z *': 'Z *',
-          'dist *': '\u8ddd\u79bb *', 'v-angle *': '\u89c6\u89d2 *'}
+          'dist *': '\u8ddd\u79bb *', 'v-angle *': '\u89c6\u89d2 *',
+          'multiply of bone position-angle': '\u9aa8\u9abc\u5173\u952e\u5e27\u4f4d\u7f6e\u89d2\u5ea6\u4fee\u6b63',
+          'bone place': '\u9aa8\u9abc\u4f4d\u7f6e'}
     for language in ('en', 'ja', 'zh_CN'):
         path = ROOT / 'res/i18n' / (language + '.json')
         catalog = json.loads(path.read_text(encoding='utf-8'))
-        for kind in ('bone', 'camera', 'screen', 'edge', 'gravity', 'morph_scale', 'camera_scale'):
+        for kind in ('bone', 'camera', 'screen', 'edge', 'gravity', 'morph_scale', 'camera_scale', 'bone_scale'):
             dialog = source[(kind, 'ja' if language == 'ja' else 'en')]
             labels = {message(kind): dialog['title']}
             labels.update({message(kind, i): control['text']

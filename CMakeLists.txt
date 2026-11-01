@@ -883,6 +883,7 @@ target_link_libraries(mikudancestudio_core PUBLIC
     strmiids    # DirectShow IIDs/CLSIDs (recording graph 0x408F20..0x409A80)
     uuid        # IID_IPropertyBag / IID_IAMVfwCompressDialogs etc.
 )
+target_link_libraries(mikudancestudio_core PRIVATE mikudancestudio_cpu_math)
 if (MSVC)
     # Align the PMX skinning stride workers with the original's VCOMP90
     # parallel regions (x64 _vcomp_fork, default static schedule).

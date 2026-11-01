@@ -91,6 +91,7 @@ public:
     bool ResetMorphs(std::uint8_t, std::string&);
     bool ScaleMorphKeys(float scale, float add, std::string&);
     bool ScaleCameraKeys(const std::array<float, 16>& scaleAndOffset, std::string&);
+    bool ScaleBoneKeys(const std::array<float, 12>& scaleAndOffset, std::string&);
     bool ResetRotation(std::string&);
     void ResetPhysicsBodies();
     bool SetGravityChannel(unsigned, float, std::string&);

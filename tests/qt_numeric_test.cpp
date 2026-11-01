@@ -8,6 +8,7 @@
 #include "gravity_edit_reference.hpp"
 #include "editor_morph_scale_fixture.hpp"
 #include "editor_camera_scale_fixture.hpp"
+#include "editor_bone_scale_fixture.hpp"
 #include <QApplication>
 #include <QFile>
 #include <QJsonArray>
@@ -816,6 +817,103 @@ int main(int argc, char** argv) {
         CHECK(!action->isEnabled());
         owner.Session().Pause();
         CHECK(owner.Session().SelectModel(0, reason));
+        owner.Refresh();
+        CHECK(!action->isEnabled() && !owner.isVisible());
+    }
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(language.Set(code));
+        qt::BoneScaleDialog form(language);
+        const auto expected =
+            reference[QString("bone_scale.") + (language.Code() == "en" ? "en" : "ja")].toObject();
+        const auto controls = expected["controls"].toArray();
+        const int unitY = language.Code() == "en" ? 15 : 12;
+        CHECK(form.Template().id == expected["id"].toInt() &&
+              form.size() == QSize(210, (150 * unitY + 4) / 8));
+        if (language.Code() != "zh_CN")
+            CHECK(form.windowTitle() == expected["title"].toString());
+        std::vector<QWidget*> tabs;
+        for (int i = 0; i < controls.size(); ++i) {
+            const auto control = controls[i].toObject();
+            const auto r = control["rect"].toArray();
+            auto* widget = form.findChild<QWidget*>(QString("numeric.control.%1").arg(i));
+            CHECK(widget && widget->geometry() ==
+                                QRect((r[0].toInt() * 7 + 2) / 4, (r[1].toInt() * unitY + 4) / 8,
+                                      (r[2].toInt() * 7 + 2) / 4, (r[3].toInt() * unitY + 4) / 8));
+            if (widget->focusPolicy() != Qt::NoFocus)
+                tabs.push_back(widget);
+            if (language.Code() != "zh_CN") {
+                if (auto* label = qobject_cast<QLabel*>(widget))
+                    CHECK(label->text() == control["text"].toString());
+                if (auto* button = qobject_cast<QPushButton*>(widget))
+                    CHECK(button->text() == control["text"].toString());
+            }
+        }
+        CHECK(tabs.size() == 14 && form.focusWidget() == form.Field(0) &&
+              form.Field(0)->selectedText() == "1.0");
+        for (std::size_t i = 1; i < tabs.size(); ++i) {
+            auto* next = tabs[i - 1]->nextInFocusChain();
+            while (next != tabs[i] && next->focusPolicy() == Qt::NoFocus)
+                next = next->nextInFocusChain();
+            CHECK(next == tabs[i]);
+        }
+        for (unsigned i = 0; i < 12; ++i)
+            CHECK(form.Field(i)->text() == (i % 2 ? "0.0" : "1.0"));
+        form.Field(0)->setText("1.00000000000000000e9");
+        form.Field(11)->setText("inf");
+        form.accept();
+        CHECK(form.result() == QDialog::Rejected && form.Values() == BoneScaleIdentity &&
+              form.focusWidget() == form.Field(11));
+        form.Field(11)->setText(QString(18, ' ') + "9.5");
+        form.accept();
+        CHECK(form.Values()[0] == 1 && form.Values()[11] == 9);
+
+        qt::EditorWindow owner(std::filesystem::absolute(argv[2]), true);
+        CHECK(BoneScaleFixture(owner.Session(), root, "facial.pmd", {0, 0, 0, 1}, reason));
+        CHECK(owner.SetLanguage(code));
+        QAction* action = nullptr;
+        for (auto* item : owner.findChildren<QAction*>())
+            if (item->property("mmdCommandId").toInt() == MDS_CMD_MULTIPLY_BONE_FRAMES)
+                action = item;
+        CHECK(action && action->isEnabled());
+        const auto revision = owner.Session().Revision();
+        for (bool accept : {false, true}) {
+            bool interacted = false;
+            QTimer::singleShot(0, &owner, [&] {
+                auto* dialog =
+                    dynamic_cast<qt::BoneScaleDialog*>(QApplication::activeModalWidget());
+                if (!dialog) {
+                    QApplication::closeAllWindows();
+                    return;
+                }
+                interacted = dialog->Values() == BoneScaleIdentity;
+                dialog->Field(0)->setText("2.0");
+                dialog->Field(1)->setText("0.5");
+                if (accept)
+                    dialog->accept();
+                else
+                    dialog->reject();
+            });
+            action->trigger();
+            CHECK(interacted && owner.LastError().isEmpty());
+            if (!accept)
+                CHECK(owner.Session().Revision() == revision);
+            else {
+                CHECK(owner.Session().Revision() != revision && owner.Session().CanUndo());
+                const auto& keys = owner.Session().Document().models[0].boneKeys;
+                CHECK(keys.sparse[0].value.position[0] == 6.5f &&
+                      keys.sparse[2].value.position[0] == 3.f &&
+                      keys.unused.at(99999).position[0] == 6.5f);
+            }
+        }
+        CHECK(owner.Session().Undo(reason) &&
+              owner.Session().Document().models[0].boneKeys.sparse[0].value.position[0] == 3);
+        CHECK(owner.Session().Redo(reason) &&
+              owner.Session().Document().models[0].boneKeys.sparse[0].value.position[0] == 6.5f);
+        CHECK(owner.Session().Play(reason));
+        owner.Refresh();
+        CHECK(!action->isEnabled());
+        owner.Session().Pause();
+        CHECK(owner.Session().SelectModel(255, reason));
         owner.Refresh();
         CHECK(!action->isEnabled() && !owner.isVisible());
     }

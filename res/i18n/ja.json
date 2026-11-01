@@ -547,5 +547,22 @@
   "dialog.numeric.camera_scale.control.30": "視野角 *",
   "dialog.numeric.camera_scale.control.32": "+",
   "dialog.numeric.camera_scale.control.34": "OK",
-  "dialog.numeric.camera_scale.control.35": "ｷｬﾝｾﾙ"
+  "dialog.numeric.camera_scale.control.35": "ｷｬﾝｾﾙ",
+  "dialog.numeric.bone_scale.title": "ﾎﾞｰﾝﾌﾚｰﾑ位置角度補正",
+  "dialog.numeric.bone_scale.control.0": "ボーン位置",
+  "dialog.numeric.bone_scale.control.1": "X *",
+  "dialog.numeric.bone_scale.control.3": "+",
+  "dialog.numeric.bone_scale.control.5": "Y *",
+  "dialog.numeric.bone_scale.control.7": "+",
+  "dialog.numeric.bone_scale.control.9": "Z *",
+  "dialog.numeric.bone_scale.control.11": "+",
+  "dialog.numeric.bone_scale.control.13": "角度",
+  "dialog.numeric.bone_scale.control.14": "X *",
+  "dialog.numeric.bone_scale.control.16": "+",
+  "dialog.numeric.bone_scale.control.18": "Y *",
+  "dialog.numeric.bone_scale.control.20": "+",
+  "dialog.numeric.bone_scale.control.22": "Z *",
+  "dialog.numeric.bone_scale.control.24": "+",
+  "dialog.numeric.bone_scale.control.26": "OK",
+  "dialog.numeric.bone_scale.control.27": "ｷｬﾝｾﾙ"
 }

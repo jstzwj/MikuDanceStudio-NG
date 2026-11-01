@@ -11,6 +11,7 @@
 #include "mikudancestudio/gravity_edit.hpp"
 #include "mikudancestudio/key_reduction.hpp"
 #include "mikudancestudio/key_scale.hpp"
+#include "mikudancestudio/bone_key_scale.hpp"
 #include <fstream>
 #include <cmath>
 #include <cstring>
@@ -1112,6 +1113,77 @@ bool EditorSession::ScaleCameraKeys(const std::array<float, 16>& values, std::st
     HistoryBatch history;
     for (const auto& model : d.models)
         history.emplace(model.slot, CaptureHistory(model, HistoryKind::None, 0));
+    return Commit(std::move(next), reason, history, false);
+}
+bool EditorSession::ScaleBoneKeys(const std::array<float, 12>& values, std::string& reason) {
+    if (playing_ || selection_.model == 255 ||
+        !std::all_of(values.begin(), values.end(), [](float v) { return std::isfinite(v); })) {
+        reason = "bone-key-scale-unavailable";
+        return false;
+    }
+    auto next = Current();
+    auto* model = Model(next.document, selection_.model);
+    if (!model || !SetPmmSelectedKeys(next.document, selection_.model, selection_.keys)) {
+        reason = "bone-key-scale-selection-expired";
+        return false;
+    }
+    auto entry =
+        CaptureHistory(*model, HistoryKind::Keys, unsigned(next.document.timeline.currentFrame));
+    entry.partialKeys = true;
+    entry.keys = {};
+    const auto apply = [&](unsigned index, auto& key) {
+        if (!key.allocated)
+            return true;
+        entry.keyRecords.emplace(index, key);
+        entry.selectedKeyRecords.insert(index);
+        keyframe_edit::ScaleBoneKey(key, values);
+        return std::all_of(key.position.begin(), key.position.end(),
+                           [](float v) { return std::isfinite(v); }) &&
+               std::all_of(key.rotation.begin(), key.rotation.end(),
+                           [](float v) { return std::isfinite(v); });
+    };
+    bool valid = true;
+    for (unsigned i = 0; i < model->boneKeys.dense.size(); ++i)
+        valid &= apply(i, model->boneKeys.dense[i]);
+    for (auto& key : model->boneKeys.sparse)
+        valid &= apply(unsigned(key.index), key.value);
+    for (auto& [index, key] : model->boneKeys.unused)
+        valid &= apply(index, key);
+    if (!valid) {
+        reason = "bone-key-scale-not-finite";
+        return false;
+    }
+    // SnapshotSelectedKeysForUndo is called even on identity, but returns
+    // without touching either history stack when the pool has no marks.
+    if (entry.keyRecords.empty())
+        entry.kind = HistoryKind::None;
+    else
+        for (auto& saved : entry.poses) {
+            PmmEvaluatedBone live;
+            bool physics;
+            if (!runtime_->BoneRegistrationPose(selection_.model, saved.index, 0, live, physics,
+                                                reason))
+                return false;
+            std::copy(live.translation.begin(), live.translation.end(), saved.components.begin());
+            std::copy(live.rotation.begin(), live.rotation.end(), saved.components.begin() + 3);
+        }
+    SceneSession evaluated;
+    if (!SceneSession::Create(next.document, evaluated, reason) ||
+        !evaluated.Seek(unsigned(next.document.timeline.currentFrame))) {
+        if (reason.empty())
+            reason = "bone-key-scale-evaluation-failed";
+        return false;
+    }
+    for (const auto& value : evaluated.Document().models)
+        if (value.slot == selection_.model)
+            *model = value;
+    HistoryBatch history;
+    for (const auto& value : next.document.models)
+        history.emplace(value.slot, value.slot == selection_.model
+                                        ? entry
+                                        : CaptureHistory(value, HistoryKind::None, 0));
+    EndGesture();
+    next.document.timeline.editMode = Document().timeline.editMode;
     return Commit(std::move(next), reason, history, false);
 }
 bool EditorSession::ResetRotation(std::string& reason) {

@@ -82,6 +82,7 @@ bool ModelCommand(int command) {
     case MDS_CMD_SELECT_PHYSICS_ON_FRAMES:
     case MDS_CMD_DELETE_UNUSED_FRAMES:
     case MDS_CMD_MULTIPLY_MORPH_FRAMES:
+    case MDS_CMD_MULTIPLY_BONE_FRAMES:
         return true;
     default:
         return false;
@@ -289,6 +290,10 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_MULTIPLY_CAMERA_FRAMES) {
         CameraScale();
+        return;
+    }
+    if (command == MDS_CMD_MULTIPLY_BONE_FRAMES) {
+        BoneScale();
         return;
     }
     if (command == MDS_CMD_TOGGLE_UI_LANGUAGE) {

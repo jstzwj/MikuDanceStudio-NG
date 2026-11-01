@@ -2082,5 +2082,51 @@ unchanged CPU counters, foreign state, save/reopen and rejected edits.
 The final x64 numeric/session/evaluation regressions passed (8.90 seconds), as did
 the menu regression, rebuilt playback/navigation/runtime tests (5.39 seconds),
 and rebuilt Win32 session/evaluation tests (4.93 seconds). Both the Qt application
-and legacy Win32 application build successfully. Three-platform CI for this batch
-remains required. P4 remains in progress.
+and legacy Win32 application build successfully. All three editor jobs passed in
+[run 41360466522](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41360466522).
+P4 remains in progress.
+
+## Bone-key scale and offset
+
+Menu 251 now uses original templates 660/636 in English, Japanese and Simplified
+Chinese. Together with the other numeric windows, sixteen templates are checked
+against original resource bytes. Modal cancellation, identity defaults, field
+order, first focus, tab order and nineteen-byte prefix conversion are preserved.
+The command is gated during playback and in camera mode.
+
+Win32 and portable sessions share the selected-key multiply/add kernel. Positions
+use float arithmetic; rotations decompose the original quaternion as Rz*Rx*Ry,
+apply the native gimbal branch and signed degree offsets, then rebuild the
+quaternion. Incoming quaternions are not normalized and angles are not wrapped.
+Identity skips arithmetic. Selected roots, detached records and retained unused
+slots participate; other records, interpolation curves and physics flags survive.
+Only the active model is reevaluated after acceptance; foreign model/global state
+and frame watermarks survive. Rejected nonfinite edits leave the session and an
+active drag unchanged.
+
+The original calls its selected-record snapshot routine on every acceptance, but
+that routine returns without changing history if the pool has no selected record.
+Selected identity edits therefore create undo entries; an empty selection retains
+both stacks. Undo captures only touched slots plus the active model's live poses.
+Partial key history now preserves physical selection marks, including detached
+records sharing a frame and unused slots. Before capture, changed UI addresses
+are synchronized without merging unchanged addresses; this also supports existing
+command callers that modify selection directly. Repeated undo/redo preserves
+unrelated selection changes made after the edit.
+
+The new optional `editor_bone_scale_oracle_test <original.exe> <fixture>` executes
+original **9C9C0**, its **CEBD0** snapshot and **CEF90/CFB80** undo/redo. Only text
+retrieval and paint/evaluation tails are replaced. It compares all 600000 native
+records in **64 PMD/PMX cases**, including two undo/redo cycles, identity, empty
+selection, every position/rotation channel, nonunit input quaternions, both gimbal
+signs and selection changes after apply. Positions, flags, curves, links and
+untouched/identity rotations compare exactly. Changed rotations retain the
+existing `2e-5` absolute CPU quaternion budget; observed maximum error was zero.
+Pose production and model evaluation are separate existing CPU comparisons.
+
+The final revision passed all **31 local P4 regressions** (76.30 seconds), the
+scene-runtime regression (1.98 seconds), and rebuilt Win32 session/history/
+frame-line tests (21.54 seconds). Qt and legacy Win32 application builds both
+pass; the legacy host explicitly links the shared CPU math library. The native
+oracle remained exact after adding selection changes between apply and undo.
+Three-platform CI for this batch remains required. P4 and C1 have not been accepted.
