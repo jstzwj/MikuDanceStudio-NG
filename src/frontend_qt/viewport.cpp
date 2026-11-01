@@ -25,9 +25,11 @@ Viewport::~Viewport() {
 }
 void Viewport::SetOptions(const rhi::BackendOptions& options) {
     controller_.Close();
+    producer_.ResetHistory();
     options_ = options;
 }
 bool Viewport::Reset(std::string& reason) {
+    producer_.ResetHistory();
     if (!controller_.ReplaceDevice()) {
         reason = controller_.Reason();
         return false;
@@ -73,10 +75,13 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
     rhi::RenderFrame frame;
     if (!producer_.Build(session_.Runtime(), settings, frame, reason))
         return false;
+    const auto submissions = Submissions();
     if (!controller_.Draw(frame)) {
         reason = controller_.Reason();
         return false;
     }
+    if (Submissions() > submissions)
+        producer_.Commit();
     reason.clear();
     return true;
 }
@@ -89,6 +94,7 @@ bool Viewport::event(QEvent* event) {
         static_cast<QPlatformSurfaceEvent*>(event)->surfaceEventType() ==
             QPlatformSurfaceEvent::SurfaceAboutToBeDestroyed) {
         controller_.Close();
+        producer_.ResetHistory();
         options_.surface.reset();
     }
     return QWindow::event(event);

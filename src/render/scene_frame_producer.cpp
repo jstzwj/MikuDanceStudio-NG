@@ -4,10 +4,12 @@
 #include "mikudancestudio/rhi_backend.hpp"
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/cpu_edge.hpp"
+#include "mikudancestudio/rhi_screen_texture.hpp"
 #include <algorithm>
 #include <cstring>
 #include <cstdio>
 #include <stdexcept>
+#include <set>
 namespace mikudancestudio::render {
 namespace {
 using namespace rhi;
@@ -108,6 +110,7 @@ struct Material {
     std::filesystem::path base, sphere;
     std::array<std::shared_ptr<const MaterialTextureAsset>, 3> textures;
     std::array<float, 4> toonColor{1, 1, 1, 1};
+    bool screen = false;
 };
 ModelMaterialInputs Inputs(const format::MaterialData& src, bool pmd, const Material& saved) {
     ModelMaterialInputs m;
@@ -171,6 +174,7 @@ struct SceneFrameProducer::Impl {
     std::map<std::uint8_t, std::unique_ptr<Model>> models;
     std::map<std::uint8_t, std::unique_ptr<Accessory>> accessories;
     AtlasAsset helper;
+    ScreenTextureHistory history;
 };
 SceneFrameProducer::SceneFrameProducer() = default;
 SceneFrameProducer::~SceneFrameProducer() = default;
@@ -308,9 +312,13 @@ bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRen
             for (const auto& m : resource->Materials()) {
                 Material saved;
                 saved.base = Path(m.texture);
-                if (saved.base.filename() == "screen.bmp")
-                    return Fail(reason, "screen_texture_requires_scene_history");
-                if (!Texture(source->second.parent_path(), saved.base, saved.textures[1], reason))
+                auto name = saved.base.filename().u8string();
+                std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) {
+                    return c >= 'A' && c <= 'Z' ? char(c + 'a' - 'A') : char(c);
+                });
+                saved.screen = name == "screen.bmp";
+                if (!saved.screen &&
+                    !Texture(source->second.parent_path(), saved.base, saved.textures[1], reason))
                     return false;
                 accessory->materials.push_back(std::move(saved));
             }
@@ -655,6 +663,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                                      [](auto* a, auto* b) { return a->order == b->order; }),
                          accessoryOrder.end());
     std::size_t beforeModels = 0;
+    std::set<std::pair<std::uint64_t, unsigned>> screenDraws;
     for (const auto* item : accessoryOrder) {
         const auto& poses = session->Pose().accessories;
         const auto evaluated = std::find_if(poses.begin(), poses.end(),
@@ -685,6 +694,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 input.material.shininess = material.shininess;
                 input.opacity = pose.opacity;
                 input.primaryTexture = bool(saved.textures[1]);
+                input.unboundScreen = saved.screen;
                 input.afterModelPass = int(item->order) >= doc->physics.accessoryRenderOrder;
                 input.additive = item->state.additiveBlend != 0;
                 const auto name = saved.base.generic_u8string();
@@ -694,7 +704,8 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                     : name.find(".spa") != std::string::npos ||
                             name.find(".SPA") != std::string::npos
                         ? 2
-                        : 0;
+                    : saved.screen ? 3
+                                   : 0;
                 ModelMaterialPacket packet;
                 packet.material = unsigned(packets.size());
                 packet.firstIndex = subset.firstIndex;
@@ -714,6 +725,11 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 return Fail(reason, "accessory_self_shadow_not_migrated");
             const auto start = main.draws.size();
             append(stream);
+            for (std::size_t n = 0; n < accessory.resource->Subsets().size(); ++n)
+                if (accessory.materials.at(accessory.resource->Subsets()[n].material).screen) {
+                    const auto& draw = main.draws.at(start + n);
+                    screenDraws.emplace(draw.vertices.id, draw.firstIndex);
+                }
             if (int(item->order) < doc->physics.accessoryRenderOrder) {
                 const auto count = main.draws.size() - start;
                 std::rotate(main.draws.begin() + modelStart + beforeModels,
@@ -724,10 +740,19 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
     }
     if (mode)
         result.passes.push_back(std::move(cast));
+    std::vector<ScreenTextureConsumer> consumers;
+    for (std::size_t n = 0; n < main.draws.size(); ++n)
+        if (screenDraws.count({main.draws[n].vertices.id, main.draws[n].firstIndex}))
+            consumers.push_back({result.passes.size(), n});
     result.passes.push_back(std::move(main));
+    result.finalColor = 1;
     if (settings.postProcessCopy &&
         !AppendPostProcess(result, 1, 5, settings.width, settings.height))
         return Fail(reason, "scene_post_process");
+    if (doc && (!consumers.empty() || doc->view.captureMode) &&
+        !impl_->history.Apply(result, consumers, ScreenCaptureKind(doc->view.captureMode),
+                              result.finalColor))
+        return Fail(reason, "scene_screen_history");
     if (!ApplyMaterialSampling(result, MaterialSamplingPolicy::PortableTrilinear))
         return Fail(reason, "scene_sampling_policy");
     const auto valid = ValidateRenderFrame(result);
@@ -738,5 +763,13 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
     return true;
 } catch (const std::exception& e) {
     return Fail(reason, e.what());
+}
+void SceneFrameProducer::Commit() {
+    if (impl_)
+        impl_->history.Commit();
+}
+void SceneFrameProducer::ResetHistory() {
+    if (impl_)
+        impl_->history.Reset();
 }
 }

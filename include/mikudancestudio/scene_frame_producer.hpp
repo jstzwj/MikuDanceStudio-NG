@@ -24,6 +24,9 @@ public:
               std::string& reason);
     bool Build(const runtime::SceneRuntime&, const SceneRenderSettings&, rhi::RenderFrame&,
                std::string& reason);
+    // Advance screen.bmp history only after a successful GPU submission.
+    void Commit();
+    void ResetHistory();
 
 private:
     struct Impl;

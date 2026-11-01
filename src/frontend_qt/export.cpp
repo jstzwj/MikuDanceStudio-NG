@@ -69,7 +69,7 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
         }
         if (index && !scene.Advance(float(double(index) / 30), 1.f / 30, reason))
             return false;
-        if (index < first)
+        if (index < first && !scene.Session()->Document().view.captureMode)
             continue;
         rhi::RenderFrame frame;
         if (!producer.Build(scene, settings, frame, reason))
@@ -80,6 +80,14 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
         if (!result) {
             reason = result.reason;
             return false;
+        }
+        producer.Commit();
+        if (index < first) {
+            if (!renderer.Collect()) {
+                reason = "export-resource-collection-failed";
+                return false;
+            }
+            continue;
         }
         rhi::AttachmentReadback pixels;
         if (!renderer.ReadTarget(1, frame.finalColor, pixels)) {

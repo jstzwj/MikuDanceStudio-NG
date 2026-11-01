@@ -1,4 +1,5 @@
 #include "export.hpp"
+#include "mikudancestudio/rhi_screen_texture.hpp"
 #include "editor_window.hpp"
 #include <QApplication>
 #include <QFile>
@@ -160,6 +161,52 @@ int main(int argc, char** argv) {
     CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96, resetTint,
                           reason));
     CHECK(untinted == resetTint);
+    CHECK(session.New(reason) && session.ImportAccessory(root / "screen.x", reason));
+    CHECK(session.Edit(
+        "screen-capture",
+        [](auto& d, auto&) {
+            d.view.groundGrid = 0;
+            d.selfShadowMode = 0;
+            d.view.captureMode = 1;
+            return true;
+        },
+        reason));
+    sources.models.clear();
+    sources.accessories = session.Assets().accessoryPaths;
+    CHECK(producer.Load(session.Runtime(), sources, builtin, reason));
+    settings.shadow.mode = 0;
+    CHECK(producer.Build(session.Runtime(), settings, before, reason));
+    CHECK(!before.passes[0].draws[0].targetTextures[0].target);
+    CHECK(producer.Build(session.Runtime(), settings, after, reason));
+    CHECK(!after.passes[0].draws[0].targetTextures[0].target);
+    auto historyDevice = rhi::CreateOffscreenBackendDevice(128, 96, options);
+    CHECK(historyDevice);
+    rhi::SceneRenderer historyRenderer(*historyDevice.device);
+    rhi::PreparedModelFrame historyFrame;
+    rhi::CompletionToken historyToken;
+    CHECK(historyRenderer.Prepare(1, before, historyFrame) &&
+          historyRenderer.Submit(historyFrame, historyToken));
+    rhi::AttachmentReadback initialScreen, repeatedScreen, nestedScreen;
+    CHECK(historyRenderer.ReadTarget(1, before.finalColor, initialScreen));
+    CHECK(historyRenderer.Submit(historyFrame, historyToken));
+    CHECK(historyRenderer.ReadTarget(1, before.finalColor, repeatedScreen));
+    CHECK(initialScreen.bytes == repeatedScreen.bytes);
+    producer.Commit();
+    CHECK(producer.Build(session.Runtime(), settings, after, reason));
+    CHECK(after.passes[0].draws[0].targetTextures[0].target ==
+          rhi::ScreenTextureHistory::FirstTarget + 1);
+    CHECK(historyRenderer.Prepare(1, after, historyFrame) &&
+          historyRenderer.Submit(historyFrame, historyToken));
+    CHECK(historyRenderer.ReadTarget(1, after.finalColor, nestedScreen));
+    CHECK(initialScreen.bytes != nestedScreen.bytes);
+    producer.Commit();
+    producer.ResetHistory();
+    CHECK(producer.Build(session.Runtime(), settings, after, reason));
+    CHECK(!after.passes[0].draws[0].targetTextures[0].target);
+    CHECK(historyRenderer.Prepare(1, after, historyFrame) &&
+          historyRenderer.Submit(historyFrame, historyToken));
+    CHECK(historyRenderer.ReadTarget(1, after.finalColor, repeatedScreen));
+    CHECK(initialScreen.bytes == repeatedScreen.bytes);
     std::cout
         << "Qt offscreen export: deterministic PNG, isolated scene, cancellation, save/reopen passed\n";
 }

@@ -286,6 +286,7 @@ Material { 0.2;0.7;0.4;0.6;; 2.0; 0.0;0.0;0.0;; 0.1;0.0;0.0;; }
 }
 ''', encoding='ascii')
     varied = (root / 'bound.x').read_text(encoding='ascii')
+    (root / 'screen.x').write_text(varied.replace('checker.bmp', 'screen.bmp'), encoding='ascii')
     varied = varied.replace('-2.0;-2.0;0.0', '-2.625;-1.4375;0.3125')
     varied = varied.replace('0.0;2.0;0.0', '0.875;2.25;-0.625')
     varied = varied.replace('0.0;0.0;-1.0', '0.37;-0.62;-0.41')

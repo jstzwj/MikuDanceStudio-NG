@@ -170,13 +170,6 @@ int Run(const std::vector<std::string>& args) {
         settings.width = originalWidth + (resize && i % 2 ? 4 : 0);
         settings.height = originalHeight + (resize && i % 2 ? 2 : 0);
         const auto before = scene.Counters();
-        RenderFrame frame;
-        start = Clock::now();
-        Require(producer.Build(scene, settings, frame, reason), reason);
-        produceMs += Ms(start);
-        Require(scene.Counters().frames == before.frames &&
-                    scene.Counters().publishedModels == before.publishedModels,
-                "render_producer_updated_cpu_scene");
         if (replace && i == replace) {
             const auto old = native.device->Status().identity;
             Require(renderer.Detach(), "detach_before_replace");
@@ -186,8 +179,16 @@ int Run(const std::vector<std::string>& args) {
             Require(native.device->Status().identity != old && renderer.Rebind(*native.device),
                     "replace_rebind");
             Require(!renderer.Submit(prepared, token), "accepted_old_prepared_frame");
+            producer.ResetHistory();
             ++replacements;
         }
+        RenderFrame frame;
+        start = Clock::now();
+        Require(producer.Build(scene, settings, frame, reason), reason);
+        produceMs += Ms(start);
+        Require(scene.Counters().frames == before.frames &&
+                    scene.Counters().publishedModels == before.publishedModels,
+                "render_producer_updated_cpu_scene");
         start = Clock::now();
         auto result = renderer.Prepare(1, frame, prepared);
         Require(bool(result), result.reason);
@@ -195,6 +196,7 @@ int Run(const std::vector<std::string>& args) {
         start = Clock::now();
         result = renderer.Submit(prepared, token);
         Require(bool(result), result.reason);
+        producer.Commit();
         Require(renderer.Collect(), "collect");
         submitMs += Ms(start);
         if (!i)
