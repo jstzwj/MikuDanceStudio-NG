@@ -22,6 +22,7 @@ public:
     Interpolation* InterpolationWidget() const { return interpolation_; }
     Viewport* RenderWindow() const { return viewport_; }
     QWidget* SeparateWindow() const { return separate_; }
+    bool FullScreenViewport() const { return fullScreen_; }
     bool SetLanguage(const QString&);
     QString CurrentLanguage() const { return language_.Code(); }
     bool Open(const std::filesystem::path&);
@@ -50,6 +51,11 @@ private:
     QSize separateSize_{800, 657};
     int dockedSidebarWidth_ = 250;
     bool separateOnTop_ = false;
+    bool fullScreen_ = false, restoreSeparate_ = false;
+    QByteArray normalGeometry_;
+    QSize normalSize_;
+    Qt::WindowStates normalWindowState_;
+    int normalSidebarWidth_ = 250;
     std::map<int, QWidget*> controls_;
     std::map<QString, QAction*> actions_;
     std::map<int, QAction*> menuActions_;
@@ -57,6 +63,7 @@ private:
     QTimer timer_;
     QElapsedTimer clock_;
     bool testing_ = false, refreshing_ = false;
+    bool windowTransition_ = false;
     int side_ = 250;
     int sidebarClientWidth_ = 0, sidebarStoredWidth_ = 250;
     float sidebarRatio_ = 0;
@@ -90,6 +97,7 @@ private:
     void CreateViewport(const rhi::BackendOptions&);
     void SetSeparateWindow(bool enabled);
     void ToggleSeparateOnTop();
+    void SetFullScreenViewport(bool enabled);
     void UpdateFrame();
 };
 std::filesystem::path Path(const QString&);

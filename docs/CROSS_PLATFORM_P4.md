@@ -1548,3 +1548,31 @@ regressions** (37.44 seconds), the Win32 layout regression, both Qt/legacy edito
 builds and the never-shown DX11/DX12/Vulkan lifecycle test. The 720 original fit
 rectangles and earlier control-layout hashes remained exact. Cross-platform
 native-window results are recorded after the corresponding CI run.
+
+## Fullscreen viewport transitions
+
+Command 290 and viewport Alt+Enter now enter fullscreen, with Esc/Alt+Enter
+restoring the previous window mode. Entering from a separate viewport first
+docks its controls; exiting restores that separate window and its size. The
+main menu, editor panels, timeline and interpolation controls are hidden while
+fullscreen; the viewport uses the independently checked fullscreen aspect fit.
+Repeated key events and Alt+Enter inside a text field do not toggle the mode.
+The latter is consumed at the text-field boundary so Qt cannot propagate it to
+the parent canvas. Local tests never call showFullScreen or change display modes.
+
+The expanded isolated presentation gate exposed two additional window-boundary
+bugs in `2cbb913`: X11 lost the swapchain surface after changing the topmost
+flag, and Cocoa focus changes could submit untouched, formatted readout text.
+Topmost changes now retire the device before native parent replacement and
+create a fresh viewport afterward. Window transitions suppress intermediate
+render submissions. Text fields commit only user-modified text, so a focus-out
+cannot seek the current frame or round the live pose. These failures remain
+recorded in [run 41341871954](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41341871954);
+new cross-platform results are required before accepting these changes.
+
+The fullscreen/native-boundary revision passed **29 local P4 regressions**
+(37.65 seconds), the Qt application build and never-shown Windows presentation
+on DX11, DX12 and Vulkan. Fullscreen round trips, playback, unchanged document
+and body state, field-focus behavior and both docked/separate restoration are
+covered. These are local results; the corrected X11/Cocoa paths still require
+an isolated CI run.

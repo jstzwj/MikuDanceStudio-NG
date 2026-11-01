@@ -7,6 +7,7 @@
 #include <QThread>
 #include <QPointer>
 #include <QCloseEvent>
+#include <QKeyEvent>
 #include <iostream>
 #ifdef MIKUDANCESTUDIO_RHI_VULKAN
 #include "mikudancestudio/rhi_vulkan.hpp"
@@ -265,6 +266,24 @@ int main(int argc, char** argv) {
         editor.SeparateWindow()->show();
         pump();
 #endif
+        CHECK(editor.RenderWindow()->Render(reason, true));
+        command(MDS_CMD_TOGGLE_FULL_SCREEN)->trigger();
+        CHECK(editor.FullScreenViewport() && !editor.SeparateWindow());
+        pump();
+        CHECK(editor.RenderWindow()->Render(reason, true));
+        QKeyEvent escape(QEvent::KeyPress, Qt::Key_Escape, Qt::NoModifier);
+        QCoreApplication::sendEvent(editor.RenderWindow(), &escape);
+        pump();
+        CHECK(!editor.FullScreenViewport() && editor.SeparateWindow());
+#ifndef _WIN32
+        editor.SeparateWindow()->show();
+        pump();
+#endif
+        CHECK(editor.RenderWindow()->Render(reason, true));
+        CHECK(&live.Runtime() == liveRuntime && live.Runtime().Snapshot(0) == liveSnapshot);
+        CHECK(live.Runtime().Bodies(0) == liveBodies &&
+              live.Runtime().Counters().frames == liveFrames);
+        CHECK(live.Revision() == liveRevision);
         CHECK(live.UnloadModel(0, reason));
         editor.Refresh();
         CHECK(editor.RenderWindow()->Render(reason, true));

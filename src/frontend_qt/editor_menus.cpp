@@ -96,6 +96,7 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_UI_LANGUAGE:
     case MDS_CMD_TOGGLE_SEPARATE_WINDOW:
     case MDS_CMD_TOGGLE_ALWAYS_ON_TOP:
+    case MDS_CMD_TOGGLE_FULL_SCREEN:
         return true;
     default:
         return false;
@@ -197,6 +198,8 @@ void EditorWindow::RefreshMenus() {
         bool enabled = Implemented(command);
         if (ModelCommand(command))
             enabled &= model && !session_.Playing();
+        if (command == MDS_CMD_TOGGLE_SEPARATE_WINDOW)
+            enabled &= !fullScreen_;
         if (command == MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE ||
             command == MDS_CMD_INSERT_MORPH_LIGHT_FRAME_LINE ||
             command == MDS_CMD_DELETE_BONE_CAMERA_FRAME_LINE ||
@@ -252,6 +255,10 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_TOGGLE_ALWAYS_ON_TOP) {
         ToggleSeparateOnTop();
+        return;
+    }
+    if (command == MDS_CMD_TOGGLE_FULL_SCREEN) {
+        SetFullScreenViewport(true);
         return;
     }
     if (command == MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE ||

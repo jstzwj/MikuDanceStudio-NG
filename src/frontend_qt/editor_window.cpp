@@ -29,6 +29,7 @@
 #include <QSignalBlocker>
 #include <QPainter>
 #include <QSettings>
+#include <QScopedValueRollback>
 #include <QProgressDialog>
 #include <cmath>
 #include <fstream>
@@ -73,8 +74,16 @@ public:
         detached_ = value;
         update();
     }
+    void SetFullScreen(bool value) {
+        fullScreen_ = value;
+        update();
+    }
     void paintEvent(QPaintEvent*) override {
         QPainter p(this);
+        if (fullScreen_) {
+            p.fillRect(rect(), Qt::black);
+            return;
+        }
         const auto color = [](std::uint32_t value) {
             return QColor(value & 255, (value >> 8) & 255, (value >> 16) & 255);
         };
@@ -140,7 +149,7 @@ private:
     Language& language_;
     editor::EditorSession& session_;
     QImage viewTools_;
-    bool viewportOnly_ = false, detached_ = false;
+    bool viewportOnly_ = false, detached_ = false, fullScreen_ = false;
 };
 std::array<float, 4> Quaternion(float x, float y, float z) {
     return BoneRotationFromDegrees({x, y, z});
@@ -189,9 +198,13 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
             auto* edit = new QLineEdit(canvas_);
             edit->setAlignment(Qt::AlignCenter);
             widget = edit;
-            connect(edit, &QLineEdit::editingFinished, this, [this, id = spec.id] {
-                if (!refreshing_)
+            connect(edit, &QLineEdit::editingFinished, this, [this, edit, id = spec.id] {
+                // Focus changes/reparenting also finish untouched fields. Never
+                // write rounded display text back into the live scene.
+                if (!refreshing_ && edit->isModified()) {
+                    edit->setModified(false);
                     EditField(id);
+                }
             });
         } else if (cls == "COMBOBOX") {
             auto* combo = new QComboBox(canvas_);
@@ -276,7 +289,7 @@ EditorWindow::~EditorWindow() {
     audio_.Stop();
     if (!testing_) {
         QSettings settings;
-        settings.setValue("viewport/separate", separate_ != nullptr);
+        settings.setValue("viewport/separate", separate_ != nullptr || restoreSeparate_);
         settings.setValue("viewport/alwaysOnTop", separateOnTop_);
         settings.setValue("viewport/separateGeometry",
                           separate_ ? separate_->saveGeometry() : separateGeometry_);
@@ -346,6 +359,7 @@ void EditorWindow::CreateViewport(const rhi::BackendOptions& options) {
 void EditorWindow::SetSeparateWindow(bool enabled) {
     if (enabled == (separate_ != nullptr))
         return;
+    QScopedValueRollback transition(windowTransition_, true);
     FinishSidebarDrag();
     viewport_->CancelInput();
     auto options = viewport_->Options();
@@ -391,14 +405,67 @@ void EditorWindow::SetSeparateWindow(bool enabled) {
     }
 }
 void EditorWindow::ToggleSeparateOnTop() {
+    QScopedValueRollback transition(windowTransition_, true);
     separateOnTop_ = !separateOnTop_;
     if (separate_) {
         const bool visible = separate_->isVisible();
+        auto options = viewport_->Options();
+        options.surface.reset();
+        viewport_->CancelInput();
+        viewport_->SetOptions(options);
         separate_->setWindowFlag(Qt::WindowStaysOnTopHint, separateOnTop_);
+        // X11 recreates native parents for this flag change. Reacquire a fresh
+        // child surface rather than presenting through the previous XID.
+        CreateViewport(options);
         if (visible && !testing_)
             separate_->show();
     }
     RefreshMenus();
+}
+void EditorWindow::SetFullScreenViewport(bool enabled) {
+    if (enabled == fullScreen_)
+        return;
+    QScopedValueRollback transition(windowTransition_, true);
+    FinishSidebarDrag();
+    viewport_->CancelInput();
+    auto options = viewport_->Options();
+    options.surface.reset();
+    viewport_->SetOptions(options);
+    if (enabled) {
+        restoreSeparate_ = separate_ != nullptr;
+        if (separate_)
+            SetSeparateWindow(false);
+        normalGeometry_ = saveGeometry();
+        normalSize_ = size();
+        normalWindowState_ = windowState();
+        normalSidebarWidth_ = session_.Document().envelope.settings.editPanelWidth;
+        fullScreen_ = true;
+        static_cast<Canvas*>(canvas_)->SetFullScreen(true);
+        menuBar()->hide();
+        // setWindowState preserves visibility. Hidden acceptance never calls
+        // showFullScreen or changes a display mode.
+        setWindowState(normalWindowState_ | Qt::WindowFullScreen);
+    } else {
+        // Keep the fullscreen layout active through native resize notifications,
+        // so they cannot alter the saved sidebar ratio on the way back.
+        setWindowState(normalWindowState_);
+        restoreGeometry(normalGeometry_);
+        if (!(normalWindowState_ & Qt::WindowMaximized))
+            resize(normalSize_);
+        fullScreen_ = false;
+        static_cast<Canvas*>(canvas_)->SetFullScreen(false);
+        menuBar()->show();
+        session_.SetSidebarWidth(normalSidebarWidth_);
+        sidebarClientWidth_ = 0;
+    }
+    // Retire device/surface bindings; a later Render reacquires the current
+    // native surface without reloading or advancing the CPU scene.
+    viewport_->SetOptions(options);
+    if (!enabled && restoreSeparate_) {
+        restoreSeparate_ = false;
+        SetSeparateWindow(true);
+    }
+    Refresh();
 }
 bool EditorWindow::SetLanguage(const QString& language) {
     if (!language_.Set(language))
@@ -420,6 +487,23 @@ void EditorWindow::Texts() {
 void EditorWindow::Layout() {
     if (!canvas_)
         return;
+    if (fullScreen_) {
+        const auto& settings = session_.Document().envelope.settings;
+        const auto rect =
+            ui::MmdSeparateViewport(canvas_->width(), canvas_->height(), int(settings.renderWidth),
+                                    int(settings.renderHeight), true);
+        viewportContainer_->setGeometry(rect.x, rect.y, std::max(1, rect.width),
+                                        std::max(1, rect.height));
+        viewport_->resize(std::max(1, rect.width), std::max(1, rect.height));
+        for (const auto& pair : controls_)
+            pair.second->hide();
+        timeline_->hide();
+        interpolation_->hide();
+        canvas_->update();
+        return;
+    }
+    timeline_->show();
+    interpolation_->show();
     side_ = std::max(250, session_.Document().envelope.settings.editPanelWidth);
     const int clientWidth = canvas_->width();
     if (separate_) {
@@ -652,7 +736,7 @@ void EditorWindow::Refresh() {
     UpdateFrame();
 }
 void EditorWindow::UpdateFrame() {
-    if (!testing_) {
+    if (!testing_ && !windowTransition_) {
         std::string reason;
         if (!viewport_->Render(reason))
             lastError_ = QString::fromStdString(reason);
@@ -1311,7 +1395,7 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
         FinishSidebarDrag();
         viewport_->CancelInput();
     }
-    if (viewport_ && object == viewCanvas &&
+    if (!fullScreen_ && viewport_ && object == viewCanvas &&
         (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseMove ||
          event->type() == QEvent::MouseButtonRelease)) {
         auto* mouse = static_cast<QMouseEvent*>(event);
@@ -1368,6 +1452,12 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
     }
     // The original Ctrl+S path also works when a panel edit has focus. Keep
     // the shortcut out of the menu label, which has no accelerator suffix.
+    if (event->type() == QEvent::KeyPress && qobject_cast<QLineEdit*>(object)) {
+        const auto* key = static_cast<QKeyEvent*>(event);
+        if ((key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter) &&
+            (key->modifiers() & Qt::AltModifier))
+            return true; // Prevent ignored edit input from bubbling to the viewport canvas.
+    }
     if (event->type() == QEvent::KeyPress &&
         static_cast<QKeyEvent*>(event)->matches(QKeySequence::Save)) {
         if (!static_cast<QKeyEvent*>(event)->isAutoRepeat())
@@ -1376,6 +1466,19 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
     }
     if (event->type() == QEvent::KeyPress && !qobject_cast<QLineEdit*>(object)) {
         auto* key = static_cast<QKeyEvent*>(event);
+        const bool viewportInput =
+            object == viewport_ || object == viewCanvas || (fullScreen_ && object == this);
+        const bool toggle = (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter) &&
+                            (key->modifiers() & Qt::AltModifier);
+        if (viewportInput && (toggle || (fullScreen_ && key->key() == Qt::Key_Escape))) {
+            if (!key->isAutoRepeat()) {
+                const bool enabled = toggle && !fullScreen_;
+                // Docking may delete the input QWindow. Finish delivering its
+                // event before changing window ownership.
+                QTimer::singleShot(0, this, [this, enabled] { SetFullScreenViewport(enabled); });
+            }
+            return true;
+        }
         if (key->key() == Qt::Key_I || key->key() == Qt::Key_U || key->key() == Qt::Key_K ||
             key->key() == Qt::Key_J) {
             if (!key->isAutoRepeat() && !session_.Playing()) {
