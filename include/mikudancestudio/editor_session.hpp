@@ -117,6 +117,7 @@ public:
     int ActiveBone() const;
     bool Register(const std::vector<KeyAddress>&, std::string&);
     bool Delete(const std::set<KeyAddress>&, std::string&);
+    bool DeleteUnusedFrames(unsigned& deleted, std::string&);
     bool InsertFrameLine(Track, std::string&, bool fromMenu = false);
     bool DeleteFrameLine(Track, std::string&, bool fromMenu = false);
     bool AutoInterpolation() const { return autoInterpolation_; }
@@ -190,6 +191,7 @@ private:
         std::uint64_t revision = 0;
     };
     State state_;
+    bool DeleteKeys(State next, const std::set<KeyAddress>&, std::string&, bool markedModelRecords);
     std::uint64_t gravityEpoch_ = 0;
     std::unique_ptr<runtime::SceneRuntime> runtime_;
     enum class HistoryKind {

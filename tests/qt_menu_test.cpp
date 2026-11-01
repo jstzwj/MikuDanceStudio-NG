@@ -1,6 +1,7 @@
 #include "editor_window.hpp"
 #include "mikudancestudio/menu_commands.h"
 #include "editor_physics_selection_fixture.hpp"
+#include "editor_reduction_fixture.hpp"
 #include <QApplication>
 #include <QAbstractButton>
 #include <QFile>
@@ -358,9 +359,28 @@ int main(int argc, char** argv) {
         window.Refresh();
         CHECK(!command(MDS_CMD_SELECT_PHYSICS_ON_FRAMES)->isEnabled());
     }
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        CHECK(ReductionFixture(session, root, "articulated.pmx", true, 7, reason));
+        CHECK(window.SetLanguage(language));
+        CHECK(command(MDS_CMD_DELETE_UNUSED_FRAMES)->isEnabled());
+        const auto before = session.Document().models[0].boneKeys.sparse.size();
+        command(MDS_CMD_DELETE_UNUSED_FRAMES)->trigger();
+        CHECK(session.Document().models[0].boneKeys.sparse.size() < before && session.CanUndo());
+        CHECK(window.LastError().isEmpty());
+        CHECK(session.Undo(reason));
+        CHECK(session.Document().models[0].boneKeys.sparse.size() == before);
+        CHECK(session.Redo(reason));
+        CHECK(session.Play(reason));
+        window.Refresh();
+        CHECK(!command(MDS_CMD_DELETE_UNUSED_FRAMES)->isEnabled());
+        session.Pause();
+        CHECK(session.SelectModel(255, reason));
+        window.Refresh();
+        CHECK(!command(MDS_CMD_DELETE_UNUSED_FRAMES)->isEnabled());
+    }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 54);
+    CHECK(implemented == 55);
     CHECK(window.LastError().isEmpty());
     CHECK(!window.isVisible() && window.RenderWindow()->Submissions() == 0);
     std::cout

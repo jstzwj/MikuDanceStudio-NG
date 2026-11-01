@@ -509,6 +509,8 @@
   "dialog.numeric.edge.title": "描边粗细",
   "dialog.numeric.edge.control.0": "粗细",
   "dialog.numeric.edge.control.3": "0                     1                    2",
+  "dialog.reduction.title": "删除无用帧",
+  "dialog.reduction.message": "已删除 %1 个登记点。",
   "dialog.key_capacity.title": "登记关键帧",
   "dialog.key_capacity.message": "登记点数量超过 %1 个。\n无法继续登记。\n请执行“帧编辑”中的“删除无用帧”。",
   "dialog.numeric.gravity.title": "重力设置",

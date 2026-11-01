@@ -4,6 +4,7 @@
 #include <QAbstractButton>
 #include <QMenuBar>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <limits>
 
 namespace mikudancestudio::qt {
@@ -79,6 +80,7 @@ bool ModelCommand(int command) {
     case MDS_CMD_RESET_MORPHS:
     case MDS_CMD_SELECT_PHYSICS_BONES:
     case MDS_CMD_SELECT_PHYSICS_ON_FRAMES:
+    case MDS_CMD_DELETE_UNUSED_FRAMES:
         return true;
     default:
         return false;
@@ -261,6 +263,20 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_EDGE_THICKNESS) {
         EdgeThickness();
+        return;
+    }
+    if (command == MDS_CMD_DELETE_UNUSED_FRAMES) {
+        std::string reason;
+        unsigned count;
+        const bool ok = Result(session_.DeleteUnusedFrames(count, reason), reason);
+        Refresh();
+        if (ok && !testing_) {
+            QMessageBox message(QMessageBox::NoIcon, language_.Text("dialog.reduction.title"),
+                                language_.Text("dialog.reduction.message").arg(count),
+                                QMessageBox::Ok, this);
+            message.setWindowFlag(Qt::WindowStaysOnTopHint);
+            message.exec();
+        }
         return;
     }
     if (command == MDS_CMD_TOGGLE_UI_LANGUAGE) {

@@ -9,6 +9,7 @@
 #include "mikudancestudio/background_placement.hpp"
 #include "mikudancestudio/bone_key_interpolation.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
+#include "mikudancestudio/key_reduction.hpp"
 #include <fstream>
 #include <cmath>
 #include <cstring>
@@ -1172,13 +1173,91 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
     return Commit(std::move(next), reason, history, false);
 }
 
+bool EditorSession::DeleteUnusedFrames(unsigned& deleted, std::string& reason) {
+    if (playing_) {
+        reason = "key-reduction-during-playback";
+        return false;
+    }
+    if (selection_.model == 255) {
+        deleted = 0;
+        reason.clear();
+        return true;
+    }
+    EndGesture();
+    auto next = Current();
+    auto* model = Model(next.document, selection_.model);
+    const auto resource = runtime_->Resource(selection_.model);
+    if (!model || !resource) {
+        reason = "key-reduction-model-expired";
+        return false;
+    }
+    std::vector<cpu_bone::BoneType> types;
+    for (unsigned i = 0; i < model->boneKeys.dense.size(); ++i) {
+        int mapped;
+        if (!runtime_->DocumentBoneIndex(selection_.model, int(i), mapped, reason))
+            return false;
+        types.push_back(resource->EditingBones().at(std::size_t(mapped)).type);
+    }
+    ClearModelKeyMarks(*model, next.selection);
+    unsigned count = 0;
+    const auto reduce = [&](auto& track, auto&& included, auto&& same) {
+        std::map<std::uint32_t, std::uint32_t> channels;
+        if (!PmmRecordChannels(track, channels))
+            return false;
+        using Key = typename std::decay_t<decltype(track.dense)>::value_type;
+        std::map<std::uint32_t, Key*> records;
+        for (unsigned i = 0; i < track.dense.size(); ++i)
+            records.emplace(i, &track.dense[i]);
+        for (auto& key : track.sparse)
+            records.emplace(unsigned(key.index), &key.value);
+        for (unsigned i = 0; i < track.dense.size(); ++i)
+            if (included(i))
+                count += keyframe_edit::MarkRedundantInterior(
+                    i, [&](unsigned index) -> auto& { return *records.at(index); }, same,
+                    [&](unsigned index) { records.at(index)->allocated = 1; });
+        return true;
+    };
+    const auto all = [](unsigned) { return true; };
+    if (!reduce(
+            model->boneKeys,
+            [&](unsigned i) {
+                return types[i] != cpu_bone::BoneType::InertTip &&
+                       types[i] != cpu_bone::BoneType::Effector;
+            },
+            [](const auto& a, const auto& b) { return keyframe_edit::SameBonePose(a, b); }) ||
+        !reduce(model->morphKeys, all,
+                [](const auto& a, const auto& b) { return a.value == b.value; }) ||
+        !reduce(model->displayKeys, all, [](const auto& a, const auto& b) {
+            return a.visible == b.visible && a.ikEnabled == b.ikEnabled &&
+                   a.rigidStates.size() == b.rigidStates.size() &&
+                   std::equal(a.rigidStates.begin(), a.rigidStates.end(), b.rigidStates.begin(),
+                              [](const auto& x, const auto& y) {
+                                  return x.modelIndex == y.modelIndex && x.boneIndex == y.boneIndex;
+                              });
+        })) {
+        reason = "key-reduction-invalid-tracks";
+        return false;
+    }
+    std::set<KeyAddress> marked;
+    if (!ReadPmmSelectedKeys(next.document, selection_.model, marked)) {
+        reason = "key-reduction-invalid-selection";
+        return false;
+    }
+    if (!DeleteKeys(std::move(next), marked, reason, true))
+        return false;
+    deleted = count;
+    return true;
+}
 bool EditorSession::Delete(const std::set<KeyAddress>& addresses, std::string& reason) {
     EndGesture();
-    if (addresses.empty()) {
+    return DeleteKeys(Current(), addresses, reason, false);
+}
+bool EditorSession::DeleteKeys(State next, const std::set<KeyAddress>& addresses,
+                               std::string& reason, bool markedModelRecords) {
+    if (addresses.empty() && !markedModelRecords) {
         reason = "no-selected-keys";
         return false;
     }
-    auto next = Current();
     auto& d = next.document;
     HistoryBatch history;
     for (const auto& model : d.models) {
@@ -1202,6 +1281,9 @@ bool EditorSession::Delete(const std::set<KeyAddress>& addresses, std::string& r
     std::set<std::pair<Track, std::uint8_t>> tables;
     for (const auto& address : addresses)
         tables.emplace(address.track, address.slot);
+    if (markedModelRecords)
+        for (const auto kind : {Track::Bone, Track::Morph, Track::Display})
+            tables.emplace(kind, next.selection.model);
     for (const auto& [kind, slot] : tables) {
         const KeyAddress table{kind, slot, 0, 0};
         if (!Visit(d, table, [&](auto& track) {
@@ -1212,10 +1294,18 @@ bool EditorSession::Delete(const std::set<KeyAddress>& addresses, std::string& r
                 std::set<std::uint32_t> selected;
                 const auto mark = [&](std::uint32_t index, auto& key) {
                     const KeyAddress address{kind, slot, channels.at(index), key.frame};
-                    const bool erase = addresses.count(address) != 0;
+                    const bool erase = [&] {
+                        if constexpr (std::is_same_v<T, PmmBoneKey> ||
+                                      std::is_same_v<T, PmmMorphKey> ||
+                                      std::is_same_v<T, PmmDisplayKey>)
+                            if (markedModelRecords)
+                                return key.allocated != 0;
+                        return addresses.count(address) != 0;
+                    }();
                     if (erase)
                         selected.insert(index);
-                    const bool marked = erase || next.selection.keys.count(address);
+                    const bool marked =
+                        erase || (!markedModelRecords && next.selection.keys.count(address));
                     if constexpr (std::is_same_v<T, PmmBoneKey> || std::is_same_v<T, PmmMorphKey> ||
                                   std::is_same_v<T, PmmDisplayKey>)
                         key.allocated = marked;
@@ -1261,6 +1351,8 @@ bool EditorSession::Delete(const std::set<KeyAddress>& addresses, std::string& r
     }
     bool global = false;
     std::set<std::uint8_t> models;
+    if (markedModelRecords)
+        models.insert(next.selection.model);
     for (const auto& a : addresses) {
         if (a.track == Track::Bone || a.track == Track::Morph || a.track == Track::Display)
             models.insert(a.slot);

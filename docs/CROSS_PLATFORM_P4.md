@@ -1963,5 +1963,47 @@ save/reopen. The portable session regression additionally checks full-pool
 overwrite and invalid-index rejection. The final revision passed all **31 local
 P4 tests** (61.69 seconds), scene runtime (1.85 seconds), rebuilt Win32 session
 and physics-continuity tests (3.68 seconds), and the legacy global registrar
-regression. The Qt application builds. Three-platform CI for this batch remains
-required; P4 remains open.
+regression. The Qt application builds. Three-platform CI for this batch passed
+all three editor jobs in
+[run 41357549437](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41357549437).
+P4 remains open.
+
+## Delete unused model frames
+
+Menu 222 now runs a shared native reduction predicate and the existing record-based
+deletion/history path. It clears the active model's bone, Morph and display key
+marks, then marks interior forward-chain keys whose values equal both original
+neighbours. Roots and terminal keys survive. Inert-tip and effector bones are
+excluded, with resource/document channel mappings applied before checking type.
+Bone comparison uses position and quaternion components; curves and key physics
+flags do not affect redundancy. Signed zeros compare equal; quaternion sign is
+not normalized. Display comparison includes visibility, IK and parent selectors.
+Adjacent candidates are all marked before deletion starts. Detached and unused
+records are unselected, not mistaken for candidates at the same visible frame.
+
+The command reevaluates the active model, preserves other models and global
+selection, retains frame watermarks, and modifies the document even when no key
+can be removed. Only bone-key deletions enter bone Undo/Redo; Morph/display
+deletions remain outside that history. Camera mode is a no-op and playback gates
+the menu. English and Japanese result text matches the original, with a separate
+Chinese translation. Both ordinary deletion and reduction finish an active bone
+drag before taking the document snapshot, retaining the restored edit mode.
+
+The optional auxiliary oracle executes original command 222 at dispatcher RVA
+**3F550** (branch **4C6AE**) and replaces only deletion and its result message.
+**48 cases** compare every mark in the 600000/20000/1000-record pools and the
+reported count against portable deletion results. Cases cover PMD/PMX, reversed
+bindings, adjacent duplicates, unequal components, quaternion signs, Morph,
+visibility/IK changes, empty chains and overlapping detached records. This is
+independent evidence for candidate selection; the earlier frame-line oracle
+remains the independent evidence for deletion slots and history captures.
+
+Portable tests add repeated reduction, unaffected model/global marks, unchanged
+runtime identity and simulation counters, bone Undo/Redo, save/reopen, playback
+rejection and camera no-op. Three-language Qt tests exercise the actual action
+and its gates. The legacy native-layout reduction corpus also passes after using
+the shared predicate. The final revision passed all **31 local P4 regressions**
+(69.83 seconds), scene runtime (1.76 seconds), rebuilt Win32 frame-line/history/
+session tests (19.84 seconds), and the legacy reduction corpus (2.48 seconds).
+The Qt application builds. Three-platform CI for this batch remains required;
+this batch does not close the wider clipboard, input or C1 gates.

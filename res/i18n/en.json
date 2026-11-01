@@ -509,6 +509,8 @@
   "dialog.numeric.edge.title": "thickness of edge line",
   "dialog.numeric.edge.control.0": "thickness",
   "dialog.numeric.edge.control.3": "0                     1                    2",
+  "dialog.reduction.title": "delete unused frame",
+  "dialog.reduction.message": "%1 point was deleted.",
   "dialog.key_capacity.title": "register frame",
   "dialog.key_capacity.message": "You cannot regist over %1point.\nPlease execute 'delete unused frame'",
   "dialog.numeric.gravity.title": "gravity setting",

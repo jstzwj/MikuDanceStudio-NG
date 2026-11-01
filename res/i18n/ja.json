@@ -509,6 +509,8 @@
   "dialog.numeric.edge.title": "エッジ太さ設定",
   "dialog.numeric.edge.control.0": "太さ",
   "dialog.numeric.edge.control.3": "0                     1                    2",
+  "dialog.reduction.title": "不用ポイントの削除",
+  "dialog.reduction.message": "%1個のポイントを削除しました",
   "dialog.key_capacity.title": "ﾌﾚｰﾑ登録",
   "dialog.key_capacity.message": "登録ポイント数が%1個を超えました\nこれ以上の登録は行えません\n「ﾌﾚｰﾑ編集」の「不用ﾌﾚｰﾑ削除」を実行して下さい",
   "dialog.numeric.gravity.title": "重力設定",

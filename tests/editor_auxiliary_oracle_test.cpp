@@ -6,10 +6,12 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/menu_commands.h"
 #include "editor_physics_selection_fixture.hpp"
+#include "editor_reduction_fixture.hpp"
 #include "gravity_edit_reference.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
 #include "mikudancestudio/cpu_model_state.hpp"
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -758,6 +760,115 @@ void GravityHiddenControls(OriginalPhysicsModule& original, const wchar_t* path)
     std::printf(
         "8 original hidden gravity mirrors: real EDIT notifications and formatted values\n");
 }
+unsigned reductionCount = 0, reductionMessages = 0;
+int WINAPI ReductionMessage(HWND, LPCSTR text, LPCSTR title, UINT flags) {
+    Check(std::strcmp(title, "delete unused frame") == 0 && flags == MB_TOPMOST,
+          "native reduction report identity");
+    reductionCount = unsigned(std::atoi(text));
+    ++reductionMessages;
+    return IDOK;
+}
+unsigned ReductionCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    // Execute the original marking and reporting command. Deletion's independent
+    // slot/undo comparison lives in editor_frame_line_oracle_test.
+    const unsigned char ret = 0xc3;
+    Patch deletion(original.Function<void*>(0x64b30), &ret, 1);
+    auto message = &ReductionMessage;
+    Patch report(original.Function<void*>(0x128618), &message, sizeof message);
+    std::vector<unsigned char> app(0xa3000);
+    auto* pointer = app.data();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    unsigned cases = 0;
+    for (const char* file : {"articulated.pmd", "articulated.pmx", "facial.pmd"})
+        for (bool reverse : {false, true})
+            for (unsigned variant = 0; variant < 8; ++variant) {
+                EditorSession portable;
+                std::string reason;
+                Check(ReductionFixture(portable, root, file, reverse, variant, reason),
+                      reason.c_str());
+                const auto before = portable.Document().models[0];
+                const auto resource = portable.Runtime().Resource(0);
+                NativeAuxiliary native(before, resource->SourceKind() == ModelKind::Pmx);
+                auto* model = native.model.get();
+                std::vector<mdl::BoneRecord> bones(before.bonePose.size());
+                std::vector<mdl::BoneKey> keys(mdl::kBoneKeyCapacity);
+                model->boneCount = unsigned(bones.size());
+                model->boneTable = bones.data();
+                model->boneKeys = keys.data();
+                for (unsigned i = 0; i < bones.size(); ++i) {
+                    int mapped;
+                    Check(portable.Runtime().DocumentBoneIndex(0, int(i), mapped, reason),
+                          reason.c_str());
+                    bones[i].type =
+                        static_cast<mdl::BoneType>(resource->EditingBones()[mapped].type);
+                }
+                const auto copy = [](const auto& track, auto&& put) {
+                    for (unsigned i = 0; i < track.dense.size(); ++i)
+                        put(i, track.dense[i]);
+                    for (const auto& key : track.sparse)
+                        put(unsigned(key.index), key.value);
+                    for (const auto& [i, key] : track.unused)
+                        put(i, key);
+                };
+                const auto links = [](auto& out, const auto& in) {
+                    out.frame = in.frame;
+                    out.previous = in.previous;
+                    out.next = in.next;
+                    out.allocated = in.allocated;
+                };
+                copy(before.boneKeys, [&](unsigned i, const auto& key) {
+                    auto& out = keys[i];
+                    links(out, key);
+                    std::copy(key.position.begin(), key.position.end(), out.position);
+                    std::copy(key.rotation.begin(), key.rotation.end(), out.rotation);
+                    std::copy(key.interpolation.begin(), key.interpolation.end(),
+                              out.interpolation);
+                    out.physicsDisabled = key.physicsDisabled;
+                });
+                copy(before.morphKeys, [&](unsigned i, const auto& key) {
+                    links(native.morphs[i], key);
+                    native.morphs[i].value = key.value;
+                });
+                copy(before.displayKeys, [&](unsigned i, const auto& key) {
+                    links(native.displays[i], key);
+                    native.displays[i].visible = key.visible;
+                    native.ik[i] = key.ikEnabled;
+                    native.displays[i].ikStates = native.ik[i].data();
+                });
+                for (auto& key : keys)
+                    key.allocated = 1;
+                for (auto& key : native.morphs)
+                    key.allocated = 1;
+                for (auto& key : native.displays)
+                    key.allocated = 1;
+                std::fill(app.begin(), app.end(), 0);
+                std::memcpy(app.data() + 0xbe8, &model, sizeof model);
+                app[0xa1b90] = 1;
+                reductionMessages = 0;
+                original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr,
+                                                                   MDS_CMD_DELETE_UNUSED_FRAMES);
+                unsigned count;
+                Check(portable.DeleteUnusedFrames(count, reason), reason.c_str());
+                Check(count == reductionCount && reductionMessages == 1 && app[0xa1b31] == 1,
+                      "native reduction count/dirty/report");
+                const auto& after = portable.Document().models[0];
+                const auto compare = [](const auto& pool, const auto& old, const auto& changed) {
+                    std::set<unsigned> removed;
+                    for (const auto& key : old.sparse)
+                        if (std::none_of(changed.sparse.begin(), changed.sparse.end(),
+                                         [&](const auto& k) { return k.index == key.index; }))
+                            removed.insert(unsigned(key.index));
+                    for (unsigned i = 0; i < pool.size(); ++i)
+                        Check(bool(pool[i].allocated) == (removed.count(i) != 0),
+                              "native full-pool reduction marks");
+                };
+                compare(keys, before.boneKeys, after.boneKeys);
+                compare(native.morphs, before.morphKeys, after.morphKeys);
+                compare(native.displays, before.displayKeys, after.displayKeys);
+                ++cases;
+            }
+    return cases;
+}
 unsigned gravityCapacityMessages = 0;
 int WINAPI GravityCapacityMessage(HWND, LPCSTR text, LPCSTR, UINT) {
     Check(std::strstr(text, "10000") != nullptr, "native gravity capacity message");
@@ -907,6 +1018,9 @@ int wmain(int argc, wchar_t** argv) try {
                 GravityRegistration(original, argv[2]));
     GravityHiddenControls(original, argv[1]);
     GravityCapacity(original);
+    std::printf(
+        "%u original reduction commands: complete pool marks, counts and detached records\n",
+        ReductionCommands(original, argv[2]));
     return 0;
 } catch (const std::exception& e) {
     std::fprintf(stderr, "%s\n", e.what());

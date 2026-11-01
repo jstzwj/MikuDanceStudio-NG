@@ -1,6 +1,7 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "frame_line_deletion_fixture.hpp"
 #include "mikudancestudio/pmm_key_deletion.hpp"
+#include "editor_reduction_fixture.hpp"
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -228,6 +229,82 @@ int main(int argc, char** argv) {
         file.write(reinterpret_cast<const char*>(bytes.data()), std::streamsize(bytes.size()));
         return bool(file);
     };
+    for (bool reduction : {false, true}) {
+        EditorSession dragged;
+        CHECK(ReductionFixture(dragged, root, "articulated.pmx", false, 0, reason));
+        CHECK(dragged.SelectBones({0}, 0, reason));
+        CHECK(dragged.BeginBoneDrag(1, reason));
+        CHECK(dragged.Document().timeline.editMode == 5);
+        unsigned count;
+        CHECK(reduction ? dragged.DeleteUnusedFrames(count, reason)
+                        : dragged.Delete({{Track::Bone, 0, 0, 10}}, reason));
+        CHECK(dragged.BoneDragMode() == 0 && dragged.Document().timeline.editMode == 3);
+    }
+    for (const char* file : {"articulated.pmd", "articulated.pmx", "facial.pmd"})
+        for (bool reverse : {false, true})
+            for (unsigned variant = 0; variant < 8; ++variant) {
+                EditorSession reduced;
+                CHECK(ReductionFixture(reduced, root, file, reverse, variant, reason));
+                reduced.SetAutoInterpolation(variant % 2 != 0);
+                const auto before = reduced.Document().models[0];
+                unsigned expected = 0;
+                for (unsigned i = 0; i < before.bonePose.size(); ++i) {
+                    int mapped;
+                    CHECK(reduced.Runtime().DocumentBoneIndex(0, int(i), mapped, reason));
+                    const auto type = reduced.Runtime().Resource(0)->EditingBones()[mapped].type;
+                    if (type != cpu_bone::BoneType::InertTip &&
+                        type != cpu_bone::BoneType::Effector &&
+                        !(i == 0 && (variant == 1 || variant == 2)))
+                        expected += 2;
+                }
+                expected += 2 * unsigned(before.morphPose.size()) -
+                            (variant == 3 && !before.morphPose.empty() ? 2 : 0);
+                expected += variant == 5 || variant == 6 ? 0 : 2;
+                if (variant == 4)
+                    expected = 0;
+                const auto* runtime = &reduced.Runtime();
+                const auto frames = runtime->Counters().frames;
+                unsigned count = 999;
+                CHECK(reduced.DeleteUnusedFrames(count, reason) && count == expected);
+                CHECK(&reduced.Runtime() == runtime && runtime->Counters().frames == frames);
+                CHECK(reduced.Dirty() && reduced.Selected().keys.empty());
+                CHECK(reduced.Document().cameraKeys.dense[0].selected &&
+                      reduced.Document().models[1].boneKeys.dense[0].allocated);
+                const auto after = reduced.Document().models[0];
+                CHECK(after.selection.maxFrame == before.selection.maxFrame);
+                CHECK(frame_line_fixture::Records(after.boneKeys).at(9000).frame == 10 &&
+                      !frame_line_fixture::Records(after.boneKeys).at(9000).allocated);
+                CHECK(!after.boneKeys.unused.at(99999).allocated &&
+                      !after.displayKeys.unused.at(999).allocated);
+                if (expected && after.boneKeys.sparse.size() != before.boneKeys.sparse.size()) {
+                    CHECK(reduced.CanUndo());
+                    CHECK(reduced.Undo(reason));
+                    CHECK(reduced.Document().models[0].boneKeys.sparse.size() ==
+                          before.boneKeys.sparse.size());
+                    CHECK(reduced.Document().models[0].morphKeys.sparse.size() ==
+                          after.morphKeys.sparse.size());
+                    CHECK(reduced.Redo(reason));
+                    CHECK(reduced.Document().models[0].boneKeys.sparse.size() ==
+                          after.boneKeys.sparse.size());
+                }
+                CHECK(reduced.DeleteUnusedFrames(count, reason) && count == 0);
+                if (!reverse && variant == 0) {
+                    CHECK(reduced.Save(root / "reduced.pmm", writer, reason));
+                    CHECK(reduced.Open(root / "reduced.pmm", reason));
+                    CHECK(reduced.Document().models[0].boneKeys.sparse.size() ==
+                          after.boneKeys.sparse.size());
+                }
+                CHECK(reduced.Play(reason));
+                const auto revision = reduced.Revision();
+                count = 999;
+                CHECK(!reduced.DeleteUnusedFrames(count, reason) && count == 999);
+                CHECK(reduced.Revision() == revision && reduced.Playing());
+                reduced.Pause();
+                CHECK(reduced.SelectModel(255, reason));
+                const auto cameraRevision = reduced.Revision();
+                CHECK(reduced.DeleteUnusedFrames(count, reason) && count == 0);
+                CHECK(reduced.Revision() == cameraRevision);
+            }
     for (auto track : {Track::Bone, Track::Morph, Track::Camera, Track::Light}) {
         EditorSession session;
         session.SetAutoInterpolation(false); // This fixture intentionally uses linear key curves.
