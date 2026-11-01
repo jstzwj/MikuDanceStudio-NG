@@ -1,6 +1,7 @@
 #pragma once
 #include "mikudancestudio/cpu_bone_types.hpp"
 #include "mikudancestudio/pmm_scene_evaluation.hpp"
+#include "mikudancestudio/playback_frame.hpp"
 #include "btBulletDynamicsCommon.h"
 #include <cstring>
 #include <cmath>
@@ -276,16 +277,9 @@ template <class Traits> struct Kernel {
         // x64 RVA 0xD08EC..0xD0925 uses mulss/divss throughout. x86
         // 0x4A31E1/0x4A31F7/0x4A322A stores both frame and scaled as floats;
         // its integer/1000 division stays on the x87 stack until the float store.
-        float frame = cursor * 30.0f;
-        const float scaled = frame * 1000.0f;
-        const int whole = static_cast<int>(scaled);
-        if (scaled - static_cast<float>(whole) >= 0.5f) {
-#if defined(_M_IX86)
-            frame = static_cast<float>(static_cast<double>(whole + 1) / 1000.0);
-#else
-            frame = static_cast<float>(whole + 1) / 1000.0f;
-#endif
-        }
+        float frame;
+        if (!NativePlaybackFrame(cursor, frame))
+            return;
 
         // ==== section 1: IK master tracks (0x4A3236) ==========================
         if (state.displayTrackActive != 0) {

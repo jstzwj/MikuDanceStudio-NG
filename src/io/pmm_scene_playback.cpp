@@ -1,4 +1,5 @@
 #include "mikudancestudio/pmm_scene_evaluation.hpp"
+#include "mikudancestudio/playback_frame.hpp"
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -265,7 +266,14 @@ bool StartPmmScenePlayback(const PmmSceneDocument& scene, PmmScenePlaybackState&
     return true;
 }
 
-bool PmmPlaybackFrame(float cursorSeconds, double& output) {
+bool PmmPlaybackFrame(float cursorSeconds, double& output, PmmPlaybackArithmetic arithmetic) {
+    if (arithmetic == PmmPlaybackArithmetic::NativeFloat) {
+        float frame;
+        if (!NativePlaybackFrame(cursorSeconds, frame))
+            return false;
+        output = frame;
+        return true;
+    }
     if (!std::isfinite(cursorSeconds) || cursorSeconds < 0.0f)
         return false;
     double frame = static_cast<double>(cursorSeconds) * 30.0;
@@ -287,7 +295,7 @@ bool AdvancePmmScenePlayback(const PmmSceneDocument& scene, float cursorSeconds,
         state.pose.accessories.size() != scene.accessories.size())
         return false;
     double frame;
-    if (!PmmPlaybackFrame(cursorSeconds, frame))
+    if (!PmmPlaybackFrame(cursorSeconds, frame, application.frameArithmetic))
         return false;
     if (frame < state.frame)
         return false;

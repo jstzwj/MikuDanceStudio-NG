@@ -342,15 +342,16 @@ struct SceneRuntime::Impl {
     static void AdvanceTracks(void* context, CpuSimulationState& state, bool substep) {
         auto& self = *static_cast<Impl*>(context);
         double evaluatedFrame;
-        if (!format::PmmPlaybackFrame(state.cursorSeconds, evaluatedFrame)) {
+        if (!format::PmmPlaybackFrame(state.cursorSeconds, evaluatedFrame,
+                                      self.trackApplication.frameArithmetic)) {
             self.failed = true;
             self.failure = "invalid-scene-playback-cursor";
             return;
         }
         self.frame = std::uint32_t(evaluatedFrame);
-        const format::PmmSceneApplication application{!substep && self.trackApplication.globals,
-                                                      !substep &&
-                                                          self.trackApplication.accessories};
+        auto application = self.trackApplication;
+        application.globals &= !substep;
+        application.accessories &= !substep;
         if (self.session && !self.session->Advance(state.cursorSeconds, application)) {
             self.failed = true;
             self.failure = "scene-track-advance-failed";
@@ -550,7 +551,8 @@ bool SceneRuntime::Reset(std::string& reason) {
 bool SceneRuntime::StartPlayback(std::string& reason, format::PmmSceneApplication application) {
     double evaluatedFrame;
     if (!impl_ || impl_->failed ||
-        !format::PmmPlaybackFrame(impl_->simulation.cursorSeconds, evaluatedFrame)) {
+        !format::PmmPlaybackFrame(impl_->simulation.cursorSeconds, evaluatedFrame,
+                                  application.frameArithmetic)) {
         reason = "scene-not-ready";
         return false;
     }
@@ -580,7 +582,7 @@ bool SceneRuntime::Advance(float target, float delta, std::string& reason,
     double evaluatedFrame;
     if (!impl_ || impl_->failed || !impl_->playing || !std::isfinite(target) ||
         !std::isfinite(delta) || delta < 0 || target < impl_->simulation.cursorSeconds ||
-        !format::PmmPlaybackFrame(target, evaluatedFrame)) {
+        !format::PmmPlaybackFrame(target, evaluatedFrame, application.frameArithmetic)) {
         reason = "invalid-scene-advance";
         return false;
     }

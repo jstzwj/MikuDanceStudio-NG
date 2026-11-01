@@ -41,6 +41,9 @@ bool EditorSession::SetCamera(const format::PmmEvaluatedCamera& camera, std::str
 bool EditorSession::AppliesGlobalTracks() const {
     return selection_.model == 255 || Document().appearance.followCamera;
 }
+format::PmmSceneApplication EditorSession::PlaybackApplication() const {
+    return {AppliesGlobalTracks(), true, format::PmmPlaybackArithmetic::NativeFloat};
+}
 bool EditorSession::RefreshTrackedView(bool reanchor, std::string& reason) {
     auto camera = runtime_->Session()->Pose().camera;
     std::array<float, 2> offsets{};

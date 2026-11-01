@@ -47,7 +47,7 @@ struct NativePlayback {
     std::array<mdl::GravityKey, 2> gravity{};
     std::array<mdl::AccessoryKey, 2> accessory{};
     mdl::AccessoryRecord object{};
-    NativePlayback() {
+    explicit NativePlayback(unsigned terminal) {
         table[44] = reinterpret_cast<void*>(&DeviceRecorder::Transform);
         table[51] = reinterpret_cast<void*>(&DeviceRecorder::Light);
         wrapper->device = reinterpret_cast<IDirect3DDevice9*>(&device);
@@ -64,7 +64,7 @@ struct NativePlayback {
         app->reservedAccessoryTrackActive[0] = 1;
         for (unsigned k = 0; k < 2; ++k) {
             camera[k].frame = light[k].frame = shadow[k].frame = gravity[k].frame =
-                accessory[k].frame = k * 30;
+                accessory[k].frame = k * terminal;
             camera[k].next = light[k].next = shadow[k].next = gravity[k].next = accessory[k].next =
                 k ? 0 : 1;
             camera[k].parentModel = -1;
@@ -188,72 +188,87 @@ int wmain(int argc, wchar_t** argv) try {
         }
         ++checkpoints;
     };
+    std::vector<float> times{0.f,      .1f,
+                             .125f,    .183353333f,
+                             .33335f,  .5f,
+                             .667123f, std::nextafter(1.f, 0.f),
+                             1.f,      std::nextafter(1.f, 2.f),
+                             1.125f,   1.25f};
+    for (unsigned tick = 1; tick < 997; ++tick)
+        times.push_back(float(tick) / 997.f);
+    std::sort(times.begin(), times.end());
     for (bool cameraMode : {false, true})
-        for (bool follow : {false, true}) {
-            NativePlayback native;
-            const auto scene = native.Scene();
-            format::PmmScenePlaybackState playback;
-            Check(format::StartPmmScenePlayback(scene, playback), "portable start");
-            native.Current(playback.pose);
-            native.app->optflag[0] = cameraMode;
-            native.app->followCameraEnabled = follow;
-            for (float seconds : {0.f, .125f, .5f, 1.f, 1.125f, 1.25f}) {
-                for (bool substep : {true, false}) {
-                    native.app->playbackCursorSeconds = seconds;
-                    original.Function<void (*)(void*, int)>(0x69A20)(native.app.get(),
-                                                                     substep ? 1 : 0);
-                    Check(format::AdvancePmmScenePlayback(
-                              scene, seconds, playback,
-                              {!substep && (cameraMode || follow), !substep}),
-                          "portable advance");
-                    const auto& p = playback.pose;
-                    for (unsigned i = 0; i < 3; ++i) {
-                        equal(p.camera.position[i], native.app->cameraPosition[i]);
-                        equal(p.lightState[i], native.app->reservedLightColor[i]);
-                        equal(p.lightState[i + 3], native.app->reservedLightDirection[i]);
-                        equal(p.accessories[0].position[i], native.object.position[i]);
-                    }
-                    equal(p.camera.rotation[0], native.app->cameraPitch);
-                    equal(p.camera.distance, native.app->cameraDistance);
-                    equal(p.camera.fov, native.app->cameraFov);
-                    equal(float(p.selfShadowMode), float(native.app->selfShadowMode));
-                    equal(p.selfShadowDistance, native.app->selfShadowDistance);
-                    equal(p.gravity.acceleration, native.app->gravityMagnitude);
-                    equal(float(p.gravity.noise), float(native.app->gravityNoise));
-                    equal(float(p.gravity.noiseEnabled), float(native.app->gravityNoiseEnabled));
-                    equal(p.gravity.direction[0], native.app->gravityX);
-                    equal(p.gravity.direction[1], native.app->gravityY);
-                    equal(p.gravity.direction[2], native.app->gravityZ);
-                    equal(p.accessories[0].scale, native.object.scale);
-                    equal(p.accessories[0].opacity, native.object.opacity);
-                    Check(playback.camera.index == native.app->cameraTrackCursor &&
-                              playback.camera.active == bool(native.app->cameraTrackActive),
-                          "camera cursor differs");
-                    Check(playback.light.index == native.app->lightTrackCursor &&
-                              playback.light.active == bool(native.app->lightTrackActive),
-                          "light cursor differs");
-                    Check(playback.selfShadow.index == native.app->shadowTrackCursor &&
-                              playback.selfShadow.active == bool(native.app->shadowTrackActive),
-                          "shadow cursor differs");
-                    Check(playback.gravity.index == native.app->gravityTrackCursor &&
-                              playback.gravity.active == bool(native.app->gravityTrackActive),
-                          "gravity cursor differs");
-                    Check(playback.accessories[0].index == native.app->accessoryTrackCursor[0] &&
-                              playback.accessories[0].active ==
-                                  bool(native.app->reservedAccessoryTrackActive[0]),
-                          "accessory cursor differs");
-                    if (seconds == 1.125f && !substep) {
-                        playback.pose.camera.position[0] = native.app->cameraPosition[0] = 123;
-                        playback.pose.lightState[0] = native.app->reservedLightColor[0] = .875f;
-                        playback.pose.gravity.acceleration = native.app->gravityMagnitude = 42;
+        for (bool follow : {false, true})
+            for (unsigned terminal : {3u, 30u}) {
+                NativePlayback native(terminal);
+                const auto scene = native.Scene();
+                format::PmmScenePlaybackState playback;
+                Check(format::StartPmmScenePlayback(scene, playback), "portable start");
+                native.Current(playback.pose);
+                native.app->optflag[0] = cameraMode;
+                native.app->followCameraEnabled = follow;
+                unsigned projectionCalls = 0, lightCalls = 0;
+                for (float seconds : times) {
+                    for (bool substep : {true, false}) {
+                        const bool globals = !substep && (cameraMode || follow);
+                        projectionCalls += globals && native.app->cameraTrackActive;
+                        lightCalls += globals && native.app->lightTrackActive;
+                        native.app->playbackCursorSeconds = seconds;
+                        original.Function<void (*)(void*, int)>(0x69A20)(native.app.get(),
+                                                                         substep ? 1 : 0);
+                        Check(format::AdvancePmmScenePlayback(
+                                  scene, seconds, playback,
+                                  {globals, !substep, format::PmmPlaybackArithmetic::NativeFloat}),
+                              "portable advance");
+                        const auto& p = playback.pose;
+                        for (unsigned i = 0; i < 3; ++i) {
+                            equal(p.camera.position[i], native.app->cameraPosition[i]);
+                            equal(p.lightState[i], native.app->reservedLightColor[i]);
+                            equal(p.lightState[i + 3], native.app->reservedLightDirection[i]);
+                            equal(p.accessories[0].position[i], native.object.position[i]);
+                        }
+                        equal(p.camera.rotation[0], native.app->cameraPitch);
+                        equal(p.camera.distance, native.app->cameraDistance);
+                        equal(p.camera.fov, native.app->cameraFov);
+                        equal(float(p.selfShadowMode), float(native.app->selfShadowMode));
+                        equal(p.selfShadowDistance, native.app->selfShadowDistance);
+                        equal(p.gravity.acceleration, native.app->gravityMagnitude);
+                        equal(float(p.gravity.noise), float(native.app->gravityNoise));
+                        equal(float(p.gravity.noiseEnabled),
+                              float(native.app->gravityNoiseEnabled));
+                        equal(p.gravity.direction[0], native.app->gravityX);
+                        equal(p.gravity.direction[1], native.app->gravityY);
+                        equal(p.gravity.direction[2], native.app->gravityZ);
+                        equal(p.accessories[0].scale, native.object.scale);
+                        equal(p.accessories[0].opacity, native.object.opacity);
+                        Check(playback.camera.index == native.app->cameraTrackCursor &&
+                                  playback.camera.active == bool(native.app->cameraTrackActive),
+                              "camera cursor differs");
+                        Check(playback.light.index == native.app->lightTrackCursor &&
+                                  playback.light.active == bool(native.app->lightTrackActive),
+                              "light cursor differs");
+                        Check(playback.selfShadow.index == native.app->shadowTrackCursor &&
+                                  playback.selfShadow.active == bool(native.app->shadowTrackActive),
+                              "shadow cursor differs");
+                        Check(playback.gravity.index == native.app->gravityTrackCursor &&
+                                  playback.gravity.active == bool(native.app->gravityTrackActive),
+                              "gravity cursor differs");
+                        Check(playback.accessories[0].index ==
+                                      native.app->accessoryTrackCursor[0] &&
+                                  playback.accessories[0].active ==
+                                      bool(native.app->reservedAccessoryTrackActive[0]),
+                              "accessory cursor differs");
+                        if (seconds == 1.125f && !substep) {
+                            playback.pose.camera.position[0] = native.app->cameraPosition[0] = 123;
+                            playback.pose.lightState[0] = native.app->reservedLightColor[0] = .875f;
+                            playback.pose.gravity.acceleration = native.app->gravityMagnitude = 42;
+                        }
                     }
                 }
+                Check(native.device.projections == projectionCalls,
+                      "native projection gate differs");
+                Check(native.device.lights == lightCalls, "native light gate differs");
             }
-            Check(native.device.projections == (cameraMode || follow ? 5u : 0u),
-                  "native projection gate differs");
-            Check(native.device.lights == (cameraMode || follow ? 5u : 0u),
-                  "native light gate differs");
-        }
     std::printf(
         "Original x64 playback application: %u value checkpoints, maximum absolute error %.9g, recorded COM only, no windows\n",
         checkpoints, maximum);

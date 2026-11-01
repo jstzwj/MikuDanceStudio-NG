@@ -497,3 +497,31 @@ and Vulkan, including resize, seek, device replacement, window recreation and
 unload. The application built without being launched. Fractional playback-frame
 arithmetic, mode-switch initialization and the broader UI/output gates remain
 open; this batch does not close P4.
+
+[Run 41299152285](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41299152285)
+at `67b6b9a` passed the 17-test track-application batch on Windows, macOS and Linux.
+
+The editor now explicitly selects native float playback-frame arithmetic. A
+shared checked kernel preserves the original multiplication stores and rounded
+quotient for both live models and global/accessory tracks. At `0.1f` seconds the
+native product is exactly frame 3; a double intermediate could otherwise consume
+the following key or exhaust a terminal cursor early. The editor's fixed-step
+image-sequence export selects the same native rule. Standalone scene consumers
+retain their previously accepted double default through a named arithmetic
+policy. Invalid or out-of-range cursors leave output unchanged.
+
+The playback regression checks frozen original instruction-stage bit patterns,
+the frame-3 terminal boundary, and agreement between editor playback and model
+snapshot frame metadata. The original executable oracle now covers terminal
+keys at frames 3 and 30, 997-step fractional sampling, adjacent floats at one
+second, application gates and physics substeps. All 403,200 value checkpoints
+matched with maximum absolute error zero; cursors and recorded COM call gates
+also matched. It still invokes only the original global/accessory kernel,
+without creating a device or window.
+
+All 17 local P4 regressions, the 99 scene-runtime checkpoints and never-shown
+DX11/DX12/Vulkan presentation passed after the arithmetic change. The Windows
+compatibility core rebuilt and its model playback/physics regression passed.
+The export path then rebuilt and passed strict repeated image output and
+cancellation. The application built without being launched. Mode-switch
+initialization and the remaining UI/output gates are still open.

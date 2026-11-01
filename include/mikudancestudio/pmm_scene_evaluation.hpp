@@ -66,8 +66,13 @@ struct PmmScenePlaybackState {
 // Evaluation and application are distinct: model editing can park global
 // tracks, while playback still applies accessory tracks. Defaults retain the
 // standalone scene/export path. Skipped groups retain both pose and cursors.
+enum class PmmPlaybackArithmetic {
+    LegacyDouble,
+    NativeFloat
+};
 struct PmmSceneApplication {
     bool globals = true, accessories = true;
+    PmmPlaybackArithmetic frameArithmetic = PmmPlaybackArithmetic::LegacyDouble;
 };
 
 // Starts from the frame-0 keys. Advance consumes the same float-seconds
@@ -76,9 +81,11 @@ struct PmmSceneApplication {
 // runtime bone-type gates, or external-parent transforms.
 bool StartPmmScenePlayback(const PmmSceneDocument& scene, PmmScenePlaybackState& state,
                            PmmSceneApplication = {});
-// Legacy milliframe rounding and checked cursor range, shared with model
-// snapshot metadata. Failure leaves output unchanged.
-bool PmmPlaybackFrame(float cursorSeconds, double& output);
+// Checked playback-frame calculation, also used for snapshot metadata. NativeFloat
+// shares the live model kernel's float stores; the default preserves the existing
+// standalone evaluator's double arithmetic. Failure leaves output unchanged.
+bool PmmPlaybackFrame(float cursorSeconds, double& output,
+                      PmmPlaybackArithmetic = PmmPlaybackArithmetic::LegacyDouble);
 bool AdvancePmmScenePlayback(const PmmSceneDocument& scene, float cursorSeconds,
                              PmmScenePlaybackState& state, PmmSceneApplication = {});
 bool EvaluatePmmAccessoryTrack(const PmmKeyTrack<PmmAccessoryKey>& track, std::uint8_t slot,

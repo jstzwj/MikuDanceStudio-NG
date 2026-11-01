@@ -42,7 +42,9 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
     for (const auto& a : editor.Assets().accessories)
         if (!scene.AttachAccessory(a.first, a.second, reason))
             return false;
-    if (!scene.Seek(0, reason) || !scene.StartPlayback(reason))
+    const format::PmmSceneApplication application{true, true,
+                                                  format::PmmPlaybackArithmetic::NativeFloat};
+    if (!scene.Seek(0, reason) || !scene.StartPlayback(reason, application))
         return false;
     auto backend = rhi::CreateOffscreenBackendDevice(width, height, options);
     if (!backend) {
@@ -68,7 +70,7 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
             reason = "export-cancelled";
             return false;
         }
-        if (index && !scene.Advance(float(double(index) / 30), 1.f / 30, reason))
+        if (index && !scene.Advance(float(double(index) / 30), 1.f / 30, reason, application))
             return false;
         if (index < first && !scene.Session()->Document().view.captureMode &&
             !producer.HasMaterialHistory())

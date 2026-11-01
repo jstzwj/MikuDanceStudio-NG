@@ -1,7 +1,9 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/pmm_edit.hpp"
 #include <cmath>
+#include <cstring>
 #include <iostream>
+#include <limits>
 using namespace mikudancestudio;
 std::string reason;
 #define CHECK(x)                                                                                   \
@@ -16,6 +18,48 @@ bool Near(float a, float b) {
 }
 int main(int argc, char** argv) {
     CHECK(argc == 2);
+    // Frozen instruction-stage results from the original x64 model kernel;
+    // the globals and model paths must preserve the same binary32 boundaries.
+    for (const auto& sample : {std::pair<std::uint32_t, std::uint32_t>{0x3DCCCCCD, 0x40400000},
+                               {0x3D088889, 0x3F800000},
+                               {0x3EAAACDA, 0x41200419},
+                               {0x3F9E0419, 0x421423D7}}) {
+        float seconds;
+        std::memcpy(&seconds, &sample.first, sizeof seconds);
+        double frame;
+        CHECK(format::PmmPlaybackFrame(seconds, frame, format::PmmPlaybackArithmetic::NativeFloat));
+        const float stored = float(frame);
+        std::uint32_t bits;
+        std::memcpy(&bits, &stored, sizeof bits);
+        CHECK(bits == sample.second && frame == double(stored));
+    }
+    double unchanged = 123;
+    for (float invalid : {-1.f, std::numeric_limits<float>::infinity(),
+                          std::numeric_limits<float>::quiet_NaN(), 1e30f}) {
+        CHECK(!format::PmmPlaybackFrame(invalid, unchanged,
+                                        format::PmmPlaybackArithmetic::NativeFloat));
+        CHECK(unchanged == 123);
+    }
+    editor::EditorSession boundary;
+    CHECK(boundary.Edit(
+        "terminal-frame-three",
+        [](auto& d, auto&) {
+            auto start = d.cameraKeys.dense[0];
+            auto end = start;
+            end.frame = 3;
+            end.eye[0] = 7;
+            d.timeline.playStopFrame = 100;
+            return format::BuildPmmTrack<format::PmmCameraKey>({{start, end}}, d.cameraKeys);
+        },
+        reason));
+    CHECK(boundary.Play(reason));
+    CHECK(boundary.Advance(.1, reason));
+    CHECK(boundary.Runtime().Session()->Playback().frame == 3);
+    CHECK(boundary.Runtime().Session()->Playback().camera.active);
+    CHECK(boundary.Document().cameraState[0] == 7);
+    CHECK(boundary.Advance(.0001, reason));
+    CHECK(!boundary.Runtime().Session()->Playback().camera.active);
+    boundary.Pause();
     editor::EditorSession session;
     const auto root = std::filesystem::absolute(argv[1]);
     CHECK(session.ImportModel(root / "pose.pmd", reason));
@@ -101,6 +145,8 @@ int main(int argc, char** argv) {
     CHECK(session.Document().accessories[0].state.position[0] == 0 &&
           Near(session.Document().accessories[0].state.scale, 2.2f));
     CHECK(session.Runtime().Counters().frames == frames + 1);
+    CHECK(session.Runtime().Session()->Playback().frame == 18);
+    CHECK(session.Runtime().Snapshot(0)->frame == 18);
     session.Pause();
     CHECK(session.SelectModel(255, reason));
     CHECK(session.Seek(15, reason));

@@ -1037,7 +1037,7 @@ bool EditorSession::Play(std::string& reason) {
         return false;
     auto history = FrameHistory();
     const bool globals = AppliesGlobalTracks();
-    if (!runtime_->StartPlayback(reason, {globals, true}))
+    if (!runtime_->StartPlayback(reason, PlaybackApplication()))
         return false;
     if (globals && !RefreshTrackedView(false, reason))
         return false;
@@ -1064,7 +1064,7 @@ bool EditorSession::Advance(double delta, std::string& reason) {
     if (cursor * 30 > settings.playStopFrame) {
         if (settings.playbackLoop) {
             if (!Seek(std::uint32_t(settings.playStartFrame), reason) ||
-                !runtime_->StartPlayback(reason, {AppliesGlobalTracks(), true}))
+                !runtime_->StartPlayback(reason, PlaybackApplication()))
                 return false;
             if (AppliesGlobalTracks() && !RefreshTrackedView(false, reason))
                 return false;
@@ -1079,7 +1079,7 @@ bool EditorSession::Advance(double delta, std::string& reason) {
     }
     const bool globals = AppliesGlobalTracks();
     const bool cameraActive = runtime_->Session()->Playback().camera.active;
-    if (!runtime_->Advance(float(cursor), float(delta), reason, {globals, true}))
+    if (!runtime_->Advance(float(cursor), float(delta), reason, PlaybackApplication()))
         return false;
     if (globals && cameraActive && !RefreshTrackedView(false, reason))
         return false;
