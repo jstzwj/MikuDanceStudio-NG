@@ -1,4 +1,5 @@
 #include "mikudancestudio/render_model_geometry.hpp"
+#include "allocation_counter.hpp"
 #include <cstdio>
 #include <cstring>
 using namespace mikudancestudio;
@@ -44,6 +45,10 @@ int main() {
     const unsigned char rgba[] = {0x12, 0x34, 0x56, 0x7f};
     CHECK(!std::memcmp(saved.edge.bytes.data() + 12, rgba, 4));
     CHECK(geometry.Publish() && geometry.Snapshot().main.key.version == 1);
+    allocation_counter::Begin();
+    const bool unchanged = geometry.Publish();
+    allocation_counter::End();
+    CHECK(unchanged && allocation_counter::count == 0);
     vertices[0].position[0] += .125f;
     CHECK(geometry.Publish() && geometry.Snapshot().main.key.version == 2 &&
           saved.main.key.version == 1);

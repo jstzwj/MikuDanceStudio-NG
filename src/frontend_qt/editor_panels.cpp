@@ -1,4 +1,5 @@
 #include "editor_window.hpp"
+#include "combo_items.hpp"
 #include "mikudancestudio/text_encoding.hpp"
 #include <QAbstractButton>
 #include <QComboBox>
@@ -19,10 +20,10 @@ constexpr double kPi = 3.141592025756836;
 void EditorWindow::RefreshScopes() {
     using namespace editor;
     auto* combo = static_cast<QComboBox*>(Control(kRegisterScopeCombo));
-    combo->clear();
+    std::vector<std::pair<QString, QVariant>> items;
     scopes_.clear();
     const auto add = [&](const QString& label, KeyScope scope) {
-        combo->addItem(label);
+        items.emplace_back(label, QVariant{});
         scopes_.push_back(scope);
     };
     const auto kind = [&](const char* id, KeyScopeKind scope) {
@@ -75,6 +76,10 @@ void EditorWindow::RefreshScopes() {
                 for (const auto& child : group.entries)
                     entry(false, child.index);
     }
+    SyncComboItems(combo, [&](auto append) {
+        for (const auto& item : items)
+            append(item.first, item.second);
+    });
     const auto [selection, inserted] = scopeSelections_.emplace(model, model == 255 ? 0 : 3);
     combo->setCurrentIndex(std::clamp(selection->second, 0, std::max(0, combo->count() - 1)));
 }
@@ -124,10 +129,11 @@ void EditorWindow::RefreshPanels() {
         if (m.slot == session_.Selected().model) {
             auto* c = static_cast<QComboBox*>(Control(kIkChainCombo));
             const auto old = c->currentData();
-            c->clear();
             const auto resource = session_.Runtime().Resource(m.slot);
-            for (std::size_t i = 0; i < resource->IkBoneIndices().size(); ++i)
-                c->addItem(Label(m.boneNames.at(resource->IkBoneIndices()[i])), unsigned(i));
+            SyncComboItems(c, [&](auto add) {
+                for (std::size_t i = 0; i < resource->IkBoneIndices().size(); ++i)
+                    add(Label(m.boneNames.at(resource->IkBoneIndices()[i])), unsigned(i));
+            });
             c->setCurrentIndex(std::max(0, c->findData(old)));
             const auto ik = c->currentData().toUInt();
             check(kIkOnRadio, !m.ikPose.empty() && m.ikPose.at(ik));
@@ -137,19 +143,21 @@ void EditorWindow::RefreshPanels() {
         }
     const auto parentModels = [&](int id, int slot, const char* none) {
         auto* c = static_cast<QComboBox*>(Control(id));
-        c->clear();
-        c->addItem(language_.Text(none), -1);
-        for (const auto& m : d.models)
-            c->addItem(Label(m.name), int(m.slot));
+        SyncComboItems(c, [&](auto add) {
+            add(language_.Text(none), -1);
+            for (const auto& m : d.models)
+                add(Label(m.name), int(m.slot));
+        });
         c->setCurrentIndex(c->findData(slot));
     };
     const auto parentBones = [&](int id, int slot, int bone) {
         auto* c = static_cast<QComboBox*>(Control(id));
-        c->clear();
-        for (const auto& m : d.models)
-            if (m.slot == slot)
-                for (std::size_t i = 0; i < m.boneNames.size(); ++i)
-                    c->addItem(Label(m.boneNames[i]), int(i));
+        SyncComboItems(c, [&](auto add) {
+            for (const auto& m : d.models)
+                if (m.slot == slot)
+                    for (std::size_t i = 0; i < m.boneNames.size(); ++i)
+                        add(Label(m.boneNames[i]), int(i));
+        });
         c->setCurrentIndex(c->findData(bone));
         c->setEnabled(c->count() != 0);
     };

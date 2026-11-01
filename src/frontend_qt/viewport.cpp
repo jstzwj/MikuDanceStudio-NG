@@ -6,6 +6,7 @@
 #include <QGuiApplication>
 #include <QCursor>
 #include <cmath>
+#include <chrono>
 namespace mikudancestudio::qt {
 namespace {
 render::SceneRenderSources Sources(const editor::EditorAssets& assets) {
@@ -53,10 +54,6 @@ bool Viewport::Reset(std::string& reason) {
 bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
     if ((!isExposed() && !hiddenAcceptance) || width() < 1 || height() < 1)
         return true;
-    if (!session_.PrepareView(reason))
-        return false;
-    if (!overlay_.Load(builtins_, reason))
-        return false;
     const auto w = unsigned(std::max(1, qRound(width() * devicePixelRatio())));
     const auto h = unsigned(std::max(1, qRound(height() * devicePixelRatio())));
     if (controller_.State() == rhi::PreviewState::Closed) {
@@ -78,6 +75,37 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         reason = controller_.Reason();
         return false;
     }
+    if (!PrepareFrame(w, h, reason))
+        return false;
+    const auto submissions = Submissions();
+    if (!controller_.Draw(cachedFrame_)) {
+        frameCached_ = false;
+        reason = controller_.Reason();
+        return false;
+    }
+    if (Submissions() > submissions && producer_.Commit())
+        frameCached_ = false;
+    reason.clear();
+    return true;
+}
+bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
+    using Clock = std::chrono::steady_clock;
+    const auto now = [&] { return profileFrame_ ? Clock::now() : Clock::time_point{}; };
+    auto start = now();
+    const auto elapsed = [&] {
+        const auto end = now();
+        const double ms = std::chrono::duration<double, std::milli>(end - start).count();
+        start = end;
+        return ms;
+    };
+    cpuTimings_ = {};
+    if (!w || !h || w > 4096 || h > 4096) {
+        reason = "scene_render_settings";
+        return false;
+    }
+    if (!session_.PrepareView(reason) || !overlay_.Load(builtins_, reason))
+        return false;
+    cpuTimings_.view = elapsed();
     const auto& assets = session_.Assets();
     if (!loadedAssets_ || assets.models != loaded_.models ||
         assets.accessories != loaded_.accessories || assets.modelPaths != loaded_.modelPaths ||
@@ -88,6 +116,7 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         loadedAssets_ = true;
         frameCached_ = false;
     }
+    cpuTimings_.assets = elapsed();
     render::SceneRenderSettings settings;
     settings.width = w;
     settings.height = h;
@@ -104,6 +133,7 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         frameCached_ = false;
         if (!producer_.Build(session_.Runtime(), settings, cachedFrame_, reason))
             return false;
+        cpuTimings_.scene = elapsed();
         render::ViewportTools tools;
         tools.coordinateSystem = int(session_.CoordinateSystem());
         tools.operation = toolOperation_;
@@ -114,6 +144,7 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         if (!overlay_.Append(session_.Runtime(), settings, session_.Selected().bones,
                              session_.Playing(), cachedFrame_, reason, &tools))
             return false;
+        cpuTimings_.overlay = elapsed();
         ++frameBuilds_;
         cachedRevision_ = revision;
         cachedUpdates_ = updates;
@@ -128,14 +159,6 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         cachedPlaying_ = session_.Playing();
         frameCached_ = !history;
     }
-    const auto submissions = Submissions();
-    if (!controller_.Draw(cachedFrame_)) {
-        frameCached_ = false;
-        reason = controller_.Reason();
-        return false;
-    }
-    if (Submissions() > submissions && producer_.Commit())
-        frameCached_ = false;
     reason.clear();
     return true;
 }

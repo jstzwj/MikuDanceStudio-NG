@@ -39,6 +39,10 @@ private:
     editor::EditorSession& session_;
     Language& language_;
     std::vector<Row> rows_;
+    std::weak_ptr<const runtime::ModelResource> rowsResource_;
+    std::uint8_t rowsModel_ = 255;
+    QString rowsLanguage_;
+    std::vector<std::uint8_t> rowsGroupFlags_;
     int frameScroll_ = 0, rowScroll_ = 0;
     QPoint press_, pointer_;
     bool dragging_ = false;

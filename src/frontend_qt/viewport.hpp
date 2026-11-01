@@ -9,11 +9,20 @@
 #include <functional>
 namespace mikudancestudio::qt {
 std::shared_ptr<const rhi::VulkanSurfaceSource> QtSurface(QWindow&, std::string&);
+struct FrameCpuTimings {
+    double view = 0, assets = 0, scene = 0, overlay = 0;
+};
 class Viewport final : public QWindow {
 public:
     explicit Viewport(editor::EditorSession&, const std::filesystem::path& assets);
     ~Viewport() override;
     bool Render(std::string&, bool hiddenAcceptance = false);
+    // Physical-pixel CPU preparation, also usable before a native surface
+    // exists. This never creates a device, submits work or advances history.
+    bool PrepareFrame(unsigned width, unsigned height, std::string&);
+    const rhi::RenderFrame& PreparedFrame() const { return cachedFrame_; }
+    void SetFrameProfiling(bool enabled) { profileFrame_ = enabled; }
+    const FrameCpuTimings& CpuTimings() const { return cpuTimings_; }
     void SetOptions(const rhi::BackendOptions&);
     const rhi::BackendOptions& Options() const { return options_; }
     bool Reset(std::string&);
@@ -55,6 +64,8 @@ private:
     int ActiveBone() const;
     int ToolAt(QPoint);
     bool frameCached_ = false;
+    bool profileFrame_ = false;
+    FrameCpuTimings cpuTimings_;
     bool loadedAssets_ = false, pressed_ = false;
     int boneDragMode_ = 0;
     unsigned sceneDragMode_ = 0;

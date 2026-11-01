@@ -15,8 +15,18 @@ Timeline::Timeline(EditorSession& s, Language& l, const std::filesystem::path& a
     setMouseTracking(true);
 }
 void Timeline::Refresh() {
-    rows_.clear();
     const auto model = session_.Selected().model;
+    for (const auto& m : session_.Document().models)
+        if (m.slot == model && model != 255) {
+            const auto resource = session_.Runtime().Resource(model);
+            if (resource && rowsModel_ == model && rowsResource_.lock() == resource &&
+                rowsLanguage_ == language_.Code() && rowsGroupFlags_ == m.selection.groupFlags) {
+                update();
+                return;
+            }
+        }
+    rowsResource_.reset();
+    rows_.clear();
     if (model == 255) {
         for (auto pair : {std::pair{Track::Camera, "camera"},
                           {Track::Light, "light"},
@@ -37,6 +47,10 @@ void Timeline::Refresh() {
                 const auto resource = session_.Runtime().Resource(model);
                 if (!resource)
                     continue;
+                rowsResource_ = resource;
+                rowsModel_ = model;
+                rowsLanguage_ = language_.Code();
+                rowsGroupFlags_ = m.selection.groupFlags;
                 const auto name = [&](const runtime::ModelDisplayEntry& entry) {
                     const auto& names = entry.morph ? resource->Document().morphs[entry.index].names
                                                     : resource->Document().bones[entry.index].names;

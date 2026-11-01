@@ -7,6 +7,36 @@
 
 static bool SnapshotSemantics() {
     using mikudancestudio::rhi::SnapshotBytes;
+    std::uint8_t raw[]{1, 2, 3};
+    auto owned = SnapshotBytes::CopySealed(raw, sizeof raw);
+    auto retained = owned;
+    raw[0] = 7;
+    if (!owned.Sealed() || std::as_const(owned)[0] != 1 ||
+        std::as_const(owned).data() != std::as_const(retained).data())
+        return false;
+    owned[1] = 9;
+    if (std::as_const(retained)[1] != 2 || owned.Sealed())
+        return false;
+    SnapshotBytes left{1, 2, 3}, right{1, 2, 3};
+    left.Seal();
+    right.Seal();
+    if (std::as_const(left).data() == std::as_const(right).data() || left != right || left != right)
+        return false;
+    right[1] = 8; // A cached peer can become writable without another strong owner.
+    if (left == right)
+        return false;
+    right.Seal();
+    if (left == right)
+        return false;
+    left[1] = 8;
+    left.Seal();
+    if (left != right || right != left)
+        return false;
+    const auto held = right;
+    right[0] = 9; // Detachment must also invalidate equality in both directions.
+    right.Seal();
+    if (left == right || right == left || left != held)
+        return false;
     SnapshotBytes source{1, 2, 3, 4};
     if (source.Fingerprint() != 0x8010d29826a519fbull)
         return false;

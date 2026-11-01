@@ -1,4 +1,5 @@
 #include "editor_window.hpp"
+#include "combo_items.hpp"
 #include "export.hpp"
 #include "mikudancestudio/mmd_control_specs.hpp"
 #include "mikudancestudio/text_encoding.hpp"
@@ -522,10 +523,11 @@ void EditorWindow::Refresh() {
     if (auto* b = qobject_cast<QAbstractButton*>(Control(kPlayButton)))
         b->setText(language_.Text(session_.Playing() ? "stop" : "control.408"));
     auto* models = qobject_cast<QComboBox*>(Control(kMainComboModel));
-    models->clear();
-    models->addItem(language_.Text("camera_mode"), 255);
-    for (const auto& m : doc.models)
-        models->addItem(Name(m.name), m.slot);
+    SyncComboItems(models, [&](auto add) {
+        add(language_.Text("camera_mode"), 255);
+        for (const auto& m : doc.models)
+            add(Name(m.name), m.slot);
+    });
     models->setCurrentIndex(models->findData(session_.Selected().model));
     const auto camera = session_.Runtime().Session()->Pose().camera;
     edit(kFovEdit, camera.fov);
@@ -565,11 +567,12 @@ void EditorWindow::Refresh() {
                 const int sliders[]{kMorphSlider0, kMorphSlider1, kMorphSlider2, kMorphSlider3};
                 auto* c = qobject_cast<QComboBox*>(Control(combos[panel]));
                 const auto old = c->currentData();
-                c->clear();
                 const auto resource = session_.Runtime().Resource(m.slot);
-                for (std::size_t i = 0; i < m.morphNames.size(); ++i)
-                    if (resource->Document().morphs[i].header.panel == panel + 1)
-                        c->addItem(Name(m.morphNames[i]), unsigned(i));
+                SyncComboItems(c, [&](auto add) {
+                    for (std::size_t i = 0; i < m.morphNames.size(); ++i)
+                        if (resource->Document().morphs[i].header.panel == panel + 1)
+                            add(Name(m.morphNames[i]), unsigned(i));
+                });
                 int index = c->findData(old);
                 c->setCurrentIndex(index < 0 ? 0 : index);
                 const auto morph = c->currentData().toUInt();
@@ -595,11 +598,12 @@ void EditorWindow::Refresh() {
     for (unsigned i = 0; i < 4; ++i)
         actions_[QString("background.capture.%1").arg(i)]->setChecked(doc.view.captureMode == i);
     auto* accessories = qobject_cast<QComboBox*>(Control(kAccessoryCombo));
-    accessories->clear();
-    for (const auto& a : doc.accessories) {
-        std::vector<char> name(a.name.begin(), std::find(a.name.begin(), a.name.end(), 0));
-        accessories->addItem(Name(name), a.slot);
-    }
+    SyncComboItems(accessories, [&](auto add) {
+        for (const auto& a : doc.accessories) {
+            std::vector<char> name(a.name.begin(), std::find(a.name.begin(), a.name.end(), 0));
+            add(Name(name), a.slot);
+        }
+    });
     if (session_.Selected().accessory == 255 && !doc.accessories.empty())
         session_.Selected().accessory = doc.accessories[0].slot;
     accessories->setCurrentIndex(accessories->findData(session_.Selected().accessory));
@@ -609,10 +613,11 @@ void EditorWindow::Refresh() {
     auto* curves = static_cast<QComboBox*>(Control(kInterpCurveCombo));
     const unsigned curveCount = session_.Selected().model == 255 ? 6 : 4;
     const int curveChannel = curves->count() == int(curveCount + 1) ? curves->currentIndex() : 3;
-    curves->clear();
-    for (unsigned i = 0; i < curveCount; ++i)
-        curves->addItem(language_.Text(QString("interpolation.%1").arg(i)));
-    curves->addItem(language_.Text("interpolation.all"));
+    SyncComboItems(curves, [&](auto add) {
+        for (unsigned i = 0; i < curveCount; ++i)
+            add(language_.Text(QString("interpolation.%1").arg(i)));
+        add(language_.Text("interpolation.all"));
+    });
     curves->setCurrentIndex(curveChannel);
     interpolation_->SetChannel(unsigned(curveChannel));
     const auto selectedCurves = session_.Interpolation(unsigned(curveChannel));

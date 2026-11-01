@@ -35,6 +35,7 @@ private:
                      std::vector<ExtendedModelVertex<4>>>;
     MainStorage main;
     std::vector<ModelEdgeVertex> edges;
+    std::vector<std::uint8_t> outlineBytes;
     ModelGeometrySnapshot snapshot;
 };
 

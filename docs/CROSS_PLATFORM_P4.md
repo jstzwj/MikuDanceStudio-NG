@@ -68,7 +68,7 @@ behavior and all frame-line operations require further implementation/comparison
 | Three-platform open/edit/play/save/reopen/export | Initial generated workflow passed; complete C1 workflow coverage pending |
 | MMD v9.32 independent geometry, behavior and output comparison | Pending |
 | Input, IME, DPI, font metrics and lifecycle acceptance | Native surface lifecycle passed on all platforms; full input/IME/DPI/font acceptance pending |
-| CPU frame-production performance | Pending |
+| CPU frame-production performance | Offscreen editor preparation benchmark and local Sour Miku optimization implemented; three-platform performance gate and combined GPU/frame budget pending |
 
 All local UI testing uses Qt `offscreen` or windows that are never shown. Actual
 window presentation/interaction uses isolated runners. Language changes must not
@@ -865,3 +865,50 @@ at `0360a5c`
 ([run 41316951102](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41316951102)).
 These tests cover supplied Qt canvas dimensions, not exposed window-manager
 resize events, full native widget metrics or the remaining P4 exit gates.
+
+The sidebar batch at `98b0e9d` passed the Windows/Linux/macOS editor matrix
+([run 41318415150](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41318415150)).
+
+## Editor CPU frame preparation
+
+`Viewport::PrepareFrame` is the production CPU path used by presentation, and
+can also run without a native surface or GPU device. Optional timings separate
+view setup, asset loading, scene construction and editor overlays. A new
+`qt_editor_performance` gate drives `EditorWindow::Tick`/`Refresh` and this same
+path, measuring a public 8190-vertex PMX through static, navigation and animation
+cases (10 warmup and 90 measured frames each). It asserts exactly one scene
+update per animation tick, none on navigation/static frames, cached static frames
+with zero measured C++ allocations, no GPU submissions, retained immutable frame
+bytes and unload/resize validity. Shared-runner CPU budgets are fixed at P95
+100 ms / maximum 500 ms; the local profile uses 33.333334 ms / 100 ms. Reports
+separate UI/update, scene, overlay, aggregate CPU time and C++ allocations; Qt's
+own allocator, driver allocations, painting, GPU time and presentation are not
+included. This is not a complete displayed-frame or physical GPU qualification.
+
+The initial local Sour Miku run (139692 vertices, Intel Core i7-10700, Windows
+x64 MSVC Release / Qt 6.8.3) failed the unchanged local budget: navigation P95
+83.21 ms. Profiling identified two avoidable costs. Qt rebuilt unchanged combo
+models every refresh; it now synchronizes changed items and retains unchanged
+timeline rows. Independent decodes of shared material textures repeatedly
+compared full pixel arrays; sealed byte storage now memoizes successful **exact**
+comparisons using bounded weak references. Mutation/resealing invalidates the
+entry, and mutable byte buffers retain ordinary exact comparison. Hash equality
+does not replace byte equality. Geometry publication reuses outline staging,
+avoids allocation for unchanged bytes and copies changed bytes once into owned
+immutable storage. These changes preserve resource IDs and version rules.
+
+Local validation passed all **23 P4 tests**, exact image/snapshot, material,
+geometry and scene-renderer regressions, the touched Win32 RHI tests, offscreen
+Qt scales 1/1.5/2, and never-shown DX11/DX12/Vulkan presentation and recovery.
+The performance/geometry batch still awaits its own three-platform CI evidence;
+the full menu/dialog, font/IME and independent C1 output gates remain open.
+
+After the final geometry change, the same local Sour Miku workload passed the
+original CPU budget: navigation P95 **12.15 ms**, animation P95 **31.12 ms**;
+static preparation had zero measured allocations. Navigation allocated bytes
+fell from 18.31 MB to 11.66 MB per frame. The generated workload measured 2.48 ms
+navigation / 3.32 ms animation P95. Values and precise scope are retained in
+[the CPU evidence record](evidence/cross-platform-p4-cpu.json). The compatibility
+Windows executable also rebuilt successfully. These CPU-only values are not FPS
+claims; cold texture loading and combined GPU/presentation budgets remain
+separate measurements.

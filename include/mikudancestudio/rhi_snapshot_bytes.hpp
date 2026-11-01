@@ -24,6 +24,7 @@ class SnapshotBytes {
         mutable std::uint64_t fingerprint = 0;
         mutable bool hasFingerprint = false;
         mutable std::map<std::tuple<std::size_t, std::size_t, unsigned>, std::uint32_t> indexMaxima;
+        mutable std::vector<std::weak_ptr<Storage>> equalBytes;
         Storage(Vector b, bool s) : bytes(std::move(b)), sealed(s) {}
     };
     std::shared_ptr<Storage> storage;
@@ -37,6 +38,7 @@ class SnapshotBytes {
         else if (storage.use_count() != 1)
             storage = std::make_shared<Storage>(storage->bytes, false);
         storage->indexMaxima.clear();
+        storage->equalBytes.clear();
         storage->hasFingerprint = false;
         storage->sealed = false;
         return storage->bytes;
@@ -54,6 +56,16 @@ public:
     SnapshotBytes(SnapshotBytes&&) noexcept = default;
     SnapshotBytes(Vector b) : storage(std::make_shared<Storage>(std::move(b), false)) {}
     SnapshotBytes(std::initializer_list<value_type> b) : SnapshotBytes(Vector(b)) {}
+    // Directly publish one owned copy. No mutable alias into this allocation
+    // has ever escaped, so Seal's defensive second copy is unnecessary.
+    static SnapshotBytes CopySealed(const void* data, std::size_t size) {
+        SnapshotBytes result;
+        Vector bytes(size);
+        if (size)
+            std::memcpy(bytes.data(), data, size);
+        result.storage = std::make_shared<Storage>(std::move(bytes), true);
+        return result;
+    }
     explicit SnapshotBytes(std::size_t n, value_type value = 0) : SnapshotBytes(Vector(n, value)) {}
     template <class Iter, std::enable_if_t<!std::is_integral_v<Iter>, int> = 0>
     SnapshotBytes(Iter first, Iter last) : SnapshotBytes(Vector(first, last)) {}
@@ -163,7 +175,31 @@ public:
     operator const Vector&() const { return Read(); }
     operator Vector&() { return Write(); }
     friend bool operator==(const SnapshotBytes& a, const SnapshotBytes& b) {
-        return a.storage == b.storage || a.Read() == b.Read();
+        if (a.storage == b.storage)
+            return true;
+        if (!a.Sealed() || !b.Sealed())
+            return a.Read() == b.Read();
+        // Independent decodes of one file can have distinct immutable storage.
+        // Memoize an exact comparison, never a hash-equivalence assumption.
+        // Weak references do not keep old scene/texture bytes alive. Mutation
+        // clears this side; resealing the peer creates a new storage identity.
+        std::lock_guard<std::mutex> lock(a.storage->mutex);
+        auto& equal = a.storage->equalBytes;
+        for (auto i = equal.begin(); i != equal.end();) {
+            const auto peer = i->lock();
+            if (!peer)
+                i = equal.erase(i);
+            else if (peer == b.storage)
+                return true;
+            else
+                ++i;
+        }
+        if (a.Read() != b.Read())
+            return false;
+        if (equal.size() == 64)
+            equal.erase(equal.begin());
+        equal.emplace_back(b.storage);
+        return true;
     }
     friend bool operator!=(const SnapshotBytes& a, const SnapshotBytes& b) { return !(a == b); }
     friend bool operator==(const SnapshotBytes& a, const Vector& b) { return a.Read() == b; }

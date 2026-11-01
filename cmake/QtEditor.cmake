@@ -92,6 +92,12 @@ function(mds_add_qt_editor)
         add_test(NAME qt_editor COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"
             --passes $<TARGET_FILE:qt_editor_test> --assets "${root}/res/assets")
         set_tests_properties(qt_editor PROPERTIES LABELS "p4;offscreen;qt" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+        qt_add_executable(qt_editor_performance_test "${root}/tests/qt_editor_performance_test.cpp")
+        target_link_libraries(qt_editor_performance_test PRIVATE mikudancestudio_frontend_qt)
+        add_test(NAME qt_editor_performance COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_qt_editor_performance.py"
+            --test $<TARGET_FILE:qt_editor_performance_test> --assets "${root}/res/assets"
+            --report "${CMAKE_BINARY_DIR}/editor-frame-performance.json")
+        set_tests_properties(qt_editor_performance PROPERTIES LABELS "p4;offscreen;qt;performance" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_editor_render_test "${root}/tests/qt_editor_render_test.cpp")
         target_link_libraries(qt_editor_render_test PRIVATE mikudancestudio_frontend_qt)
         add_test(NAME qt_editor_render COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"

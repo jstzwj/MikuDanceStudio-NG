@@ -1,0 +1,121 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "platform": "Windows x64",
+  "cpu": "Intel Core i7-10700, 8 cores / 16 logical processors",
+  "toolchain": "MSVC 2022 Release, Qt 6.8.3",
+  "desktop": "Qt offscreen; no native surface, GPU device or audio output",
+  "scope": "EditorWindow Tick/Refresh and production Viewport PrepareFrame; no painting, GPU or presentation time; C++ allocations exclude Qt/driver allocators",
+  "baseline": {
+    "source": "98b0e9d plus benchmark instrumentation, before optimization",
+    "external_model": "Sour Miku (external, not distributed)",
+    "vertices": 139692,
+    "navigation_total_p95_ms": 83.2118,
+    "navigation_total_max_ms": 114.7289,
+    "navigation_update_p95_ms": 23.582,
+    "navigation_prepare_p95_ms": 62.5734,
+    "navigation_cpp_allocations_p95": 2782,
+    "navigation_cpp_bytes_p95": 18309020,
+    "budget_passed": false,
+    "stopped_after": "navigation"
+  },
+  "final": {
+    "public_generated": {
+      "schema": 1,
+      "profile": "local",
+      "vertices": 8190,
+      "cold_prepare_ms": 12.4525,
+      "p95_budget_ms": 33.333334,
+      "max_budget_ms": 100,
+      "cases": [
+        {
+          "name": "static",
+          "samples": 90,
+          "update_p95_ms": 0.0001,
+          "prepare_p95_ms": 0.0003,
+          "scene_p95_ms": 0,
+          "overlay_p95_ms": 0,
+          "total_p95_ms": 0.0003,
+          "total_max_ms": 0.0005,
+          "cpp_allocations_p95": 0,
+          "cpp_bytes_p95": 0
+        },
+        {
+          "name": "navigation",
+          "samples": 90,
+          "update_p95_ms": 0.5757,
+          "prepare_p95_ms": 2.0096,
+          "scene_p95_ms": 0.6876,
+          "overlay_p95_ms": 1.3602,
+          "total_p95_ms": 2.4779,
+          "total_max_ms": 2.8162,
+          "cpp_allocations_p95": 796,
+          "cpp_bytes_p95": 6328162
+        },
+        {
+          "name": "animation",
+          "samples": 90,
+          "update_p95_ms": 1.3179,
+          "prepare_p95_ms": 2.0466,
+          "scene_p95_ms": 0.8017,
+          "overlay_p95_ms": 1.332,
+          "total_p95_ms": 3.3159,
+          "total_max_ms": 3.7757,
+          "cpp_allocations_p95": 769,
+          "cpp_bytes_p95": 5530636
+        }
+      ],
+      "retained_frame_immutable": true,
+      "gpu_submissions": 0
+    },
+    "sour_miku_external": {
+      "schema": 1,
+      "profile": "local",
+      "vertices": 139692,
+      "cold_prepare_ms": 3127.4469,
+      "p95_budget_ms": 33.333334,
+      "max_budget_ms": 100,
+      "cases": [
+        {
+          "name": "static",
+          "samples": 90,
+          "update_p95_ms": 0.0001,
+          "prepare_p95_ms": 0.0003,
+          "scene_p95_ms": 0,
+          "overlay_p95_ms": 0,
+          "total_p95_ms": 0.0003,
+          "total_max_ms": 0.0004,
+          "cpp_allocations_p95": 0,
+          "cpp_bytes_p95": 0
+        },
+        {
+          "name": "navigation",
+          "samples": 90,
+          "update_p95_ms": 1.1348,
+          "prepare_p95_ms": 11.3853,
+          "scene_p95_ms": 9.7421,
+          "overlay_p95_ms": 2.0047,
+          "total_p95_ms": 12.1468,
+          "total_max_ms": 15.3814,
+          "cpp_allocations_p95": 2688,
+          "cpp_bytes_p95": 11658489
+        },
+        {
+          "name": "animation",
+          "samples": 90,
+          "update_p95_ms": 19.6534,
+          "prepare_p95_ms": 12.9448,
+          "scene_p95_ms": 11.3044,
+          "overlay_p95_ms": 1.6882,
+          "total_p95_ms": 31.1222,
+          "total_max_ms": 38.9848,
+          "cpp_allocations_p95": 3532,
+          "cpp_bytes_p95": 16978553
+        }
+      ],
+      "retained_frame_immutable": true,
+      "gpu_submissions": 0
+    }
+  },
+  "remaining": "Full combined displayed-frame budget and physical GPU qualification are separate; P4/C1 remains in progress."
+}

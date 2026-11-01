@@ -48,6 +48,7 @@ ModelGeometry::ModelGeometry(std::uint64_t firstId, std::uint32_t count, unsigne
         break;
     }
     edges.resize(count);
+    outlineBytes.resize(std::size_t(count) * 16);
 }
 void* ModelGeometry::MainData() {
     return std::visit([](auto& v) -> void* { return v.data(); }, main);
@@ -83,11 +84,9 @@ bool ModelGeometry::SetIndices(rhi::IndexFormat format, const void* data, std::s
 bool ModelGeometry::Publish() {
     if (!snapshot.indices.key.version || edges.size() != snapshot.vertexCount)
         return false;
-    std::vector<std::uint8_t> vertices(MainSize()), outline(std::size_t(snapshot.vertexCount) * 16);
     const auto* source = static_cast<const std::uint8_t*>(MainData());
-    std::memcpy(vertices.data(), source, vertices.size());
     for (std::size_t i = 0; i < snapshot.vertexCount; ++i) {
-        auto* out = outline.data() + i * 16;
+        auto* out = outlineBytes.data() + i * 16;
         std::memcpy(out, edges[i].position, 12);
         const auto argb = edges[i].diffuse;
         out[12] = static_cast<std::uint8_t>(argb >> 16);
@@ -98,8 +97,28 @@ bool ModelGeometry::Publish() {
     for (const auto* r : {&snapshot.main, &snapshot.edge})
         if (r->key.version == std::numeric_limits<std::uint64_t>::max())
             return false;
-    Replace(snapshot.main, std::move(vertices));
-    Replace(snapshot.edge, std::move(outline));
+    const auto changed = [](const rhi::ModelReplayResource& resource, const void* data,
+                            std::size_t size) {
+        return !resource.key.version || resource.bytes.size() != size ||
+               std::memcmp(resource.bytes.data(), data, size) != 0;
+    };
+    const bool mainChanged = changed(snapshot.main, source, MainSize());
+    const bool edgeChanged = changed(snapshot.edge, outlineBytes.data(), outlineBytes.size());
+    // Prepare both allocations before publishing either version. Prior frames
+    // retain their immutable storage even while staging is reused next frame.
+    auto mainBytes =
+        mainChanged ? rhi::SnapshotBytes::CopySealed(source, MainSize()) : rhi::SnapshotBytes{};
+    auto edgeBytes = edgeChanged
+                         ? rhi::SnapshotBytes::CopySealed(outlineBytes.data(), outlineBytes.size())
+                         : rhi::SnapshotBytes{};
+    if (mainChanged) {
+        ++snapshot.main.key.version;
+        snapshot.main.bytes = std::move(mainBytes);
+    }
+    if (edgeChanged) {
+        ++snapshot.edge.key.version;
+        snapshot.edge.bytes = std::move(edgeBytes);
+    }
     return true;
 }
 rhi::ModelReplayResult AppendModelGeometry(rhi::ModelReplayStream& stream,

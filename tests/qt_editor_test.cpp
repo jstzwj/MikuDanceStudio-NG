@@ -16,6 +16,7 @@
 #include <QPainter>
 #include <QFontDatabase>
 #include <QMouseEvent>
+#include <QSignalSpy>
 #include <iostream>
 using namespace mikudancestudio;
 std::string reason;
@@ -406,6 +407,18 @@ int main(int argc, char** argv) {
     CHECK(window.Control(400)->geometry().y() == 21);
     CHECK(window.Session().ImportModel(root / "bone-only.pmd", reason));
     window.Refresh();
+    {
+        auto* models = static_cast<QComboBox*>(window.Control(panel::kMainComboModel));
+        auto* scopes = static_cast<QComboBox*>(window.Control(panel::kRegisterScopeCombo));
+        QSignalSpy reset(models->model(), &QAbstractItemModel::modelReset);
+        QSignalSpy inserted(scopes->model(), &QAbstractItemModel::rowsInserted);
+        QSignalSpy removed(scopes->model(), &QAbstractItemModel::rowsRemoved);
+        QSignalSpy changed(models, &QComboBox::currentIndexChanged);
+        for (unsigned i = 0; i < 5; ++i)
+            window.Refresh();
+        CHECK(reset.empty() && inserted.empty() && removed.empty() && changed.empty());
+        CHECK(models->currentData().toUInt() == window.Session().Selected().model);
+    }
     {
         window.Session().Selected().model = 0;
         window.Session().Selected().keys = {{editor::Track::Bone, 0, 0, 0}};
