@@ -91,11 +91,17 @@ struct NativeHistory {
         }
         record.keySnapshots = static_cast<mdl::BoneKeyUndoEntry*>(
             original.Function<void* (*)(std::size_t)>(0xdea6c)(sizeof(mdl::BoneKeyUndoEntry)));
+        // The selected-bone command clears all key marks before appending its
+        // visited-slot snapshots. C7EA0 is exercised independently by the full
+        // registration oracle; this fixture supplies a frame-zero undo entry.
+        for (auto& key : keys)
+            key.allocated = 0;
         record.keySnapshots->index = int(bone);
         record.keySnapshots->key = keys[bone];
         std::copy_n(bones[bone].trans, 3, keys[bone].position);
         std::copy_n(bones[bone].rotQuat, 4, keys[bone].rotation);
         keys[bone].physicsDisabled = bones[bone].physicsDisabled;
+        keys[bone].allocated = 1;
         edits[bone] = 0;
     }
     void RedoKeys() {

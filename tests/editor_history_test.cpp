@@ -99,6 +99,40 @@ int main(int argc, char** argv) {
     CHECK(ring.Play(reason));
     CHECK(!ring.CanUndo() && !ring.CanRedo() && !ring.Undo(reason));
     ring.Pause();
+    // Registration clears this model's key marks before history capture. Undo
+    // restores only touched slots and preserves subsequent unrelated selection.
+    EditorSession registration;
+    CHECK(registration.ImportModel(root / "pose.pmd", reason));
+    CHECK(registration.ImportModel(root / "pose.pmd", reason));
+    registration.Selected().model = 0;
+    registration.Selected().keys = {{Track::Bone, 0, 1, 0},
+                                    {Track::Morph, 0, 0, 0},
+                                    {Track::Display, 0, 0, 0},
+                                    {Track::Bone, 1, 1, 0}};
+    CHECK(registration.Register({{Track::Bone, 0, 1, 10}}, reason));
+    CHECK(registration.Selected().keys.size() == 2);
+    CHECK(registration.Selected().keys.count({Track::Bone, 0, 1, 10}));
+    CHECK(registration.Selected().keys.count({Track::Bone, 1, 1, 0}));
+    for (const auto& key : registration.Document().models[0].boneKeys.dense)
+        CHECK(!key.allocated);
+    CHECK(!registration.Document().models[0].morphKeys.dense[0].allocated);
+    CHECK(!registration.Document().models[0].displayKeys.dense[0].allocated);
+    registration.Selected().keys.insert({Track::Bone, 0, 2, 0});
+    for (unsigned cycle = 0; cycle < 3; ++cycle) {
+        CHECK(registration.Undo(reason));
+        CHECK(registration.Document().models[0].boneKeys.sparse.empty());
+        CHECK(registration.Selected().keys.size() == 2);
+        CHECK(registration.Selected().keys.count({Track::Bone, 0, 2, 0}));
+        CHECK(registration.Selected().keys.count({Track::Bone, 1, 1, 0}));
+        CHECK(registration.Redo(reason));
+        CHECK(registration.Selected().keys.size() == 3);
+        CHECK(registration.Selected().keys.count({Track::Bone, 0, 1, 10}));
+    }
+    CHECK(registration.Delete({{Track::Bone, 0, 1, 10}}, reason));
+    CHECK(registration.Document().models[0].selection.maxFrame == 10);
+    CHECK(registration.Register({{Track::Bone, 0, 1, 5}}, reason));
+    CHECK(registration.Document().models[0].selection.maxFrame == 10);
+    CHECK(registration.Document().timeline.lastRegisteredFrame == 10);
     std::cout
         << "Per-model native history: scope, 30 slots, frame snapshots, gestures and invalidation passed\n";
     return 0;

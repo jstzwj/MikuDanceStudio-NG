@@ -213,7 +213,9 @@ bool InsertPmmFrameLine(PmmKeyTrack<T>& track, std::uint32_t frame, unsigned& af
     affected = count;
     return true;
 }
-template <class T> bool RegisterPmmKey(PmmKeyTrack<T>& track, std::size_t channel, T key) {
+template <class T>
+bool RegisterPmmKey(PmmKeyTrack<T>& track, std::size_t channel, T key,
+                    std::map<std::uint32_t, T>* captured = nullptr) {
     std::vector<std::vector<T>> chains;
     if (key.frame > 0x7fffffffU || !PmmTrackChains(track, chains) || channel >= chains.size())
         return false;
@@ -226,10 +228,15 @@ template <class T> bool RegisterPmmKey(PmmKeyTrack<T>& track, std::size_t channe
     while (records.at(index)->frame < key.frame && records.at(index)->next)
         index = records.at(index)->next;
     auto& current = *records.at(index);
+    const auto capture = [&](std::uint32_t i) {
+        if (captured)
+            captured->emplace(i, records.count(i) ? *records.at(i) : T{});
+    };
     if (current.frame == key.frame) {
         // A payload overwrite must not relocate any key, including this one.
         key.previous = current.previous;
         key.next = current.next;
+        capture(index);
         current = std::move(key);
         return true;
     }
@@ -240,10 +247,15 @@ template <class T> bool RegisterPmmKey(PmmKeyTrack<T>& track, std::size_t channe
     while (records.count(free))
         ++free;
     if (current.frame < key.frame) {
+        capture(index);
+        capture(free);
         key.previous = index;
         key.next = 0;
         current.next = free;
     } else {
+        capture(current.previous);
+        capture(index);
+        capture(free);
         key.previous = current.previous;
         key.next = index;
         records.at(current.previous)->next = free;

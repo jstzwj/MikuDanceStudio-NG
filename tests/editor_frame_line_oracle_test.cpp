@@ -5,6 +5,7 @@
 #include "mikudancestudio/pmm_edit.hpp"
 #include "frame_line_deletion_fixture.hpp"
 #include "mikudancestudio/pmm_key_deletion.hpp"
+#include "bone_registration_fixture.hpp"
 #include <array>
 #include <cstdio>
 #include <cstring>
@@ -29,6 +30,11 @@ BOOL WINAPI Enable(HWND, BOOL) {
     return TRUE;
 }
 int automaticInterpolation = 0;
+bool registrationPhysicsEnabled = true;
+UINT WINAPI PhysicsCheck(HWND, int id) {
+    Check(id == 499, "physics checkbox identity");
+    return registrationPhysicsEnabled ? BST_CHECKED : BST_UNCHECKED;
+}
 LRESULT WINAPI CheckState(HWND, UINT, WPARAM, LPARAM) {
     return automaticInterpolation;
 }
@@ -581,6 +587,114 @@ unsigned ExerciseMarkedModelAux(OriginalPhysicsModule& original, std::uint64_t& 
     return count;
 }
 }
+unsigned ExerciseBoneRegistration(OriginalPhysicsModule& original, std::uint64_t& hash) {
+    unsigned count = 0;
+    bone_registration_fixture::Visit([&](const auto& c) {
+        auto track = bone_registration_fixture::Track(c.order);
+        auto model = std::make_unique<mdl::ModelRecord>();
+        std::array<mdl::BoneRecord, 3> bones{};
+        std::array<unsigned char, 3> edited{1, 1, 1}, selected{};
+        std::vector<mdl::BoneKey> records(mdl::kBoneKeyCapacity);
+        std::vector<mdl::MorphKey> morphs(mdl::kMorphKeyCapacity);
+        std::vector<mdl::DisplayKey> displays(mdl::kDisplayKeyCapacity);
+        model->boneCount = 3;
+        model->boneTable = bones.data();
+        model->bonePhysicsState = edited.data();
+        model->boneSelection = selected.data();
+        model->boneKeys = records.data();
+        model->morphKeys = morphs.data();
+        model->displayKeys = displays.data();
+        model->UndoCursor() = model->LatestUndoCursor() = 29;
+        model->maxFrame = 99;
+        for (unsigned bone = 0; bone < 3; ++bone) {
+            auto& b = bones[bone];
+            const auto pose = bone_registration_fixture::Current(bone, c.frame);
+            const auto backup = bone_registration_fixture::Backup(bone);
+            std::copy_n(pose.begin(), 3, b.trans);
+            std::copy_n(pose.begin() + 3, 4, b.rotQuat);
+            std::copy(backup.begin(), backup.end(), b.ikBackup);
+            b.hasRigidBody = bone != 1;
+            b.physicsDisabled = bone == 2;
+            selected[bone] = c.selected.count(bone) != 0;
+        }
+        for (auto& key : morphs)
+            key.allocated = 1;
+        for (auto& key : displays)
+            key.allocated = 1;
+        for (const auto& [index, key] : frame_line_fixture::Records(track))
+            records[index] = ConvertKey<mdl::BoneKey>(key);
+        automaticInterpolation = c.automatic;
+        registrationPhysicsEnabled = c.PhysicsEnabled();
+        std::map<std::uint32_t, PmmBoneKey> saved;
+        Check(bone_registration_fixture::Register(c, track, saved), "portable registration");
+        // Actual selected-bone command: history allocation, all key-mark resets,
+        // ascending bone iteration, physics pose selection and curve writes.
+        original.Function<void (*)(mdl::ModelRecord*, int, int)>(0xc7ea0)(model.get(), int(c.frame),
+                                                                          int(c.Mode()));
+        Check(model->maxFrame == 99 && model->UndoCursor() == 0, "registration frame/history");
+        for (unsigned bone = 0; bone < 3; ++bone) {
+            const auto expected = c.selected.count(bone) ? bone_registration_fixture::Pose(c, bone)
+                                                         : PmmBoneRegistrationPose{};
+            if (c.selected.count(bone)) {
+                Check(!std::memcmp(bones[bone].trans, expected.position.data(), 12) &&
+                          !std::memcmp(bones[bone].rotQuat, expected.rotation.data(), 16),
+                      "registration current/physics pose");
+                if (bone != 1)
+                    Check(bones[bone].physicsDisabled == !c.PhysicsEnabled(),
+                          "registration bone physics byte");
+            }
+            Check(edited[bone] == !c.selected.count(bone), "registration edit marker");
+        }
+        Check(
+            std::none_of(morphs.begin(), morphs.end(), [](const auto& k) { return k.allocated; }) &&
+                std::none_of(displays.begin(), displays.end(),
+                             [](const auto& k) { return k.allocated; }),
+            "registration clears auxiliary marks");
+        const auto compare = [&] {
+            const auto expected = frame_line_fixture::Records(track);
+            for (unsigned index = 0; index < records.size(); ++index) {
+                const bool alive = index < 3 || records[index].frame;
+                Check(alive == bool(expected.count(index)), "registration record presence");
+                if (alive && frame_line_fixture::Bytes(ConvertKey<PmmBoneKey>(records[index])) !=
+                                 frame_line_fixture::Bytes(expected.at(index))) {
+                    std::fprintf(stderr, "register order=%u frame=%u auto=%u index=%u\n", c.order,
+                                 c.frame, c.automatic, index);
+                    Check(false, "registration native record differs");
+                }
+            }
+            frame_line_fixture::Hash(hash, track);
+            ++count;
+        };
+        compare();
+        const auto& undo = model->undoRings[0].slots[0];
+        Check(undo.recordCount == saved.size(), "registration capture count");
+        for (unsigned i = 0; i < undo.recordCount; ++i) {
+            const auto& key = undo.keySnapshots[i];
+            Check(frame_line_fixture::Bytes(ConvertKey<PmmBoneKey>(key.key)) ==
+                      frame_line_fixture::Bytes(saved.at(key.index)),
+                  "registration captured slot differs");
+        }
+        for (unsigned cycle = 0; cycle < 3; ++cycle) {
+            std::map<std::uint32_t, PmmBoneKey> redo, unused;
+            Check(RestorePmmKeyRecords(track, saved, redo), "registration undo");
+            int frame = int(c.frame);
+            original.Function<void (*)(mdl::ModelRecord*, int*)>(0xcef90)(model.get(), &frame);
+            compare();
+            Check(RestorePmmKeyRecords(track, redo, unused), "registration redo");
+            original.Function<void (*)(mdl::ModelRecord*, int*)>(0xcfb80)(model.get(), &frame);
+            compare();
+        }
+        for (auto& ring : model->undoRings)
+            for (auto& slot : ring.slots) {
+                const auto free = *original.Function<void (**)(void*)>(0x128450);
+                if (slot.bonePose)
+                    free(slot.bonePose);
+                if (slot.keySnapshots)
+                    free(slot.keySnapshots);
+            }
+    });
+    return count;
+}
 int main(int argc, char** argv) try {
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
@@ -589,6 +703,7 @@ int main(int argc, char** argv) try {
     Patch child(original, 0x128658, "GetDlgItem", reinterpret_cast<void*>(&Child));
     Patch enable(original, 0x1285d0, "EnableWindow", reinterpret_cast<void*>(&Enable));
     Patch check(original, 0x1287b8, "SendMessageA", reinterpret_cast<void*>(&CheckState));
+    Patch physics(original, 0x1285e0, "IsDlgButtonChecked", reinterpret_cast<void*>(&PhysicsCheck));
     // All original key loops, history capture and dirty/max-frame stores run.
     // Only pose evaluation and UI refresh are omitted, tested separately by
     // the portable session tests. No original entrypoint/window/device runs.
@@ -640,6 +755,10 @@ int main(int argc, char** argv) try {
     cases = ExerciseMarkedModelAux<PmmMorphKey>(original, hash);
     cases += ExerciseMarkedModelAux<PmmDisplayKey>(original, hash);
     std::printf("%u marked morph/display deletion tables, hash %016llx\n", cases,
+                static_cast<unsigned long long>(hash));
+    hash = 14695981039346656037ull;
+    cases = ExerciseBoneRegistration(original, hash);
+    std::printf("%u bone registration/history tables, hash %016llx\n", cases,
                 static_cast<unsigned long long>(hash));
     return 0;
 } catch (const std::exception& e) {

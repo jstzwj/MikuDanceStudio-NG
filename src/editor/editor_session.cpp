@@ -1,5 +1,6 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/pmm_key_deletion.hpp"
+#include "mikudancestudio/pmm_bone_registration.hpp"
 #include "mikudancestudio/scene_resources.hpp"
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/vmd_scene_tracks.hpp"
@@ -793,11 +794,19 @@ bool EditorSession::SetAccessory(std::uint8_t slot, const PmmAccessoryState& pos
         reason);
 }
 bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::string& reason) {
+    EndGesture();
+    if (addresses.empty()) {
+        reason = "no-selected-keys";
+        return false;
+    }
     auto next = Current();
     HistoryBatch history;
+    // The native register button visits selected bones in index order, clears
+    // this model's key marks before capture, and retains marks in other models.
+    const std::set<KeyAddress> ordered(addresses.begin(), addresses.end());
     for (const auto& address : addresses) {
         if (address.track == Track::Bone && !history.count(address.slot)) {
-            const auto* model = Model(next.document, address.slot);
+            auto* model = Model(next.document, address.slot);
             if (!model) {
                 reason = "key-registration-failed";
                 return false;
@@ -805,40 +814,65 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
             history.emplace(address.slot,
                             CaptureHistory(*model, HistoryKind::Keys,
                                            std::uint32_t(next.document.timeline.currentFrame)));
+            auto& entry = history.at(address.slot);
+            entry.partialKeys = true;
+            entry.keys = {};
+            const auto clear = [](auto& track) {
+                for (auto& key : track.dense)
+                    key.allocated = 0;
+                for (auto& key : track.sparse)
+                    key.value.allocated = 0;
+            };
+            clear(model->boneKeys);
+            clear(model->morphKeys);
+            clear(model->displayKeys);
+            for (auto it = next.selection.keys.begin(); it != next.selection.keys.end();) {
+                if (it->slot == address.slot &&
+                    (it->track == Track::Bone || it->track == Track::Morph ||
+                     it->track == Track::Display))
+                    it = next.selection.keys.erase(it);
+                else
+                    ++it;
+            }
         }
+    }
+    for (const auto& address : ordered) {
         Key key;
         if (!Pose(next.document, address, key)) {
             reason = "key-registration-failed";
             return false;
         }
         if (address.track == Track::Bone) {
-            auto& boneKey = std::get<PmmBoneKey>(key);
-            Key existing;
-            if (Get(next.document, address, existing))
-                boneKey.interpolation = std::get<PmmBoneKey>(existing).interpolation;
-            else
-                for (unsigned lane = 0; lane < 4; ++lane)
-                    keyframe_edit::ResetBoneCurve(boneKey, lane);
-        }
-        if (!Put(next.document, address, key)) {
-            reason = "key-registration-failed";
-            return false;
-        }
-        if (address.track == Track::Bone) {
+            const auto& boneKey = std::get<PmmBoneKey>(key);
             auto* model = Model(next.document, address.slot);
-            if (autoInterpolation_ &&
-                !RebuildPmmBoneInterpolation(model->boneKeys, address.channel, address.frame)) {
-                reason = "bone-auto-interpolation-failed";
+            PmmBoneRegistrationPose pose{boneKey.position, boneKey.rotation, {}};
+            const auto& rigids = next.assets.models.at(address.slot)->Document().rigids;
+            if (std::any_of(rigids.begin(), rigids.end(), [&](const auto& body) {
+                    return body.fields.mode > 0 && body.fields.boneIndex == int(address.channel);
+                }))
+                pose.physicsDisabled = boneKey.physicsDisabled;
+            if (!RegisterPmmBonePose(model->boneKeys, address.channel, address.frame, pose,
+                                     autoInterpolation_, history.at(address.slot).keyRecords)) {
+                reason = "key-registration-failed";
                 return false;
             }
             model->bonePose.at(address.channel).flags[1] = 0;
+            next.selection.keys.insert(address);
+        } else if (!Put(next.document, address, key)) {
+            reason = "key-registration-failed";
+            return false;
         }
     }
-    if (addresses.empty()) {
-        reason = "no-selected-keys";
-        return false;
+    for (const auto& address : ordered) {
+        next.document.timeline.lastRegisteredFrame =
+            std::max(next.document.timeline.lastRegisteredFrame, int(address.frame));
+        if (address.track == Track::Bone || address.track == Track::Morph ||
+            address.track == Track::Display) {
+            auto* model = Model(next.document, address.slot);
+            model->selection.maxFrame = std::max(model->selection.maxFrame, address.frame);
+        }
     }
-    return Commit(std::move(next), reason, history);
+    return Commit(std::move(next), reason, history, false);
 }
 
 bool EditorSession::Delete(const std::set<KeyAddress>& addresses, std::string& reason) {

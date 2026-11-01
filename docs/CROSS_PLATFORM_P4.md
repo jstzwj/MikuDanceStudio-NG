@@ -38,9 +38,9 @@ snapshots are constructed independently; this is a kernel comparison, not an
 original UI event-loop or all timeline-topology acceptance. No window is created.
 The portable regression additionally checks model isolation, camera/Morph
 preservation, selection, failed edits, gesture grouping and unload invalidation.
-Frame-line and marked-key deletion now have touched-record/detached-record
-evidence below. Registration, clipboard and chained range operations remain
-part of the broader timeline gate.
+Frame-line/marked-key deletion and bone registration now have touched-record
+evidence below. Clipboard, chained range operations and physics registration
+through the actual Qt controls remain part of the broader timeline gate.
 
 Local Windows x64 checks executed during implementation:
 
@@ -1183,3 +1183,44 @@ Validation passed all 26 local P4 tests (62.18 seconds), four Win32 editor
 regressions, the extended original-executable oracle and the Qt application
 build. All execution was offscreen or in memory; comparison tolerances are
 unchanged.
+
+## Bone registration capture and selection
+
+The bone register command now uses `RegisterPmmBonePose`. Existing keys retain
+their interpolation when automatic interpolation is off; new records get native
+linear handles. Registration follows stable native slots and captures only the
+first visit to a slot: self for overwrite, predecessor/free slot for append, and
+predecessor/successor/free slot for insertion. Automatic smoothing can change an
+uncaptured neighbor, which deliberately retains that change through undo/redo.
+
+The selected-bone command clears this model's bone/Morph/display key marks before
+history capture, visits selected bones in index order, then selects the registered
+bone keys. Other models' selection survives. Partial history restores touched
+record selection and retains subsequent selection of unrelated records. The
+command also preserves native maximum-frame high-water values. Non-physics bone
+overwrites retain their existing physics byte; newly allocated records start at
+zero instead of copying the root's byte.
+
+The optional original oracle executes the complete selected-bone routine at
+`C7EA0`, including its `C82C0` registrar, allocation, selection clearing, physics
+pose/flag branches and actual undo/redo. **1,176 persisted-table checkpoints**
+passed, with public frozen hash `29b1779248f245cd`. Inputs cover three allocation
+orders, seven insertion/overwrite frames, four selected-bone sets, automatic
+interpolation on/off and all four physics modes. Physics notification loops have
+zero bodies in this kernel fixture; physical world transitions are not covered.
+No entrypoint/window/audio device runs. The independent 123-checkpoint native
+history fixture also passed with its frame-zero input marks corrected to match
+the newly verified registration envelope.
+
+The public regression reproduces the original table hash, tests invalid input
+atomically and checks real EditorSession neighbor retention, model isolation,
+selection, frame limits and repeated history. Physics backup selection is checked
+at the registrar boundary here; connecting the runtime's current/backup poses
+and the Qt physics checkbox is the next integration step. Clipboard and full C1
+acceptance remain open.
+
+Local validation passed all 26 P4 regressions, five Win32 editor/format tests,
+the original registration and history oracles and the Qt application build.
+The preceding deletion batch (`47e440a`) passed all three platform editor jobs in
+[run 41331565985](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41331565985),
+along with the formats and rendering workflows.
