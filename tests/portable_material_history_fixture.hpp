@@ -1,0 +1,20 @@
+#pragma once
+#include "mikudancestudio/editor_session.hpp"
+inline bool MaterialHistoryScene(mikudancestudio::editor::EditorSession& session,
+                                 const std::filesystem::path& root, std::string& reason) {
+    return session.ImportModel(root / "uv1-dual.pmx", reason) &&
+           session.ImportAccessory(root / "sphere-add.x", reason) &&
+           session.Edit(
+               "material-history",
+               [](auto& d, auto&) {
+                   d.view.groundGrid = d.view.groundShadow = 0;
+                   d.selfShadowMode = 1;
+                   d.physics.accessoryRenderOrder = 0;
+                   // The accessory changes the stock effect's spadd after the
+                   // model, without contributing pixels to the camera image.
+                   d.accessories[0].state.position = {10000, 10000, 10000};
+                   d.accessories[0].state.scale = .01f;
+                   return true;
+               },
+               reason);
+}

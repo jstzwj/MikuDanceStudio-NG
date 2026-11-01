@@ -1,4 +1,5 @@
 #include "viewport.hpp"
+#include "portable_material_history_fixture.hpp"
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QThread>
@@ -104,8 +105,28 @@ int main(int argc, char** argv) {
         CHECK(viewport.Render(reason, true));
         CHECK(viewport.FrameBuilds() == captured + 1);
         CHECK(session.Undo(reason));
+        editor::EditorSession materialSession;
+        CHECK(MaterialHistoryScene(materialSession, root, reason));
+        qt::Viewport materialViewport(materialSession, std::filesystem::absolute(argv[2]));
+        materialViewport.SetOptions(options);
+        materialViewport.resize(127, 91);
+#ifndef _WIN32
+        materialViewport.show();
+        pump();
+#endif
+        CHECK(materialViewport.Render(reason, true));
+        const auto materialBuilds = materialViewport.FrameBuilds();
+        CHECK(materialViewport.Render(reason, true));
+        CHECK(materialViewport.FrameBuilds() == materialBuilds + 1);
+        CHECK(materialViewport.Render(reason, true));
+        CHECK(materialViewport.FrameBuilds() == materialBuilds + 1);
+        CHECK(materialViewport.Reset(reason));
+        CHECK(materialViewport.Render(reason, true));
+        CHECK(materialViewport.Render(reason, true));
+        CHECK(materialViewport.FrameBuilds() == materialBuilds + 3);
 #ifdef _WIN32
         CHECK(!viewport.isVisible());
+        CHECK(!materialViewport.isVisible());
 #endif
     }
     CHECK(backends > 0);

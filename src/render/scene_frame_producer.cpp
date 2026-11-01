@@ -176,12 +176,16 @@ struct SceneFrameProducer::Impl {
     std::map<std::uint8_t, std::unique_ptr<Accessory>> accessories;
     AtlasAsset helper;
     ScreenTextureHistory history;
+    bool sphereAdd = false, pendingSphereAdd = false, pendingMaterialRebuild = false;
+    bool hasMaterialHistory = false, pending = false;
 };
 SceneFrameProducer::SceneFrameProducer() = default;
 SceneFrameProducer::~SceneFrameProducer() = default;
 bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRenderSources& sources,
                               const AssetSource& builtins, std::string& reason) try {
     auto next = std::make_unique<Impl>();
+    if (impl_)
+        next->sphereAdd = impl_->sphereAdd;
     if (!LoadAtlas(builtins, AssetId::AccessoryHelper, next->helper))
         return Fail(reason, "scene_shadow_helper_asset");
     ToonTextureResolver toons(sources.sharedToons, builtins);
@@ -331,6 +335,10 @@ bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRen
             }
             next->accessories.emplace(item.slot, std::move(accessory));
         }
+    for (const auto& model : next->models)
+        for (const auto& material : model.second->resource->Document().materials)
+            if (material.fields.sphereMode == 3 && material.fields.textureIndex >= 0)
+                next->hasMaterialHistory = true;
     impl_ = std::move(next);
     reason.clear();
     return true;
@@ -341,6 +349,8 @@ bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRen
 bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                                const SceneRenderSettings& settings, RenderFrame& output,
                                std::string& reason) try {
+    if (impl_)
+        impl_->pending = false;
     if (!impl_ || !settings.width || !settings.height || settings.width > 4096 ||
         settings.height > 4096 || settings.shadow.mode < -1 || settings.shadow.mode > 2 ||
         settings.shadow.mapSize < 16 || settings.shadow.mapSize > 4096)
@@ -824,6 +834,31 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         groundAccessories.insert(groundAccessories.end(), batch.second.begin(), batch.second.end());
     main.draws.insert(main.draws.begin() + modelStart + beforeModels, groundAccessories.begin(),
                       groundAccessories.end());
+    // The stock FX9 effect retains spadd. UV1 with a base texture reads it
+    // without assigning it; ordinary sphere materials and accessories assign it.
+    // Resolve in final display order, after accessories have been interleaved.
+    bool sphereAdd = impl_->sphereAdd, assigned = false, inherited = false;
+    for (auto& draw : main.draws) {
+        auto& p = draw.pipeline;
+        if (p.shadow.mode != BuiltinShadowMode::Material)
+            continue;
+        bool base = false;
+        for (const auto& stage : p.shader.layout.stages)
+            base |= stage.role == MaterialTextureRole::Base;
+        for (auto& stage : p.shader.layout.stages) {
+            if (stage.role != MaterialTextureRole::Sphere)
+                continue;
+            if (stage.coordinates == MaterialCoordinates::MeshUv1) {
+                if (base) {
+                    inherited |= !assigned;
+                    stage.color = sphereAdd ? MaterialCombine::Add : MaterialCombine::Modulate;
+                }
+            } else {
+                sphereAdd = stage.color == MaterialCombine::Add;
+                assigned = true;
+            }
+        }
+    }
     if (mode)
         result.passes.push_back(std::move(cast));
     std::vector<ScreenTextureConsumer> consumers;
@@ -846,17 +881,30 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
     if (!valid)
         return Fail(reason, valid.reason);
     output = std::move(result);
+    impl_->pendingSphereAdd = sphereAdd;
+    impl_->pendingMaterialRebuild = inherited && sphereAdd != impl_->sphereAdd;
+    impl_->pending = true;
     reason.clear();
     return true;
 } catch (const std::exception& e) {
     return Fail(reason, e.what());
 }
-void SceneFrameProducer::Commit() {
-    if (impl_)
-        impl_->history.Commit();
+bool SceneFrameProducer::Commit() {
+    if (!impl_ || !impl_->pending)
+        return false;
+    impl_->history.Commit();
+    impl_->sphereAdd = impl_->pendingSphereAdd;
+    impl_->pending = false;
+    return impl_->pendingMaterialRebuild;
+}
+bool SceneFrameProducer::HasMaterialHistory() const {
+    return impl_ && impl_->hasMaterialHistory;
 }
 void SceneFrameProducer::ResetHistory() {
-    if (impl_)
+    if (impl_) {
         impl_->history.Reset();
+        impl_->sphereAdd = false;
+        impl_->pending = false;
+    }
 }
 }

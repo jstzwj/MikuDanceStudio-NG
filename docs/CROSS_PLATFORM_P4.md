@@ -196,14 +196,28 @@ and combined base/subtexture materials, three shadow modes, UV morphs, byte-exac
 repeat submission and restoration. The geometry and replay validators and existing
 Qt render regression also passed.
 
-The hidden FX9 oracle passed UV1-only cases, then exposed the original combined
-subtexture shader's shadow-alpha multiplication by Toon alpha. The shared shader
-now preserves that source behavior. DX9 became unavailable with 0x8876086C before
-the corrected comparison could run; that comparison remains pending, not passed.
-The fixture intentionally exercises separate sphere/texture tint pools and UV
-morphs. Original inheritance of `spadd` between materials/frames remains a separate
-state-parity requirement; these single-material fixtures explicitly initialize it.
+The hidden FX9 oracle exposed the original combined subtexture shader's
+shadow-alpha multiplication by Toon alpha. The shared shader now preserves that
+source behavior. After DX9 became available again, DX11/DX12/Vulkan each passed
+39 independent FX9 cases: the existing accessory/material cases, UV1/UV4-only and
+combined subtextures with UV/tint morphs, and three consecutive material-history
+frames. RGB differences were at most one byte; alpha and coverage stayed exact.
+Depth differences were zero in this run. The history oracle preserves the FX9
+effect's native `spadd` value rather than supplying the prepared value.
 
 The UV fixed-material regression also compares a nonidentity full float4
 row-vector transform against independently transformed CPU UVs, including Z/W.
 All three local backends passed exact image equality for this comparison.
+
+[Run 41284928965](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41284928965)
+at `31bab6d` passed all three platforms, including the additional UV/matrix gate.
+
+Stock-effect material history now resolves `spadd` in final model/accessory
+render order. Only successful submission advances it; repeated builds and failed
+builds cannot. Asset reload retains it; explicit device/surface replacement resets
+it. A changed inherited value invalidates the static frame once, then stable
+frames reuse it. The local offscreen and hidden native tests passed all three
+backends for first/next/stable frame behavior, reload, reset and display-order
+changes. Image export warms up preceding material-history frames; exporting a
+later range reproduces the same image as that range of a full sequence. This is
+separate from MME history and does not close the remaining P4 exit gates.

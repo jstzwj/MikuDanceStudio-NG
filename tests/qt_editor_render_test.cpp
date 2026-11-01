@@ -1,6 +1,7 @@
 #include "export.hpp"
 #include "mikudancestudio/rhi_screen_texture.hpp"
 #include "editor_window.hpp"
+#include "portable_material_history_fixture.hpp"
 #include <QApplication>
 #include <QFile>
 #include <iostream>
@@ -244,6 +245,18 @@ int main(int argc, char** argv) {
           historyRenderer.Submit(historyFrame, historyToken));
     CHECK(historyRenderer.ReadTarget(1, after.finalColor, repeatedScreen));
     CHECK(initialScreen.bytes == repeatedScreen.bytes);
+    editor::EditorSession materialSession;
+    CHECK(MaterialHistoryScene(materialSession, root, reason));
+    CHECK(qt::ExportSequence(materialSession, assets, options, root / "history-full", 0, 2, 128, 96,
+                             {}, reason));
+    CHECK(qt::ExportSequence(materialSession, assets, options, root / "history-late", 1, 2, 128, 96,
+                             {}, reason));
+    const QImage materialFirst(qt::Path(root / "history-full/frame_00000000.png"));
+    const QImage materialSecond(qt::Path(root / "history-full/frame_00000001.png"));
+    const QImage materialLate(qt::Path(root / "history-late/frame_00000001.png"));
+    CHECK(!materialFirst.isNull() && !materialSecond.isNull() && !materialLate.isNull());
+    CHECK(materialFirst != materialSecond);
+    CHECK(materialSecond == materialLate);
     std::cout
         << "Qt offscreen export: deterministic PNG, isolated scene, cancellation, save/reopen passed\n";
 }

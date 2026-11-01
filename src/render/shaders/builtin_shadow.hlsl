@@ -125,17 +125,18 @@ float4 shadow_ps(ShadowPixel p) : SV_TARGET {
             }
             color *= tinted; alpha *= sample.a; baseTexture = true;
             ordinaryBase = true;
-        } else if (role == 2 || role == 3 || role == 4) {
-            float4 sample = materialTextures[i].Sample(materialSamplers[i],role==4?p.uv1:sphereUv);
+        } else if (role >= 2 && role <= 5) {
+            bool add = role == 3 || role == 5;
+            float4 sample = materialTextures[i].Sample(materialSamplers[i],role>=4?p.uv1:sphereUv);
             float4 tinted = sample;
             if (shadowOptions.w & 131072) {
                 float weight = sphereMultiply.w + sphereAdd.w;
                 tinted = (sample*sphereMultiply+sphereAdd)*weight;
-                if (role != 3) tinted += 1-weight;
+                if (!add) tinted += 1-weight;
             }
-            color.rgb = role == 3 ? color.rgb+tinted.rgb : color.rgb*tinted.rgb;
+            color.rgb = add ? color.rgb+tinted.rgb : color.rgb*tinted.rgb;
             alpha *= sample.a;
-            if (role == 4) { baseTexture = true; subtexture = true; }
+            if (role >= 4) { baseTexture = true; subtexture = true; }
         }
     }
     float3 result;

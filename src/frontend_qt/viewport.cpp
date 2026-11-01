@@ -95,8 +95,8 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         reason = controller_.Reason();
         return false;
     }
-    if (Submissions() > submissions)
-        producer_.Commit();
+    if (Submissions() > submissions && producer_.Commit())
+        frameCached_ = false;
     reason.clear();
     return true;
 }

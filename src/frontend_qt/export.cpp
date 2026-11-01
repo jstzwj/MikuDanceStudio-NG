@@ -69,7 +69,8 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
         }
         if (index && !scene.Advance(float(double(index) / 30), 1.f / 30, reason))
             return false;
-        if (index < first && !scene.Session()->Document().view.captureMode)
+        if (index < first && !scene.Session()->Document().view.captureMode &&
+            !producer.HasMaterialHistory())
             continue;
         rhi::RenderFrame frame;
         if (!producer.Build(scene, settings, frame, reason))

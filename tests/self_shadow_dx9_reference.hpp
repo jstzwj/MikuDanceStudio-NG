@@ -17,6 +17,7 @@ inline void Check(HRESULT hr, const char* operation = "DX9 operation") {
                                  ": DX9 HRESULT=" + std::to_string(unsigned(hr)));
 }
 class Reference {
+    bool retainMaterialState = false;
     struct Target {
         RenderTextureDesc description;
         ComPtr<IDirect3DTexture9> texture;
@@ -196,7 +197,16 @@ class Reference {
             Check(device->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE));
         } else {
             Check(effect->SetTechnique(technique));
-            Check(effect->SetBool("spadd", additive));
+            if (!retainMaterialState ||
+                (s.mode == BuiltinShadowMode::Material && sphere && !subtexture))
+                Check(effect->SetBool("spadd", additive));
+            if (retainMaterialState && s.mode == BuiltinShadowMode::Material && base &&
+                subtexture) {
+                BOOL inherited = FALSE;
+                Check(effect->GetBool("spadd", &inherited));
+                if (bool(inherited) != additive)
+                    throw std::runtime_error("native spadd history differs from prepared frame");
+            }
             Check(device->SetTexture(
                 0, s.mode == BuiltinShadowMode::Material
                        ? (s.receive ? targets.at(draw.shadowTarget).texture.Get() : white.Get())
@@ -244,7 +254,8 @@ class Reference {
     }
 
 public:
-    explicit Reference(const std::filesystem::path& effectPath) {
+    explicit Reference(const std::filesystem::path& effectPath, bool retain = false)
+        : retainMaterialState(retain) {
         api.Attach(Direct3DCreate9(D3D_SDK_VERSION));
         if (!api || !window.handle)
             throw std::runtime_error("DX9 message-window device unavailable");

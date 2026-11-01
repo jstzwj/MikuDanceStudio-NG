@@ -2,6 +2,7 @@
 #include "mikudancestudio/scene_frame_producer.hpp"
 #include "mikudancestudio/rhi_backend.hpp"
 #include "mikudancestudio/rhi_scene_renderer.hpp"
+#include "portable_material_history_fixture.hpp"
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -131,6 +132,49 @@ int main(int argc, char** argv) try {
                 ++cases;
             }
         }
+    editor::EditorSession historySession;
+    std::string reason;
+    Require(MaterialHistoryScene(historySession, root, reason), reason);
+    render::SceneRenderSources sources;
+    sources.models = historySession.Assets().modelPaths;
+    sources.accessories = historySession.Assets().accessoryPaths;
+    Require(producer.Load(historySession.Runtime(), sources, assets, reason), reason);
+    Require(producer.HasMaterialHistory(), "export warmup required");
+    settings.shadow.mode = 1;
+    RenderFrame first, stable, repeated;
+    Require(producer.Build(historySession.Runtime(), settings, first, reason), reason);
+    const auto initial = submit(1, first);
+    Require(producer.Build(historySession.Runtime(), settings, repeated, reason), reason);
+    Require(initial == submit(1, repeated), "build must not commit material state");
+    Require(producer.Commit(), "first inherited frame invalidates static cache");
+    Require(!producer.Commit(), "commit is consumed once");
+    Require(producer.Build(historySession.Runtime(), settings, stable, reason), reason);
+    const auto steady = submit(1, stable);
+    Require(steady != initial, "inherited spadd changes the next frame");
+    Require(!producer.Commit(), "stable material state retains static cache");
+    Require(producer.Load(historySession.Runtime(), sources, assets, reason), reason);
+    Require(producer.Build(historySession.Runtime(), settings, repeated, reason), reason);
+    Require(submit(1, repeated) == steady, "asset reload preserves live effect state");
+    producer.ResetHistory();
+    Require(producer.Build(historySession.Runtime(), settings, repeated, reason), reason);
+    Require(submit(1, repeated) == initial, "device replacement resets material state");
+    auto invalid = settings;
+    invalid.width = 0;
+    Require(!producer.Build(historySession.Runtime(), invalid, repeated, reason), "invalid frame");
+    Require(!producer.Commit(), "failed build cannot commit material state");
+    Require(producer.Build(historySession.Runtime(), settings, repeated, reason), reason);
+    Require(submit(1, repeated) == initial, "failed build preserves committed state");
+    Require(historySession.Edit(
+                "accessory-before-model",
+                [](auto& d, auto&) {
+                    d.physics.accessoryRenderOrder = 1;
+                    return true;
+                },
+                reason),
+            reason);
+    Require(producer.Build(historySession.Runtime(), settings, repeated, reason), reason);
+    Require(submit(1, repeated) == steady, "in-frame material state follows display order");
+    Require(!producer.Commit(), "explicit assignment precedes dependent material");
     std::cout << "Portable UV1-4, subtexture, morph, shadow and exact repeated output: " << cases
               << " cases\n";
     return 0;

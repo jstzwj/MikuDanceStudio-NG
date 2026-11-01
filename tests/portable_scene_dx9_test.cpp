@@ -4,6 +4,7 @@
 #include "mikudancestudio/rhi_scene_renderer.hpp"
 #include "self_shadow_dx9_reference.hpp"
 #include "self_shadow_compare.hpp"
+#include "portable_material_history_fixture.hpp"
 #include <iostream>
 using namespace mikudancestudio;
 using namespace mikudancestudio::rhi;
@@ -123,6 +124,44 @@ int main(int argc, char** argv) try {
                 ++cases;
             }
         }
+    {
+        shadow_reference::Reference historyOracle(assets / "skin_effect_sm3.fx", true);
+        editor::EditorSession session;
+        std::string reason;
+        Require(MaterialHistoryScene(session, root, reason), reason);
+        render::SceneRenderSources sources;
+        sources.models = session.Assets().modelPaths;
+        sources.accessories = session.Assets().accessoryPaths;
+        render::SceneFrameProducer producer;
+        Require(producer.Load(session.Runtime(), sources, files, reason), reason);
+        render::SceneRenderSettings settings;
+        settings.width = 192;
+        settings.height = 144;
+        settings.shadow.mapSize = 128;
+        settings.postProcessCopy = false;
+        auto backend = CreateOffscreenBackendDevice(settings.width, settings.height, options);
+        Require(bool(backend), backend.reason);
+        SceneRenderer renderer(*backend.device);
+        for (unsigned i = 0; i < 3; ++i) {
+            RenderFrame frame;
+            Require(producer.Build(session.Runtime(), settings, frame, reason), reason);
+            PreparedModelFrame prepared;
+            CompletionToken token;
+            auto result = renderer.Prepare(1, frame, prepared);
+            Require(bool(result), result.reason);
+            Require(bool(renderer.Submit(prepared, token)), "material history submit");
+            historyOracle.Render(frame);
+            AttachmentReadback image;
+            Require(bool(renderer.ReadTarget(1, frame.finalColor, image)), "material history read");
+            const auto diff =
+                shadow_acceptance::Compare(image, historyOracle.Read(frame.finalColor));
+            std::cout << "material-history frame=" << i << " max=" << diff.maximum
+                      << " outside=" << diff.outsideTolerance << '\n';
+            Require(diff.Accepted(), "native material history pixels");
+            Require(producer.Commit() == (i == 0), "material history cache invalidation");
+            ++cases;
+        }
+    }
     std::cout << "Portable production scene / independent FX9 cases=" << cases << '\n';
     return 0;
 } catch (const std::exception& e) {
