@@ -150,6 +150,12 @@ public:
         };
         grow(source.boneKeys, boneKeys);
         grow(source.morphKeys, morphKeys);
+        for (auto& key : displayKeys) {
+            key.frame = key.previous = key.next = 0;
+            key.visible = 1;
+            std::fill(key.ik.begin(), key.ik.end(), 1);
+            std::fill(key.selectors.begin(), key.selectors.end(), format::PmmRigidState{-1, 0});
+        }
         each(source.boneKeys, [&](std::size_t n, const auto& key) {
             const auto index = n < boneMap.size() ? boneMap[n] : n;
             auto& out = boneKeys[index];

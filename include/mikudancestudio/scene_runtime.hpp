@@ -7,6 +7,7 @@
 namespace mikudancestudio::runtime {
 struct SceneCounters {
     std::uint64_t frames = 0, preparedModels = 0, publishedModels = 0;
+    std::uint64_t editorUpdates = 0;
 };
 class SceneRuntime final {
 public:
@@ -33,6 +34,11 @@ public:
                  format::PmmSceneApplication = {});
     bool Tick(float deltaSeconds, std::string&);
     bool Edit(const std::function<void(format::PmmSceneDocument&)>&, std::string&);
+    // Same resources, binding layout, cursor and physics mode: stage an editor
+    // document and fresh CPU snapshots without stepping/recreating the world.
+    // Unsupported structural changes use LoadResources; rejection is atomic.
+    bool CanApplyEditorDocument(const format::PmmSceneDocument&) const;
+    bool ApplyEditorDocument(format::SceneSession, std::string&);
     void SetPanelExpanded(unsigned option, bool expanded);
     void SetSidebarWidth(int width);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);

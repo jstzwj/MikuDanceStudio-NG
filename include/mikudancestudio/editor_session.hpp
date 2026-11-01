@@ -238,6 +238,7 @@ private:
     std::uint64_t playbackEpoch_ = 0;
     State Current() const;
     bool Prepare(State&, std::unique_ptr<runtime::SceneRuntime>&, std::string&) const;
+    bool ApplyRuntimeState(State&, std::string&);
     bool Commit(State, std::string&, const HistoryBatch& forced = {},
                 bool updateFrameBounds = true);
     void RecordHistory(const State& before, const State& after, const HistoryBatch& forced);

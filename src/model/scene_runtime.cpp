@@ -168,6 +168,37 @@ struct SceneRuntime::Impl {
                 }
             }
         }
+        if (!ValidateReferences(*session, reason))
+            return false;
+        for (const auto& source : doc.models) {
+            auto found = items.find(source.slot);
+            if (found == items.end())
+                continue;
+            auto& item = found->second;
+            item.timeline.Publish(source, item.boneMap, item.morphMap, item.ikMap,
+                                  item.selectorMap);
+            for (auto& key : item.timeline.displayKeys)
+                for (auto& ref : key.selectors)
+                    if (ref.modelIndex >= 0)
+                        ref.boneIndex =
+                            int(items.at(std::uint8_t(ref.modelIndex)).boneMap[ref.boneIndex]);
+        }
+        std::stable_sort(order.begin(), order.end(), [&](auto a, auto b) {
+            const auto rank = [&](auto slot) {
+                for (const auto& m : doc.models)
+                    if (m.slot == slot)
+                        return int(doc.envelope.header.version == format::PmmVersion::V2
+                                       ? m.previousDisplayOrder
+                                       : m.selection.comboIndex);
+                return 0;
+            };
+            return rank(a) < rank(b);
+        });
+        return true;
+    }
+    bool ValidateReferences(const format::SceneSession& candidate, std::string& reason,
+                            bool currentPose = false) const {
+        const auto& doc = candidate.Document();
         const auto bindings = [&](const format::PmmDisplayKey& key) {
             for (const auto& ref : key.rigidStates)
                 if (ref.modelIndex >= 0) {
@@ -223,30 +254,21 @@ struct SceneRuntime::Impl {
                 reason = "missing-accessory-parent";
                 return false;
             }
-        for (const auto& source : doc.models) {
-            auto found = items.find(source.slot);
-            if (found == items.end())
-                continue;
-            auto& item = found->second;
-            item.timeline.Publish(source, item.boneMap, item.morphMap, item.ikMap,
-                                  item.selectorMap);
-            for (auto& key : item.timeline.displayKeys)
-                for (auto& ref : key.selectors)
-                    if (ref.modelIndex >= 0)
-                        ref.boneIndex =
-                            int(items.at(std::uint8_t(ref.modelIndex)).boneMap[ref.boneIndex]);
+        if (!currentPose)
+            return true;
+        const auto& camera = candidate.Pose().camera;
+        if (!parentValid(camera.parentModel, camera.parentBone)) {
+            reason = "missing-current-camera-parent";
+            return false;
         }
-        std::stable_sort(order.begin(), order.end(), [&](auto a, auto b) {
-            const auto rank = [&](auto slot) {
-                for (const auto& m : doc.models)
-                    if (m.slot == slot)
-                        return int(doc.envelope.header.version == format::PmmVersion::V2
-                                       ? m.previousDisplayOrder
-                                       : m.selection.comboIndex);
-                return 0;
-            };
-            return rank(a) < rank(b);
-        });
+        for (const auto& model : doc.models)
+            for (const auto& pose : model.rigidPose) {
+                const auto& values = pose.values;
+                if (values[2] >= 0 && (values[3] < 0 || !parentValid(values[2], values[3]))) {
+                    reason = "missing-current-selector-parent";
+                    return false;
+                }
+            }
         return true;
     }
     void Gravity() {
@@ -679,6 +701,173 @@ bool SceneRuntime::SetFollowCamera(bool enabled, const format::PmmEvaluatedCamer
     reason.clear();
     return true;
 }
+bool SceneRuntime::CanApplyEditorDocument(const format::PmmSceneDocument& doc) const {
+    if (!impl_ || !impl_->session || impl_->failed || impl_->playing)
+        return false;
+    const auto& before = impl_->session->Document();
+    if (doc.envelope.header.version != before.envelope.header.version ||
+        doc.timeline.currentFrame != before.timeline.currentFrame ||
+        doc.physics.playbackMode != before.physics.playbackMode ||
+        doc.models.size() != before.models.size() || doc.models.size() != impl_->items.size() ||
+        doc.accessories.size() != before.accessories.size())
+        return false;
+    for (const auto& model : doc.models) {
+        const auto old = std::find_if(before.models.begin(), before.models.end(),
+                                      [&](const auto& m) { return m.slot == model.slot; });
+        if (old == before.models.end() || !impl_->items.count(model.slot) ||
+            old->boneNames != model.boneNames || old->morphNames != model.morphNames ||
+            old->ikSources != model.ikSources || old->rigidSources != model.rigidSources ||
+            old->bonePose.size() != model.bonePose.size() ||
+            old->morphPose.size() != model.morphPose.size() ||
+            old->ikPose.size() != model.ikPose.size() ||
+            old->rigidPose.size() != model.rigidPose.size())
+            return false;
+    }
+    for (const auto& accessory : doc.accessories)
+        if (std::none_of(before.accessories.begin(), before.accessories.end(),
+                         [&](const auto& a) { return a.slot == accessory.slot; }))
+            return false;
+    return true;
+}
+
+bool SceneRuntime::ApplyEditorDocument(format::SceneSession candidate, std::string& reason) try {
+    if (!candidate.Loaded() || !CanApplyEditorDocument(candidate.Document())) {
+        reason = "scene-editor-layout-changed";
+        return false;
+    }
+    if (!impl_->ValidateReferences(candidate, reason, true))
+        return false;
+    const auto& document = candidate.Document();
+    struct Staged {
+        ModelTimeline timeline;
+        ModelEvaluation evaluation;
+        std::unique_ptr<ModelInstance> instance;
+        std::vector<unsigned> physicsChanges;
+    };
+    std::map<std::uint8_t, Staged> staged;
+    auto order = impl_->order;
+    std::stable_sort(order.begin(), order.end(), [&](auto a, auto b) {
+        const auto rank = [&](auto slot) {
+            const auto found = std::find_if(document.models.begin(), document.models.end(),
+                                            [&](const auto& m) { return m.slot == slot; });
+            return document.envelope.header.version == format::PmmVersion::V2
+                       ? int(found->previousDisplayOrder)
+                       : int(found->selection.comboIndex);
+        };
+        return rank(a) < rank(b);
+    });
+    for (const auto& source : document.models) {
+        auto& item = impl_->items.at(source.slot);
+        auto& pending = staged[source.slot];
+        auto& timeline = pending.timeline;
+        timeline = item.timeline;
+        timeline.Publish(source, item.boneMap, item.morphMap, item.ikMap, item.selectorMap);
+        for (auto& key : timeline.displayKeys)
+            for (auto& ref : key.selectors)
+                if (ref.modelIndex >= 0)
+                    ref.boneIndex =
+                        int(impl_->items.at(std::uint8_t(ref.modelIndex)).boneMap[ref.boneIndex]);
+        const auto& oldModels = impl_->session->Document().models;
+        const auto& before = *std::find_if(oldModels.begin(), oldModels.end(),
+                                           [&](const auto& m) { return m.slot == source.slot; });
+        for (unsigned i = 0; i < source.bonePose.size(); ++i) {
+            auto& bone = timeline.bones[item.boneMap[i]];
+            const auto& value = source.bonePose[i];
+            // Unchanged saved poses must not overwrite the live IK result or
+            // physics backup produced since the last document evaluation.
+            if (!std::equal(value.components.begin(), value.components.begin() + 7,
+                            before.bonePose[i].components.begin())) {
+                std::copy_n(value.components.begin(), 3, bone.trans);
+                std::copy_n(value.components.begin() + 3, 4, bone.rotQuat);
+            }
+            if (value.flags[0] != before.bonePose[i].flags[0]) {
+                if (bone.hasRigidBody && impl_->simulation.physicsMode >= 2 &&
+                    bone.physicsDisabled != value.flags[0])
+                    pending.physicsChanges.push_back(unsigned(item.boneMap[i]));
+                bone.physicsDisabled = value.flags[0];
+            }
+        }
+        for (unsigned i = 0; i < source.morphPose.size(); ++i)
+            if (source.morphPose[i] != before.morphPose[i])
+                timeline.morphs[item.morphMap[i]].value = source.morphPose[i];
+        for (unsigned i = 0; i < source.ikPose.size(); ++i)
+            timeline.chains[item.ikMap[i]].enabled = source.ikPose[i];
+        timeline.visible = source.selection.loadComplete;
+        for (unsigned i = 0; i < source.rigidPose.size(); ++i) {
+            const auto& values = source.rigidPose[i].values;
+            const int parentBone =
+                values[2] < 0 ? values[3]
+                              : int(impl_->items.at(std::uint8_t(values[2])).boneMap[values[3]]);
+            timeline.bindings.at(item.selectorMap[i]) = {
+                values[2], parentBone, std::uint32_t(values[0]), std::uint32_t(values[1])};
+        }
+        std::vector<format::PmmEvaluatedBone> bones(timeline.bones.size());
+        std::vector<float> morphs(timeline.morphs.size());
+        std::vector<std::uint8_t> enabled(timeline.chains.size());
+        for (unsigned i = 0; i < bones.size(); ++i) {
+            std::copy_n(timeline.bones[i].trans, 3, bones[i].translation.begin());
+            std::copy_n(timeline.bones[i].rotQuat, 4, bones[i].rotation.begin());
+            bones[i].physicsDisabled = timeline.bones[i].physicsDisabled;
+        }
+        for (unsigned i = 0; i < morphs.size(); ++i)
+            morphs[i] = timeline.morphs[i].value;
+        for (unsigned i = 0; i < enabled.size(); ++i)
+            enabled[i] = timeline.chains[i].enabled;
+        pending.instance = std::make_unique<ModelInstance>(item.resource);
+        if (!pending.instance->PreparePose(impl_->frame, bones, morphs, pending.evaluation, reason))
+            return false;
+        pending.evaluation.Bones() = timeline.bones;
+        item.physics->Restore(pending.evaluation); // Reads backups; never steps/mutates the world.
+        if (!pending.evaluation.SetIk(enabled, reason) ||
+            !pending.evaluation.SetBindings(timeline.bindings, reason))
+            return false;
+    }
+    std::array<cpu_model::Model, 255> views{};
+    std::array<cpu_model::Model*, 255> models{};
+    for (auto& [slot, item] : staged) {
+        views[slot] = item.evaluation.View();
+        models[slot] = &views[slot];
+    }
+    for (bool afterPhysics : {false, true})
+        for (auto slot : order)
+            if (!staged.at(slot).evaluation.Solve(afterPhysics, models.data(),
+                                                  impl_->simulation.physicsMode, reason))
+                return false;
+    for (auto& [slot, item] : staged) {
+        if (!item.evaluation.Finish(reason))
+            return false;
+        item.timeline.bones = item.evaluation.Bones();
+        if (!item.instance->Publish(std::move(item.evaluation), reason))
+            return false;
+    }
+    // All potentially failing preparation is complete. Commit only owning
+    // containers, then apply the native physics-mode flag notifications.
+    for (auto& [slot, item] : staged) {
+        auto& destination = impl_->items.at(slot);
+        destination.timeline = std::move(item.timeline);
+        destination.instance = std::move(item.instance);
+        destination.evaluation = std::move(item.evaluation);
+        destination.visible = destination.timeline.visible != 0;
+        auto view = destination.timeline.View(*destination.physics);
+        for (auto bone : item.physicsChanges)
+            ModelTimeline::Kernel::NotifyBonePhysicsMode(
+                &view, int(bone), destination.timeline.bones[bone].physicsDisabled != 0);
+    }
+    impl_->session = std::move(candidate);
+    impl_->order = std::move(order);
+    impl_->Gravity();
+    SetPhysicsGroundEnabled(impl_->world.groundBody,
+                            impl_->session->Document().appearance.floorVisible != 0);
+    impl_->counters.preparedModels += staged.size();
+    impl_->counters.publishedModels += staged.size();
+    ++impl_->counters.editorUpdates;
+    reason.clear();
+    return true;
+} catch (const std::exception& e) {
+    reason = e.what();
+    return false;
+}
+
 bool SceneRuntime::Edit(const std::function<void(format::PmmSceneDocument&)>& change,
                         std::string& reason) {
     if (!impl_ || !impl_->session || impl_->failed) {

@@ -374,6 +374,30 @@ bool EditorSession::New(std::string& reason) {
     reason.clear();
     return true;
 }
+bool EditorSession::ApplyRuntimeState(State& next, std::string& reason) {
+    if (next.assets.models == state_.assets.models &&
+        next.assets.accessories == state_.assets.accessories &&
+        runtime_->CanApplyEditorDocument(next.document)) {
+        for (auto& model : next.document.models) {
+            const auto resource = next.assets.models.find(model.slot);
+            if (resource != next.assets.models.end()) {
+                model.groupCount = std::uint8_t(resource->second->DisplayGroups().size());
+                model.selection.groupFlags.resize(model.groupCount, 0);
+            }
+        }
+        SceneSession session;
+        if (!SceneSession::Create(next.document, session, reason) ||
+            !runtime_->ApplyEditorDocument(std::move(session), reason))
+            return false;
+        next.document = runtime_->Session()->Document();
+    } else {
+        std::unique_ptr<runtime::SceneRuntime> runtime;
+        if (!Prepare(next, runtime, reason))
+            return false;
+        runtime_ = std::move(runtime);
+    }
+    return true;
+}
 bool EditorSession::Commit(State next, std::string& reason, const HistoryBatch& forced,
                            bool updateFrameBounds) {
     if (updateFrameBounds) {
@@ -401,11 +425,11 @@ bool EditorSession::Commit(State next, std::string& reason, const HistoryBatch& 
         }
         d.timeline.lastRegisteredFrame = int(end);
     }
-    std::unique_ptr<runtime::SceneRuntime> runtime;
-    if (!Prepare(next, runtime, reason))
+    const auto before = Current();
+    if (!ApplyRuntimeState(next, reason))
         return false;
-    RecordHistory(Current(), next, forced);
-    runtime_ = std::move(runtime);
+    RecordHistory(before, next, forced);
+    runtime_->Pause();
     state_ = std::move(next);
     selection_ = state_.selection;
     if (selection_.model != 255 && coordinateSystem_ == 2)

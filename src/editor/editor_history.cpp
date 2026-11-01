@@ -252,8 +252,7 @@ bool EditorSession::ApplyHistory(bool redo, std::string& reason) {
             model->bonePose[i].flags[0] = value->bonePose[i].flags[0];
         }
     }
-    std::unique_ptr<runtime::SceneRuntime> runtime;
-    if (!Prepare(next, runtime, reason))
+    if (!ApplyRuntimeState(next, reason))
         return false;
     if (redo)
         destination.push_back(*entry.originalUndo);
@@ -262,7 +261,7 @@ bool EditorSession::ApplyHistory(bool redo, std::string& reason) {
     source.pop_back();
     selection_ = next.selection;
     state_ = std::move(next);
-    runtime_ = std::move(runtime);
+    runtime_->Pause();
     // Undo does not restore selection, UI state, other models or asset loading.
     revision_ = nextRevision_++;
     cursorSeconds_ = Document().timeline.currentFrame / 30.;

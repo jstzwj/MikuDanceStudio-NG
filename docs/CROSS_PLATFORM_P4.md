@@ -1349,3 +1349,39 @@ Local validation passed **28 P4 tests** (82.06 seconds), five Win32 editor tests
 the new original clipboard oracle and the Qt application build. Tests remained
 offscreen/in memory, with no local audio output. Linux/macOS execution is provided
 by the editor workflow; results for this revision must be recorded separately.
+
+## Preserve the live physical world through ordinary editing
+
+Ordinary document edits and same-frame bone history now stage a checked document,
+timeline, CPU pose and skinned snapshot before publishing to the existing scene
+runtime. They retain Bullet bodies, contacts, velocities, solver state and the
+gravity-noise clock. Only changed saved pose components replace live pose inputs;
+unchanged document values cannot overwrite the current IK/physics result. Physics
+enable changes use the shared native flag notification after successful staging.
+No simulation frame is executed by this path; `editorUpdates` counts these
+publications separately from `frames`.
+
+Resource replacement, model/accessory structure, frame-number and physics-mode
+changes, and edits during active playback still use the existing full preparation
+path. Their complete native lifecycle parity is not established by this batch.
+All model results are staged before any live publication. Missing current/track
+parents and nonfinite generated geometry reject the whole edit without changing
+the document, published vertices, physical world, revision or history.
+
+`editor_physics_continuity` covers generated articulated PMD and PMX: editing a
+light and a control bone, registration, paste, repeated undo/redo, invalid parents
+and finite inputs that overflow during pose calculation. It also runs independent
+edited/control worlds in lockstep before and after a metadata edit, comparing
+body snapshots and clocks exactly through subsequent simulation. This checks
+continued evolution, not only immediate positions. It is a continuity regression
+against an unmodified shared runtime, not a new original-executable physics oracle.
+
+The preceding clipboard commit `987a61b` passed all three editor jobs in
+[run 41337185823](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41337185823),
+as well as the formats, rendering and Bullet workflows. Full P4/C1 acceptance
+remains open.
+
+Local validation passed **29 P4 tests** (38.32 seconds), six Win32 editor/runtime
+tests, the x64 scene-runtime test and all 123 original undo/redo checkpoints. The
+Qt application also built successfully. Tests used offscreen or in-memory paths
+and did not play audio. Three-platform CI results for this change follow separately.
