@@ -6,6 +6,7 @@
 #include "mikudancestudio/editor_rotation.hpp"
 #include "mikudancestudio/mmd_editor_labels.hpp"
 #include "mikudancestudio/sidebar_navigation.hpp"
+#include "mikudancestudio/menu_commands.h"
 #include <QApplication>
 #include <QAbstractButton>
 #include <QPushButton>
@@ -297,103 +298,6 @@ void EditorWindow::CreateViewport(const rhi::BackendOptions& options) {
     };
     Layout();
 }
-void EditorWindow::BuildMenus() {
-    // QMenuBar::clear does not destroy its menus. Language/backend rebuilds
-    // must release the old action tree as well as remove it from the bar.
-    for (auto* entry : menuBar()->actions())
-        if (auto* menu = entry->menu())
-            delete menu;
-    menuBar()->clear();
-    actions_.clear();
-    const auto action = [&](QMenu* menu, const QString& id, const QKeySequence& shortcut = {}) {
-        auto* a = menu->addAction(language_.Text(id));
-        a->setObjectName(id);
-        a->setShortcut(shortcut);
-        actions_[id] = a;
-        connect(a, &QAction::triggered, this, [this, id] { FileAction(id); });
-        return a;
-    };
-    auto* file = menuBar()->addMenu(language_.Text("menu.file"));
-    action(file, "file.new", QKeySequence::New);
-    action(file, "file.open", QKeySequence::Open);
-    action(file, "file.save", QKeySequence::Save);
-    action(file, "file.save_as", QKeySequence::SaveAs);
-    file->addSeparator();
-    action(file, "file.image");
-    action(file, "file.sequence");
-    file->addSeparator();
-    action(file, "file.pose_open");
-    action(file, "file.pose_save");
-    action(file, "file.motion_open");
-    action(file, "file.motion_save");
-    file->addSeparator();
-    action(file, "file.wave");
-    file->addSeparator();
-    action(file, "file.exit");
-    auto* edit = menuBar()->addMenu(language_.Text("menu.edit"));
-    action(edit, "edit.numeric");
-    auto* undo = edit->addAction(language_.Text("control.400"));
-    undo->setShortcut(QKeySequence::Undo);
-    connect(undo, &QAction::triggered, this, [this] { Dispatch(kUndoButton); });
-    actions_["undo"] = undo;
-    auto* redo = edit->addAction(language_.Text("control.401"));
-    redo->setShortcut(QKeySequence::Redo);
-    connect(redo, &QAction::triggered, this, [this] { Dispatch(kRedoButton); });
-    actions_["redo"] = redo;
-    auto* physics = menuBar()->addMenu(language_.Text("menu.physics"));
-    for (unsigned i = 0; i < 4; ++i) {
-        const char* names[]{"physics.off", "physics.always", "physics.play", "physics.trace"};
-        auto* a = physics->addAction(language_.Text(names[i]));
-        a->setCheckable(true);
-        actions_[QString("physics.%1").arg(i)] = a;
-        connect(a, &QAction::triggered, this, [this, i] {
-            std::string r;
-            Result(session_.Edit(
-                       "physics-mode",
-                       [&](auto& d, auto&) {
-                           d.physics.playbackMode = std::uint8_t(i);
-                           return true;
-                       },
-                       r),
-                   r);
-            Refresh();
-        });
-    }
-    auto* view = menuBar()->addMenu(language_.Text("menu.view"));
-    auto* renderer = view->addMenu(language_.Text("menu.renderer"));
-    for (auto pair : {std::pair{rhi::Backend::D3D11, "DirectX 11"},
-                      {rhi::Backend::D3D12, "DirectX 12"},
-                      {rhi::Backend::Vulkan, "Vulkan"}}) {
-        auto* a = renderer->addAction(pair.second);
-        a->setEnabled(rhi::BackendAvailable(pair.first));
-        a->setCheckable(true);
-        a->setChecked(viewport_->Options().backend == pair.first);
-        connect(a, &QAction::triggered, this, [this, b = pair.first] {
-            auto options = viewport_->Options();
-            options.backend = b;
-            options.surface.reset();
-            CreateViewport(options);
-            BuildMenus();
-            Refresh();
-        });
-    }
-    auto* language = view->addMenu(language_.Text("menu.language"));
-    for (const char* code : {"en", "ja", "zh_CN"}) {
-        auto* a = language->addAction(language_.Text(QString("language.") + code));
-        a->setCheckable(true);
-        a->setChecked(language_.Code() == code);
-        connect(a, &QAction::triggered, this, [this, code] { SetLanguage(code); });
-    }
-    auto* background = menuBar()->addMenu(language_.Text("menu.background"));
-    action(background, "background.black")->setCheckable(true);
-    background->addSeparator();
-    action(background, "background.load");
-    background->addSeparator();
-    action(background, "background.show")->setCheckable(true);
-    background->addSeparator();
-    for (unsigned i = 0; i < 4; ++i)
-        action(background, QString("background.capture.%1").arg(i))->setCheckable(true);
-}
 bool EditorWindow::SetLanguage(const QString& language) {
     if (!language_.Set(language))
         return false;
@@ -591,12 +495,7 @@ void EditorWindow::Refresh() {
                     readout(rot[i], std::abs(degrees[i]) < 1e-7f ? 0 : degrees[i], true);
             }
         }
-    for (unsigned i = 0; i < 4; ++i)
-        actions_[QString("physics.%1").arg(i)]->setChecked(doc.physics.playbackMode == i);
-    actions_["background.black"]->setChecked(doc.appearance.blackBackground != 0);
-    actions_["background.show"]->setChecked(doc.picture.enabled != 0);
-    for (unsigned i = 0; i < 4; ++i)
-        actions_[QString("background.capture.%1").arg(i)]->setChecked(doc.view.captureMode == i);
+    RefreshMenus();
     auto* accessories = qobject_cast<QComboBox*>(Control(kAccessoryCombo));
     SyncComboItems(accessories, [&](auto add) {
         for (const auto& a : doc.accessories) {
@@ -1327,6 +1226,14 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
             QCoreApplication::sendEvent(viewport_, &forwarded);
             return true;
         }
+    }
+    // The original Ctrl+S path also works when a panel edit has focus. Keep
+    // the shortcut out of the menu label, which has no accelerator suffix.
+    if (event->type() == QEvent::KeyPress &&
+        static_cast<QKeyEvent*>(event)->matches(QKeySequence::Save)) {
+        if (!static_cast<QKeyEvent*>(event)->isAutoRepeat())
+            MenuCommand(MDS_CMD_SAVE_PROJECT);
+        return true;
     }
     if (event->type() == QEvent::KeyPress && !qobject_cast<QLineEdit*>(object)) {
         auto* key = static_cast<QKeyEvent*>(event);

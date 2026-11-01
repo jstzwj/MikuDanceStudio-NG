@@ -14,6 +14,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/timeline.cpp"
         "${root}/src/frontend_qt/interpolation.cpp"
         "${root}/src/frontend_qt/editor_window.cpp"
+        "${root}/src/frontend_qt/editor_menus.cpp"
         "${root}/src/frontend_qt/editor_panels.cpp"
         "${root}/src/frontend_qt/viewport.cpp"
         "${root}/src/frontend_qt/relative_pointer.cpp"
@@ -88,6 +89,11 @@ function(mds_add_qt_editor)
         add_test(NAME qt_audio COMMAND qt_audio_test "${root}/res/assets")
         set_tests_properties(qt_audio PROPERTIES LABELS "p4;offscreen;qt;audio" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_editor_test "${root}/tests/qt_editor_test.cpp")
+        qt_add_executable(qt_menu_test "${root}/tests/qt_menu_test.cpp")
+        target_link_libraries(qt_menu_test PRIVATE mikudancestudio_frontend_qt)
+        add_test(NAME qt_menu COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_qt_menu.py"
+            --test $<TARGET_FILE:qt_menu_test> --assets "${root}/res/assets")
+        set_tests_properties(qt_menu PROPERTIES LABELS "p4;offscreen;qt;oracle" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         target_link_libraries(qt_editor_test PRIVATE mikudancestudio_frontend_qt Qt6::Test)
         add_test(NAME qt_editor COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"
             --passes $<TARGET_FILE:qt_editor_test> --assets "${root}/res/assets")

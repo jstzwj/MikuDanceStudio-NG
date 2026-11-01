@@ -45,6 +45,7 @@ private:
     QWidget* viewportContainer_ = nullptr;
     std::map<int, QWidget*> controls_;
     std::map<QString, QAction*> actions_;
+    std::map<int, QAction*> menuActions_;
     ui::EditorLayoutOptions layout_;
     QTimer timer_;
     QElapsedTimer clock_;
@@ -63,6 +64,8 @@ private:
     void Layout();
     void FinishSidebarDrag();
     void BuildMenus();
+    void RefreshMenus();
+    void MenuCommand(int);
     void Texts();
     void EditField(int);
     void Slider(int, int);

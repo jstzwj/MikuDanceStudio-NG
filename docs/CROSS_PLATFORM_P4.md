@@ -68,7 +68,7 @@ behavior and all frame-line operations require further implementation/comparison
 | Three-platform open/edit/play/save/reopen/export | Initial generated workflow passed; complete C1 workflow coverage pending |
 | MMD v9.32 independent geometry, behavior and output comparison | Pending |
 | Input, IME, DPI, font metrics and lifecycle acceptance | Native surface lifecycle passed on all platforms; full input/IME/DPI/font acceptance pending |
-| CPU frame-production performance | Offscreen editor preparation benchmark and local Sour Miku optimization implemented; three-platform performance gate and combined GPU/frame budget pending |
+| CPU frame-production performance | Offscreen preparation benchmark passed on three platforms; local Sour Miku optimized; combined GPU/frame budget pending |
 
 All local UI testing uses Qt `offscreen` or windows that are never shown. Actual
 window presentation/interaction uses isolated runners. Language changes must not
@@ -900,8 +900,10 @@ immutable storage. These changes preserve resource IDs and version rules.
 Local validation passed all **23 P4 tests**, exact image/snapshot, material,
 geometry and scene-renderer regressions, the touched Win32 RHI tests, offscreen
 Qt scales 1/1.5/2, and never-shown DX11/DX12/Vulkan presentation and recovery.
-The performance/geometry batch still awaits its own three-platform CI evidence;
-the full menu/dialog, font/IME and independent C1 output gates remain open.
+The performance/geometry batch subsequently passed Windows, Linux and macOS in
+[run 41320419772](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41320419772)
+at `9438cba`, including the CPU budget and native surface jobs. The full
+menu/dialog, font/IME and independent C1 output gates remain open.
 
 After the final geometry change, the same local Sour Miku workload passed the
 original CPU budget: navigation P95 **12.15 ms**, animation P95 **31.12 ms**;
@@ -912,3 +914,43 @@ navigation / 3.32 ms animation P95. Values and precise scope are retained in
 Windows executable also rebuilt successfully. These CPU-only values are not FPS
 claims; cold texture loading and combined GPU/presentation budgets remain
 separate measurements.
+
+## Original menu structure and command routing
+
+Qt now consumes a generated menu tree from `res/templates/menu/menus.rc`:
+eight top-level menus, the nested enhance-model menu, **103 command IDs and
+48 separators**. English and Japanese retain the original strings (including
+original spelling), mnemonics and order. All commands have Chinese translations
+under the same stable IDs. Backend/language settings, undo/redo shortcuts and
+image-sequence export occupy a separate NG menu following the original menus.
+
+`scripts/editor_menu.py --check` compares the source tree with both independent
+binary RT_MENU records in `res/gen_resources.res`, then checks the generated
+header and three catalogs. The offscreen `qt_menu` regression independently
+flattens the actual QMenu/QAction tree and compares its labels, IDs and nesting
+with those binary records. Repeated language replacement destroys the previous
+actions, preserves document/selection state and does not evaluate the scene.
+Windows `dialog_rc.py verify` also confirmed all 48 dialogs and both menus still
+compile byte-identically to their original resource anchors.
+
+**37 commands are connected** in this batch, including the previous file,
+background and physics-mode operations, eight select-all track commands,
+information/axis/tracking toggles and ground-shadow settings. Selection sweeps
+preserve marks in unrelated tracks/models; the accessory sweep includes every
+loaded accessory. The test covers mode-dependent availability, menu/panel
+checkmark synchronization, mutually exclusive physics modes, unloading and the
+save shortcut with focus in a panel edit. Unsupported commands stay disabled
+with a translated explanation. The binary-tree check is structural acceptance,
+**not acceptance of all 103 command behaviors or native menu font metrics**.
+
+While tracing the floor command, the audit found that the shared runtime had
+not applied PMM `floorVisible` to Bullet's ground collision flags. That command
+remains disabled until the actual physics path and trajectory tests are fixed;
+changing a menu checkmark alone does not establish support. Full timeline/menu
+behavior, dialogs, native audio, input/font metrics and independent C1 frame
+output remain open P4 gates.
+
+Local Windows validation for the menu batch passed all **24 P4 tests** and the
+Qt application build. These tests remained offscreen; no desktop window or
+audio output was opened. The new menu oracle is included in all three editor
+CI jobs; its three-platform result is recorded separately when available.
