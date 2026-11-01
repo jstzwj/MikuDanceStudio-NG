@@ -1584,3 +1584,47 @@ explicitly shows its container; hidden ancestors continue to keep local windows
 invisible. The Qt menu/editor checks and all three never-shown Windows backend
 lifecycle runs passed after this correction; the isolated X11/Wayland rerun is
 still required.
+
+## Original numeric dialog templates and camera conversion
+
+The numeric command now uses the original six-field bone and seven-field camera
+forms, including camera distance. `scripts/editor_dialogs.py` independently
+decodes the committed original `RT_DIALOG` records and compares them with the
+four English/Japanese source templates before generating Qt geometry and stable
+translation IDs. Simplified Chinese supplies its own labels. Control order,
+IDs, coordinates, default button, initial selection and three-decimal formatting
+are preserved. Dialog base units (Arial `7/15`, MS PGothic `7/12` at 96 DPI) are
+measured in a memory DC by the local original oracle; logical geometry stays
+fixed across font fallbacks. This does not claim glyph raster equivalence on
+systems without the original fonts.
+
+Direct execution of the original x64 camera numeric-command branch found a
+constant that differs from the toolbar: input angles divide by `3.141592f`,
+while acceptance multiplies by `3.141595f` before division by 180, with float
+rounding at each step. The shared helper preserves that distinction. The
+explicit `editor_numeric_oracle_test` runs **256 exact input/output cases**
+through original instructions, with hash **`a78d309a17788cb1`**. Its only dialog
+call is replaced by a capture/input stub and its publication tail returns before
+scene/UI work; no window, original entrypoint or GPU executes. The same frozen
+hash gates all three portable editor builds.
+
+`qt_numeric` compares actual Qt widgets to independently decoded binary template
+JSON and checks tab order, formatting, decimal-prefix parsing, Enter/Esc, IME
+preedit/commit, cancellation, distance publication and bone Undo. It requires the
+`offscreen` QPA before creating dialogs. Numeric overflow and nonfinite values
+remain rejected by the shared editor boundary. The bone quaternion conversion
+continues to use the existing shared editor rotation helper; the new original
+command oracle specifically covers camera values, not all bone command side
+effects or full native dialog painting.
+
+Final local numeric-dialog validation passed **30 P4 tests** (38.14 seconds),
+the Qt application build and the 256-case original camera command oracle.
+The original's 19-byte numeric read limit and floating-window dialog topmost
+rule are retained. Glyph rasterization, native IME engines and all other dialog
+commands remain within the open P4 input/dialog gates.
+
+X11's in-place QWidget topmost change still failed after child-only replacement
+in `2a76407`. Commit `b92b790` instead retires the entire parent hierarchy using
+the existing detach/dock ownership path, preserving controls and session state.
+Local menu/editor/numeric and three-backend hidden-window tests passed; the
+corresponding isolated Linux rerun is pending.

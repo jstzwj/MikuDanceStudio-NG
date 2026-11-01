@@ -16,6 +16,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/editor_window.cpp"
         "${root}/src/frontend_qt/editor_menus.cpp"
         "${root}/src/frontend_qt/editor_panels.cpp"
+        "${root}/src/frontend_qt/numeric_dialog.cpp"
         "${root}/src/frontend_qt/viewport.cpp"
         "${root}/src/frontend_qt/relative_pointer.cpp"
         "${root}/src/frontend_qt/surface.cpp")
@@ -89,6 +90,11 @@ function(mds_add_qt_editor)
         add_test(NAME qt_audio COMMAND qt_audio_test "${root}/res/assets")
         set_tests_properties(qt_audio PROPERTIES LABELS "p4;offscreen;qt;audio" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_editor_test "${root}/tests/qt_editor_test.cpp")
+        qt_add_executable(qt_numeric_test "${root}/tests/qt_numeric_test.cpp")
+        target_link_libraries(qt_numeric_test PRIVATE mikudancestudio_frontend_qt Qt6::Test)
+        add_test(NAME qt_numeric COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_qt_numeric.py"
+            --test $<TARGET_FILE:qt_numeric_test> --assets "${root}/res/assets")
+        set_tests_properties(qt_numeric PROPERTIES LABELS "p4;offscreen;qt;oracle" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_menu_test "${root}/tests/qt_menu_test.cpp")
         target_link_libraries(qt_menu_test PRIVATE mikudancestudio_frontend_qt)
         add_test(NAME qt_menu COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_qt_menu.py"
@@ -113,6 +119,9 @@ function(mds_add_qt_editor)
         target_link_libraries(qt_presentation_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
             if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+                add_executable(editor_numeric_oracle_test EXCLUDE_FROM_ALL "${root}/tests/editor_numeric_oracle_test.cpp")
+                target_compile_definitions(editor_numeric_oracle_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+                target_link_libraries(editor_numeric_oracle_test PRIVATE mikudancestudio_editor_core bcrypt)
                 add_executable(editor_overlay_oracle_test EXCLUDE_FROM_ALL "${root}/tests/editor_overlay_oracle_test.cpp")
                 target_compile_definitions(editor_overlay_oracle_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
                 target_link_libraries(editor_overlay_oracle_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render bcrypt)

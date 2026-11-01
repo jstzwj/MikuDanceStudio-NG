@@ -1,6 +1,8 @@
 #include "editor_window.hpp"
 #include "combo_items.hpp"
 #include "export.hpp"
+#include "numeric_dialog.hpp"
+#include "mikudancestudio/editor_numeric.hpp"
 #include "mikudancestudio/mmd_control_specs.hpp"
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/editor_rotation.hpp"
@@ -20,9 +22,6 @@
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QSaveFile>
-#include <QFormLayout>
-#include <QDialogButtonBox>
-#include <QDoubleSpinBox>
 #include <QCloseEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -151,9 +150,6 @@ private:
     QImage viewTools_;
     bool viewportOnly_ = false, detached_ = false, fullScreen_ = false;
 };
-std::array<float, 4> Quaternion(float x, float y, float z) {
-    return BoneRotationFromDegrees({x, y, z});
-}
 }
 EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
                            std::unique_ptr<AudioOutput> audio)
@@ -967,21 +963,8 @@ void EditorWindow::FileAction(const QString& id) {
 void EditorWindow::Numeric() {
     if (session_.Selected().model != 255 && session_.ActiveBone() < 0)
         return;
-    QDialog dialog(this);
-    dialog.setWindowTitle(language_.Text("edit.numeric"));
-    QFormLayout layout(&dialog);
-    std::array<QDoubleSpinBox*, 6> values{};
     const auto camera = session_.Runtime().Session()->Pose().camera;
-    for (int i = 0; i < 6; ++i) {
-        auto* value = new QDoubleSpinBox(&dialog);
-        value->setDecimals(4);
-        value->setRange(-100000, 100000);
-        value->setValue(i < 3 ? camera.position[i]
-                              : float(camera.rotation[i - 3] / (i == 3 ? -3.141592f : 3.141592f)) *
-                                    180.f);
-        values[i] = value;
-        layout.addRow(QString(i < 3 ? "%1" : "R%1").arg("XYZ"[i % 3]), value);
-    }
+    auto initial = editor::CameraNumericValues(camera.position, camera.rotation, camera.distance);
     for (const auto& m : session_.Document().models)
         if (m.slot == session_.Selected().model && session_.ActiveBone() >= 0) {
             const auto bone = std::size_t(session_.ActiveBone());
@@ -989,33 +972,27 @@ void EditorWindow::Numeric() {
                 const auto& p = m.bonePose[bone].components;
                 const auto degrees = BoneRotationDegrees({p[3], p[4], p[5], p[6]});
                 for (int i = 0; i < 3; ++i) {
-                    values[i]->setValue(p[i]);
-                    values[i + 3]->setValue(degrees[i]);
+                    initial[i] = p[i];
+                    initial[i + 3] = degrees[i];
                 }
             }
         }
-    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
-    layout.addRow(buttons);
-    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    NumericDialog dialog(session_.Selected().model == 255, language_, initial, this);
+    dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
     if (dialog.exec() != QDialog::Accepted)
         return;
+    const auto& values = dialog.Values();
     std::string r;
     if (session_.Selected().model == 255) {
         auto next = camera;
-        for (int i = 0; i < 3; ++i) {
-            next.position[i] = float(values[i]->value());
-            next.rotation[i] = float(values[i + 3]->value() *
-                                     (i == 0 ? -3.141592025756836 : 3.141592025756836) / 180);
-        }
+        next.position = {values[0], values[1], values[2]};
+        next.rotation = editor::CameraNumericRotation(values);
+        next.distance = -values[6];
         Result(session_.SetCamera(next, r), r);
     } else if (session_.ActiveBone() >= 0)
         Result(session_.SetBone(session_.Selected().model, std::uint32_t(session_.ActiveBone()),
-                                {float(values[0]->value()), float(values[1]->value()),
-                                 float(values[2]->value())},
-                                Quaternion(float(values[3]->value()), float(values[4]->value()),
-                                           float(values[5]->value())),
-                                r),
+                                {values[0], values[1], values[2]},
+                                BoneRotationFromDegrees({values[3], values[4], values[5]}), r),
                r);
     Refresh();
 }
