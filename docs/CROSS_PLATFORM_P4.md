@@ -779,3 +779,30 @@ checkpoints and never-shown native Qt presentation on DX11/DX12/Vulkan. Qt
 synthetic gestures passed at scale factors 1, 1.5 and 2. The compatibility drag
 precision, accessory drag and model viewport regressions also passed. This
 batch does not close the remaining exposed input, full UI or C1 output gates.
+
+The viewport header now uses the original two tool hit boxes, bundled indicator
+and release positions. Header zoom/pan has its own native arithmetic, distinct
+from middle-button navigation; Ctrl manipulates the loaded background picture,
+including when hidden. Picture drags update only placement and vertex versions,
+retaining decoded images, texture identities and published model snapshots.
+They survive PMM save/reopen without adding bone history. The Qt container also
+synchronizes its child viewport size before exposure, so hidden and real input
+use the same physical-pixel geometry. Right/middle view drags now use that same
+coordinate contract at fractional scale factors.
+
+The opt-in Windows x64 `editor_header_oracle_test <original.exe> <fixture>`
+executes the hash-verified original frame block `[32207,32BEA)`, including its
+actual picture-vertex refresh through a memory-only fake COM buffer. All **1760
+cases** passed with maximum absolute error **zero**. Cases cover camera/model
+views, parented/free cameras, rotation, FOV, depth, all precision modifiers,
+positive/zero/negative motion, picture visibility and four view scales. Native
+global cursor movement is suppressed; execution stops before the UI refresh
+call. This establishes supplied-state arithmetic, not original event-loop or
+full window behavior. No original window or GPU device runs.
+
+Local validation passed all 21 P4 tests, the 75-test Win32 foundation suite
+(one explicitly external asset test skipped), and offscreen Qt gestures at
+scale factors 1, 1.5 and 2. DX11/DX12/Vulkan background tests preserve exact
+repeated output and restore the original image after resetting placement.
+Background-video manipulation belongs to P6; exposed input, Wayland pointer
+lock and the remaining C1/UI gates are still open.

@@ -22,6 +22,7 @@
 #include <QDoubleSpinBox>
 #include <QCloseEvent>
 #include <QKeyEvent>
+#include <QMouseEvent>
 #include <QSignalBlocker>
 #include <QPainter>
 #include <QSettings>
@@ -58,8 +59,10 @@ QString Name(const std::vector<char>& bytes) {
 }
 class Canvas final : public QWidget {
 public:
-    Canvas(Language& language, editor::EditorSession& session, QWidget* p)
-        : QWidget(p), language_(language), session_(session) {
+    Canvas(Language& language, editor::EditorSession& session, const std::filesystem::path& assets,
+           QWidget* p)
+        : QWidget(p), language_(language), session_(session),
+          viewTools_(Path(assets / "playing_indicator.bmp")) {
         setAutoFillBackground(true);
     }
     void paintEvent(QPaintEvent*) override {
@@ -98,6 +101,7 @@ public:
             fill(f);
         p.fillRect(side, 0, 6, bottom - 159, QColor(220, 220, 220));
         fill({side + 9, viewport.y - 25, width(), viewport.y - 1, 0x969696, 0x646464, true});
+        p.drawImage(QPoint(width() - 58, viewport.y - 24), viewTools_);
         fill({side + 9, viewport.y + viewport.height, width(), viewport.y + viewport.height + 32,
               0x787878, 0xc8c8c8, true});
         p.setPen(Qt::white);
@@ -114,6 +118,7 @@ public:
 private:
     Language& language_;
     editor::EditorSession& session_;
+    QImage viewTools_;
 };
 std::array<float, 4> Quaternion(float x, float y, float z) {
     return BoneRotationFromDegrees({x, y, z});
@@ -132,7 +137,8 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
                       "PingFang SC", "DejaVu Sans"});
     font.setPixelSize(12);
     setFont(font);
-    canvas_ = new Canvas(language_, session_, this);
+    canvas_ = new Canvas(language_, session_, assets_, this);
+    canvas_->installEventFilter(this);
     setCentralWidget(canvas_);
     timeline_ = new Timeline(session_, language_, assets_, canvas_);
     timeline_->changed = [this] { Refresh(); };
@@ -233,6 +239,8 @@ EditorWindow::~EditorWindow() {
     audio_.Stop();
     if (viewportContainer_)
         delete viewportContainer_;
+    viewport_ = nullptr;
+    viewportContainer_ = nullptr;
 }
 QWidget* EditorWindow::Control(int id) const {
     auto it = controls_.find(id);
@@ -415,9 +423,13 @@ void EditorWindow::Layout() {
     const auto viewport = ui::MmdViewport(canvas_->width(), canvas_->height(), side_,
                                           int(session_.Document().envelope.settings.renderWidth),
                                           int(session_.Document().envelope.settings.renderHeight));
-    if (viewportContainer_)
+    if (viewportContainer_) {
         viewportContainer_->setGeometry(viewport.x, viewport.y, std::max(1, viewport.width),
                                         std::max(1, viewport.height));
+        // A hidden QWidget container postpones its child QWindow resize until
+        // exposure. Input/projection still need the same dimensions beforehand.
+        viewport_->resize(std::max(1, viewport.width), std::max(1, viewport.height));
+    }
     const auto place = [&](const auto& rect) {
         auto* w = Control(rect.id);
         if (!w)
@@ -1230,6 +1242,33 @@ void EditorWindow::Combo(int id, int index) {
     Refresh();
 }
 bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
+    if (viewport_ && ((object == this && event->type() == QEvent::WindowDeactivate) ||
+                      (object == canvas_ && event->type() == QEvent::Hide)))
+        viewport_->CancelInput();
+    if (viewport_ && object == canvas_ &&
+        (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseMove ||
+         event->type() == QEvent::MouseButtonRelease)) {
+        auto* mouse = static_cast<QMouseEvent*>(event);
+        const auto origin = viewportContainer_->pos();
+        if (event->type() == QEvent::MouseButtonPress && mouse->button() == Qt::LeftButton) {
+            const auto point = mouse->position().toPoint();
+            const auto operation =
+                render::ViewportHeaderToolAt(point.x(), point.y(), canvas_->width(), origin.y());
+            if (operation) {
+                const auto restore =
+                    render::ViewportHeaderRestorePoint(operation, canvas_->width(), origin.y());
+                return viewport_->BeginHeaderDrag(unsigned(operation), point - origin,
+                                                  QPoint(restore[0], restore[1]) - origin);
+            }
+        } else if (viewport_->HeaderDragging()) {
+            const QPointF point = mouse->position() - origin;
+            QMouseEvent forwarded(event->type(), point, point, mouse->globalPosition(),
+                                  mouse->button(), mouse->buttons(), mouse->modifiers(),
+                                  mouse->pointingDevice());
+            QCoreApplication::sendEvent(viewport_, &forwarded);
+            return true;
+        }
+    }
     if (event->type() == QEvent::KeyPress && !qobject_cast<QLineEdit*>(object)) {
         auto* key = static_cast<QKeyEvent*>(event);
         if ((key->modifiers() & Qt::KeypadModifier) && key->key() >= Qt::Key_0 &&

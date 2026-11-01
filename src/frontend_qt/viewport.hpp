@@ -21,6 +21,9 @@ public:
     std::function<void(bool, const std::string&)> changed;
     std::uint64_t Submissions() const;
     std::uint64_t FrameBuilds() const { return frameBuilds_; }
+    bool BeginHeaderDrag(unsigned operation, QPoint position, QPoint restore);
+    bool HeaderDragging() const { return headerDragOperation_ != 0; }
+    void CancelInput();
 
 protected:
     bool event(QEvent*) override;
@@ -53,6 +56,7 @@ private:
     bool loadedAssets_ = false, pressed_ = false;
     int boneDragMode_ = 0;
     unsigned sceneDragMode_ = 0;
+    unsigned headerDragOperation_ = 0;
     std::uint8_t dragModel_ = 255;
     std::shared_ptr<const runtime::ModelResource> dragResource_;
     editor::BoneDragInput boneDrag_;

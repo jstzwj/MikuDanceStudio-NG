@@ -36,9 +36,11 @@ class OriginalFrameSlice {
     }
 
 public:
-    OriginalFrameSlice(const OriginalPhysicsModule& original, std::uintptr_t start,
-                       std::uintptr_t end, std::initializer_list<unsigned char> signature,
-                       std::initializer_list<std::pair<unsigned, float>> registers) {
+    OriginalFrameSlice(
+        const OriginalPhysicsModule& original, std::uintptr_t start, std::uintptr_t end,
+        std::initializer_list<unsigned char> signature,
+        std::initializer_list<std::pair<unsigned, float>> registers,
+        std::initializer_list<std::pair<unsigned, std::uint64_t>> wideRegisters = {}) {
         Require(signature.size() && signature.size() <= saved_.size(),
                 "frame slice signature size");
         memory_ = static_cast<unsigned char*>(
@@ -60,6 +62,13 @@ public:
             if (index >= 8)
                 Emit({0x44});
             Emit({0x0f, 0x6e, static_cast<unsigned char>(0xc0 | ((index & 7) << 3))});
+        }
+        for (const auto& [index, value] : wideRegisters) {
+            Require(index >= 6 && index <= 15, "frame slice wide register");
+            Emit({0x48, 0xb8});
+            Value(value);
+            Emit({0x66, static_cast<unsigned char>(index >= 8 ? 0x4c : 0x48), 0x0f, 0x6e,
+                  static_cast<unsigned char>(0xc0 | ((index & 7) << 3))});
         }
         Emit({0x48, 0xb8});
         Value(original.Function<std::uintptr_t>(start));

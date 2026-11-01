@@ -277,6 +277,14 @@ bool SceneSession::SetViewCamera(const PmmEvaluatedCamera& camera,
     return true;
 }
 
+bool SceneSession::SetPicturePlacement(std::int32_t x, std::int32_t y, float scale) {
+    if (!loaded_ || !std::isfinite(scale))
+        return false;
+    scene_.picture.offsetX = x;
+    scene_.picture.offsetY = y;
+    scene_.picture.scale = scale;
+    return true;
+}
 bool SceneSession::SetViewBasis(const std::array<float, 16>& basis, bool suppressed) {
     if (!loaded_ ||
         !std::all_of(basis.begin(), basis.end(), [](float v) { return std::isfinite(v); }))

@@ -80,6 +80,16 @@ int main(int argc, char** argv) {
     CHECK(render::ViewportToolRestorePoint(14, 1280, 960, 1) == (std::array<int, 2>{1250, 935}));
     CHECK(render::ViewportToolRestorePoint(18, 511, 383, .4790625f) ==
           (std::array<int, 2>{459, 352}));
+    CHECK(render::ViewportHeaderToolAt(952, 88, 1000, 100) == 1);
+    CHECK(render::ViewportHeaderToolAt(982, 88, 1000, 100) == 2);
+    CHECK(render::ViewportHeaderToolAt(940, 88, 1000, 100) == 0);
+    CHECK(render::ViewportHeaderToolAt(964, 88, 1000, 100) == 0);
+    CHECK(render::ViewportHeaderToolAt(970, 88, 1000, 100) == 0);
+    CHECK(render::ViewportHeaderToolAt(994, 88, 1000, 100) == 0);
+    CHECK(render::ViewportHeaderToolAt(952, 75, 1000, 100) == 0);
+    CHECK(render::ViewportHeaderToolAt(982, 100, 1000, 100) == 0);
+    CHECK(render::ViewportHeaderRestorePoint(1, 1000, 100) == (std::array<int, 2>{952, 88}));
+    CHECK(render::ViewportHeaderRestorePoint(2, 1000, 100) == (std::array<int, 2>{982, 88}));
     // Frozen native atlas cells and order. These checks do not obtain expected
     // UVs from the producer, and include the selected mode-1 physics exception.
     {

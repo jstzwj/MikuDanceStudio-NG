@@ -15,6 +15,7 @@
 #include <QFile>
 #include <QPainter>
 #include <QFontDatabase>
+#include <QMouseEvent>
 #include <iostream>
 using namespace mikudancestudio;
 std::string reason;
@@ -55,6 +56,62 @@ int main(int argc, char** argv) {
     CHECK(QFontMetrics(window.font()).inFont(QChar('0')));
     CHECK(!window.isVisible());
     CHECK(window.SetLanguage("en"));
+    {
+        qt::EditorWindow header(std::filesystem::absolute(argv[2]), true);
+        auto* canvas = header.centralWidget();
+        canvas->resize(1024, 700);
+        header.Refresh();
+        auto* viewport = header.RenderWindow();
+        const auto rect = ui::MmdViewport(1024, 700, 250, 1024, 768);
+        const QPointF zoom(1024 - 48, rect.y - 12), pan(1024 - 18, rect.y - 12);
+        const auto mouse = [&](QEvent::Type type, QPointF point, Qt::MouseButton button,
+                               Qt::MouseButtons buttons,
+                               Qt::KeyboardModifiers mods = Qt::NoModifier) {
+            QMouseEvent event(type, point, point, point, button, buttons, mods);
+            QCoreApplication::sendEvent(canvas, &event);
+        };
+        const auto before = header.Session().Document().cameraState;
+        const auto frames = header.Session().Runtime().Counters().frames;
+        mouse(QEvent::MouseButtonPress, zoom, Qt::LeftButton, Qt::LeftButton);
+        CHECK(viewport->HeaderDragging() && viewport->cursor().shape() == Qt::BlankCursor);
+        mouse(QEvent::MouseMove, zoom + QPointF(0, 10), Qt::NoButton, Qt::LeftButton);
+        mouse(QEvent::MouseButtonRelease, zoom + QPointF(0, 10), Qt::LeftButton, Qt::NoButton);
+        CHECK(!viewport->HeaderDragging() && viewport->cursor().shape() != Qt::BlankCursor);
+        const auto ratio = viewport->devicePixelRatio();
+        const float zoomDelta =
+            float(qRound((zoom.y() + 10) * ratio) - qRound(zoom.y() * ratio)) * .1f;
+        if (header.Session().Document().cameraState[5] != before[5] - zoomDelta)
+            std::cerr << "header zoom before=" << before[5]
+                      << " after=" << header.Session().Document().cameraState[5]
+                      << " ratio=" << ratio << " delta=" << zoomDelta << '\n';
+        CHECK(header.Session().Document().cameraState[5] == before[5] - zoomDelta);
+        mouse(QEvent::MouseButtonPress, pan, Qt::LeftButton, Qt::LeftButton);
+        mouse(QEvent::MouseMove, pan + QPointF(10, -20), Qt::NoButton, Qt::LeftButton);
+        const auto moved = header.Session().Document().cameraState;
+        QEvent deactivate(QEvent::WindowDeactivate);
+        QCoreApplication::sendEvent(&header, &deactivate);
+        CHECK(!viewport->HeaderDragging() && viewport->cursor().shape() != Qt::BlankCursor);
+        mouse(QEvent::MouseMove, pan + QPointF(100, -200), Qt::NoButton, Qt::LeftButton);
+        CHECK(header.Session().Document().cameraState == moved);
+        CHECK(header.Session().Runtime().Counters().frames == frames &&
+              !header.Session().CanUndo());
+        CHECK(!header.isVisible() && viewport->Submissions() == 0 && header.LastError().isEmpty());
+        CHECK(header.SetLanguage("ja") && header.SetLanguage("zh_CN"));
+        CHECK(header.Session().Document().cameraState == moved);
+        const auto sendView = [&](QEvent::Type type, QPointF point, Qt::MouseButton button,
+                                  Qt::MouseButtons buttons) {
+            QMouseEvent event(type, point, point, point, button, buttons, Qt::NoModifier);
+            QCoreApplication::sendEvent(viewport, &event);
+        };
+        sendView(QEvent::MouseButtonPress, {100, 100}, Qt::RightButton, Qt::RightButton);
+        sendView(QEvent::MouseMove, {120, 90}, Qt::NoButton, Qt::RightButton);
+        sendView(QEvent::MouseButtonRelease, {120, 90}, Qt::RightButton, Qt::NoButton);
+        CHECK(std::abs(header.Session().Document().cameraState[6] - moved[6] -
+                       float(qRound(100 * ratio) - qRound(90 * ratio)) * .01f) < 1e-6f);
+        CHECK(std::abs(header.Session().Document().cameraState[7] - moved[7] +
+                       float(qRound(120 * ratio) - qRound(100 * ratio)) * .01f) < 1e-6f);
+        CHECK(header.Session().Runtime().Counters().frames == frames);
+    }
     {
         const auto revision = window.Session().Revision();
         QTest::keyClick(&window, Qt::Key_L);
@@ -121,18 +178,20 @@ int main(int argc, char** argv) {
     }
     {
         qt::EditorWindow picking(std::filesystem::absolute(argv[2]), true);
+        picking.centralWidget()->resize(1024, 700);
         auto& s = picking.Session();
         CHECK(s.ImportModel(root / "pose.pmd", reason));
         CHECK(s.SetBone(0, 3, {4, 0, 0}, {0, 0, 0, 1}, reason));
         picking.Refresh();
         auto* view = picking.RenderWindow();
-        view->resize(640, 480); // hidden window containers have no exposed surface layout
+        const auto ratio = view->devicePixelRatio();
+        CHECK(s.PrepareView(reason));
         std::vector<cpu_bone::ScreenPoint> points;
-        CHECK(render::SceneBoneScreenPoints(s.Runtime(), 0, unsigned(view->width()),
-                                            unsigned(view->height()), points, reason,
-                                            s.Selected().model));
+        CHECK(render::SceneBoneScreenPoints(s.Runtime(), 0, unsigned(qRound(view->width() * ratio)),
+                                            unsigned(qRound(view->height() * ratio)), points,
+                                            reason, s.Selected().model));
         CHECK(points.size() == 8 && points[3].x != 393939);
-        const QPointF hit(points[3].x, points[3].y);
+        const QPointF hit(points[3].x / ratio, points[3].y / ratio);
         const auto click = [&](QEvent::Type type, QPointF point,
                                Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
             QMouseEvent event(type, point, point, Qt::LeftButton,
@@ -178,19 +237,19 @@ int main(int argc, char** argv) {
             QApplication::sendEvent(view, &release);
         };
         dragView(Qt::RightButton, Qt::ShiftModifier);
-        CHECK(s.Document().cameraState[3] == offsets[3] - 2);
-        CHECK(s.Document().cameraState[4] == offsets[4] - 1);
+        CHECK(s.Document().cameraState[3] == offsets[3] - 2 * ratio);
+        CHECK(s.Document().cameraState[4] == offsets[4] - ratio);
         const auto distance = s.Document().cameraState[5];
         dragView(Qt::RightButton, Qt::ControlModifier);
-        CHECK(s.Document().cameraState[5] == distance + 1);
+        CHECK(s.Document().cameraState[5] == distance + ratio);
         const auto pitch = s.Document().cameraState[6], yaw = s.Document().cameraState[7];
         dragView(Qt::RightButton, Qt::NoModifier);
-        CHECK(std::abs(s.Document().cameraState[6] - (pitch + .1f)) < 1e-6f);
-        CHECK(std::abs(s.Document().cameraState[7] - (yaw - .2f)) < 1e-6f);
+        CHECK(std::abs(s.Document().cameraState[6] - (pitch + .1f * ratio)) < 1e-6f);
+        CHECK(std::abs(s.Document().cameraState[7] - (yaw - .2f * ratio)) < 1e-6f);
         QWheelEvent wheel(QPointF(100, 100), QPointF(100, 100), QPoint(), QPoint(0, -120),
                           Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
         QApplication::sendEvent(view, &wheel);
-        CHECK(s.Document().cameraState[5] == distance - 5);
+        CHECK(s.Document().cameraState[5] == distance + ratio - 6);
         CHECK(&s.Runtime() == liveRuntime && s.Runtime().Snapshot(0) == liveSnapshot);
         CHECK(s.Runtime().Counters().frames == updates);
         CHECK(picking.LastError().isEmpty());

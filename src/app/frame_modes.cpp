@@ -24,6 +24,7 @@
 #include "mikudancestudio/bone_selection.hpp"
 #include "mikudancestudio/viewport_tools.hpp"
 #include "mikudancestudio/scene_axis_drag.hpp"
+#include "mikudancestudio/camera_navigation.hpp"
 
 namespace mikudancestudio {
 
@@ -75,16 +76,12 @@ void PollKey(MMDApp* app, std::int32_t& keyState, int virtualKey) {
         app->state.messageSeen = 1;
 }
 
-float DragScale(MMDApp* app) {
-    if (app->ShiftModifierActive())
-        return 0.5f; // flt_52960C / dbl_52B8F0
-    if (app->CtrlModifierActive())
-        return 0.005f; // flt_529604 / dbl_52E9C0
-    return 0.05f;      // flt_52E9A4 / dbl_52D738
-}
-
 void PanCameraPosition(MMDApp* app, int dx, int dy) {
-    const float scale = DragScale(app);
+    if (app->state.cameraParentModel >= 0) {
+        navigation::PanParentedCamera(app->CameraPosition(), app->CameraFov(), dx, dy,
+                                      app->ShiftModifierActive(), app->CtrlModifierActive());
+        return;
+    }
     auto& api = d3dx::Get();
     d3dx::D3DXMATRIXF mx{}, my{}, mz{}, matrix{};
     api.rotY(&my, app->CameraYaw());
@@ -93,11 +90,8 @@ void PanCameraPosition(MMDApp* app, int dx, int dy) {
     api.rotZ(&mz, -app->CameraRoll());
     api.multiply(&matrix, &mz, &matrix);
 
-    const float sx = static_cast<float>(-dx) * scale;
-    const float sy = static_cast<float>(dy) * scale;
-    app->CameraPositionX() += sx * matrix.m[0][0] + sy * matrix.m[1][0] + matrix.m[3][0];
-    app->CameraPositionY() += sx * matrix.m[0][1] + sy * matrix.m[1][1] + matrix.m[3][1];
-    app->CameraPositionZ() -= sx * matrix.m[0][2] + sy * matrix.m[1][2] + matrix.m[3][2];
+    navigation::HeaderPanFreeCamera(app->CameraPosition(), &matrix.m[0][0], dx, dy,
+                                    app->ShiftModifierActive(), app->CtrlModifierActive());
 }
 
 // PanSelectedCameraKey (parented-camera-key MMB pan) moved to
@@ -118,13 +112,8 @@ ViewportToolAction ViewportToolAtPoint(MMDApp* app) {
     RECT client{};
     GetClientRect(window, &client);
 
-    ViewportToolAction operation = ViewportToolAction::None;
-    if (y > view.top - 25 && y < view.top) {
-        if (x > client.right - 60 && x < client.right - 36)
-            operation = ViewportToolAction::CameraOrbit;
-        else if (x > client.right - 30 && x < client.right - 6)
-            operation = ViewportToolAction::CameraPan;
-    }
+    ViewportToolAction operation =
+        static_cast<ViewportToolAction>(render::ViewportHeaderToolAt(x, y, client.right, view.top));
 
     float scale = 1.0f;
     if (D3DRenderer* r = app->Renderer())
@@ -196,8 +185,10 @@ void RestoreViewportToolCursor(MMDApp* app, ViewportToolAction operation) {
         HWND mainWindow = app->state.hwnd;
         RECT client{};
         GetClientRect(mainWindow, &client);
-        point.x = client.right - (operation == ViewportToolAction::CameraOrbit ? 48 : 18);
-        point.y = view.top - 12;
+        const auto restore =
+            render::ViewportHeaderRestorePoint(static_cast<int>(operation), client.right, view.top);
+        point.x = restore[0];
+        point.y = restore[1];
     } else {
         const auto restore = render::ViewportToolRestorePoint(static_cast<int>(operation),
                                                               view.right, view.bottom, scale);
@@ -440,16 +431,33 @@ void MouseInteractionBegin(MMDApp* app) {
 
     if (app->LeftMouseButtonHeld()) {
         const ViewportToolAction viewMode = app->ViewToolDragOperation();
-        if (viewMode == ViewportToolAction::CameraOrbit) {
-            app->CameraDistance() -= static_cast<float>(dy) * 0.1f;
+        if ((viewMode == ViewportToolAction::CameraOrbit ||
+             viewMode == ViewportToolAction::CameraPan) &&
+            app->CtrlModifierActive() && app->PictureBackgroundTexture()) {
+            navigation::HeaderPictureState picture{app->PictureOffsetX(), app->PictureOffsetY(),
+                                                   app->PictureScale()};
+            auto* renderer = app->Renderer();
+            if (navigation::HeaderPictureDrag(
+                    picture, unsigned(viewMode), dx, dy, unsigned(app->PictureWidth()),
+                    unsigned(app->PictureHeight()), renderer ? renderer->viewScale : 1.f)) {
+                app->PictureOffsetX() = picture.x;
+                app->PictureOffsetY() = picture.y;
+                app->PictureScale() = picture.scale;
+                if (app->PictureBackgroundEnabled())
+                    PicBgOverlayRefresh(app);
+            }
+            PostViewRefresh(app);
+        } else if (viewMode == ViewportToolAction::CameraOrbit) {
+            navigation::HeaderZoom(app->CameraPosition(), app->CameraDistance(),
+                                   app->CameraMode() != 0, app->state.cameraParentModel, dy,
+                                   app->ShiftModifierActive(), app->CtrlModifierActive());
             ViewRefreshGate(app);
         } else if (viewMode == ViewportToolAction::CameraPan) {
             if (app->CameraMode() != 0)
                 PanCameraPosition(app, dx, dy);
-            else {
-                app->ViewOffsetX() -= static_cast<float>(dx) * DragScale(app);
-                app->ViewOffsetY() += static_cast<float>(dy) * DragScale(app);
-            }
+            else
+                navigation::PanOffsets(&app->ViewOffsetX(), dx, dy, app->ShiftModifierActive(),
+                                       app->CtrlModifierActive());
             ViewRefreshGate(app);
         }
     }

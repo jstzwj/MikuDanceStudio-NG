@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 namespace mikudancestudio::navigation {
 // Values stored in the original image, including its rounded angle presets.
@@ -62,6 +63,61 @@ inline void PanOffsets(float* offsets, int dx, int dy, bool shift, bool control)
     const float scale = shift ? .5f : control ? .005f : .05f;
     offsets[1] = offsets[1] + float(dy) * scale;
     offsets[0] = offsets[0] - float(dx) * scale;
+}
+// Native header hand control (x64 32A2B..32BEA). Its free-camera
+// sensitivity differs from the middle-button path below.
+inline void HeaderPanFreeCamera(float* position, const float* rotation, int dx, int dy, bool shift,
+                                bool control) {
+    const float scale = shift ? 1.f : control ? .01f : .1f;
+    const float x = -float(dx), y = float(dy);
+    position[0] += y * rotation[4] * scale + x * rotation[0] * scale + rotation[12];
+    position[1] += y * rotation[5] * scale + x * rotation[1] * scale + rotation[13];
+    position[2] -= y * rotation[6] * scale + x * rotation[2] * scale + rotation[14];
+}
+inline void HeaderZoom(float* position, float& distance, bool cameraMode, int parentModel, int dy,
+                       bool shift, bool control) {
+    float& target = cameraMode && parentModel >= 0 ? position[2] : distance;
+    if (shift)
+        target -= float(dy);
+    else
+        target -= float(dy) * (cameraMode && parentModel >= 0 && control ? .01f : .1f);
+}
+struct HeaderPictureState {
+    std::int32_t x = 0, y = 0;
+    float scale = 0;
+};
+// Native Ctrl+header manipulation is independent of picture visibility.
+// Keep float stores and truncation order; reject out-of-range integer stores
+// before publishing any field instead of invoking an overflowing C++ cast.
+inline bool HeaderPictureDrag(HeaderPictureState& state, unsigned operation, int dx, int dy,
+                              unsigned width, unsigned height, float viewScale) {
+    if ((operation != 1 && operation != 2) || !width || !height || !std::isfinite(viewScale) ||
+        viewScale <= 0)
+        return false;
+    auto next = state;
+    float x, y;
+    if (operation == 1) {
+        next.scale -= float(dy) * 10.f / float(width) * viewScale;
+        x = float(dy) * 5.f * viewScale;
+        y = float(dy) * 5.f / float(width) * float(height) * viewScale;
+    } else {
+        x = float(dx) * 5.f * viewScale;
+        y = float(dy) * 5.f * viewScale;
+    }
+    const auto add = [](std::int32_t& target, float value) {
+        if (!std::isfinite(value) || double(value) < double(INT32_MIN) ||
+            double(value) > double(INT32_MAX))
+            return false;
+        const auto result = std::int64_t(target) + std::int32_t(value);
+        if (result < INT32_MIN || result > INT32_MAX)
+            return false;
+        target = std::int32_t(result);
+        return true;
+    };
+    if (!std::isfinite(next.scale) || !add(next.x, x) || !add(next.y, y))
+        return false;
+    state = next;
+    return true;
 }
 inline void PanParentedCamera(float* position, float fov, int dx, int dy, bool shift,
                               bool control) {

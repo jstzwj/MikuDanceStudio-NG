@@ -59,6 +59,9 @@ int main(int argc, char** argv) {
         CHECK(std::abs(pictures.Document().picture.scale - 426.6666667f) < .0001f);
         CHECK(pictures.ShowPicture(false, reason));
         CHECK(pictures.Assets().picture == image);
+        CHECK(pictures.DragViewTool(1, 0, -7, true, true, .4790625f, reason));
+        CHECK(pictures.DragViewTool(2, -3, 11, false, true, .4790625f, reason));
+        const auto placement = pictures.Document().picture;
         std::filesystem::create_directories(root / "picture-save");
         CHECK(pictures.Save(root / "picture-save/scene.pmm", Write, reason));
         EditorSession loaded;
@@ -66,6 +69,9 @@ int main(int argc, char** argv) {
         CHECK(!loaded.Document().picture.enabled && loaded.Assets().picture);
         CHECK(loaded.Assets().picturePath == root / "picture.tga");
         CHECK(loaded.Assets().picture->pixels == image->pixels);
+        CHECK(loaded.Document().picture.offsetX == placement.offsetX &&
+              loaded.Document().picture.offsetY == placement.offsetY &&
+              loaded.Document().picture.scale == placement.scale);
         CHECK(loaded.ShowPicture(true, reason));
         CHECK(!loaded.CanUndo() && !loaded.CanRedo());
         CHECK(loaded.ShowPicture(false, reason));

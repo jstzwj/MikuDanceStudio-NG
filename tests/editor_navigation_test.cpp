@@ -395,6 +395,74 @@ int main(int argc, char** argv) {
         CHECK(!axes.DragSceneAxis(13, 1, false, false, reason));
         CHECK(axes.SelectModel(255, reason) && axes.Selected().accessory == 0);
     }
+    {
+        editor::EditorSession header;
+        CHECK(header.ImportModel(std::filesystem::absolute(argv[1]) / "pose.pmd", reason));
+        CHECK(header.SelectModel(255, reason));
+        auto camera = header.Runtime().Session()->Pose().camera;
+        camera.position = {0, 0, -45};
+        camera.rotation = {0, 1.5707963267948966f, 0};
+        camera.distance = -45;
+        camera.parentModel = -1;
+        CHECK(header.SetCamera(camera, reason));
+        const auto frames = header.Runtime().Counters().frames;
+        const auto* snapshot = header.Runtime().Snapshot(0);
+        CHECK(header.DragViewTool(1, 123, 10, false, true, 1, reason));
+        CHECK(header.Document().cameraState[5] == -46); // free zoom ignores Ctrl
+        CHECK(header.DragViewTool(1, 0, 10, true, true, 1, reason));
+        CHECK(header.Document().cameraState[5] == -56); // Shift wins
+        CHECK(header.SetCamera(camera, reason));
+        CHECK(header.DragViewTool(2, 10, 0, false, false, 1, reason));
+        CHECK(std::abs(header.Document().cameraState[2] + 46) < 1e-6f);
+        camera.parentModel = 0;
+        camera.parentBone = 0;
+        camera.fov = 30;
+        CHECK(header.SetCamera(camera, reason));
+        CHECK(header.DragViewTool(1, 0, 10, false, true, 1, reason));
+        CHECK(header.Document().cameraState[2] == -45.1f);
+        CHECK(header.Document().cameraState[5] == -45);
+        CHECK(header.SetCamera(camera, reason));
+        CHECK(header.DragViewTool(2, 10, -20, false, false, 1, reason));
+        CHECK(std::abs(header.Document().cameraState[0] + .27f) < 1e-6f);
+        CHECK(std::abs(header.Document().cameraState[1] + .54f) < 1e-6f);
+        CHECK(header.SelectModel(0, reason));
+        const auto modelView = header.Document().cameraState;
+        CHECK(header.DragViewTool(2, 10, -20, true, true, 1, reason));
+        CHECK(header.Document().cameraState[3] == modelView[3] - 5 &&
+              header.Document().cameraState[4] == modelView[4] - 10);
+        CHECK(header.Runtime().Counters().frames == frames &&
+              header.Runtime().Snapshot(0) == snapshot);
+        CHECK(!header.CanUndo());
+        const auto revision = header.Revision();
+        CHECK(!header.DragViewTool(3, 0, 1, false, false, 1, reason));
+        CHECK(!header.DragViewTool(1, INT32_MIN, 1, false, false, 1, reason));
+        CHECK(!header.DragViewTool(1, 0, 1, false, false, 0, reason));
+        CHECK(header.Revision() == revision);
+        CHECK(header.ImportPicture(std::filesystem::absolute(argv[1]) / "checker.bmp", 640, 480,
+                                   reason));
+        CHECK(header.ShowPicture(false, reason));
+        const auto picture = header.Document().picture;
+        const auto view = header.Document().cameraState;
+        const auto pictureFrames = header.Runtime().Counters().frames;
+        const auto* pictureSnapshot = header.Runtime().Snapshot(0);
+        const auto image = header.Assets().picture;
+        CHECK(header.DragViewTool(1, 0, 4, true, true, .5f, reason));
+        CHECK(header.Document().picture.offsetX == picture.offsetX + 10);
+        CHECK(header.Document().picture.offsetY == picture.offsetY + 10);
+        CHECK(header.Document().picture.scale == picture.scale - 20.f / image->width);
+        CHECK(header.DragViewTool(2, 3, -3, false, true, .5f, reason));
+        CHECK(header.Document().picture.offsetX == picture.offsetX + 17);
+        CHECK(header.Document().picture.offsetY == picture.offsetY + 3); // truncation toward zero
+        const auto moved = header.Document().picture;
+        const auto movedRevision = header.Revision();
+        CHECK(!header.DragViewTool(2, 1000000, 0, false, true, 1000000.f, reason));
+        CHECK(header.Revision() == movedRevision &&
+              header.Document().picture.offsetX == moved.offsetX);
+        CHECK(!header.Document().picture.enabled && header.Document().cameraState == view);
+        CHECK(header.Runtime().Counters().frames == pictureFrames &&
+              header.Runtime().Snapshot(0) == pictureSnapshot);
+        CHECK(header.Assets().picture == image && !header.CanUndo());
+    }
     std::cout
         << "View navigation: native modifiers, parent/follow gates and zero scene updates passed\n";
 }

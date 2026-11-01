@@ -286,6 +286,12 @@ def write(directory):
     bmp = b'BM' + struct.pack('<IHHI', 54 + len(pixels), 0, 0, 54)
     bmp += struct.pack('<IiiHHIIIIII', 40, 2, 2, 1, 32, 0, len(pixels), 0, 0, 0, 0)
     (root / 'checker.bmp').write_bytes(bmp + pixels)
+    # Non-square background for independent Ctrl+header scaling/truncation checks.
+    header_picture = bytearray(18)
+    header_picture[2] = 2
+    header_picture[12:16] = struct.pack('<HH', 79, 43)
+    header_picture[16:18] = bytes((32, 0x28))
+    (root / 'navigation-picture.tga').write_bytes(header_picture + bytes((80, 150, 240, 255)) * (79 * 43))
     (root / 's.sph').write_bytes(bmp + pixels)
     (root / 'v1.pmm').write_bytes(scene(1))
     (root / 'v2.pmm').write_bytes(scene(2))

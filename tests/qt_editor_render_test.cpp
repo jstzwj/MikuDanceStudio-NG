@@ -89,6 +89,31 @@ int main(int argc, char** argv) {
         images.ResetHistory();
         CHECK(images.Build(background.Runtime(), size, b, reason));
         CHECK(read(b, stable) && first.bytes == stable.bytes);
+        const auto placement = background.Document().picture;
+        const auto image = background.Assets().picture;
+        const auto oldTexture = b.passes.front().draws[0].textures[0];
+        const auto beforeDragVertices = b.passes.front().draws[0].vertices;
+        const auto updates = background.Runtime().Counters().frames;
+        CHECK(background.DragViewTool(1, 0, 3, false, true, .12f, reason));
+        CHECK(background.DragViewTool(2, 5, -7, false, true, .12f, reason));
+        CHECK(background.Runtime().Counters().frames == updates &&
+              background.Assets().picture == image);
+        CHECK(images.Build(background.Runtime(), size, b, reason));
+        CHECK(b.passes.front().draws[0].textures[0].id == oldTexture.id);
+        CHECK(b.passes.front().draws[0].textures[0].version == oldTexture.version);
+        CHECK(b.passes.front().draws[0].vertices.id == beforeDragVertices.id);
+        CHECK(b.passes.front().draws[0].vertices.version > beforeDragVertices.version);
+        CHECK(read(b, next) && next.bytes != first.bytes);
+        CHECK(read(b, stable) && stable.bytes == next.bytes);
+        CHECK(background.Edit(
+            "restore-picture",
+            [&](auto& doc, auto&) {
+                doc.picture = placement;
+                return true;
+            },
+            reason));
+        CHECK(images.Build(background.Runtime(), size, b, reason));
+        CHECK(read(b, stable) && stable.bytes == first.bytes);
         const auto oldVertices = b.passes.front().draws[0].vertices;
         size.width = 193;
         size.height = 111;

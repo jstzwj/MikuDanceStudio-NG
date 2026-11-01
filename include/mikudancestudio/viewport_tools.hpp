@@ -10,6 +10,20 @@ struct ViewportTools {
     bool selectionBox = false;
     std::array<int, 4> box{}; // Physical pixel left/top/right/bottom.
 };
+// The header uses the host client edge, which can extend past the aspect-fitted
+// viewport. Hosts apply their UI DPI transform to these logical rectangles.
+inline int ViewportHeaderToolAt(int x, int y, int right, int viewportTop) {
+    if (y > viewportTop - 25 && y < viewportTop) {
+        if (x > right - 60 && x < right - 36)
+            return 1;
+        if (x > right - 30 && x < right - 6)
+            return 2;
+    }
+    return 0;
+}
+inline std::array<int, 2> ViewportHeaderRestorePoint(int operation, int right, int viewportTop) {
+    return {right - (operation == 1 ? 48 : 18), viewportTop - 12};
+}
 // Pixel coordinates of the native operation-cell centers on pointer restoration.
 inline std::array<int, 2> ViewportToolRestorePoint(int operation, int right, int bottom,
                                                    float scale) {

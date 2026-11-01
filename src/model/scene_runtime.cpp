@@ -634,6 +634,9 @@ bool SceneRuntime::PrepareEditorView(std::uint8_t model, bool& changed) {
     return impl_ && impl_->session && !impl_->failed &&
            impl_->session->PrepareEditorView(model, impl_->playing, changed);
 }
+bool SceneRuntime::SetPicturePlacement(std::int32_t x, std::int32_t y, float scale) {
+    return impl_ && impl_->session && impl_->session->SetPicturePlacement(x, y, scale);
+}
 bool SceneRuntime::SetViewBasis(const std::array<float, 16>& basis, bool suppressed) {
     return impl_ && impl_->session && !impl_->failed &&
            impl_->session->SetViewBasis(basis, suppressed);

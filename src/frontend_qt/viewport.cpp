@@ -189,13 +189,15 @@ void Viewport::FinishBoxSelection() {
         changed(ok, reason);
 }
 void Viewport::BeginCenteredCursor(int operation) {
-    if (operation < 9)
+    if (operation < 9 && operation != 1 && operation != 2)
         return;
     const auto ratio = devicePixelRatio();
     const int w = qRound(width() * ratio), h = qRound(height() * ratio);
-    const auto restore =
-        render::ViewportToolRestorePoint(operation, w, h, render::BackgroundViewScale(w));
-    restoreCursor_ = {qRound(restore[0] / ratio), qRound(restore[1] / ratio)};
+    if (operation >= 9) {
+        const auto restore =
+            render::ViewportToolRestorePoint(operation, w, h, render::BackgroundViewScale(w));
+        restoreCursor_ = {qRound(restore[0] / ratio), qRound(restore[1] / ratio)};
+    }
     savedCursor_ = cursor();
     centeredCursor_ = true;
     setCursor(Qt::BlankCursor);
@@ -209,11 +211,12 @@ void Viewport::BeginCenteredCursor(int operation) {
     }
 }
 void Viewport::FinishToolDrag(bool restorePosition) {
-    if (!boneDragMode_ && !sceneDragMode_)
+    if (!boneDragMode_ && !sceneDragMode_ && !headerDragOperation_)
         return;
     session_.EndBoneDrag();
     boneDragMode_ = 0;
     sceneDragMode_ = 0;
+    headerDragOperation_ = 0;
     dragResource_.reset();
     pressed_ = false;
     toolOperation_ = 0;
@@ -227,15 +230,33 @@ void Viewport::FinishToolDrag(bool restorePosition) {
     if (isExposed())
         setMouseGrabEnabled(false);
 }
+bool Viewport::BeginHeaderDrag(unsigned operation, QPoint position, QPoint restore) {
+    if ((operation != 1 && operation != 2) || boneDragMode_ || sceneDragMode_ ||
+        headerDragOperation_ || box_)
+        return false;
+    headerDragOperation_ = operation;
+    pressed_ = true;
+    previous_ = position;
+    restoreCursor_ = restore;
+    BeginCenteredCursor(int(operation));
+    if (isExposed())
+        setMouseGrabEnabled(true);
+    if (changed)
+        changed(true, {});
+    return true;
+}
+void Viewport::CancelInput() {
+    const bool active = boneDragMode_ || sceneDragMode_ || headerDragOperation_ || box_;
+    FinishToolDrag();
+    FinishBoxSelection();
+    pressed_ = false;
+    if (active && changed)
+        changed(true, {});
+}
 bool Viewport::event(QEvent* event) {
     if (event->type() == QEvent::FocusOut || event->type() == QEvent::Hide ||
         event->type() == QEvent::UngrabMouse) {
-        const bool active = boneDragMode_ != 0 || sceneDragMode_ != 0;
-        FinishToolDrag();
-        FinishBoxSelection();
-        pressed_ = false;
-        if (active && changed)
-            changed(true, {});
+        CancelInput();
     }
     if (event->type() == QEvent::PlatformSurface &&
         static_cast<QPlatformSurfaceEvent*>(event)->surfaceEventType() ==
@@ -250,7 +271,7 @@ bool Viewport::event(QEvent* event) {
     return QWindow::event(event);
 }
 void Viewport::mousePressEvent(QMouseEvent* e) {
-    if (boneDragMode_ || sceneDragMode_)
+    if (boneDragMode_ || sceneDragMode_ || headerDragOperation_)
         return;
     pressed_ = true;
     previous_ = e->position().toPoint();
@@ -362,7 +383,25 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
         return;
     }
     auto point = e->position().toPoint();
-    auto delta = point - previous_;
+    const auto delta = DevicePoint(point) - DevicePoint(previous_);
+    if (headerDragOperation_) {
+        if (!(e->buttons() & Qt::LeftButton)) {
+            CancelInput();
+            return;
+        }
+        const auto motion = DevicePoint(point) - DevicePoint(previous_);
+        std::string reason;
+        const bool ok = session_.DragViewTool(
+            headerDragOperation_, motion.x(), motion.y(), e->modifiers() & Qt::ShiftModifier,
+            e->modifiers() & Qt::ControlModifier,
+            render::BackgroundViewScale(qRound(width() * devicePixelRatio())), reason);
+        previous_ = point;
+        if (!ok)
+            FinishToolDrag();
+        if (changed)
+            changed(ok, reason);
+        return;
+    }
     if (sceneDragMode_) {
         if (session_.Playing() || session_.Selected().model != 255 ||
             !(e->buttons() & Qt::LeftButton)) {
@@ -440,7 +479,8 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
         drag(delta, e->buttons(), e->modifiers());
 }
 void Viewport::mouseReleaseEvent(QMouseEvent* e) {
-    if ((boneDragMode_ || sceneDragMode_) && e->button() == Qt::LeftButton) {
+    if ((boneDragMode_ || sceneDragMode_ || headerDragOperation_) &&
+        e->button() == Qt::LeftButton) {
         FinishToolDrag(true);
         if (changed)
             changed(true, {});

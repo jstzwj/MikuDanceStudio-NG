@@ -47,6 +47,7 @@ public:
     // Current view only: no track evaluation or physics reset. Playback cursors
     // continue to own subsequent animated camera values.
     bool SetViewCamera(const PmmEvaluatedCamera&, const std::array<float, 2>& offsets);
+    bool SetPicturePlacement(std::int32_t x, std::int32_t y, float scale);
     bool PrepareEditorView(std::uint8_t model, bool playing, bool& changed);
     bool SetViewBasis(const std::array<float, 16>&, bool suppressed);
     // Follow-on reloads global/accessory tracks at the current frame. The host

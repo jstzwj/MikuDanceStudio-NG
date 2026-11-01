@@ -310,6 +310,48 @@ bool EditorSession::WheelView(int delta, std::string& reason) {
     }
     return true;
 }
+bool EditorSession::DragViewTool(unsigned operation, int dx, int dy, bool shift, bool control,
+                                 float viewScale, std::string& reason) {
+    if ((operation != 1 && operation != 2) || dx < -1000000 || dx > 1000000 || dy < -1000000 ||
+        dy > 1000000 || !std::isfinite(viewScale) || viewScale <= 0) {
+        reason = "view-tool-drag-input-invalid";
+        return false;
+    }
+    if (control && state_.assets.picture) {
+        const auto picture = Document().picture;
+        navigation::HeaderPictureState placement{picture.offsetX, picture.offsetY, picture.scale};
+        if (!navigation::HeaderPictureDrag(placement, operation, dx, dy,
+                                           state_.assets.picture->width,
+                                           state_.assets.picture->height, viewScale) ||
+            !runtime_->SetPicturePlacement(placement.x, placement.y, placement.scale)) {
+            reason = "picture-drag-input-invalid";
+            return false;
+        }
+        if (picture.offsetX != placement.x || picture.offsetY != placement.y ||
+            picture.scale != placement.scale)
+            revision_ = nextRevision_++;
+        reason.clear();
+        return true;
+    }
+    auto camera = runtime_->Session()->Pose().camera;
+    auto offsets = Offsets(*this);
+    if (operation == 1)
+        navigation::HeaderZoom(camera.position.data(), camera.distance, selection_.model == 255,
+                               camera.parentModel, dy, shift, control);
+    else if (selection_.model != 255)
+        navigation::PanOffsets(offsets.data(), dx, dy, shift, control);
+    else if (camera.parentModel >= 0)
+        navigation::PanParentedCamera(camera.position.data(), camera.fov, dx, dy, shift, control);
+    else {
+        using namespace cpu_math;
+        const auto rotation =
+            Multiply(RotationZ(-camera.rotation[2]),
+                     Multiply(RotationX(camera.rotation[0]), RotationY(camera.rotation[1])));
+        navigation::HeaderPanFreeCamera(camera.position.data(), rotation.data(), dx, dy, shift,
+                                        control);
+    }
+    return ApplyView(camera, offsets, reason);
+}
 bool EditorSession::DragSceneAxis(unsigned mode, int dy, bool shift, bool control,
                                   std::string& reason) {
     if (playing_ || selection_.model != 255 || mode < 13 || mode > 18 || dy < -1000000 ||
