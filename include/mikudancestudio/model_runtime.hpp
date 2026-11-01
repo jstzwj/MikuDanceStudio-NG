@@ -95,6 +95,8 @@ struct VertexPose {
 struct MaterialPose {
     format::MaterialData material;
     std::array<float, 4> textureTint{1, 1, 1, 1}, sphereTint{1, 1, 1, 1}, toonTint{1, 1, 1, 1};
+    // Separate additive/multiplicative pools preserve the FX9 pixel formula.
+    std::array<float, 4> textureAdd{}, sphereAdd{}, toonAdd{};
 };
 struct ModelSnapshot {
     std::uint32_t frame = 0;

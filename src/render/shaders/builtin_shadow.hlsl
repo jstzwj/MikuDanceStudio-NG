@@ -1,11 +1,11 @@
 // Behavioral subset of skin_effect_sm3.fx: ZValuePlot and BufferShadow /
-// BShadowTexture / BShadowSphia(Texture). Material morph channels and UV1 need
-// their own CPU contracts and must not be silently approximated.
+// BShadowTexture / BShadowSphia(Texture), including separate material tint pools.
 cbuffer BuiltinShadow : register(b2) {
     row_major float4x4 shadowLight, shadowCamera, shadowRotation;
     float4 shadowColor, shadowToon, shadowSpecular, shadowDirection, shadowEye;
     uint4 shadowOptions; // mode, perspective, transparent, material stage roles
     float4 shadowDimensions;
+    float4 textureMultiply, textureAdd, sphereMultiply, sphereAdd;
 };
 Texture2D materialTextures[3] : register(t0);
 SamplerState materialSamplers[3] : register(s0);
@@ -73,10 +73,21 @@ float4 shadow_ps(ShadowPixel p) : SV_TARGET {
         uint role = (shadowOptions.w >> (i*4)) & 15;
         if (role == 1) {
             float4 sample = materialTextures[i].Sample(materialSamplers[i],p.uv);
-            color *= sample; alpha *= sample.a; baseTexture = true;
+            float4 tinted = sample;
+            if (shadowOptions.w & 131072) {
+                float weight = textureMultiply.w + textureAdd.w;
+                tinted = (sample*textureMultiply+textureAdd)*weight+(1-weight);
+            }
+            color *= tinted; alpha *= sample.a; baseTexture = true;
         } else if (role == 2 || role == 3) {
             float4 sample = materialTextures[i].Sample(materialSamplers[i],sphereUv);
-            color.rgb = role == 3 ? color.rgb+sample.rgb : color.rgb*sample.rgb;
+            float4 tinted = sample;
+            if (shadowOptions.w & 131072) {
+                float weight = sphereMultiply.w + sphereAdd.w;
+                tinted = (sample*sphereMultiply+sphereAdd)*weight;
+                if (role != 3) tinted += 1-weight;
+            }
+            color.rgb = role == 3 ? color.rgb+tinted.rgb : color.rgb*tinted.rgb;
             alpha *= sample.a;
         }
     }

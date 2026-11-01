@@ -527,9 +527,6 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         for (std::size_t n = 0; n < snapshot->materials.size(); ++n) {
             const auto& pose = snapshot->materials[n];
             const auto& saved = model.materials.at(n);
-            for (const auto* tint : {&pose.textureTint, &pose.sphereTint, &pose.toonTint})
-                if (*tint != std::array<float, 4>{1, 1, 1, 1})
-                    return Fail(reason, "texture_morph_requires_generic_shader");
             const auto count = pose.material.faceVertexCount;
             if (count < 0)
                 return Fail(reason, "material_index_range");
@@ -542,9 +539,18 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                     pose.material, model.resource->SourceKind() == format::ModelKind::Pmd, saved);
                 if (!BuildModelInputs(frame, material, {}, packet.pipeline))
                     return Fail(reason, "model_pipeline");
-                if (mode)
+                if (mode) {
                     InstallShadow(packet.pipeline, shadow, material, saved.toonColor,
                                   material.pmd || (pose.material.flags & 8));
+                    auto& s = packet.pipeline.shadow;
+                    s.textureMultiply = pose.textureTint;
+                    s.textureAdd = pose.textureAdd;
+                    s.sphereMultiply = pose.sphereTint;
+                    s.sphereAdd = pose.sphereAdd;
+                    for (unsigned c = 0; c < 3; ++c)
+                        s.toonColor[c] = s.toonColor[c] * pose.toonTint[c] + pose.toonAdd[c];
+                    s.toonColor[3] = pose.toonTint[3] + pose.toonAdd[3];
+                }
                 for (unsigned stage = 0; stage < 3; ++stage) {
                     const auto role = packet.pipeline.shader.layout.stages[stage].role;
                     if (role == MaterialTextureRole::None)

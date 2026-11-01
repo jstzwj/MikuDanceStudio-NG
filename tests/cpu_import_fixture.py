@@ -42,7 +42,7 @@ def pmd(texture='checker.bmp', alpha=1):
     return b
 
 
-def pmx(material_flags=0x11):
+def pmx(material_flags=0x11, tint_morphs=False):
     b = Bytes(b'PMX '); b.f(2); b.u8(8)
     b.extend(bytes((0, 0, 2, 1, 1, 1, 1, 1)))
     for name in ('CPU triangle', '', '', ''): b.text(name)
@@ -60,8 +60,17 @@ def pmx(material_flags=0x11):
     b.text(''); b.u32(3)
     b.u32(1); b.text('B'); b.text(''); b.f(0, 0, 0)
     b.u8(255); b.u32(0); b.u16(9); b.u8(0)
-    b.u32(1); b.text('F'); b.text(''); b.u8(4); b.u8(1)
+    b.u32(3 if tint_morphs else 1); b.text('F'); b.text(''); b.u8(4); b.u8(1)
     b.u32(1); b.u16(0); b.f(2, 0, 0)  # vertex morph
+    if tint_morphs:
+        for operation in (0, 1):
+            b.text('Tint' + str(operation)); b.text(''); b.u8(4); b.u8(8)
+            b.u32(1); b.u8(0); b.u8(operation)
+            channels = [1.0 if operation == 0 else 0.0] * 28
+            channels[16:20] = [.5, .8, .25, .75] if operation == 0 else [.2, -.1, .3, .1]
+            channels[20:24] = [.8, .5, .25, .6] if operation == 0 else [-.1, .2, .1, .2]
+            channels[24:28] = [.5, .8, .9, .75] if operation == 0 else [.1, .2, -.1, .2]
+            b.f(*channels)
     b.u32(1); b.text('Root'); b.text(''); b.u8(1)
     b.u32(1); b.u8(0); b.u8(0)
     b.u32(0); b.u32(0)
@@ -240,6 +249,7 @@ def write(directory):
     (root / 'triangle.pmd').write_bytes(pmd())
     (root / 'sphere.pmd').write_bytes(pmd('s.sph'))
     (root / 'triangle.pmx').write_bytes(pmx())
+    (root / 'tint-morph.pmx').write_bytes(pmx(tint_morphs=True))
     (root / 'alpha98.pmd').write_bytes(pmd(alpha=.98))
     for flags in (0x1f, 0x17, 0x1b, 0x0c):
         (root / ('flags-%02x.pmx' % flags)).write_bytes(pmx(flags))

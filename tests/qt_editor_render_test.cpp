@@ -129,6 +129,37 @@ int main(int argc, char** argv) {
               renderer.ReadTarget(1, before.finalColor, second));
         CHECK(first.bytes == second.bytes);
     }
+    CHECK(session.New(reason) && session.ImportModel(root / "tint-morph.pmx", reason));
+    CHECK(session.Edit(
+        "plain-morph-view",
+        [](auto& d, auto&) {
+            d.view.groundGrid = 0;
+            d.selfShadowMode = 1;
+            return true;
+        },
+        reason));
+    QImage untinted, tinted, resetTint;
+    CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96, untinted,
+                          reason));
+    CHECK(session.SetMorph(0, 1, .5f, reason));
+    CHECK(session.SetMorph(0, 2, .5f, reason));
+    const auto& material = session.Runtime().Snapshot(0)->materials[0];
+    CHECK(material.textureTint[0] == .75f && material.textureTint[3] == .875f);
+    CHECK(material.textureAdd[0] == .1f && material.textureAdd[3] == .05f);
+    CHECK(material.sphereTint[1] == .75f && material.sphereAdd[1] == .1f);
+    CHECK(material.toonTint[0] == .75f && material.toonAdd[0] == .05f);
+    CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96, tinted,
+                          reason));
+    CHECK(untinted != tinted);
+    // Texture morph alpha weights affect RGB blending; the output alpha still
+    // comes from the original sampled texture and material, as in FX9.
+    for (int y = 0; y < 96; ++y)
+        for (int x = 0; x < 128; ++x)
+            CHECK(qAlpha(untinted.pixel(x, y)) == qAlpha(tinted.pixel(x, y)));
+    CHECK(session.SetMorph(0, 1, 0, reason) && session.SetMorph(0, 2, 0, reason));
+    CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96, resetTint,
+                          reason));
+    CHECK(untinted == resetTint);
     std::cout
         << "Qt offscreen export: deterministic PNG, isolated scene, cancellation, save/reopen passed\n";
 }

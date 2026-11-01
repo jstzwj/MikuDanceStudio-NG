@@ -31,7 +31,15 @@ inline BuiltinShadowConstants BuildBuiltinShadowConstants(const ModelPipeline& p
                              s.eye,
                              {unsigned(s.mode), unsigned(s.perspective), unsigned(s.transparent),
                               s.receive ? 65536u : 0},
-                             {float(viewport.width), float(viewport.height), 0, 0}};
+                             {float(viewport.width), float(viewport.height), 0, 0},
+                             s.textureMultiply,
+                             s.textureAdd,
+                             s.sphereMultiply,
+                             s.sphereAdd};
+    if (s.textureMultiply != std::array<float, 4>{1, 1, 1, 1} ||
+        s.sphereMultiply != std::array<float, 4>{1, 1, 1, 1} ||
+        s.textureAdd != std::array<float, 4>{} || s.sphereAdd != std::array<float, 4>{})
+        c.options[3] |= 131072u;
     for (unsigned i = 0; i < 3; ++i) {
         const auto& t = p.shader.layout.stages[i];
         const unsigned role = t.role == MaterialTextureRole::Base     ? 1

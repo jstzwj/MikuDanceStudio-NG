@@ -145,8 +145,18 @@ bool ModelEvaluation::Initialize(std::string& reason) {
         material.material.specularPower =
             compose(mul.specularPower, base.specularPower, add.specularPower);
         material.material.edgeSize = compose(mul.edgeSize, base.edgeSize, add.edgeSize);
-        // The legacy compose pass consumes sixteen channels. Tint pools are
-        // accumulated above but do not change the resulting material.
+        std::copy_n(mul.textureTint, 4, material.textureTint.begin());
+        std::copy_n(mul.sphereTint, 4, material.sphereTint.begin());
+        std::copy_n(mul.toonTint, 4, material.toonTint.begin());
+        std::copy_n(add.textureTint, 4, material.textureAdd.begin());
+        std::copy_n(add.sphereTint, 4, material.sphereAdd.begin());
+        std::copy_n(add.toonTint, 4, material.toonAdd.begin());
+        for (const auto* values : {&material.textureTint, &material.sphereTint, &material.toonTint,
+                                  &material.textureAdd, &material.sphereAdd, &material.toonAdd})
+            if (!Finite(*values)) {
+                reason = "nonfinite-texture-morph-output";
+                return false;
+            }
         if (!Finite(material.material.diffuse) || !Finite(material.material.specular) ||
             !Finite(material.material.ambient) || !Finite(material.material.edgeColor) ||
             !std::isfinite(material.material.specularPower) ||
