@@ -5,6 +5,7 @@
 #include "bone_selection.hpp"
 #include <filesystem>
 #include <variant>
+#include <optional>
 
 namespace mikudancestudio::editor {
 enum class Track {
@@ -102,6 +103,9 @@ public:
     bool SetBone(std::uint8_t, std::uint32_t, const std::array<float, 3>&,
                  const std::array<float, 4>&, std::string&);
     bool SetMorph(std::uint8_t, std::uint32_t, float, std::string&);
+    bool RegisterMorph(std::uint8_t, std::optional<std::uint32_t>, std::string&);
+    bool RegisterAllMorphs(std::uint8_t, std::string&);
+    bool ResetMorphs(std::uint8_t, std::string&);
     bool SetAccessory(std::uint8_t, const format::PmmAccessoryState&, std::string&);
     bool SetCamera(const format::PmmEvaluatedCamera&, std::string&);
     bool SetRenderSize(unsigned width, unsigned height, std::string&);
@@ -251,6 +255,8 @@ private:
     void PushHistory(std::uint8_t, HistoryEntry);
     HistoryBatch FrameHistory() const;
     bool ApplyHistory(bool redo, std::string&);
+    bool RegisterMorphChannels(std::uint8_t, const std::vector<std::uint32_t>&, bool seekModel,
+                               std::string&);
     bool ChangeFrameLine(Track, bool insert, std::string&, bool fromMenu);
     static HistoryEntry CaptureHistory(const format::PmmSceneModel&, HistoryKind,
                                        std::uint32_t frame,

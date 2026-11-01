@@ -79,6 +79,25 @@ PmmSceneModel* Model(PmmSceneDocument& d, std::uint8_t slot) {
                               [&](const auto& m) { return m.slot == slot; });
     return found == d.models.end() ? nullptr : &*found;
 }
+void ClearModelKeyMarks(PmmSceneModel& model, Selection& selection) {
+    const auto clear = [](auto& track) {
+        for (auto& key : track.dense)
+            key.allocated = 0;
+        for (auto& key : track.sparse)
+            key.value.allocated = 0;
+        for (auto& [index, key] : track.unused)
+            key.allocated = 0;
+    };
+    clear(model.boneKeys);
+    clear(model.morphKeys);
+    clear(model.displayKeys);
+    for (auto it = selection.keys.begin(); it != selection.keys.end();)
+        if (it->slot == model.slot &&
+            (it->track == Track::Bone || it->track == Track::Morph || it->track == Track::Display))
+            it = selection.keys.erase(it);
+        else
+            ++it;
+}
 template <class F> bool Visit(PmmSceneDocument& d, const KeyAddress& a, F&& f) {
     if (a.track == Track::Camera)
         return f(d.cameraKeys);
@@ -822,6 +841,99 @@ bool EditorSession::SetAccessory(std::uint8_t slot, const PmmAccessoryState& pos
         },
         reason);
 }
+bool EditorSession::RegisterMorph(std::uint8_t slot, std::optional<std::uint32_t> channel,
+                                  std::string& reason) {
+    return RegisterMorphChannels(
+        slot, channel ? std::vector<std::uint32_t>{*channel} : std::vector<std::uint32_t>{}, false,
+        reason);
+}
+bool EditorSession::RegisterAllMorphs(std::uint8_t slot, std::string& reason) {
+    std::vector<std::uint32_t> channels;
+    for (const auto& model : Document().models)
+        if (model.slot == slot)
+            for (std::uint32_t i = 0; i < model.morphPose.size(); ++i)
+                channels.push_back(i);
+    return RegisterMorphChannels(slot, channels, true, reason);
+}
+bool EditorSession::RegisterMorphChannels(std::uint8_t slot,
+                                          const std::vector<std::uint32_t>& channels,
+                                          bool seekModel, std::string& reason) {
+    EndGesture();
+    auto next = Current();
+    auto* model = Model(next.document, slot);
+    const auto resource = runtime_->Resource(slot);
+    if (playing_ || !model || !resource) {
+        reason = "morph-registration-unavailable";
+        return false;
+    }
+    const auto frame = unsigned(next.document.timeline.currentFrame);
+    for (auto channel : channels)
+        if (channel >= model->morphPose.size()) {
+            reason = "morph-selection-expired";
+            return false;
+        }
+    ClearModelKeyMarks(*model, next.selection);
+    const bool hasBase =
+        resource->SourceKind() == ModelKind::Pmd && !resource->MorphNames().empty();
+    const auto baseName = hasBase ? Name(resource->MorphNames()[0]) : std::vector<char>{};
+    // Button commands ignore PMD's base Morph. Raw track insertion remains
+    // available to import/paste, which use a different native registrar.
+    for (auto channel : channels) {
+        if (hasBase && model->morphNames[channel] == baseName)
+            continue;
+        PmmMorphKey key;
+        key.frame = frame;
+        key.value = model->morphPose[channel];
+        key.allocated = 1;
+        if (!RegisterPmmKey(model->morphKeys, channel, key)) {
+            reason = "morph-registration-failed";
+            return false;
+        }
+        model->selection.maxFrame = std::max(model->selection.maxFrame, frame);
+        next.selection.keys.insert({Track::Morph, slot, channel, frame});
+    }
+    if (!seekModel || !model->morphPose.empty())
+        next.document.timeline.lastRegisteredFrame =
+            std::max(next.document.timeline.lastRegisteredFrame, int(model->selection.maxFrame));
+    if (seekModel) {
+        // The all-Morph command seeks only this model after registration,
+        // replacing its pending bone/display pose without appending bone Undo.
+        SceneSession evaluated;
+        if (!SceneSession::Create(next.document, evaluated, reason) ||
+            !evaluated.Seek(frame, {false, false}))
+            return false;
+        auto document = evaluated.Document();
+        const auto* sought = Model(document, slot);
+        if (!sought) {
+            reason = "morph-registration-model-expired";
+            return false;
+        }
+        *model = *sought;
+    }
+    HistoryBatch history;
+    history.emplace(slot, CaptureHistory(*model, HistoryKind::None, frame));
+    return Commit(std::move(next), reason, history, false);
+}
+bool EditorSession::ResetMorphs(std::uint8_t slot, std::string& reason) {
+    EndGesture();
+    auto next = Current();
+    auto* model = Model(next.document, slot);
+    if (playing_ || !model) {
+        reason = "morph-reset-unavailable";
+        return false;
+    }
+    std::fill(model->morphPose.begin(), model->morphPose.end(), 0.f);
+    HistoryBatch history;
+    history.emplace(slot, CaptureHistory(*model, HistoryKind::None, 0));
+    const bool clean = !Dirty();
+    if (!Commit(std::move(next), reason, history, false))
+        return false;
+    // Native reset changes live weights without setting the modified flag.
+    // Revision still advances so cached CPU/GPU geometry is refreshed.
+    if (clean)
+        savedRevision_ = revision_;
+    return true;
+}
 bool EditorSession::SetRenderSize(unsigned width, unsigned height, std::string& reason) {
     if (!width || !height || width > 16384 || height > 16384) {
         reason = "render-size-out-of-range";
@@ -879,25 +991,7 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
                           saved.components.begin());
                 std::copy(live.rotation.begin(), live.rotation.end(), saved.components.begin() + 3);
             }
-            const auto clear = [](auto& track) {
-                for (auto& key : track.dense)
-                    key.allocated = 0;
-                for (auto& key : track.sparse)
-                    key.value.allocated = 0;
-                for (auto& [index, key] : track.unused)
-                    key.allocated = 0;
-            };
-            clear(model->boneKeys);
-            clear(model->morphKeys);
-            clear(model->displayKeys);
-            for (auto it = next.selection.keys.begin(); it != next.selection.keys.end();) {
-                if (it->slot == address.slot &&
-                    (it->track == Track::Bone || it->track == Track::Morph ||
-                     it->track == Track::Display))
-                    it = next.selection.keys.erase(it);
-                else
-                    ++it;
-            }
+            ClearModelKeyMarks(*model, next.selection);
         }
     }
     for (const auto& address : ordered) {
@@ -1168,23 +1262,7 @@ bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason)
             reason = "clipboard-model-unavailable";
             return false;
         }
-        const auto clear = [](auto& track) {
-            for (auto& key : track.dense)
-                key.allocated = 0;
-            for (auto& key : track.sparse)
-                key.value.allocated = 0;
-            for (auto& [index, key] : track.unused)
-                key.allocated = 0;
-        };
-        clear(model->boneKeys);
-        clear(model->morphKeys);
-        clear(model->displayKeys);
-        for (auto it = next.selection.keys.begin(); it != next.selection.keys.end();)
-            if (it->slot == model->slot && (it->track == Track::Bone || it->track == Track::Morph ||
-                                            it->track == Track::Display))
-                it = next.selection.keys.erase(it);
-            else
-                ++it;
+        ClearModelKeyMarks(*model, next.selection);
         if (boneClipboard) {
             auto entry =
                 CaptureHistory(*model, HistoryKind::Keys, unsigned(d.timeline.currentFrame));

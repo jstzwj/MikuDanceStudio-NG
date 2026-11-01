@@ -34,6 +34,7 @@ std::string reason;
     } while (false)
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
+    CHECK(QGuiApplication::platformName() == "offscreen");
 #ifdef _WIN32
     // Qt's offscreen QPA has no native Windows font database. Load installed
     // fonts explicitly for raster/IME tests; never copy them into the repository.
@@ -85,6 +86,73 @@ int main(int argc, char** argv) {
         CHECK(runtime == &session.Runtime() && frames == runtime->Counters().frames);
         CHECK(!auxiliary.isVisible());
     }
+    for (const char* language : {"en", "ja", "zh_CN"})
+        for (const char* file : {"articulated.pmd", "facial.pmd", "tint-morph.pmx"}) {
+            qt::EditorWindow expressions(std::filesystem::absolute(argv[2]), true);
+            CHECK(expressions.SetLanguage(language));
+            auto& session = expressions.Session();
+            CHECK(session.ImportModel(root / file, reason));
+            CHECK(session.Seek(10, reason));
+            CHECK(session.SetBone(0, 0, {4, 0, 0}, {0, 0, 0, 1}, reason));
+            const auto channels = session.Document().models[0].morphPose.size();
+            const bool pmd = session.Runtime().Resource(0)->SourceKind() == format::ModelKind::Pmd;
+            for (unsigned channel = 0; channel < channels; ++channel)
+                CHECK(session.SetMorph(0, channel, .625f, reason));
+            CHECK(expressions.Save(root / "qt-expressions.pmm") && !session.Dirty());
+            expressions.Refresh();
+            const auto command = [&](int id) -> QAction* {
+                for (auto* action : expressions.findChildren<QAction*>())
+                    if (action->property("mmdCommandId").toInt() == id)
+                        return action;
+                return nullptr;
+            };
+            auto* reset = command(MDS_CMD_RESET_MORPHS);
+            auto* all = command(MDS_CMD_REGISTER_ALL_MORPH_FRAMES);
+            CHECK(reset && all && reset->isEnabled() && all->isEnabled());
+            const auto* runtime = &session.Runtime();
+            const auto frames = runtime->Counters().frames;
+            reset->trigger();
+            CHECK(!session.Dirty() && session.CanUndo());
+            CHECK(session.Document().models[0].bonePose[0].components[0] == 4);
+            for (float weight : session.Document().models[0].morphPose)
+                CHECK(weight == 0);
+            for (int id :
+                 {panel::kMorphEdit0, panel::kMorphEdit1, panel::kMorphEdit2, panel::kMorphEdit3})
+                CHECK(static_cast<QLineEdit*>(expressions.Control(id))->text() == "0.00000");
+            for (int id : {panel::kMorphSlider0, panel::kMorphSlider1, panel::kMorphSlider2,
+                           panel::kMorphSlider3})
+                CHECK(static_cast<QSlider*>(expressions.Control(id))->value() == 0);
+            const int combos[]{panel::kMorphCombo0, panel::kMorphCombo1, panel::kMorphCombo2,
+                               panel::kMorphCombo3};
+            const int buttons[]{panel::kRegisterMorphButton0, panel::kRegisterMorphButton1,
+                                panel::kRegisterMorphButton2, panel::kRegisterMorphButton3};
+            for (unsigned lane = 0; lane < 4; ++lane)
+                if (!static_cast<QComboBox*>(expressions.Control(combos[lane]))->count()) {
+                    session.Selected().keys.insert({editor::Track::Bone, 0, 0, 0});
+                    static_cast<QAbstractButton*>(expressions.Control(buttons[lane]))->click();
+                    CHECK(session.Document().models[0].morphKeys.sparse.empty());
+                    CHECK(session.Selected().keys.empty());
+                }
+            for (unsigned channel = 0; channel < channels; ++channel)
+                CHECK(session.SetMorph(0, channel, .375f, reason));
+            all->trigger();
+            CHECK(session.Document().models[0].morphKeys.sparse.size() == channels - (pmd ? 1 : 0));
+            for (const auto& key : session.Document().models[0].morphKeys.sparse)
+                CHECK(key.value.value == .375f && key.value.frame == 10 && key.value.allocated);
+            CHECK(session.Document().models[0].bonePose[0].components[0] == 0);
+            CHECK(session.Undo(reason) && !session.CanUndo());
+            reset->trigger();
+            CHECK(session.CanRedo());
+            CHECK(runtime == &session.Runtime() && frames == runtime->Counters().frames);
+            CHECK(session.Play(reason));
+            expressions.Refresh();
+            CHECK(!reset->isEnabled() && !all->isEnabled());
+            session.Pause();
+            CHECK(session.UnloadModel(0, reason));
+            expressions.Refresh();
+            CHECK(!reset->isEnabled() && !all->isEnabled());
+            CHECK(!expressions.isVisible());
+        }
     qt::EditorWindow window(std::filesystem::absolute(argv[2]), true);
     CHECK(QFontMetrics(window.font()).inFont(QChar('A')));
     CHECK(QFontMetrics(window.font()).inFont(QChar('0')));

@@ -1697,4 +1697,35 @@ native viewport runs passed aspect changes, resource recreation and repeat
 submission. The tests compare all six dialog templates, exercise screen-size
 cancel/accept in three languages and both window layouts, compare repeated
 offscreen images strictly, and check PMM persistence and unchanged bone history.
-Three-platform CI for this batch remains required. Full P4/C1 acceptance remains open.
+[Run 41346704398](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41346704398)
+passed Windows, macOS and Linux, including isolated X11/Wayland viewport lifecycles.
+Full P4/C1 acceptance remains open.
+
+## Morph menu commands and empty selectors
+
+The four Morph register buttons now use an explicit optional channel. An empty
+selector clears this model's marks without accidentally registering channel zero.
+PMD's base Morph is excluded by resource identity, including PMM channel-name
+reordering; a PMX panel-zero Morph remains registrable. The all-Morph menu records
+all eligible current weights, then seeks only that model's current frame, matching
+the native command's replacement of pending bone/display poses. Neither operation
+adds bone history. Other models and the CPU world's frame count remain unchanged.
+
+Morph reset clears live weights, preserves existing keyframes and Undo/Redo, and
+preserves the document's pre-command modified flag. Publication revision advances
+so cached geometry is invalidated. The four edit controls display the original
+`0.00000`; slider positions are zero. Both menu commands follow model/playback
+availability and are exercised under all three languages with PMD/PMX fixtures.
+
+The original registrar oracle now includes a generated PMD facial Morph, passing
+**120 exact checkpoints**. It additionally executes the original reset command
+branch at RVA **`522F8`**, with only Win32 control calls replaced by recording
+stubs and the dispatcher return adapted to the harness. Four PMD/PMX clean/dirty
+cases compare all model-header/application bytes, weights, control identities,
+text and slider messages. No window is created. This extends the kernel evidence;
+the entire all-Morph dispatcher, table exhaustion and full event loop remain
+outside this oracle's scope.
+
+All 30 local P4 tests passed (48.37 seconds), as did the rebuilt Win32 registration,
+history and session tests. The Qt application builds. This batch awaits its
+three-platform CI run; P4/C1 remains in progress.

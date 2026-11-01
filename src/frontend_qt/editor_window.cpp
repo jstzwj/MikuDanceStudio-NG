@@ -1186,8 +1186,9 @@ void EditorWindow::Dispatch(int id) {
             int(std::find(std::begin(registers), std::end(registers), id) - std::begin(registers));
         const int combos[]{kMorphCombo0, kMorphCombo1, kMorphCombo2, kMorphCombo3};
         auto* c = static_cast<QComboBox*>(Control(combos[index]));
-        ok = session_.Register(
-            {{Track::Morph, session_.Selected().model, c->currentData().toUInt(), current}}, r);
+        ok = session_.RegisterMorph(
+            session_.Selected().model,
+            c->count() ? std::optional<std::uint32_t>{c->currentData().toUInt()} : std::nullopt, r);
         break;
     }
     case kCopyBonePoseButton:

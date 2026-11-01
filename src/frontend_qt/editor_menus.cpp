@@ -3,6 +3,7 @@
 #include "mikudancestudio/menu_commands.h"
 #include <QAbstractButton>
 #include <QMenuBar>
+#include <QLineEdit>
 #include <limits>
 
 namespace mikudancestudio::qt {
@@ -74,6 +75,8 @@ bool ModelCommand(int command) {
     case MDS_CMD_SELECT_ALL_BONE_FRAMES:
     case MDS_CMD_SELECT_ALL_DISPLAY_FRAMES:
     case MDS_CMD_SELECT_ALL_MORPH_FRAMES:
+    case MDS_CMD_REGISTER_ALL_MORPH_FRAMES:
+    case MDS_CMD_RESET_MORPHS:
         return true;
     default:
         return false;
@@ -282,6 +285,19 @@ void EditorWindow::MenuCommand(int command) {
         return;
     }
     int control = 0;
+    if (command == MDS_CMD_REGISTER_ALL_MORPH_FRAMES || command == MDS_CMD_RESET_MORPHS) {
+        std::string reason;
+        Result(command == MDS_CMD_REGISTER_ALL_MORPH_FRAMES
+                   ? session_.RegisterAllMorphs(session_.Selected().model, reason)
+                   : session_.ResetMorphs(session_.Selected().model, reason),
+               reason);
+        Refresh();
+        if (command == MDS_CMD_RESET_MORPHS)
+            for (int id :
+                 {panel::kMorphEdit0, panel::kMorphEdit1, panel::kMorphEdit2, panel::kMorphEdit3})
+                static_cast<QLineEdit*>(Control(id))->setText("0.00000");
+        return;
+    }
     if (command == MDS_CMD_TOGGLE_INFORMATION)
         control = panel::kInfoCheckbox;
     if (command == MDS_CMD_TOGGLE_COORDINATE_AXIS)

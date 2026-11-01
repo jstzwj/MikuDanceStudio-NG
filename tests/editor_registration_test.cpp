@@ -298,6 +298,80 @@ int main(int argc, char** argv) {
     CHECK(mixed.Document().models[0].boneKeys.sparse.empty());
     CHECK(mixed.Document().models[0].morphKeys.sparse.size() == 1 &&
           mixed.Document().models[0].displayKeys.sparse.size() == 1);
+    for (const char* file : {"facial.pmd", "tint-morph.pmx"}) {
+        EditorSession expressions;
+        CHECK(expressions.ImportModel(root / file, reason));
+        CHECK(expressions.ImportModel(root / file, reason));
+        CHECK(expressions.SelectModel(0, reason));
+        CHECK(expressions.Seek(10, reason));
+        CHECK(expressions.SetBone(0, 0, {4, 0, 0}, {0, 0, 0, 1}, reason));
+        CHECK(expressions.SetBone(1, 0, {7, 0, 0}, {0, 0, 0, 1}, reason));
+        const bool pmd = expressions.Runtime().Resource(0)->SourceKind() == ModelKind::Pmd;
+        const auto first = pmd ? 1u : 0u;
+        const auto count = expressions.Document().models[0].morphPose.size();
+        for (unsigned channel = first; channel < count; ++channel)
+            CHECK(expressions.SetMorph(0, channel, .625f, reason));
+        CHECK(expressions.Save(root / "expressions.pmm", writer, reason) && !expressions.Dirty());
+        const auto* runtime = &expressions.Runtime();
+        const auto frames = runtime->Counters().frames;
+        auto revision = expressions.Revision();
+        expressions.Selected().keys = {{Track::Bone, 0, 0, 0}, {Track::Bone, 1, 0, 0}};
+        CHECK(!expressions.ResetMorphs(254, reason) && expressions.Revision() == revision);
+        CHECK(expressions.ResetMorphs(0, reason) && !expressions.Dirty());
+        CHECK(expressions.Revision() > revision && expressions.Selected().keys.size() == 2);
+        for (float weight : expressions.Document().models[0].morphPose)
+            CHECK(weight == 0);
+        CHECK(expressions.Document().models[0].bonePose[0].components[0] == 4);
+        CHECK(expressions.Document().models[1].bonePose[0].components[0] == 7);
+        for (unsigned channel = first; channel < count; ++channel)
+            CHECK(expressions.SetMorph(0, channel, .375f, reason));
+        CHECK(expressions.ResetMorphs(0, reason) && expressions.Dirty());
+        CHECK(expressions.RegisterMorph(0, {}, reason));
+        CHECK(expressions.Selected().keys.size() == 1 &&
+              expressions.Selected().keys.count({Track::Bone, 1, 0, 0}));
+        CHECK(expressions.Document().models[0].morphKeys.sparse.empty());
+        if (pmd) {
+            CHECK(expressions.RegisterMorph(0, 0, reason));
+            CHECK(expressions.Document().models[0].morphKeys.sparse.empty());
+        }
+        revision = expressions.Revision();
+        CHECK(!expressions.RegisterMorph(0, 999, reason) && expressions.Revision() == revision);
+        for (unsigned channel = first; channel < count; ++channel)
+            CHECK(expressions.SetMorph(0, channel, .5f, reason));
+        CHECK(expressions.RegisterAllMorphs(0, reason));
+        const auto& model = expressions.Document().models[0];
+        CHECK(model.morphKeys.sparse.size() == count - first);
+        CHECK(expressions.Selected().keys.size() == count - first + 1);
+        for (const auto& key : model.morphKeys.sparse)
+            CHECK(key.value.value == .5f && key.value.frame == 10 && key.value.allocated);
+        CHECK(model.bonePose[0].components[0] == 0);
+        CHECK(expressions.Document().models[1].bonePose[0].components[0] == 7);
+        CHECK(&expressions.Runtime() == runtime && runtime->Counters().frames == frames);
+        CHECK(expressions.Undo(reason) && !expressions.CanUndo());
+        CHECK(expressions.CanRedo() && expressions.ResetMorphs(0, reason) && expressions.CanRedo());
+        CHECK(expressions.Document().models[0].morphKeys.sparse.size() == count - first);
+        CHECK(expressions.Save(root / "expressions.pmm", writer, reason));
+        CHECK(expressions.Open(root / "expressions.pmm", reason));
+        CHECK(expressions.Document().models[0].morphKeys.sparse.size() == count - first);
+    }
+    EditorSession reorderedMorph;
+    CHECK(reorderedMorph.ImportModel(root / "facial.pmd", reason));
+    CHECK(reorderedMorph.Edit(
+        "morph-map",
+        [](auto& d, auto&) {
+            auto& m = d.models[0];
+            std::swap(m.morphNames[0], m.morphNames[1]);
+            std::swap(m.morphPose[0], m.morphPose[1]);
+            std::swap(m.morphKeys.dense[0], m.morphKeys.dense[1]);
+            return true;
+        },
+        reason));
+    CHECK(reorderedMorph.Seek(10, reason));
+    CHECK(reorderedMorph.SetMorph(0, 0, .75f, reason));
+    CHECK(reorderedMorph.RegisterAllMorphs(0, reason));
+    CHECK(reorderedMorph.Document().models[0].morphKeys.dense[0].next != 0);
+    CHECK(reorderedMorph.Document().models[0].morphKeys.dense[1].next == 0);
+    CHECK(reorderedMorph.Document().models[0].morphKeys.sparse[0].value.value == .75f);
     std::cout
         << cases
         << " PMD/PMX physics registration cases, history, persistence and name mapping passed\n";
