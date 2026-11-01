@@ -162,6 +162,21 @@ bool EditorSession::ApplyHistory(bool redo, std::string& reason) {
     if (entry.kind == HistoryKind::Keys) {
         model->boneKeys = entry.keys;
         displaced.frame = entry.frame;
+        displaced.insertedFrameLine = entry.insertedFrameLine;
+        if (entry.insertedFrameLine) {
+            std::set<KeyAddress> keys;
+            for (const auto& address : next.selection.keys) {
+                if (address.track == Track::Bone && address.slot == selection_.model &&
+                    address.frame && (redo ? address.frame >= entry.frame
+                                           : address.frame > entry.frame)) {
+                    displaced.frameLineSelection.insert(address);
+                } else {
+                    keys.insert(address);
+                }
+            }
+            keys.insert(entry.frameLineSelection.begin(), entry.frameLineSelection.end());
+            next.selection.keys = std::move(keys);
+        }
     }
     displaced.poses.clear();
     for (const auto& pose : entry.poses) {
@@ -196,6 +211,7 @@ bool EditorSession::ApplyHistory(bool redo, std::string& reason) {
     else
         destination.push_back(std::move(displaced));
     source.pop_back();
+    selection_ = next.selection;
     state_ = std::move(next);
     runtime_ = std::move(runtime);
     // Undo does not restore selection, UI state, other models or asset loading.

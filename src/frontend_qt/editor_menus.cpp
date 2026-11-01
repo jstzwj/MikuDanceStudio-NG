@@ -89,6 +89,8 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_GROUND_SHADOW:
     case MDS_CMD_TOGGLE_GROUND_SHADOW_TRANSPARENCY:
     case MDS_CMD_TOGGLE_PHYSICS_FLOOR:
+    case MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE:
+    case MDS_CMD_INSERT_MORPH_LIGHT_FRAME_LINE:
     case MDS_CMD_TOGGLE_UI_LANGUAGE:
         return true;
     default:
@@ -187,6 +189,9 @@ void EditorWindow::RefreshMenus() {
         bool enabled = Implemented(command);
         if (ModelCommand(command))
             enabled &= model && !session_.Playing();
+        if (command == MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE ||
+            command == MDS_CMD_INSERT_MORPH_LIGHT_FRAME_LINE)
+            enabled &= !session_.Playing();
         if (command >= MDS_CMD_SELECT_ALL_CAMERA_FRAMES &&
             command <= MDS_CMD_SELECT_ALL_ACCESSORY_FRAMES)
             enabled &= !model && !session_.Playing();
@@ -226,6 +231,17 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_TOGGLE_PHYSICS_FLOOR) {
         session_.SetPhysicsFloor(!session_.Document().appearance.floorVisible);
+        Refresh();
+        return;
+    }
+    if (command == MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE ||
+        command == MDS_CMD_INSERT_MORPH_LIGHT_FRAME_LINE) {
+        const bool primary = command == MDS_CMD_INSERT_BONE_CAMERA_FRAME_LINE;
+        const bool model = session_.Selected().model != 255;
+        const auto track = model ? (primary ? editor::Track::Bone : editor::Track::Morph)
+                                 : (primary ? editor::Track::Camera : editor::Track::Light);
+        std::string reason;
+        Result(session_.InsertFrameLine(track, reason, true), reason);
         Refresh();
         return;
     }

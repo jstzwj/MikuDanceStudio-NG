@@ -992,3 +992,50 @@ physics/runtime/PMM tests and six Win32 tests, including V1 setting inheritance.
 The Qt application and legacy Windows application both built successfully;
 the legacy hidden-window floor test and its three PMM regressions passed.
 No local desktop interaction or audio output was used.
+
+The floor batch passed all three editor jobs at `9e6fe74` in
+[run 41323624845](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41323624845),
+including each platform's native surface checks.
+
+## Inserting timeline frame lines
+
+The bone/camera and Morph/light insertion commands now share a portable editing
+operation. It shifts only non-root keys at or after the current frame, retaining
+record indices, links, payloads and selection bytes. Frame-zero roots stay in
+place. Validation rejects broken links and frame overflow before mutation.
+Only the edited model or global track is evaluated; other models' unregistered
+poses and unrelated camera/light state survive. Camera insertion resets view
+offsets, as the original camera seek does.
+
+Bone insertion captures per-model key/pose history. Morph, camera and light
+insertion do not add bone history. Selection follows the moved records through
+insertion and repeated undo/redo. The original no-op distinction is retained:
+the bone keyboard command with no affected keys leaves revision and history
+alone; its menu dispatcher marks the scene dirty. Neither case rebuilds the
+runtime. Affected insertion retains native maximum-frame high-water values.
+
+The optional `editor_frame_line_oracle_test <original-x64.exe>` calls the
+hash-verified original insertion routines at RVAs `89A90` and `8B230`. All
+**56 complete key-table comparisons** passed, including flags, padding, native
+history record count, dirty state and maximum-frame stores. It uses fake UI
+imports and omits pose evaluation/painting calls; no original entrypoint,
+window or GPU runs. This establishes the insertion kernel, not the whole native
+event loop or deletion/automatic-interpolation behavior.
+
+The public portable test covers four track types, stable nonconsecutive indices,
+cursor boundaries, atomic overflow rejection, evaluated poses, model isolation,
+selection, repeated history traversal, PMM reopening and rejection during
+playback. Qt additionally exercises both menu commands and `I`/`U`, text-input
+focus, modifier handling, key-repeat suppression, model/camera mode and playback
+availability. There are now 40 connected native menu commands. Deleting frame
+lines, detached records and the remaining P4 exit gates still need acceptance.
+
+An additional **24 original undo/redo table checkpoints** change selection
+after insertion. Undo restores the captured flags of touched keys while leaving
+untouched records alone; redo restores the flags displaced by undo. The portable
+history now retains that distinction, including repeated cycles.
+
+Local validation passed all **25 P4 tests**, the Qt application build, and
+Win32 frame-line/history/PMM editing tests. The new public test is included in
+each of the three editor CI build lists. All local runs remained offscreen or
+headless, with no audio device output.

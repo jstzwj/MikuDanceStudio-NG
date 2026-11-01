@@ -1237,6 +1237,18 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
     }
     if (event->type() == QEvent::KeyPress && !qobject_cast<QLineEdit*>(object)) {
         auto* key = static_cast<QKeyEvent*>(event);
+        if (key->key() == Qt::Key_I || key->key() == Qt::Key_U) {
+            if (!key->isAutoRepeat() && !session_.Playing()) {
+                const bool primary = key->key() == Qt::Key_I;
+                const bool model = session_.Selected().model != 255;
+                const auto track = model ? (primary ? editor::Track::Bone : editor::Track::Morph)
+                                         : (primary ? editor::Track::Camera : editor::Track::Light);
+                std::string reason;
+                Result(session_.InsertFrameLine(track, reason), reason);
+                Refresh();
+            }
+            return true;
+        }
         if ((key->modifiers() & Qt::KeypadModifier) && key->key() >= Qt::Key_0 &&
             key->key() <= Qt::Key_9) {
             if (!key->isAutoRepeat()) {

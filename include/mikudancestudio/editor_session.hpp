@@ -120,6 +120,7 @@ public:
     int ActiveBone() const;
     bool Register(const std::vector<KeyAddress>&, std::string&);
     bool Delete(const std::set<KeyAddress>&, std::string&);
+    bool InsertFrameLine(Track, std::string&, bool fromMenu = false);
     bool Copy(const std::set<KeyAddress>&, std::string&);
     bool Paste(std::uint32_t frame, bool mirror, std::string&);
     InterpolationSelection Interpolation(unsigned channel) const;
@@ -197,6 +198,10 @@ private:
         std::shared_ptr<const HistoryEntry> originalUndo;
         std::vector<HistoryPose> poses;
         format::PmmKeyTrack<format::PmmBoneKey> keys;
+        // Insertion keeps native record identity; selection follows the same
+        // records across undo/redo instead of staying at their former frames.
+        bool insertedFrameLine = false;
+        std::set<KeyAddress> frameLineSelection;
     };
     struct ModelHistory {
         std::vector<HistoryEntry> undo, redo;
@@ -223,7 +228,7 @@ private:
     std::uint64_t playbackEpoch_ = 0;
     State Current() const;
     bool Prepare(State&, std::unique_ptr<runtime::SceneRuntime>&, std::string&) const;
-    bool Commit(State, std::string&, const HistoryBatch& forced = {});
+    bool Commit(State, std::string&, const HistoryBatch& forced = {}, bool updateFrameBounds = true);
     void RecordHistory(const State& before, const State& after, const HistoryBatch& forced);
     void PushHistory(std::uint8_t, HistoryEntry);
     HistoryBatch FrameHistory() const;

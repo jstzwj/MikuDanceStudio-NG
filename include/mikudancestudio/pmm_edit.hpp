@@ -80,6 +80,28 @@ bool BuildPmmTrack(const std::vector<std::vector<T>>& chains, PmmKeyTrack<T>& ou
     output = std::move(next);
     return true;
 }
+
+// Insert one frame before all non-root keys at/after the cursor. Stable record
+// indices, links, selection bytes and payloads are retained. Validate the whole
+// operation first so an overflow never leaves a partially shifted track.
+template <class T>
+bool InsertPmmFrameLine(PmmKeyTrack<T>& track, std::uint32_t frame, unsigned& affected) {
+    std::vector<std::vector<T>> chains;
+    if (frame > 0x7fffffffU || !PmmTrackChains(track, chains))
+        return false;
+    unsigned count = 0;
+    for (const auto& record : track.sparse)
+        if (record.value.frame >= frame) {
+            if (record.value.frame == 0x7fffffffU)
+                return false;
+            ++count;
+        }
+    for (auto& record : track.sparse)
+        if (record.value.frame >= frame)
+            ++record.value.frame;
+    affected = count;
+    return true;
+}
 template <class T> bool RegisterPmmKey(PmmKeyTrack<T>& track, std::size_t channel, T key) {
     std::vector<std::vector<T>> chains;
     if (!PmmTrackChains(track, chains) || channel >= chains.size())
