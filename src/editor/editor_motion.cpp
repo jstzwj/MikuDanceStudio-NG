@@ -1,6 +1,7 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/vmd_scene_tracks.hpp"
+#include "mikudancestudio/vmd_bone_interpolation.hpp"
 #include <cstring>
 
 namespace mikudancestudio::editor {
@@ -237,15 +238,8 @@ bool EditorSession::ExportMotion(std::uint8_t slot, VmdDocument& output,
                 out.frame = k.frame;
                 std::copy(k.position.begin(), k.position.end(), out.position);
                 std::copy(k.rotation.begin(), k.rotation.end(), out.rotation);
-                for (int c = 0; c < 4; ++c)
-                    for (int p = 0; p < 4; ++p)
-                        for (int duplicate = 0; duplicate < 4; ++duplicate)
-                            out.interpolation[c * 16 + p * 4 + duplicate] =
-                                k.interpolation[p * 4 + c];
-                if (k.physicsDisabled) {
-                    out.interpolation[2] = 0x63;
-                    out.interpolation[3] = 0x0f;
-                }
+                out.interpolation = EncodeVmdBoneInterpolation(
+                    k.interpolation.data(), k.position[0], k.physicsDisabled != 0);
                 result.bones.push_back(out);
             }
         for (std::size_t i = 0; i < morphs.size(); ++i)
@@ -339,8 +333,8 @@ bool EditorSession::UnloadModel(std::uint8_t slot, std::string& reason) {
         for (auto& k : m.displayKeys.sparse)
             key(k.value);
         for (auto& p : m.rigidPose)
-            if (p.values[0] == slot)
-                p.values[0] = p.values[1] = -1;
+            if (p.values[2] == slot)
+                p.values[2] = p.values[3] = -1;
     }
     next.selection = {};
     d.envelope.selectedModelSlot = d.models.empty() ? 0 : d.models.front().slot;

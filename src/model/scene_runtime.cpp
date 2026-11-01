@@ -415,20 +415,44 @@ bool SceneRuntime::LoadResources(format::SceneSession session,
     for (auto& pair : next->items)
         pair.second.timeline.Seek(next->frame, next->simulation.physicsMode, *pair.second.physics);
     if (useSavedPose) {
+        const auto& camera = next->session->Pose().camera;
+        if (camera.parentModel >= 0) {
+            const auto parent = next->items.find(std::uint8_t(camera.parentModel));
+            if (camera.parentModel > 254 || parent == next->items.end() || camera.parentBone < -1 ||
+                std::size_t(std::max(0, camera.parentBone)) >= parent->second.boneMap.size()) {
+                reason = "missing-current-camera-parent";
+                return false;
+            }
+        }
         for (const auto& model : next->session->Document().models) {
             auto& item = next->items.at(model.slot);
             auto& timeline = item.timeline;
-            for (std::size_t i=0;i<model.bonePose.size();++i) {
-                auto& bone=timeline.bones[item.boneMap[i]];
-                std::copy_n(model.bonePose[i].components.begin(),3,bone.trans);
-                std::copy_n(model.bonePose[i].components.begin()+3,4,bone.rotQuat);
-                bone.physicsDisabled=model.bonePose[i].flags[0];
+            for (std::size_t i = 0; i < model.bonePose.size(); ++i) {
+                auto& bone = timeline.bones[item.boneMap[i]];
+                std::copy_n(model.bonePose[i].components.begin(), 3, bone.trans);
+                std::copy_n(model.bonePose[i].components.begin() + 3, 4, bone.rotQuat);
+                bone.physicsDisabled = model.bonePose[i].flags[0];
             }
-            for(std::size_t i=0;i<model.morphPose.size();++i)
-                timeline.morphs[item.morphMap[i]].value=model.morphPose[i];
-            for(std::size_t i=0;i<model.ikPose.size();++i)
-                timeline.chains[item.ikMap[i]].enabled=model.ikPose[i];
-            timeline.visible=model.selection.loadComplete;
+            for (std::size_t i = 0; i < model.morphPose.size(); ++i)
+                timeline.morphs[item.morphMap[i]].value = model.morphPose[i];
+            for (std::size_t i = 0; i < model.ikPose.size(); ++i)
+                timeline.chains[item.ikMap[i]].enabled = model.ikPose[i];
+            timeline.visible = model.selection.loadComplete;
+            for (std::size_t i = 0; i < model.rigidPose.size(); ++i) {
+                const auto& saved = model.rigidPose[i].values;
+                auto& binding = timeline.bindings.at(item.selectorMap[i]);
+                int bone = saved[3];
+                if (saved[2] >= 0) {
+                    const auto parent = next->items.find(std::uint8_t(saved[2]));
+                    if (saved[2] > 254 || parent == next->items.end() || bone < 0 ||
+                        std::size_t(bone) >= parent->second.boneMap.size()) {
+                        reason = "missing-current-selector-parent";
+                        return false;
+                    }
+                    bone = int(parent->second.boneMap[bone]);
+                }
+                binding = {saved[2], bone, std::uint32_t(saved[0]), std::uint32_t(saved[1])};
+            }
         }
     }
     if (!next->Frame(0, reason))

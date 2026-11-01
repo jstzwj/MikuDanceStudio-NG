@@ -62,7 +62,7 @@ struct PmmPhysicsSettings {
 struct PmmSceneAppearance {
     std::array<std::int32_t, 3> outlineColor{};
     std::uint8_t blackBackground = 0;
-    std::int32_t cameraParentModel = 0, cameraParentBone = 0;
+    std::int32_t cameraParentModel = -1, cameraParentBone = 0;
     std::array<float, 16> cameraAttachmentBasis{};
     std::uint8_t followCamera = 0, suppressCameraTransform = 0;
     std::uint8_t floorVisible = 0;

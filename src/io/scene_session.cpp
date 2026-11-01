@@ -73,7 +73,10 @@ PmmSceneEvaluation CurrentPose(const PmmSceneDocument& scene) {
     pose.camera.distance = scene.cameraState[5];
     pose.camera.fov = scene.envelope.settings.cameraFov;
     pose.camera.perspective = scene.cameraPerspective;
-    if (!scene.cameraKeys.dense.empty()) {
+    if (scene.envelope.header.version == PmmVersion::V2) {
+        pose.camera.parentModel = scene.appearance.cameraParentModel;
+        pose.camera.parentBone = scene.appearance.cameraParentBone;
+    } else if (!scene.cameraKeys.dense.empty()) {
         pose.camera.parentModel = scene.cameraKeys.dense[0].parentModel;
         pose.camera.parentBone = scene.cameraKeys.dense[0].parentBone;
     }
@@ -99,6 +102,11 @@ PmmSceneEvaluation CurrentPose(const PmmSceneDocument& scene) {
         evaluated.morphValues = model.morphPose;
         evaluated.ikEnabled = model.ikPose;
         evaluated.selectors.resize(model.rigidCount);
+        for (std::size_t i = 0; i < model.rigidPose.size(); ++i) {
+            const auto& saved = model.rigidPose[i].values;
+            evaluated.selectors[i] = {saved[2], saved[3], std::uint32_t(saved[0]),
+                                      std::uint32_t(saved[1])};
+        }
         evaluated.bones.reserve(model.bonePose.size());
         for (const auto& saved : model.bonePose) {
             PmmEvaluatedBone bone;
@@ -126,6 +134,8 @@ void StorePose(PmmSceneDocument& scene, const PmmSceneEvaluation& pose) {
     scene.cameraState[5] = pose.camera.distance;
     scene.cameraPerspective = pose.camera.perspective;
     scene.envelope.settings.cameraFov = pose.camera.fov;
+    scene.appearance.cameraParentModel = pose.camera.parentModel;
+    scene.appearance.cameraParentBone = pose.camera.parentBone;
     for (std::size_t i = 0; i < scene.accessories.size(); ++i) {
         auto& state = scene.accessories[i].state;
         const auto& value = pose.accessories[i];
@@ -150,6 +160,12 @@ void StorePose(PmmSceneDocument& scene, const PmmSceneEvaluation& pose) {
         }
         model.morphPose = evaluated.morphValues;
         model.ikPose = evaluated.ikEnabled;
+        model.selection.loadComplete = evaluated.visible;
+        for (std::size_t i = 0; i < model.rigidPose.size(); ++i) {
+            const auto& ref = evaluated.selectors.at(i);
+            model.rigidPose[i].values = {std::int32_t(ref.windowStart), std::int32_t(ref.windowEnd),
+                                         ref.linkedModel, ref.linkedBone};
+        }
     }
 }
 }

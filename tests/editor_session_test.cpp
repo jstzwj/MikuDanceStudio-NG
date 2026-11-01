@@ -1,5 +1,6 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/text_encoding.hpp"
+#include "mikudancestudio/vmd_bone_interpolation.hpp"
 #include <fstream>
 #include <iostream>
 #include <cmath>
@@ -26,6 +27,15 @@ bool Write(const std::filesystem::path& path, const std::vector<std::uint8_t>& b
 }
 int main(int argc, char** argv) {
     CHECK(argc == 2);
+    // Frozen legacy byte layout: PMM curve followed by position.x=1.1f.
+    const std::array<std::uint8_t, 16> curve{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    const std::array<std::uint8_t, 64> expected{
+        1, 2, 0x63, 0x0f, 5, 6, 7,  8,  9,  10, 11, 12, 13, 14,   15,   16,
+        2, 3, 4,    5,    6, 7, 8,  9,  10, 11, 12, 13, 14, 15,   16,   0xcd,
+        3, 4, 5,    6,    7, 8, 9,  10, 11, 12, 13, 14, 15, 16,   0xcd, 0xcc,
+        4, 5, 6,    7,    8, 9, 10, 11, 12, 13, 14, 15, 16, 0xcd, 0xcc, 0x8c};
+    CHECK(format::EncodeVmdBoneInterpolation(curve.data(), 1.1f, true) == expected);
+    CHECK(format::DecodeVmdBoneInterpolation(expected) == curve);
     const auto root = std::filesystem::absolute(argv[1]);
     EditorSession editor;
     CHECK(!editor.Dirty());
@@ -106,6 +116,19 @@ int main(int argc, char** argv) {
     count = reopened.Runtime().Counters().frames;
     CHECK(reopened.Advance(1. / 30., reason));
     CHECK(reopened.Runtime().Counters().frames == count);
+    // An unregistered camera attachment is independent of the frame-zero key.
+    auto attached = reopened.Runtime().Session()->Pose().camera;
+    attached.parentModel = 0;
+    attached.parentBone = 0;
+    CHECK(reopened.SetCamera(attached, reason));
+    CHECK(reopened.Runtime().Session()->Pose().camera.parentModel == 0);
+    CHECK(reopened.Save(root / "attached.pmm", Write, reason));
+    CHECK(reopened.Open(root / "attached.pmm", reason));
+    CHECK(reopened.Runtime().Session()->Pose().camera.parentModel == 0);
+    const auto attachmentRevision = reopened.Revision();
+    attached.parentModel = 254;
+    CHECK(!reopened.SetCamera(attached, reason));
+    CHECK(reopened.Revision() == attachmentRevision);
     // New and existing v1/v2 scenes use the same editing/write path.
     for (const char* name :
          {"v1.pmm", "v2.pmm", "pmx.pmm", "ik-v1.pmm", "physics-v2.pmm", "sdef-physics-v2.pmm"}) {

@@ -44,7 +44,8 @@ struct PmmBonePose {
     std::array<std::uint8_t, 3> flags{};
 };
 struct PmmRigidPose {
-    std::array<std::int32_t, 4> values{};
+    // Disk order: window start, window end, linked model, linked bone.
+    std::array<std::int32_t, 4> values{0, 0, -1, 0};
 };
 struct PmmCameraParentRef {
     std::int32_t keyIndex = 0, model = 0, bone = 0;

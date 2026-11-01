@@ -183,8 +183,8 @@ bool Pose(PmmSceneDocument& d, const KeyAddress& a, Key& key) {
         k.ikEnabled = m->ikPose;
         k.allocated = 1;
         for (std::size_t i = 0; i < k.rigidStates.size(); ++i) {
-            k.rigidStates[i].modelIndex = m->rigidPose[i].values[0];
-            k.rigidStates[i].boneIndex = m->rigidPose[i].values[1];
+            k.rigidStates[i].modelIndex = m->rigidPose[i].values[2];
+            k.rigidStates[i].boneIndex = m->rigidPose[i].values[3];
         }
         key = k;
         return true;
@@ -240,7 +240,7 @@ PmmSceneModel MakeModel(std::uint8_t slot, const runtime::ModelResource& resourc
     for (auto& parent : display.rigidStates)
         parent.modelIndex = parent.boneIndex = -1;
     for (auto& parent : m.rigidPose)
-        parent.values = {-1, -1, 0, 0};
+        parent.values = {0, 0, -1, 0};
     m.displayKeys.dense = {display};
     return m;
 }
@@ -629,6 +629,8 @@ bool EditorSession::SetCamera(const PmmEvaluatedCamera& c, std::string& reason) 
             d.cameraState[5] = c.distance;
             d.envelope.settings.cameraFov = c.fov;
             d.cameraPerspective = c.perspective;
+            d.appearance.cameraParentModel = c.parentModel;
+            d.appearance.cameraParentBone = c.parentBone;
             return true;
         },
         reason);

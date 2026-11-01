@@ -178,7 +178,11 @@ def scene(version=2, model='triangle.pmd', articulated=False, model_count=1, bin
         b.u32(1 if bindings else 0); b.f(.5); b.u8(1 if passes else 0); b.u8(2 if articulated else 0)
         b.f(9.8); b.u32(10); b.f(0, -1, 0); b.u8(0)
         b.zero(12); b.u8(0); b.u32(10); b.f(9.8, 0, -1, 0); b.u8(1); b.u32(0)
-        b.u8(0); b.u32(0); b.zero(18); b.u32(0); b.zero(92); b.u8(1)
+        b.u8(0); b.u32(0); b.zero(18); b.u32(0)
+        # Current camera attachment is independent of the initial key. Zero
+        # is a model slot, not an unattached sentinel (our models start at 1).
+        b.zero(13); b.u32(1 if bindings else 0xffffffff); b.u32(1 if bindings else 0)
+        b.zero(71); b.u8(1)
         for order in range(model_count): b.u8(order + 1); b.u32(5)
     return b
 

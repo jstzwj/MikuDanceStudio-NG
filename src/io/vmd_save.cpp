@@ -18,6 +18,7 @@
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/mmd_app.hpp"
 #include "mikudancestudio/vmd_format.hpp"
+#include "mikudancestudio/vmd_bone_interpolation.hpp"
 
 namespace mikudancestudio {
 namespace {
@@ -97,22 +98,8 @@ format::VmdDocument BuildVmdDocument(MMDApp* app) {
             key.frame = source.frame;
             std::memcpy(key.position, source.position, sizeof key.position);
             std::memcpy(key.rotation, source.rotation, sizeof key.rotation);
-            // The legacy writer's overlapping reads extend into position.
-            const auto* raw = reinterpret_cast<const std::uint8_t*>(&source);
-            const std::size_t base = offsetof(mdl::BoneKey, interpolation);
-            for (int channel = 0; channel < 4; ++channel) {
-                std::uint8_t* out = key.interpolation.data() + channel * 16;
-                if (channel == 0) {
-                    std::memcpy(out, raw + base, 2);
-                    const std::uint16_t marker = source.physicsDisabled != 0 ? 0x0F63 : 0;
-                    out[2] = static_cast<std::uint8_t>(marker);
-                    out[3] = static_cast<std::uint8_t>(marker >> 8);
-                } else {
-                    std::memcpy(out, raw + base + channel, 4);
-                }
-                for (int row = 1; row < 4; ++row)
-                    std::memcpy(out + row * 4, raw + base + row * 4 + channel, 4);
-            }
+            key.interpolation = format::EncodeVmdBoneInterpolation(
+                source.interpolation, source.position[0], source.physicsDisabled != 0);
             minFrame = std::min(minFrame, key.frame);
             document.bones.push_back(key);
         }
