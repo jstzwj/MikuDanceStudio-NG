@@ -443,3 +443,26 @@ the rebuilt scene-runtime regression and never-shown native Qt presentation
 on DX11, DX12 and Vulkan passed. The application built without being launched.
 Follow-toggle refresh, global-track application gates, event-dependent FOV
 rounding and the broader original-output/UI gates remain open.
+
+[Run 41297109061](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41297109061)
+at `f365756` passed camera-reference switching and reordered document bindings
+on Windows, macOS and Linux.
+
+The follow-camera checkbox now invokes a dedicated shared command. Enabling it
+reloads camera, light, self-shadow, gravity and accessory tracks at the current
+frame, clears offsets and applies the native model-view reanchoring when in
+model mode. Disabling it reanchors only when the selected model is the camera
+parent. Both preserve unregistered bones, history, the physics world and the
+published CPU snapshot. Gravity parameters reach the next simulation frame
+without forcing a scene update. Validation completes before mutation.
+
+The explicit original-executable camera oracle additionally passed 648 follow
+on/off reanchoring cases with maximum absolute error zero, including stored
+parent bases and missing active-bone fallbacks. It invokes only the original
+matrix kernel, without a window or D3D device. The portable regression checks
+global-track reload, history isolation, camera/model mode differences, unchanged
+runtime/snapshot identity and invalid-basis rejection. Qt offscreen mouse clicks
+on the actual checkbox passed with zero scene updates.
+All 16 local P4 tests, the rebuilt scene-runtime test and native hidden Qt
+presentation on DX11, DX12 and Vulkan passed. The application built without
+being launched. This batch does not close the global playback gates or P4.

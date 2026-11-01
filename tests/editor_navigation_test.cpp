@@ -267,6 +267,80 @@ int main(int argc, char** argv) {
         CHECK(reference.Document().timeline.cameraReferenceMode == 1 &&
               reference.Document().cameraState == changed);
     }
+    {
+        editor::EditorSession follow;
+        CHECK(follow.ImportModel(std::filesystem::absolute(argv[1]) / "pose.pmd", reason));
+        CHECK(follow.ImportAccessory(std::filesystem::absolute(argv[1]) / "bound.x", reason));
+        CHECK(follow.Edit(
+            "global-track-fixture",
+            [](auto& d, auto&) {
+                auto& camera = d.cameraKeys.dense[0];
+                camera.eye = {5, 7, 9};
+                camera.target = {};
+                camera.distance = -23;
+                camera.parentModel = -1;
+                d.lightKeys.dense[0].color = {.1f, .2f, .3f};
+                d.lightState = {.9f, .8f, .7f, 0, 1, 0};
+                d.selfShadowKeys.dense[0].mode = 2;
+                d.selfShadowKeys.dense[0].distance = .02f;
+                d.selfShadowMode = 0;
+                d.gravityKeys.dense[0].acceleration = 4;
+                d.gravityKeys.dense[0].direction = {1, -2, 3};
+                d.physics.gravityMagnitude = 17;
+                d.accessories[0].keyRecords.dense[0].position = {8, 9, 10};
+                d.accessories[0].state.position = {17, 18, 19};
+                d.appearance.suppressCameraTransform = 1;
+                return true;
+            },
+            reason));
+        CHECK(follow.SetBone(0, 3, {4, 5, 6}, {0, 0, 0, 1}, reason));
+        auto c = follow.Runtime().Session()->Pose().camera;
+        c.distance = -91;
+        CHECK(follow.SetCamera(c, reason));
+        CHECK(follow.DragView(true, 20, 10, false, false, reason));
+        const auto* live = &follow.Runtime();
+        const auto* snapshot = live->Snapshot(0);
+        const auto updates = live->Counters().frames;
+        CHECK(follow.SetFollowCamera(true, reason));
+        CHECK(follow.Document().appearance.followCamera &&
+              !follow.Document().appearance.suppressCameraTransform);
+        CHECK(follow.Document().cameraState[3] == 5 && follow.Document().cameraState[4] == 7 &&
+              follow.Document().cameraState[5] == -14);
+        CHECK(follow.Document().lightState[0] == .1f && follow.Document().selfShadowMode == 2 &&
+              follow.Document().physicsInterval == .02f);
+        CHECK(follow.Document().physics.gravityMagnitude == 4 &&
+              follow.Runtime().Simulation().gravityMagnitude == 4);
+        CHECK(follow.Document().accessories[0].state.position[0] == 8 &&
+              follow.Runtime().Session()->Pose().accessories[0].position[0] == 8);
+        CHECK(follow.Document().models[0].bonePose[3].components[0] == 4);
+        const auto revision = follow.Revision();
+        CHECK(follow.SetFollowCamera(true, reason));
+        CHECK(follow.Revision() == revision);
+        CHECK(follow.DragView(true, 20, 10, false, false, reason));
+        const auto currentView = follow.Document().cameraState;
+        CHECK(follow.SetFollowCamera(false, reason));
+        CHECK(follow.Document().cameraState == currentView); // free camera: no reanchoring
+        CHECK(follow.Runtime().Counters().frames == updates && &follow.Runtime() == live &&
+              follow.Runtime().Snapshot(0) == snapshot);
+        CHECK(follow.Undo(reason));
+        CHECK(follow.Document().models[0].bonePose[3].components[0] == 0);
+        CHECK(follow.Document().cameraState == currentView &&
+              follow.Document().lightState[0] == .1f);
+        CHECK(follow.SelectModel(255, reason));
+        const auto cameraFrames = follow.Runtime().Counters().frames;
+        CHECK(follow.SetFollowCamera(true, reason));
+        CHECK(follow.Document().cameraState[3] == 0 && follow.Document().cameraState[4] == 0 &&
+              follow.Document().cameraState[5] == -23); // camera mode: no model-view conversion
+        CHECK(follow.Runtime().Counters().frames == cameraFrames);
+        auto candidate = *follow.Runtime().Session();
+        auto invalidBasis = cpu_math::Identity();
+        invalidBasis[4] = std::numeric_limits<float>::infinity();
+        const auto state = candidate.Document().cameraState;
+        CHECK(
+            !candidate.SetFollowCamera(false, candidate.Pose().camera, {1, 2}, invalidBasis, true));
+        CHECK(candidate.Document().appearance.followCamera &&
+              candidate.Document().cameraState == state);
+    }
     std::cout
         << "View navigation: native modifiers, parent/follow gates and zero scene updates passed\n";
 }

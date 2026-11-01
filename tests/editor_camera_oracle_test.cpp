@@ -56,7 +56,9 @@ struct NativeCamera {
         Store(0x350, d.cameraState[8]);
         Store(0xA1900, d.cameraState[5]);
         Store(0xA1404, d.appearance.cameraParentModel);
+        Store(0xA1408, d.appearance.cameraParentBone);
         Store(0xA140C, d.appearance.cameraAttachmentBasis);
+        Store(0x36C, session.Runtime().Session()->Pose().camera.position);
         Store(0x378, std::uint8_t(newMode));
         model->selectedBone = session.ActiveBone();
     }
@@ -130,6 +132,68 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf(
         "Original x64 camera reference: %u cases, maximum absolute error %.9g, no windows\n", cases,
         maximum);
+    cases = 0;
+    maximum = 0;
+    for (float pitch : {-.8f, 0.f, .9f})
+        for (float yaw : {-1.1f, 0.f, 2.2f})
+            for (float roll : {-.3f, .5f})
+                for (int parent : {-1, 0})
+                    for (int active : {-1, 0, 3})
+                        for (unsigned reference = 0; reference < 3; ++reference) {
+                            Check(session.SelectBones({0, 3}, active, reason), reason.c_str());
+                            Check(session.SetCameraReference(reference, reason), reason.c_str());
+                            auto camera = session.Runtime().Session()->Pose().camera;
+                            camera.position = {3, 7, -19};
+                            camera.rotation = {pitch, yaw, roll};
+                            camera.distance = -45;
+                            camera.parentModel = parent;
+                            camera.parentBone = 3;
+                            Check(session.SetCamera(camera, reason), reason.c_str());
+                            Check(session.Register({{editor::Track::Camera, 255, 0, 0}}, reason),
+                                  reason.c_str());
+                            const auto* currentSnapshot = session.Runtime().Snapshot(0);
+                            const auto currentUpdates = session.Runtime().Counters().frames;
+                            for (bool enabled : {true, false}) {
+                                native.Capture(session, reference);
+                                if (enabled) {
+                                    native.Store(0x340, 0.f);
+                                    native.Store(0x344, 0.f);
+                                }
+                                // Original PostModelReload is pure camera/bone matrix math.
+                                // Disabling only reanchors when this model is the camera parent.
+                                if (enabled || parent >= 0)
+                                    original.Function<void (*)(void*)>(0x72480)(native.app.data());
+                                Check(session.SetFollowCamera(enabled, reason), reason.c_str());
+                                const auto& state = session.Document().cameraState;
+                                for (unsigned i = 0; i < 3; ++i) {
+                                    const float expected =
+                                        native.Float(i == 2 ? 0xA1900 : 0x340 + 4 * i);
+                                    const float error = std::abs(state[3 + i] - expected);
+                                    maximum = std::max(maximum, error);
+                                    if (!std::isfinite(error) || error > 2e-5f) {
+                                        std::fprintf(
+                                            stderr,
+                                            "follow=%d ref=%u parent=%d active=%d axis=%u actual=%.9g original=%.9g\n",
+                                            enabled, reference, parent, active, i, state[3 + i],
+                                            expected);
+                                        Check(false, "original model-view reanchor differs");
+                                    }
+                                }
+                                for (unsigned i = 0; i < 16; ++i)
+                                    Check(
+                                        std::abs(
+                                            session.Document().appearance.cameraAttachmentBasis[i] -
+                                            native.Float(0xA140C + 4 * i)) <= 2e-5f,
+                                        "original parent basis differs");
+                                ++cases;
+                            }
+                            Check(session.Runtime().Snapshot(0) == currentSnapshot &&
+                                      session.Runtime().Counters().frames == currentUpdates,
+                                  "follow switching updated the scene");
+                        }
+    std::printf(
+        "Original x64 follow reanchoring: %u cases, maximum absolute error %.9g, no windows\n",
+        cases, maximum);
     return 0;
 } catch (const std::exception& e) {
     std::fprintf(stderr, "%s\n", e.what());

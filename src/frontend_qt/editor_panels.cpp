@@ -226,9 +226,14 @@ bool EditorWindow::PanelCommand(int id) {
         Result(session_.SetCameraReference(mode, reason), reason);
         return true;
     }
+    if (id == kFollowCameraCheckbox) {
+        Result(session_.SetFollowCamera(static_cast<QAbstractButton*>(Control(id))->isChecked(),
+                                        reason),
+               reason);
+        return true;
+    }
     if (id == kResetLightButton || (id >= kEditOffCheckbox && id <= kEditMode2Checkbox) ||
-        id == kCoordAxisCheckbox || id == kInfoCheckbox || id == kFollowCameraCheckbox ||
-        id == kIkOnRadio || id == kIkOffRadio) {
+        id == kCoordAxisCheckbox || id == kInfoCheckbox || id == kIkOnRadio || id == kIkOffRadio) {
         Result(session_.Edit(
                    "panel-state",
                    [&](auto& d, auto&) {
@@ -250,8 +255,6 @@ bool EditorWindow::PanelCommand(int id) {
                                d.view.groundGrid = value;
                            if (id == kInfoCheckbox)
                                d.view.fpsOverlay = value;
-                           if (id == kFollowCameraCheckbox)
-                               d.appearance.followCamera = value;
                        }
                        return true;
                    },

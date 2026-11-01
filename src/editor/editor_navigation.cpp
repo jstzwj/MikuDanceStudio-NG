@@ -119,6 +119,74 @@ bool EditorSession::SetCameraReference(unsigned mode, std::string& reason) {
     reason.clear();
     return true;
 }
+bool EditorSession::ReanchorModelView(format::PmmEvaluatedCamera& camera,
+                                      std::array<float, 2>& offsets, cpu_math::Matrix& basis,
+                                      std::string& reason) const {
+    using namespace cpu_math;
+    auto rotation = Multiply(Multiply(RotationY(camera.rotation[1]), RotationX(camera.rotation[0])),
+                             RotationZ(camera.rotation[2]));
+    Vec3 reference;
+    if (!ViewReferencePoint(Document().timeline.cameraReferenceMode, camera.parentModel >= 0,
+                            reference, reason))
+        return false;
+    if (camera.parentModel >= 0) {
+        Matrix parent;
+        int index;
+        if (!runtime_->DocumentBoneIndex(camera.parentModel, std::max(0, camera.parentBone), index,
+                                         reason) ||
+            !runtime_->BoneAttachment(camera.parentModel, index, parent, reason))
+            return false;
+        basis = Identity();
+        for (unsigned r = 0; r < 3; ++r)
+            for (unsigned c = 0; c < 3; ++c)
+                basis[4 * r + c] = parent[4 * c + r];
+        rotation = Multiply(basis, rotation);
+        const auto target = Multiply(Translation({parent[12], parent[13], parent[14]}), rotation);
+        const auto pivot = Multiply(Translation(reference), rotation);
+        offsets = {target[12] - pivot[12] + camera.position[0],
+                   target[13] - pivot[13] + camera.position[1]};
+        camera.distance = target[14] - pivot[14] + camera.position[2];
+    } else {
+        const auto target = Multiply(
+            Translation({-camera.position[0], -camera.position[1], -camera.position[2]}), rotation);
+        const auto pivot =
+            Multiply(Translation({-reference[0], -reference[1], -reference[2]}), rotation);
+        offsets[0] -= target[12] - pivot[12];
+        offsets[1] -= target[13] - pivot[13];
+        camera.distance -= target[14] - pivot[14];
+    }
+    return true;
+}
+bool EditorSession::SetFollowCamera(bool enabled, std::string& reason) {
+    if (bool(Document().appearance.followCamera) == enabled) {
+        reason.clear();
+        return true;
+    }
+    auto camera = runtime_->Session()->Pose().camera;
+    auto offsets = Offsets(*this);
+    auto basis = Document().appearance.cameraAttachmentBasis;
+    bool suppressed = Document().appearance.suppressCameraTransform;
+    if (enabled) {
+        if (!format::EvaluatePmmCameraTrack(Document().cameraKeys, Document().timeline.currentFrame,
+                                            format::PmmCameraInterpolation::Seek, camera)) {
+            reason = "camera-track-reload-failed";
+            return false;
+        }
+        offsets = {};
+    }
+    const bool reanchor =
+        selection_.model != 255 &&
+        (enabled || (camera.parentModel >= 0 && camera.parentModel == selection_.model));
+    if (reanchor) {
+        if (!ReanchorModelView(camera, offsets, basis, reason))
+            return false;
+        suppressed = false;
+    }
+    if (!runtime_->SetFollowCamera(enabled, camera, offsets, basis, suppressed, reason))
+        return false;
+    revision_ = nextRevision_++;
+    return true;
+}
 bool EditorSession::ViewPreset(unsigned number, std::string& reason) {
     navigation::ViewPreset preset;
     if (playing_ || !navigation::Preset(number, preset)) {
@@ -141,42 +209,9 @@ bool EditorSession::ViewPreset(unsigned number, std::string& reason) {
             return false;
         }
         offsets = {};
-        using namespace cpu_math;
         auto basis = Document().appearance.cameraAttachmentBasis;
-        auto rotation =
-            Multiply(Multiply(RotationY(camera.rotation[1]), RotationX(camera.rotation[0])),
-                     RotationZ(camera.rotation[2]));
-        Vec3 reference;
-        if (!ViewReferencePoint(Document().timeline.cameraReferenceMode, camera.parentModel >= 0,
-                                reference, reason))
+        if (!ReanchorModelView(camera, offsets, basis, reason))
             return false;
-        if (camera.parentModel >= 0) {
-            Matrix parent;
-            int index;
-            if (!runtime_->DocumentBoneIndex(camera.parentModel, std::max(0, camera.parentBone),
-                                             index, reason) ||
-                !runtime_->BoneAttachment(camera.parentModel, index, parent, reason))
-                return false;
-            basis = Identity();
-            for (unsigned r = 0; r < 3; ++r)
-                for (unsigned c = 0; c < 3; ++c)
-                    basis[4 * r + c] = parent[4 * c + r];
-            rotation = Multiply(basis, rotation);
-            const auto target =
-                Multiply(Translation({parent[12], parent[13], parent[14]}), rotation);
-            const auto pivot = Multiply(Translation(reference), rotation);
-            offsets = {target[12] - pivot[12] + camera.position[0],
-                       target[13] - pivot[13] + camera.position[1]};
-            camera.distance = target[14] - pivot[14] + camera.position[2];
-        } else {
-            const auto target = Multiply(
-                Translation({-camera.position[0], -camera.position[1], -camera.position[2]}),
-                rotation);
-            const auto pivot =
-                Multiply(Translation({-reference[0], -reference[1], -reference[2]}), rotation);
-            offsets = {-(target[12] - pivot[12]), -(target[13] - pivot[13])};
-            camera.distance -= target[14] - pivot[14];
-        }
         if (!ApplyView(camera, offsets, reason) || !runtime_->SetViewBasis(basis, false))
             return false;
         revision_ = nextRevision_++;

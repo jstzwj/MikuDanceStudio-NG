@@ -40,6 +40,9 @@ public:
     bool PrepareEditorView(std::uint8_t model, bool& changed);
     bool SetViewBasis(const std::array<float, 16>&, bool suppressed);
     bool SetCameraReference(unsigned mode);
+    bool SetFollowCamera(bool enabled, const format::PmmEvaluatedCamera&,
+                         const std::array<float, 2>&, const cpu_math::Matrix& basis,
+                         bool suppressed, std::string&);
     bool UnloadModel(std::uint8_t, std::string&);
     bool AttachAccessory(std::uint8_t, std::shared_ptr<const AccessoryResource>, std::string&);
     bool UnloadAccessory(std::uint8_t, std::string&);

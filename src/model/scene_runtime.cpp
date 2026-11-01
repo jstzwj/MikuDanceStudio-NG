@@ -631,6 +631,19 @@ bool SceneRuntime::SetViewBasis(const std::array<float, 16>& basis, bool suppres
 bool SceneRuntime::SetCameraReference(unsigned mode) {
     return impl_ && impl_->session && !impl_->failed && impl_->session->SetCameraReference(mode);
 }
+bool SceneRuntime::SetFollowCamera(bool enabled, const format::PmmEvaluatedCamera& camera,
+                                   const std::array<float, 2>& offsets,
+                                   const cpu_math::Matrix& basis, bool suppressed,
+                                   std::string& reason) {
+    if (!impl_ || !impl_->session || impl_->failed ||
+        !impl_->session->SetFollowCamera(enabled, camera, offsets, basis, suppressed)) {
+        reason = "camera-follow-refresh-failed";
+        return false;
+    }
+    impl_->Gravity();
+    reason.clear();
+    return true;
+}
 bool SceneRuntime::Edit(const std::function<void(format::PmmSceneDocument&)>& change,
                         std::string& reason) {
     if (!impl_ || !impl_->session || impl_->failed) {

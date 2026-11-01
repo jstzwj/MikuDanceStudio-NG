@@ -119,7 +119,7 @@ PmmSceneEvaluation CurrentPose(const PmmSceneDocument& scene) {
     }
     return pose;
 }
-void StorePose(PmmSceneDocument& scene, const PmmSceneEvaluation& pose) {
+void StoreGlobalPose(PmmSceneDocument& scene, const PmmSceneEvaluation& pose) {
     scene.timeline.currentFrame = static_cast<std::int32_t>(pose.frame);
     scene.lightState = pose.lightState;
     scene.selfShadowMode = pose.selfShadowMode;
@@ -148,6 +148,9 @@ void StorePose(PmmSceneDocument& scene, const PmmSceneEvaluation& pose) {
         state.position = value.position;
         state.rotation = value.rotation;
     }
+}
+void StorePose(PmmSceneDocument& scene, const PmmSceneEvaluation& pose) {
+    StoreGlobalPose(scene, pose);
     for (std::size_t m = 0; m < scene.models.size(); ++m) {
         auto& model = scene.models[m];
         const auto& evaluated = pose.models[m];
@@ -278,6 +281,55 @@ bool SceneSession::SetViewBasis(const std::array<float, 16>& basis, bool suppres
         return false;
     scene_.appearance.cameraAttachmentBasis = basis;
     scene_.appearance.suppressCameraTransform = suppressed;
+    return true;
+}
+bool SceneSession::SetFollowCamera(bool enabled, const PmmEvaluatedCamera& camera,
+                                   const std::array<float, 2>& offsets,
+                                   const std::array<float, 16>& basis, bool suppressed) {
+    if (!loaded_ ||
+        !std::all_of(basis.begin(), basis.end(), [](float v) { return std::isfinite(v); }))
+        return false;
+    PmmSceneEvaluation global;
+    if (enabled) {
+        const auto frame = scene_.timeline.currentFrame;
+        if (frame < 0 ||
+            !EvaluatePmmLightTrack(scene_.lightKeys, frame, PmmLightInterpolation::FrameSeek,
+                                   global.lightState) ||
+            !EvaluatePmmSelfShadowTrack(scene_.selfShadowKeys, frame, global.selfShadowMode,
+                                        global.selfShadowDistance) ||
+            !EvaluatePmmGravityTrack(scene_.gravityKeys, frame, global.gravity, true))
+            return false;
+        global.accessories.reserve(scene_.accessories.size());
+        for (const auto& accessory : scene_.accessories) {
+            PmmEvaluatedAccessory value;
+            if (!EvaluatePmmAccessoryTrack(accessory.keyRecords, accessory.slot, frame, value))
+                return false;
+            global.accessories.push_back(value);
+        }
+    }
+    // SetViewCamera validates parent references and every camera component
+    // before mutation. All other fallible work above has already completed.
+    if (!SetViewCamera(camera, offsets))
+        return false;
+    scene_.appearance.followCamera = enabled;
+    scene_.appearance.cameraAttachmentBasis = basis;
+    scene_.appearance.suppressCameraTransform = suppressed;
+    if (enabled) {
+        pose_.lightState = global.lightState;
+        pose_.selfShadowMode = global.selfShadowMode;
+        pose_.selfShadowDistance = global.selfShadowDistance;
+        pose_.gravity = global.gravity;
+        pose_.accessories = std::move(global.accessories);
+        StoreGlobalPose(scene_, pose_);
+    }
+    if (playing_) {
+        playback_.pose.camera = pose_.camera;
+        playback_.pose.lightState = pose_.lightState;
+        playback_.pose.selfShadowMode = pose_.selfShadowMode;
+        playback_.pose.selfShadowDistance = pose_.selfShadowDistance;
+        playback_.pose.gravity = pose_.gravity;
+        playback_.pose.accessories = pose_.accessories;
+    }
     return true;
 }
 bool SceneSession::PrepareEditorView(std::uint8_t model, bool playing, bool& changed) {

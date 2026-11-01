@@ -170,6 +170,15 @@ int main(int argc, char** argv) {
         CHECK(!modelReference->isChecked() && !boneReference->isChecked());
         CHECK(s.Runtime().Counters().frames == referenceFrames &&
               s.Runtime().Snapshot(0) == referenceSnapshot);
+        auto* follow =
+            qobject_cast<QAbstractButton*>(picking.Control(panel::kFollowCameraCheckbox));
+        CHECK(follow && !follow->isChecked());
+        follow->click();
+        CHECK(s.Document().appearance.followCamera && follow->isChecked());
+        follow->click();
+        CHECK(!s.Document().appearance.followCamera && !follow->isChecked());
+        CHECK(s.Runtime().Counters().frames == referenceFrames &&
+              s.Runtime().Snapshot(0) == referenceSnapshot);
     }
     {
         qt::EditorWindow backgrounds(std::filesystem::absolute(argv[2]), true);

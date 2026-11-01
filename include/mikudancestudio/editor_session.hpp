@@ -102,6 +102,7 @@ public:
     bool PrepareView(std::string&);
     bool ViewPreset(unsigned numpadKey, std::string&);
     bool SetCameraReference(unsigned mode, std::string&);
+    bool SetFollowCamera(bool enabled, std::string&);
     int ActiveBone() const;
     bool Register(const std::vector<KeyAddress>&, std::string&);
     bool Delete(const std::set<KeyAddress>&, std::string&);
@@ -215,6 +216,8 @@ private:
                              const std::function<void(unsigned, InterpolationCurve&)>&,
                              std::string&);
     bool ApplyView(const format::PmmEvaluatedCamera&, const std::array<float, 2>&, std::string&);
+    bool ReanchorModelView(format::PmmEvaluatedCamera&, std::array<float, 2>&,
+                           cpu_math::Matrix& basis, std::string&) const;
     bool ViewReferencePoint(unsigned mode, bool fallbackToRoot, cpu_math::Vec3&,
                             std::string&) const;
 };

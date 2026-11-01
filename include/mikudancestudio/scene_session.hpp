@@ -39,6 +39,12 @@ public:
     bool SetViewCamera(const PmmEvaluatedCamera&, const std::array<float, 2>& offsets);
     bool PrepareEditorView(std::uint8_t model, bool playing, bool& changed);
     bool SetViewBasis(const std::array<float, 16>&, bool suppressed);
+    // Follow-on reloads global/accessory tracks at the current frame. The host
+    // supplies the camera after native model-view reanchoring. Bone poses,
+    // playback cursors and physics are retained; rejection changes no state.
+    bool SetFollowCamera(bool enabled, const PmmEvaluatedCamera&,
+                         const std::array<float, 2>& offsets, const std::array<float, 16>& basis,
+                         bool suppressed);
     bool SetCameraReference(unsigned mode) {
         if (!loaded_ || mode > 2)
             return false;
