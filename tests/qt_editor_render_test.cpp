@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QFile>
 #include <iostream>
+#include <cstring>
 using namespace mikudancestudio;
 std::string reason;
 #define CHECK(x)                                                                                   \
@@ -18,7 +19,7 @@ int main(int argc, char** argv) {
     const auto root = std::filesystem::absolute(argv[1]),
                assets = std::filesystem::absolute(argv[2]);
     editor::EditorSession session;
-    CHECK(session.ImportModel(root / "bone-only.pmd", reason));
+    CHECK(session.ImportModel(root / "triangle.pmd", reason));
     CHECK(session.SetBone(0, 0, {0, 0, 0}, {0, 0, 0, 1}, reason));
     CHECK(session.Register({{editor::Track::Bone, 0, 0, 0}}, reason));
     CHECK(session.SetBone(0, 0, {3, 0, 0}, {0, 0, 0, 1}, reason));
@@ -61,6 +62,73 @@ int main(int argc, char** argv) {
     CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96, image,
                           reason));
     CHECK(image.size() == QSize(128, 96));
+    // Exercise C1 scene families using public models and the same production
+    // producer as the viewport. A camera edit must only change edge bytes;
+    // main deformation buffers keep their resource version.
+    CHECK(session.Edit(
+        "ground-shadow",
+        [](auto& d, auto&) {
+            d.view.groundGrid = 0;
+            d.view.groundShadow = 1;
+            d.physics.projectedShadowBlend = 1;
+            d.physics.projectedShadowAmbient = .5f;
+            d.selfShadowMode = 0;
+            return true;
+        },
+        reason));
+    render::SceneRenderSources sources;
+    sources.models = session.Assets().modelPaths;
+    rhi::FileAssetSource builtin(assets);
+    render::SceneFrameProducer producer;
+    CHECK(producer.Load(session.Runtime(), sources, builtin, reason));
+    render::SceneRenderSettings settings;
+    settings.width = 128;
+    settings.height = 96;
+    settings.shadow.mode = 0;
+    rhi::RenderFrame before, after;
+    const auto count = session.Runtime().Counters().frames;
+    CHECK(producer.Build(session.Runtime(), settings, before, reason));
+    CHECK(session.Runtime().Counters().frames == count);
+    const auto& draws = before.passes.front().draws;
+    CHECK(draws.size() >= 2);
+    CHECK(draws.front().pipeline.vertexLayout == rhi::VertexLayout::PositionColor);
+    CHECK(draws.front().pipeline.raster.cull == rhi::BatchCull::None);
+    CHECK(draws.front().pipeline.stencilReference == 2);
+    CHECK(draws[1].pipeline.vertexLayout == rhi::VertexLayout::PositionNormalUv);
+    auto camera = session.Runtime().Session()->Pose().camera;
+    camera.distance *= 2;
+    CHECK(session.SetCamera(camera, reason));
+    CHECK(producer.Build(session.Runtime(), settings, after, reason));
+    CHECK(before.passes[0].draws[1].vertices.id == after.passes[0].draws[1].vertices.id);
+    CHECK(before.passes[0].draws[1].vertices.version == after.passes[0].draws[1].vertices.version);
+    CHECK(before.passes[0].draws[0].vertices.version < after.passes[0].draws[0].vertices.version);
+    CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96, image,
+                          reason));
+    CHECK(session.New(reason) && session.ImportModel(root / "triangle.pmx", reason));
+    sources.models = session.Assets().modelPaths;
+    CHECK(producer.Load(session.Runtime(), sources, builtin, reason));
+    for (int mode : {0, 1, 2}) {
+        settings.shadow.mode = mode;
+        settings.shadow.mapSize = 32;
+        CHECK(producer.Build(session.Runtime(), settings, before, reason));
+        const auto& main = before.passes[mode ? 1 : 0];
+        CHECK(main.draws.back().pipeline.shadow.mode == rhi::BuiltinShadowMode::Outline);
+        CHECK(main.draws.back().pipeline.raster.cull == rhi::BatchCull::Clockwise);
+        CHECK(main.draws.back().pipeline.shadow.color[3] == 1);
+        CHECK(rhi::ValidateRenderFrame(before));
+        auto device = rhi::CreateOffscreenBackendDevice(128, 96, options);
+        CHECK(device);
+        rhi::SceneRenderer renderer(*device.device);
+        rhi::PreparedModelFrame prepared;
+        rhi::CompletionToken token;
+        CHECK(renderer.Prepare(1, before, prepared));
+        CHECK(renderer.Submit(prepared, token));
+        rhi::AttachmentReadback first, second;
+        CHECK(renderer.ReadTarget(1, before.finalColor, first));
+        CHECK(renderer.Submit(prepared, token) &&
+              renderer.ReadTarget(1, before.finalColor, second));
+        CHECK(first.bytes == second.bytes);
+    }
     std::cout
         << "Qt offscreen export: deterministic PNG, isolated scene, cancellation, save/reopen passed\n";
 }

@@ -3,6 +3,7 @@
 #include "mikudancestudio/rhi_post_process.hpp"
 #include "mikudancestudio/rhi_backend.hpp"
 #include "mikudancestudio/text_encoding.hpp"
+#include "mikudancestudio/cpu_edge.hpp"
 #include <algorithm>
 #include <cstring>
 #include <cstdio>
@@ -157,6 +158,7 @@ struct SceneFrameProducer::Impl {
         std::unique_ptr<ModelGeometry> geometry;
         ModelSubmissionBuilder submission;
         std::vector<Material> materials;
+        std::vector<unsigned> edgeMaterials;
         explicit Model(std::uint64_t id) : submission(id + 16) {}
     };
     struct Accessory {
@@ -168,12 +170,15 @@ struct SceneFrameProducer::Impl {
     };
     std::map<std::uint8_t, std::unique_ptr<Model>> models;
     std::map<std::uint8_t, std::unique_ptr<Accessory>> accessories;
+    AtlasAsset helper;
 };
 SceneFrameProducer::SceneFrameProducer() = default;
 SceneFrameProducer::~SceneFrameProducer() = default;
 bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRenderSources& sources,
                               const AssetSource& builtins, std::string& reason) try {
     auto next = std::make_unique<Impl>();
+    if (!LoadAtlas(builtins, AssetId::AccessoryHelper, next->helper))
+        return Fail(reason, "scene_shadow_helper_asset");
     ToonTextureResolver toons(sources.sharedToons, builtins);
     for (unsigned slot = 0; slot < 256; ++slot)
         if (auto resource = scene.Resource(std::uint8_t(slot))) {
@@ -193,6 +198,20 @@ bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRen
                 continue;
             }
             model->geometry = std::make_unique<ModelGeometry>(id, unsigned(doc.vertices.size()));
+            // Original PMX load-time ownership: a shared vertex takes the
+            // material with the smallest original edge size (first on ties).
+            model->edgeMaterials.resize(doc.vertices.size());
+            std::vector<float> edgeSizes(doc.vertices.size(), 999.79999f);
+            std::size_t cursor = 0;
+            for (std::size_t m = 0; m < doc.materials.size(); ++m)
+                for (int i = 0; i < doc.materials[m].fields.faceVertexCount; ++i) {
+                    const auto vertex = std::size_t(doc.indices.at(cursor++));
+                    const auto size = doc.materials[m].fields.edgeSize;
+                    if (size < edgeSizes.at(vertex)) {
+                        edgeSizes[vertex] = size;
+                        model->edgeMaterials[vertex] = unsigned(m);
+                    }
+                }
             if (!model->geometry->SetIndices(IndexFormat::UInt32, doc.indices.data(),
                                              doc.indices.size() * sizeof(std::int32_t)))
                 return Fail(reason, "model_indices");
@@ -323,8 +342,6 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
             return Fail(reason, "model_resource_changed_reload_required");
     if (doc && (doc->avi.enabled || doc->picture.enabled))
         return Fail(reason, "scene_background_requires_media_service");
-    if (doc && doc->view.groundShadow)
-        return Fail(reason, "projected_shadow_requires_scene_pass_migration");
     const int mode = settings.shadow.mode < 0 ? (session ? session->Pose().selfShadowMode : 0)
                                               : settings.shadow.mode;
     const auto distance = settings.shadow.distance > 0 ? settings.shadow.distance
@@ -338,6 +355,8 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
     ModelMaterialInputs neutral;
     if (!BuildModelInputs(frame, neutral, {}, camera))
         return Fail(reason, "scene_camera");
+    shadow.worldViewProjection =
+        Multiply(Multiply(camera.shader.world, camera.shader.view), camera.shader.projection);
     const Vec3 eye = frame.scene.camera.parentModel >= 0 ? frame.scene.camera.position
                                                          : Vec3{0, 0, frame.scene.camera.distance};
     Matrix inverse;
@@ -387,7 +406,8 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
     HistoryDesc history;
     history.width = settings.width;
     history.height = settings.height;
-    const auto append = [&](ModelReplayStream& stream) {
+    const auto append = [&](ModelReplayStream& stream,
+                            std::vector<ModelReplayDraw>* destination = nullptr) {
         for (auto& r : stream.resources)
             if (std::none_of(result.resources.begin(), result.resources.end(),
                              [&](const auto& x) { return x.key.id == r.key.id; }))
@@ -396,9 +416,17 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
             if (e.op == ModelReplayOp::Draw) {
                 if (e.draw.pipeline.shadow.mode == BuiltinShadowMode::Material)
                     e.draw.shadowTarget = 3;
-                main.draws.push_back(e.draw);
+                (destination ? *destination : main.draws).push_back(e.draw);
             }
     };
+    ScenePassSettings passes;
+    if (doc) {
+        passes.shadowBlend = doc->physics.projectedShadowBlend != 0;
+        const auto gray = doc->physics.projectedShadowAmbient;
+        passes.shadowMaterial.diffuse[3] = .699999988079071f;
+        passes.shadowMaterial.ambient = {gray, gray, gray, gray};
+        passes.shadowMaterial.specular[3] = 1;
+    }
     if (doc && doc->view.groundGrid) {
         for (const auto family : {SceneDrawFamily::GroundLines, SceneDrawFamily::GroundPlane}) {
             ModelReplayStream ground;
@@ -419,6 +447,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         }
     }
     const auto modelStart = main.draws.size();
+    std::vector<ModelReplayDraw> projected, outlines;
     std::vector<std::uint8_t> order;
     for (const auto& item : impl_->models)
         if (scene.Resource(item.first))
@@ -455,11 +484,41 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         if (!snapshot || snapshot->vertices.size() != model.resource->Document().vertices.size())
             return Fail(reason, "model_snapshot_missing");
         auto* vertices = static_cast<ModelVertex*>(model.geometry->MainData());
+        const bool pmd = model.resource->SourceKind() == format::ModelKind::Pmd;
+        const auto& source = model.resource->Document();
+        float scale = 1;
+        if (doc)
+            for (const auto& record : doc->models)
+                if (record.slot == slot)
+                    scale = record.edgeScale;
+        Vec3 center{};
+        if (!snapshot->bones.empty()) {
+            const auto n = snapshot->bones.size() > 1 ? 1 : 0;
+            const auto* position = source.bones[n].fields.position;
+            center =
+                TransformPoint({position[0], position[1], position[2]}, snapshot->bones[n].skin);
+        }
+        const auto worldCenter = TransformPoint(center, frame.world);
+        const auto dx = worldCenter[0] - eye[0], dy = worldCenter[1] - eye[1],
+                   dz = worldCenter[2] - eye[2];
+        const auto edgeScale = cpu_edge::DistanceScale(std::sqrt(dx * dx + dy * dy + dz * dz),
+                                                       frame.scene.camera.fov, scale);
         for (std::size_t n = 0; n < snapshot->vertices.size(); ++n) {
             const auto& v = snapshot->vertices[n];
             std::copy_n(v.position.data(), 3, vertices[n].position);
             std::copy_n(v.normal.data(), 3, vertices[n].normal);
             std::copy_n(v.uv.data(), 2, vertices[n].uv);
+            auto& edge = model.geometry->Edges()[n];
+            const auto& original = source.vertices[n];
+            const auto& material = snapshot->materials.at(model.edgeMaterials[n]).material;
+            for (unsigned c = 0; c < 3; ++c)
+                edge.position[c] =
+                    pmd ? cpu_edge::Component(v.position[c], v.normal[c],
+                                              original.edgeScale == 0 ? -.004999999888241291f
+                                                                      : edgeScale)
+                        : cpu_edge::PmxComponent(v.position[c], v.normal[c], edgeScale,
+                                                 original.edgeScale, material.edgeSize);
+            edge.diffuse = pmd ? 0xff000000u : cpu_edge::Color(material.edgeColor, mode != 0);
         }
         if (!model.geometry->Publish())
             return Fail(reason, "model_geometry_publish");
@@ -532,7 +591,52 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 draw.textures = {};
                 cast.draws.push_back(std::move(draw));
             }
+        unsigned edgeFirst = 0;
+        for (const auto& pose : snapshot->materials) {
+            const auto& material = pose.material;
+            const auto count = unsigned(material.faceVertexCount);
+            for (const auto family :
+                 {SceneDrawFamily::ProjectedModelShadow, SceneDrawFamily::ModelOutline}) {
+                const bool ground = family == SceneDrawFamily::ProjectedModelShadow;
+                const bool enabled =
+                    ground ? doc && doc->view.groundShadow && frame.scene.lightState[4] < 0 &&
+                                 (pmd || ((material.flags & 2) && material.edgeColor[3] > 0))
+                           : scale > 0 && (pmd ? material.flags != 0 : (material.flags & 16) != 0);
+                if (!count || !enabled)
+                    continue;
+                ModelReplayStream edgeStream;
+                edgeStream.target = history;
+                edgeStream.clear = main.color->clear;
+                edgeStream.events = {{1, ModelReplayOp::Clear}};
+                ModelReplayDraw draw;
+                draw.firstIndex = edgeFirst;
+                draw.indexCount = count;
+                if (!BuildScenePassInputs(frame, family, passes, draw.pipeline))
+                    return Fail(reason, "scene_edge_pipeline");
+                if (!ground && !pmd) {
+                    draw.pipeline.shadow = shadow;
+                    draw.pipeline.shadow.mode = BuiltinShadowMode::Outline;
+                    std::copy_n(material.edgeColor, 4, draw.pipeline.shadow.color.begin());
+                }
+                if (ground) {
+                    ModelReplayResource helper;
+                    helper.kind = ReplayResourceKind::Texture;
+                    helper.key = {0x8000000000000001ull, impl_->helper.revision};
+                    helper.texture.levels = {impl_->helper.image};
+                    edgeStream.resources.push_back(helper);
+                    draw.textures[0] = helper.key;
+                }
+                const auto added =
+                    AppendModelGeometry(edgeStream, model.geometry->Snapshot(), draw, true);
+                if (!added)
+                    return Fail(reason, added.reason);
+                append(edgeStream, ground ? &projected : &outlines);
+            }
+            edgeFirst += count;
+        }
     }
+    main.draws.insert(main.draws.begin() + modelStart, projected.begin(), projected.end());
+    main.draws.insert(main.draws.end(), outlines.begin(), outlines.end());
     std::vector<const format::PmmSceneAccessory*> accessoryOrder;
     if (doc)
         for (const auto& item : doc->accessories)

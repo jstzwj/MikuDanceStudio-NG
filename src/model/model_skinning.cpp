@@ -27,6 +27,7 @@
 #include <cstring>
 
 #include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/cpu_edge.hpp"
 #include "mikudancestudio/mmd_app.hpp"
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
@@ -139,7 +140,7 @@ float EdgeComponent(float position, float normal, float amount) {
 #if defined(_M_IX86)
     return mikudancestudio::mmd_math::edgeComponent(position, normal, amount);
 #else
-    return position + normal * amount;
+    return mikudancestudio::cpu_edge::Component(position, normal, amount);
 #endif
 }
 
@@ -149,10 +150,7 @@ float PmxEdgeComponent(float position, float normal, float frameScale, float ver
     return mikudancestudio::mmd_math::pmxEdgeComponent(position, normal, frameScale, vertexScale,
                                                        materialSize);
 #else
-    float amount = frameScale * normal;
-    amount *= vertexScale;
-    amount *= materialSize;
-    return position + amount;
+    return mikudancestudio::cpu_edge::PmxComponent(position, normal, frameScale, vertexScale, materialSize);
 #endif
 }
 
@@ -261,14 +259,7 @@ void SkinPmxSdef(d3dx::Api& d3dxApi, const mdl::PmxVertex& source, const mdl::Bo
 // material's edge channels to 8 bits. The self-shadow render pass forces an
 // opaque alpha word; the regular pass keeps the material's own edge alpha.
 std::uint32_t PackPmxEdgeColor(const mdl::ModelMaterialRecord& material, bool opaqueAlpha) {
-    const auto channel = [](float value) -> std::uint32_t {
-        return static_cast<std::uint8_t>(static_cast<std::int32_t>(value * 255.0f));
-    };
-    const std::uint32_t red = channel(material.edgeColor[0]);
-    const std::uint32_t green = channel(material.edgeColor[1]);
-    const std::uint32_t blue = channel(material.edgeColor[2]);
-    const std::uint32_t alpha = opaqueAlpha ? 0xFFu : channel(material.edgeColor[3]);
-    return (alpha << 24) | (red << 16) | (green << 8) | blue;
+    return mikudancestudio::cpu_edge::Color(material.edgeColor, opaqueAlpha);
 }
 
 // The x64 worker ladder uses a 32-byte base record plus one contiguous
@@ -445,8 +436,7 @@ float CpuModelEdgeDistance(mdl::ModelRecord* model, const float frameWorld[16],
 #if defined(_M_IX86)
     return mmd_math::edgeDistanceScale(distance, fov, record.edgeScale);
 #else
-    return distance * 0.00004500000068219379f * (fov * 0.6000000238418579f + 1.0f) *
-           record.edgeScale;
+    return cpu_edge::DistanceScale(distance, fov, record.edgeScale);
 #endif
 }
 namespace {
