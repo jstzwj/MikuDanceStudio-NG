@@ -635,6 +635,10 @@ bool SceneRuntime::Tick(float delta, std::string& reason) {
     impl_->simulation.remainingSeconds = delta;
     return impl_->Frame(delta, reason);
 }
+void SceneRuntime::RequestPhysicsReset() {
+    if (impl_ && !impl_->failed)
+        impl_->simulation.resetPending = 1;
+}
 void SceneRuntime::SetPanelExpanded(unsigned option, bool expanded) {
     if (impl_ && impl_->session)
         impl_->session->SetPanelExpanded(option, expanded);

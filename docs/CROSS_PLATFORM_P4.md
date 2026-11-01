@@ -1471,3 +1471,39 @@ redistributing the external model or textures.
 The paused-frame implementation `c1d331f` passed all three editor jobs in
 [run 41339142378](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41339142378),
 and the formats/rendering workflows. P4/C1 remains in progress.
+
+## Clipboard scene refresh and native deferred physical reset
+
+Further command-envelope review identified a missing boundary after physical
+world reuse: native frame paste, reverse paste, bone-pose paste, Undo and Redo
+set `PhysicsResetPending`. These successful commands now retain the world and
+body snapshots while latching a reseat for the next shared simulation frame.
+That frame consumes the existing scheduler's reset/settle sequence. The command
+itself does not step the world. Empty paste and failed commands do not set the
+latch. This refines the earlier continuity regression: clocks and bodies remain
+unchanged at dispatch except for the required reset flag.
+
+Camera-mode frame paste also clears marks across all global/accessory tracks,
+evaluates the pasted scene at the existing cursor and clears the camera's view
+offsets. The legacy `ReloadModels` routine in this command is camera-track
+evaluation, not a reload of every model. Only the remembered selected model is
+sought; other models retain their pending poses. All new global values and CPU
+outputs are validated before publication, and gravity is updated without a step.
+
+Tests cover global camera/light/shadow/gravity/accessory values, pending model
+poses, marks, current cursor, failed overflow and retained runtime identity.
+PMD/PMX physics tests cover the latch before/after each subsequent frame and
+unchanged bodies during paste, pose paste and repeated Undo/Redo. The command
+order comes from the recovered Windows implementation; existing original kernel
+oracles do not by themselves constitute an original UI command-loop comparison.
+
+Local validation passed **29 P4 tests** (37.34 seconds), five Win32 editor tests
+and the Qt application build. Physical continuity/reset coverage now includes
+both PMD and PMX in modes 1, 2 and 3. The existing original history/clipboard
+oracles retain their kernel-only scope.
+
+The mode-clipboard commit `5d73716` passed all three editor jobs in
+[run 41339639854](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41339639854).
+The five-workload performance gate `5a39958` passed all three editor jobs in
+[run 41339877600](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41339877600).
+Both commits also passed the formats/rendering workflows.

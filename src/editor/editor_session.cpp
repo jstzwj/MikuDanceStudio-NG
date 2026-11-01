@@ -1177,6 +1177,28 @@ bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason)
             history.emplace(model->slot, std::move(entry));
         }
     }
+    if (!modelClipboard) {
+        const auto clear = [](auto& track) {
+            for (auto& key : track.dense)
+                key.selected = 0;
+            for (auto& key : track.sparse)
+                key.value.selected = 0;
+            for (auto& [index, key] : track.unused)
+                key.selected = 0;
+        };
+        clear(d.cameraKeys);
+        clear(d.lightKeys);
+        clear(d.selfShadowKeys);
+        clear(d.gravityKeys);
+        for (auto& accessory : d.accessories)
+            clear(accessory.keyRecords);
+        for (auto it = next.selection.keys.begin(); it != next.selection.keys.end();)
+            if (it->track != Track::Bone && it->track != Track::Morph &&
+                it->track != Track::Display)
+                it = next.selection.keys.erase(it);
+            else
+                ++it;
+    }
     for (auto item : clipboard) {
         if (mirror && item.address.track != Track::Bone)
             continue;
@@ -1276,8 +1298,28 @@ bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason)
         if (found == result.end())
             return false;
         *model = *found;
+    } else {
+        SceneSession evaluated;
+        if (!SceneSession::Create(d, evaluated, reason) ||
+            !evaluated.Seek(unsigned(d.timeline.currentFrame)) ||
+            !evaluated.SetViewCamera(evaluated.Pose().camera, {})) {
+            if (reason.empty())
+                reason = "clipboard-scene-evaluation-failed";
+            return false;
+        }
+        auto result = evaluated.Document();
+        // Native camera-mode paste seeks the remembered selected model, then
+        // refreshes every global/accessory track at the current cursor.
+        // ReloadModels is the legacy name of camera-track evaluation.
+        for (auto& entry : result.models)
+            if (entry.slot != d.envelope.selectedModelSlot)
+                entry = *Model(d, entry.slot);
+        d = std::move(result);
     }
-    return Commit(std::move(next), reason, history, false);
+    if (!Commit(std::move(next), reason, history, false))
+        return false;
+    runtime_->RequestPhysicsReset();
+    return true;
 }
 
 bool EditorSession::Undo(std::string& reason) {

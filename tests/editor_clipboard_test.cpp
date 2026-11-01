@@ -200,6 +200,81 @@ int main(int argc, char** argv) {
     CHECK(scopes.CanPasteFrames() && !scopes.CanPasteFrames(true));
     CHECK(scopes.New(reason) && !scopes.CanPasteFrames());
     CHECK(scopes.ImportModel(root / "triangle.pmd", reason) && !scopes.CanPasteFrames());
+    EditorSession globals;
+    CHECK(globals.ImportModel(root / "triangle.pmx", reason));
+    CHECK(globals.ImportModel(root / "triangle.pmx", reason));
+    CHECK(globals.ImportAccessory(root / "bound.x", reason));
+    CHECK(globals.SelectModel(255, reason));
+    CHECK(globals.Edit(
+        "global source keys",
+        [](auto& d, auto&) {
+            auto camera = d.cameraKeys.dense[0];
+            auto light = d.lightKeys.dense[0];
+            auto shadow = d.selfShadowKeys.dense[0];
+            auto gravity = d.gravityKeys.dense[0];
+            auto accessory = d.accessories[0].keyRecords.dense[0];
+            camera.frame = light.frame = shadow.frame = gravity.frame = accessory.frame = 10;
+            camera.eye = {11, 12, 13};
+            light.color = {.25f, .5f, .75f};
+            shadow.mode = 1;
+            shadow.distance = .015f;
+            gravity.acceleration = 3;
+            accessory.position = {19, 20, 21};
+            return RegisterPmmKey(d.cameraKeys, 0, camera) &&
+                   RegisterPmmKey(d.lightKeys, 0, light) &&
+                   RegisterPmmKey(d.selfShadowKeys, 0, shadow) &&
+                   RegisterPmmKey(d.gravityKeys, 0, gravity) &&
+                   RegisterPmmKey(d.accessories[0].keyRecords, 0, accessory);
+        },
+        reason));
+    CHECK(globals.Seek(30, reason));
+    CHECK(globals.Copy({{Track::Camera, 255, 0, 10},
+                        {Track::Light, 255, 0, 10},
+                        {Track::Shadow, 255, 0, 10},
+                        {Track::Gravity, 255, 0, 10},
+                        {Track::Accessory, 0, 0, 10}},
+                       reason));
+    CHECK(globals.Edit(
+        "pending values and marks",
+        [](auto& d, auto&) {
+            d.cameraState[0] = d.cameraState[3] = d.cameraState[4] = 99;
+            d.lightState[0] = .9f;
+            d.selfShadowMode = 2;
+            d.physics.gravityMagnitude = 8;
+            d.accessories[0].state.position[0] = 100;
+            d.models[0].bonePose[0].components[0] = 77;
+            d.models[1].bonePose[0].components[0] = 88;
+            d.cameraKeys.dense[0].selected = d.lightKeys.dense[0].selected =
+                d.selfShadowKeys.dense[0].selected = d.gravityKeys.dense[0].selected =
+                    d.accessories[0].keyRecords.dense[0].selected = 1;
+            return true;
+        },
+        reason));
+    CHECK(globals.Document().envelope.selectedModelSlot == 1);
+    globals.Selected().keys = {
+        {Track::Camera, 255, 0, 0}, {Track::Light, 255, 0, 0}, {Track::Bone, 0, 0, 0}};
+    const auto* live = &globals.Runtime();
+    const auto frames = live->Counters().frames;
+    CHECK(globals.Paste(30, false, reason));
+    const auto& current = globals.Document();
+    CHECK(&globals.Runtime() == live && live->Counters().frames == frames);
+    CHECK(live->Simulation().resetPending && live->Simulation().gravityMagnitude == 3);
+    CHECK(current.timeline.currentFrame == 30 && current.cameraState[0] == 11 &&
+          current.cameraState[3] == 0 && current.cameraState[4] == 0);
+    CHECK(current.lightState[0] == .25f && current.selfShadowMode == 1 &&
+          current.physicsInterval == .015f && current.accessories[0].state.position[0] == 19);
+    CHECK(current.models[0].bonePose[0].components[0] == 77 &&
+          current.models[1].bonePose[0].components[0] == 0);
+    CHECK(!current.cameraKeys.dense[0].selected && !current.lightKeys.dense[0].selected &&
+          !current.selfShadowKeys.dense[0].selected && !current.gravityKeys.dense[0].selected &&
+          !current.accessories[0].keyRecords.dense[0].selected);
+    CHECK(globals.Selected().keys.size() == 6 &&
+          globals.Selected().keys.count({Track::Bone, 0, 0, 0}) &&
+          !globals.Selected().keys.count({Track::Camera, 255, 0, 0}));
+    CHECK(globals.TickIdle(1. / 60, reason) && !live->Simulation().resetPending);
+    const auto lastRevision = globals.Revision();
+    CHECK(!globals.Paste(0xffffffffU, false, reason));
+    CHECK(globals.Revision() == lastRevision && !live->Simulation().resetPending);
     std::cout
         << "168 original clipboard tables, PMD/PMX paste, partial history and mode scopes passed\n";
 }

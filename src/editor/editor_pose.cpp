@@ -83,7 +83,10 @@ bool EditorSession::PasteBonePose(bool mirrored, std::string& reason) {
     for (std::size_t i = 0; i < model->bonePose.size(); ++i)
         if (model->bonePose[i].flags[2])
             next.selection.bones.push_back(std::uint32_t(i));
-    return Commit(std::move(next), reason, {{selection_.model, history}});
+    if (!Commit(std::move(next), reason, {{selection_.model, history}}))
+        return false;
+    runtime_->RequestPhysicsReset();
+    return true;
 }
 
 bool EditorSession::ResetSelectedBonePose(std::string& reason) {

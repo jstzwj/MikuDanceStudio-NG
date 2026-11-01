@@ -262,6 +262,7 @@ bool EditorSession::ApplyHistory(bool redo, std::string& reason) {
     selection_ = next.selection;
     state_ = std::move(next);
     runtime_->Pause();
+    runtime_->RequestPhysicsReset();
     // Undo does not restore selection, UI state, other models or asset loading.
     revision_ = nextRevision_++;
     cursorSeconds_ = Document().timeline.currentFrame / 30.;

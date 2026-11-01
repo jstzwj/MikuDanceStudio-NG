@@ -33,6 +33,9 @@ public:
     bool Advance(float absoluteSeconds, float deltaSeconds, std::string&,
                  format::PmmSceneApplication = {});
     bool Tick(float deltaSeconds, std::string&);
+    // Native edit commands latch a reseat for the next simulation frame.
+    // This does not rebuild the world or step it during command dispatch.
+    void RequestPhysicsReset();
     bool Edit(const std::function<void(format::PmmSceneDocument&)>&, std::string&);
     // Same resources, binding layout, cursor and physics mode: stage an editor
     // document and fresh CPU snapshots without stepping/recreating the world.
