@@ -632,7 +632,7 @@ bool SceneSession::Edit(const std::function<void(PmmSceneDocument&)>& change) {
     PmmSceneDocument checked;
     if (!ReadPmmSceneDocument(ReadBytes, &bytes, v1 ? ResolveStoredV1 : nullptr,
                               v1 ? this : nullptr, checked) ||
-        checked.timeline.currentFrame < 0)
+        checked.timeline.currentFrame < 0 || !PreservePmmUnusedRecords(edited, checked))
         return false;
     scene_ = std::move(checked);
     pose_ = CurrentPose(scene_);

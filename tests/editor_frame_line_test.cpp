@@ -61,7 +61,7 @@ template <class T> bool Kernel() {
     return !InsertPmmFrameLine(source, 0, affected);
 }
 
-template <class T> bool DeletionKernel(std::uint64_t& hash) {
+template <class T> bool DeletionKernel(std::uint64_t& hash, std::uint64_t& retiredHash) {
     for (unsigned order = 0; order < 3; ++order)
         for (unsigned cursor : {0, 1, 2, 15, 16, 30, 31})
             for (bool automatic : {false, true}) {
@@ -69,6 +69,16 @@ template <class T> bool DeletionKernel(std::uint64_t& hash) {
                 PmmFrameLineDeletion<T> deletion;
                 if (!DeletePmmFrameLine(track, cursor, automatic, deletion))
                     return false;
+                for (const auto& [index, key] : track.unused) {
+                    std::vector<std::uint8_t> bytes;
+                    frame_line_fixture::Bytes(bytes, index);
+                    const auto payload = frame_line_fixture::Bytes(key);
+                    bytes.insert(bytes.end(), payload.begin(), payload.end());
+                    for (const auto byte : bytes) {
+                        retiredHash ^= byte;
+                        retiredHash *= 1099511628211ull;
+                    }
+                }
                 frame_line_fixture::Hash(hash, track);
                 if constexpr (std::is_same_v<T, PmmBoneKey>) {
                     if (deletion.affected)
@@ -155,9 +165,13 @@ int main(int argc, char** argv) {
           Kernel<PmmLightKey>());
     // Frozen from 384 original x64 deletion/undo/redo persisted-record tables.
     std::uint64_t hash = 14695981039346656037ull;
-    CHECK(DeletionKernel<PmmBoneKey>(hash) && DeletionKernel<PmmMorphKey>(hash) &&
-          DeletionKernel<PmmCameraKey>(hash) && DeletionKernel<PmmLightKey>(hash));
+    std::uint64_t retiredHash = 14695981039346656037ull;
+    CHECK(DeletionKernel<PmmBoneKey>(hash, retiredHash) &&
+          DeletionKernel<PmmMorphKey>(hash, retiredHash) &&
+          DeletionKernel<PmmCameraKey>(hash, retiredHash) &&
+          DeletionKernel<PmmLightKey>(hash, retiredHash));
     CHECK(hash == 0x45bef3b62b79d390ull);
+    CHECK(retiredHash == 0x8256a293bb030ff3ull);
     hash = 14695981039346656037ull;
     CHECK(MarkedBoneKernel(hash) && hash == 0x1f2e2300834a6371ull);
     hash = 14695981039346656037ull;

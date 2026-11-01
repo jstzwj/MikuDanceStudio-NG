@@ -834,6 +834,8 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
                     key.allocated = 0;
                 for (auto& key : track.sparse)
                     key.value.allocated = 0;
+                for (auto& [index, key] : track.unused)
+                    key.allocated = 0;
             };
             clear(model->boneKeys);
             clear(model->morphKeys);

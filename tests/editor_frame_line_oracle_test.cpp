@@ -251,7 +251,8 @@ unsigned Exercise(OriginalPhysicsModule& original, bool modelTrack, bool primary
 }
 
 template <class T, class Native>
-unsigned ExerciseDeletion(OriginalPhysicsModule& original, unsigned capacity, std::uint64_t& hash) {
+unsigned ExerciseDeletion(OriginalPhysicsModule& original, unsigned capacity, std::uint64_t& hash,
+                          std::uint64_t& retiredHash) {
     constexpr bool bone = std::is_same_v<T, PmmBoneKey>;
     constexpr bool modelTrack = bone || std::is_same_v<T, PmmMorphKey>;
     constexpr bool primary = bone || std::is_same_v<T, PmmCameraKey>;
@@ -334,6 +335,31 @@ unsigned ExerciseDeletion(OriginalPhysicsModule& original, unsigned capacity, st
                     }
                     ++count;
                 };
+                for (const auto& [index, key] : track.unused)
+                    if (frame_line_fixture::Bytes(key) !=
+                        frame_line_fixture::Bytes(ConvertKey<T>(records[index]))) {
+                        std::fprintf(stderr,
+                                     "retired order=%u cursor=%u auto=%d index=%u type=%zu\n",
+                                     order, cursor, automatic, index, sizeof(Native));
+                        const auto expected = frame_line_fixture::Bytes(key);
+                        const auto actual =
+                            frame_line_fixture::Bytes(ConvertKey<T>(records[index]));
+                        for (unsigned byte = 0; byte < expected.size(); ++byte)
+                            if (expected[byte] != actual[byte])
+                                std::fprintf(stderr, "byte %u: native=%u portable=%u\n", byte,
+                                             unsigned(actual[byte]), unsigned(expected[byte]));
+                        Check(false, "native retired frame-line record differs");
+                    }
+                for (const auto& [index, key] : track.unused) {
+                    std::vector<std::uint8_t> bytes;
+                    frame_line_fixture::Bytes(bytes, index);
+                    const auto payload = frame_line_fixture::Bytes(key);
+                    bytes.insert(bytes.end(), payload.begin(), payload.end());
+                    for (const auto byte : bytes) {
+                        retiredHash ^= byte;
+                        retiredHash *= 1099511628211ull;
+                    }
+                }
                 compare("delete");
                 Check(model->maxFrame == 99 && app[0x9f038] == 99, "deletion keeps maximum");
                 Check(bool(app[0xa1b31]) == (!bone || deletion.affected), "deletion dirty/no-op");
@@ -695,6 +721,128 @@ unsigned ExerciseBoneRegistration(OriginalPhysicsModule& original, std::uint64_t
     });
     return count;
 }
+unsigned ExerciseBoneReuse(OriginalPhysicsModule& original, std::uint64_t& hash) {
+    unsigned count = 0;
+    for (bool automatic : {false, true})
+        for (bool disabled : {false, true}) {
+            auto track = bone_registration_fixture::ReuseTrack();
+            auto model = std::make_unique<mdl::ModelRecord>();
+            std::vector<mdl::BoneKey> records(mdl::kBoneKeyCapacity);
+            std::vector<mdl::MorphKey> morphs(mdl::kMorphKeyCapacity);
+            std::vector<mdl::DisplayKey> displays(mdl::kDisplayKeyCapacity);
+            std::array<mdl::BoneRecord, 2> bones{};
+            std::array<unsigned char, 2> selected{}, edited{};
+            model->boneCount = 2;
+            model->boneTable = bones.data();
+            model->boneKeys = records.data();
+            model->morphKeys = morphs.data();
+            model->displayKeys = displays.data();
+            model->boneSelection = selected.data();
+            model->bonePhysicsState = edited.data();
+            model->UndoCursor() = model->LatestUndoCursor() = 29;
+            bones[0].hasRigidBody = 1;
+            for (unsigned i = 0; i < 2; ++i)
+                bones[i].rotQuat[3] = records[i].rotation[3] = 1;
+            automaticInterpolation = automatic;
+            registrationPhysicsEnabled = !disabled;
+            std::map<std::uint32_t, PmmBoneKey> undo, redo;
+            for (unsigned step = 0; step < 7; ++step) {
+                Check(bone_registration_fixture::ReuseStep(step, automatic, disabled, track, undo,
+                                                           redo),
+                      "portable reused slot operation");
+                if (step == 0 || step == 2) {
+                    const unsigned bone = step == 0 ? 0 : 1, frame = step == 0 ? 10 : 20;
+                    selected.fill(0);
+                    selected[bone] = 1;
+                    bones[bone].trans[0] = float(frame);
+                    original.Function<void (*)(mdl::ModelRecord*, int, int)>(0xc7ea0)(
+                        model.get(), int(frame), 0);
+                    const auto& saved = model->undoRings[0].slots[model->UndoCursor()];
+                    Check(saved.recordCount == undo.size(), "reused capture count");
+                    for (unsigned i = 0; i < saved.recordCount; ++i)
+                        Check(frame_line_fixture::Bytes(
+                                  ConvertKey<PmmBoneKey>(saved.keySnapshots[i].key)) ==
+                                  frame_line_fixture::Bytes(undo.at(saved.keySnapshots[i].index)),
+                              "reused native free-slot snapshot");
+                } else if (step == 1) {
+                    original.Function<void (*)(mdl::ModelRecord*, int)>(0xcde50)(model.get(), 10);
+                } else {
+                    int frame = 20;
+                    original.Function<void (*)(mdl::ModelRecord*, int*)>(
+                        step == 3 || step == 5 ? 0xcef90 : 0xcfb80)(model.get(), &frame);
+                }
+                auto expected = frame_line_fixture::Records(track);
+                expected.insert(track.unused.begin(), track.unused.end());
+                for (const auto& [index, key] : expected)
+                    Check(frame_line_fixture::Bytes(ConvertKey<PmmBoneKey>(records[index])) ==
+                              frame_line_fixture::Bytes(key),
+                          "reused native slot payload");
+                bone_registration_fixture::HashSlots(hash, track);
+                ++count;
+            }
+            if (!automatic && !disabled) {
+                // Frame-zero merging copies the live payload into the root,
+                // then clears the freed slot's pose and links, retaining its
+                // interpolation/physics byte. Reuse it before/after a live key.
+                for (unsigned frame : {5, 20}) {
+                    track = bone_registration_fixture::ReuseTrack();
+                    track.dense[0].next = 2;
+                    PmmBoneKey first{}, last{};
+                    first.frame = 1;
+                    first.next = 3;
+                    first.rotation[3] = 1;
+                    first.physicsDisabled = 1;
+                    last.frame = 10;
+                    last.previous = 2;
+                    last.rotation[3] = 1;
+                    track.sparse = {{2, 0, first}, {3, 0, last}};
+                    std::fill(records.begin(), records.end(), mdl::BoneKey{});
+                    for (const auto& [index, key] : frame_line_fixture::Records(track))
+                        records[index] = ConvertKey<mdl::BoneKey>(key);
+                    std::vector<unsigned char> app(0xa6000);
+                    auto* pointer = model.get();
+                    std::memcpy(app.data() + 0xbe8, &pointer, sizeof pointer);
+                    PmmFrameLineDeletion<PmmBoneKey> merged;
+                    Check(DeletePmmFrameLine(track, 0, false, merged), "portable merged slot");
+                    original.Function<void (*)(void*)>(0x8a110)(app.data());
+                    if (frame_line_fixture::Bytes(track.unused.at(2)) !=
+                        frame_line_fixture::Bytes(ConvertKey<PmmBoneKey>(records[2]))) {
+                        const auto expected = frame_line_fixture::Bytes(track.unused.at(2));
+                        const auto actual =
+                            frame_line_fixture::Bytes(ConvertKey<PmmBoneKey>(records[2]));
+                        for (unsigned i = 0; i < expected.size(); ++i)
+                            if (expected[i] != actual[i])
+                                std::fprintf(stderr, "free slot byte %u: native=%u portable=%u\n",
+                                             i, unsigned(actual[i]), unsigned(expected[i]));
+                    }
+                    Check(frame_line_fixture::Bytes(track.unused.at(2)) ==
+                              frame_line_fixture::Bytes(ConvertKey<PmmBoneKey>(records[2])),
+                          "native merged free-slot payload");
+                    selected = {1, 0};
+                    bones[0].hasRigidBody = 0;
+                    std::fill_n(bones[0].trans, 3, 0.f);
+                    undo.clear();
+                    const bool valid = RegisterPmmBonePose(track, 0, frame, {}, false, undo);
+                    original.Function<void (*)(mdl::ModelRecord*, int, int)>(0xc7ea0)(
+                        model.get(), int(frame), 0);
+                    Check(valid, "valid merged slot registration");
+                    for (const auto& [index, key] : frame_line_fixture::Records(track))
+                        Check(frame_line_fixture::Bytes(key) ==
+                                  frame_line_fixture::Bytes(ConvertKey<PmmBoneKey>(records[index])),
+                              "native merged slot registration");
+                }
+            }
+            for (auto& ring : model->undoRings)
+                for (auto& slot : ring.slots) {
+                    const auto free = *original.Function<void (**)(void*)>(0x128450);
+                    if (slot.bonePose)
+                        free(slot.bonePose);
+                    if (slot.keySnapshots)
+                        free(slot.keySnapshots);
+                }
+        }
+    return count;
+}
 int main(int argc, char** argv) try {
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
@@ -728,15 +876,20 @@ int main(int argc, char** argv) try {
         Exercise<PmmLightKey, mdl::LightKey>(original, false, false, mdl::kTimelineKeyCapacity);
     std::printf("%u exact original frame-line insertion tables/flags; no UI or GPU\n", cases);
     std::uint64_t hash = 14695981039346656037ull;
-    cases = ExerciseDeletion<PmmBoneKey, mdl::BoneKey>(original, mdl::kBoneKeyCapacity, hash);
-    cases += ExerciseDeletion<PmmMorphKey, mdl::MorphKey>(original, mdl::kMorphKeyCapacity, hash);
-    cases +=
-        ExerciseDeletion<PmmCameraKey, mdl::CameraKey>(original, mdl::kTimelineKeyCapacity, hash);
-    cases +=
-        ExerciseDeletion<PmmLightKey, mdl::LightKey>(original, mdl::kTimelineKeyCapacity, hash);
+    std::uint64_t retiredHash = 14695981039346656037ull;
+    cases = ExerciseDeletion<PmmBoneKey, mdl::BoneKey>(original, mdl::kBoneKeyCapacity, hash,
+                                                       retiredHash);
+    cases += ExerciseDeletion<PmmMorphKey, mdl::MorphKey>(original, mdl::kMorphKeyCapacity, hash,
+                                                          retiredHash);
+    cases += ExerciseDeletion<PmmCameraKey, mdl::CameraKey>(original, mdl::kTimelineKeyCapacity,
+                                                            hash, retiredHash);
+    cases += ExerciseDeletion<PmmLightKey, mdl::LightKey>(original, mdl::kTimelineKeyCapacity, hash,
+                                                          retiredHash);
     std::printf(
         "%u deletion/history persisted tables, hash %016llx; 6192 exact native seek poses; no UI or GPU\n",
         cases, static_cast<unsigned long long>(hash));
+    std::printf("168 deletion inputs including retired slots, hash %016llx\n",
+                static_cast<unsigned long long>(retiredHash));
     hash = 14695981039346656037ull;
     cases = ExerciseMarkedBoneDeletion(original, hash);
     std::printf("%u marked bone deletion/history tables, hash %016llx\n", cases,
@@ -759,6 +912,10 @@ int main(int argc, char** argv) try {
     hash = 14695981039346656037ull;
     cases = ExerciseBoneRegistration(original, hash);
     std::printf("%u bone registration/history tables, hash %016llx\n", cases,
+                static_cast<unsigned long long>(hash));
+    hash = 14695981039346656037ull;
+    cases = ExerciseBoneReuse(original, hash);
+    std::printf("%u native reused-slot tables including free payloads, hash %016llx\n", cases,
                 static_cast<unsigned long long>(hash));
     return 0;
 } catch (const std::exception& e) {

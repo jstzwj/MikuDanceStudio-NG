@@ -1,5 +1,6 @@
 #pragma once
 #include "mikudancestudio/pmm_document.hpp"
+#include <map>
 
 namespace mikudancestudio::format {
 
@@ -38,6 +39,10 @@ template <class T> struct PmmKeyTrack {
     std::vector<std::size_t> denseRecordOffsets;
     std::vector<T> dense;
     std::vector<PmmSparseKey<T>> sparse;
+    // Native editing reuses frame-zero slots without clearing every payload
+    // byte. Keep their typed state within a live session; PMM stores only used
+    // records, so opening a file starts with an empty unused-slot table.
+    std::map<std::uint32_t, T> unused;
 };
 struct PmmBonePose {
     std::array<float, 8> components{};

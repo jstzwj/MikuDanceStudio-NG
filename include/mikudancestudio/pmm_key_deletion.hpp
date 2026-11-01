@@ -28,7 +28,7 @@ bool DeletePmmKeyRecords(PmmKeyTrack<T>& track, const std::set<std::uint32_t>& s
     PmmFrameLineDeletion<T> next;
     // Root zero's unused predecessor can point at a freed native slot. Such a
     // capture still participates in undo, but has no serialized key payload.
-    std::map<std::uint32_t, T> holes;
+    auto holes = track.unused;
     const auto at = [&](std::uint32_t index) -> T& {
         const auto found = records.find(index);
         return found == records.end() ? holes[index] : *found->second;
@@ -117,6 +117,10 @@ bool DeletePmmKeyRecords(PmmKeyTrack<T>& track, const std::set<std::uint32_t>& s
             }
         }
     }
+    track.unused = std::move(holes);
+    for (const auto& key : track.sparse)
+        if (!key.value.frame)
+            track.unused[unsigned(key.index)] = key.value;
     track.sparse.erase(std::remove_if(track.sparse.begin(), track.sparse.end(),
                                       [](const auto& key) { return !key.value.frame; }),
                        track.sparse.end());

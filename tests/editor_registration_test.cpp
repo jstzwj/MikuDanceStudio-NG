@@ -1,4 +1,5 @@
 #include "mikudancestudio/editor_session.hpp"
+#include "bone_registration_fixture.hpp"
 #include <fstream>
 #include <iostream>
 using namespace mikudancestudio;
@@ -20,6 +21,20 @@ bool PoseEqual(const PmmBonePose& actual, const PmmEvaluatedBone& expected) {
 }
 int main(int argc, char** argv) {
     CHECK(argc == 2);
+    std::uint64_t reusedHash = 14695981039346656037ull;
+    for (bool automatic : {false, true})
+        for (bool disabled : {false, true}) {
+            auto track = bone_registration_fixture::ReuseTrack();
+            std::map<std::uint32_t, PmmBoneKey> undo, redo;
+            for (unsigned step = 0; step < 7; ++step) {
+                CHECK(bone_registration_fixture::ReuseStep(step, automatic, disabled, track, undo,
+                                                           redo));
+                bone_registration_fixture::HashSlots(reusedHash, track);
+            }
+        }
+    // C7EA0/CDE50/CEF90/CFB80: all 28 tables include the actual free-slot
+    // payload, independently compared to the original executable.
+    CHECK(reusedHash == 0x7877c69c4e74a379ull);
     const auto root = std::filesystem::absolute(argv[1]);
     const auto writer = [](const auto& path, const auto& bytes, auto&) {
         std::ofstream file(path, std::ios::binary);
@@ -130,6 +145,61 @@ int main(int argc, char** argv) {
     std::vector<std::vector<PmmBoneKey>> chains;
     CHECK(PmmTrackChains(reordered.Document().models[0].boneKeys, chains));
     CHECK(chains[1].back().physicsDisabled && !chains[0].back().physicsDisabled);
+    EditorSession reused;
+    CHECK(reused.ImportModel(root / "articulated.pmd", reason));
+    reused.SetRegistrationPhysics(false);
+    CHECK(reused.Register({{Track::Bone, 0, 0, 10}}, reason));
+    CHECK(reused.Delete({{Track::Bone, 0, 0, 10}}, reason));
+    CHECK(reused.Document().models[0].boneKeys.unused.at(4).physicsDisabled == 1);
+    CHECK(reused.Save(root / "free-slot.pmm", writer, reason));
+    CHECK(reused.Edit(
+        "unrelated-light",
+        [&](auto& d, auto&) {
+            d.lightState[0] = .5f;
+            return true;
+        },
+        reason));
+    CHECK(reused.Document().models[0].boneKeys.unused.at(4).physicsDisabled == 1);
+    CHECK(reused.Register({{Track::Bone, 0, 1, 20}}, reason));
+    CHECK(reused.Document().models[0].boneKeys.sparse[0].index == 4);
+    CHECK(reused.Document().models[0].boneKeys.sparse[0].value.physicsDisabled == 1);
+    for (unsigned cycle = 0; cycle < 3; ++cycle) {
+        CHECK(reused.Undo(reason));
+        CHECK(reused.Document().models[0].boneKeys.unused.at(4).physicsDisabled == 1);
+        CHECK(reused.Redo(reason));
+        CHECK(reused.Document().models[0].boneKeys.sparse[0].value.physicsDisabled == 1);
+    }
+    CHECK(reused.Open(root / "free-slot.pmm", reason));
+    CHECK(reused.Document().models[0].boneKeys.unused.empty());
+    CHECK(reused.Register({{Track::Bone, 0, 1, 20}}, reason));
+    CHECK(!reused.Document().models[0].boneKeys.sparse[0].value.physicsDisabled);
+    // Frame-zero merging clears free-slot links and pose but retains physics.
+    // Appending this slot after the surviving key must remain a valid chain.
+    auto merged = bone_registration_fixture::ReuseTrack();
+    merged.dense[0].next = 2;
+    PmmBoneKey first{}, last{};
+    first.frame = 1;
+    first.next = 3;
+    first.rotation[3] = 1;
+    first.physicsDisabled = 1;
+    last.frame = 10;
+    last.previous = 2;
+    last.rotation[3] = 1;
+    merged.sparse = {{2, 0, first}, {3, 0, last}};
+    PmmFrameLineDeletion<PmmBoneKey> deletion;
+    CHECK(DeletePmmFrameLine(merged, 0, false, deletion));
+    CHECK(merged.unused.at(2).next == 0);
+    std::map<std::uint32_t, PmmBoneKey> saved;
+    CHECK(RegisterPmmBonePose(merged, 0, 20, {}, false, saved));
+    CHECK(merged.unused.empty() && merged.sparse[0].value.physicsDisabled == 1);
+    for (unsigned invalid : {0, 2, 999999}) {
+        auto bad = merged;
+        bad.unused[invalid] = {};
+        CHECK(!PmmTrackChains(bad, chains));
+    }
+    auto bad = merged;
+    bad.unused[4].frame = 1;
+    CHECK(!PmmTrackChains(bad, chains));
     std::cout
         << cases
         << " PMD/PMX physics registration cases, history, persistence and name mapping passed\n";

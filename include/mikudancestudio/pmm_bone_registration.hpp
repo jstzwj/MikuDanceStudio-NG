@@ -8,7 +8,7 @@ struct PmmBoneRegistrationPose {
     std::array<float, 3> position{};
     std::array<float, 4> rotation{0, 0, 0, 1};
     // Native registration only writes this byte for a physics-controlled bone.
-    // Ordinary bone overwrites retain it; new records start with zero.
+    // Ordinary bone overwrites/reused slots retain it; fresh storage is zero.
     std::optional<std::uint8_t> physicsDisabled;
 };
 
@@ -26,11 +26,20 @@ inline bool RegisterPmmBonePose(PmmKeyTrack<PmmBoneKey>& track, std::uint32_t ch
     const auto& chain = chains[channel];
     const auto found = std::find_if(chain.begin(), chain.end(),
                                     [&](const auto& value) { return value.frame == frame; });
+    auto free = std::uint32_t(track.dense.size());
     if (found != chain.end())
         key = *found;
-    else
+    else {
+        std::set<std::uint32_t> occupied;
+        for (const auto& record : track.sparse)
+            occupied.insert(unsigned(record.index));
+        while (occupied.count(free))
+            ++free;
+        if (const auto old = track.unused.find(free); old != track.unused.end())
+            key = old->second;
         for (unsigned lane = 0; lane < 4; ++lane)
             keyframe_edit::ResetBoneCurve(key, lane);
+    }
     key.frame = frame;
     key.position = pose.position;
     key.rotation = pose.rotation;
@@ -39,8 +48,9 @@ inline bool RegisterPmmBonePose(PmmKeyTrack<PmmBoneKey>& track, std::uint32_t ch
         key.physicsDisabled = *pose.physicsDisabled;
     auto next = track;
     auto saved = captured;
-    if (!RegisterPmmKey(next, channel, key, &saved) ||
-        (automatic && !RebuildPmmBoneInterpolation(next, channel, frame)) ||
+    if (!RegisterPmmKey(next, channel, key, &saved))
+        return false;
+    if ((automatic && !RebuildPmmBoneInterpolation(next, channel, frame)) ||
         !PmmTrackChains(next, chains))
         return false;
     track = std::move(next);

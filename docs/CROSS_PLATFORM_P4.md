@@ -40,8 +40,8 @@ The portable regression additionally checks model isolation, camera/Morph
 preservation, selection, failed edits, gesture grouping and unload invalidation.
 Frame-line/marked-key deletion and bone registration now have touched-record
 evidence below; physics registration is connected to the Qt control and CPU pose
-source. Clipboard, reused native slot payloads and chained range operations
-remain part of the broader timeline gate.
+source. Reused slot payloads now have the independent coverage recorded below;
+clipboard and chained range operations remain part of the broader timeline gate.
 
 Local Windows x64 checks executed during implementation:
 
@@ -1259,3 +1259,47 @@ tests, the 123-checkpoint original history comparison and the Qt application
 build. The registration-capture batch (`1b8cbb6`) passed the three-platform editor
 [run 41332621890](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41332621890)
 and both formats/rendering workflows.
+
+
+## Native unused key-slot payloads
+
+Deleting a key does not zero every field in its native storage. `PmmKeyTrack`
+now retains typed unused slots in the live session. Ordinary bone registration
+reuses the first free index and retains its physics byte; first-use storage is
+zero. Partial undo/redo captures and restores the actual free-slot payload.
+Selection clearing includes unused bone slots. Serialization still writes only
+used PMM records: save and ordinary edits preserve the live cache, while opening
+a file reconstructs fresh storage, matching the native loading boundary.
+
+Frame-line deletion now preserves the different retirement rules for bone,
+Morph, camera and light records. In particular, the original frame-zero bone
+merge clears the freed slot's links, position, quaternion and selection after
+copying its payload to the root, but retains interpolation and physics. Earlier
+persisted-record-only comparisons did not observe these discarded fields. The
+new comparison checks the full retired payload and supports both subsequent
+insertion and append; it does not invent a cyclic-link exception to native
+registration.
+
+The original-executable oracle passed **28 reused-slot checkpoints**, including
+registration, deletion, reuse by an ordinary bone, and repeated undo/redo, with
+frozen hash `7877c69c4e74a379`. It additionally compared retired slots for **168
+frame-line deletion inputs**, hash `8256a293bb030ff3`, across all four track types,
+allocation orders, cursor positions and automatic interpolation settings. All
+previous persisted-table and 6,192 native seek comparisons retained their strict
+results. Public tests freeze both new hashes and verify save/edit preservation,
+reopen reset, invalid cache rejection and session history. No desktop or audio
+output is used.
+
+The preceding physics-registration revision (`9addcc7`) passed the three-platform
+editor [run 41333566597](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41333566597)
+and the formats, rendering and Bullet workflows. Live physics continuity across
+commands, remaining clipboard/range semantics and full P4/C1 acceptance remain open.
+
+Local validation passed all **27 P4 tests** (78.39 seconds), five additional
+x64 scene/format tests, eight Win32 editor/format tests and five legacy Windows
+regressions including undo. Both Qt and legacy applications rebuilt successfully.
+The 123-checkpoint original history oracle also passed. Cache validation was
+restricted to unused-slot bounds, zero frames and collisions, preserving the old
+byte-preserving editor's acceptance of legacy serialized tracks. The optional
+external PMM test had no fixture configured and was skipped; it is not counted
+as a pass. Existing public PMM fixtures ran in the document/editor regressions.

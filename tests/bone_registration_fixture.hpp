@@ -1,6 +1,7 @@
 #pragma once
 #include "frame_line_deletion_fixture.hpp"
 #include "mikudancestudio/pmm_bone_registration.hpp"
+#include "mikudancestudio/pmm_key_deletion.hpp"
 
 namespace bone_registration_fixture {
 using namespace mikudancestudio::format;
@@ -54,9 +55,54 @@ inline bool Register(const Case& c, PmmKeyTrack<PmmBoneKey>& track,
         key.allocated = 0;
     for (auto& record : track.sparse)
         record.value.allocated = 0;
+    for (auto& [index, key] : track.unused)
+        key.allocated = 0;
     for (auto bone : c.selected)
         if (!RegisterPmmBonePose(track, bone, c.frame, Pose(c, bone), c.automatic, saved))
             return false;
     return true;
+}
+inline PmmKeyTrack<PmmBoneKey> ReuseTrack() {
+    PmmKeyTrack<PmmBoneKey> track;
+    track.dense.resize(2);
+    for (auto& key : track.dense)
+        key.rotation[3] = 1;
+    return track;
+}
+inline bool ReuseStep(unsigned step, bool automatic, bool disabled, PmmKeyTrack<PmmBoneKey>& track,
+                      std::map<std::uint32_t, PmmBoneKey>& undo,
+                      std::map<std::uint32_t, PmmBoneKey>& redo) {
+    if (step == 0 || step == 2) {
+        for (auto& key : track.dense)
+            key.allocated = 0;
+        for (auto& key : track.sparse)
+            key.value.allocated = 0;
+        for (auto& [index, key] : track.unused)
+            key.allocated = 0;
+        const unsigned frame = step == 0 ? 10 : 20;
+        PmmBoneRegistrationPose pose;
+        pose.position = {float(frame), 0, 0};
+        if (!step)
+            pose.physicsDisabled = disabled;
+        undo.clear();
+        return RegisterPmmBonePose(track, step == 0 ? 0 : 1, frame, pose, automatic, undo);
+    }
+    if (step == 1) {
+        PmmKeyDeletionOptions options;
+        options.autoInterpolation = automatic;
+        options.physicsBones = {0};
+        PmmFrameLineDeletion<PmmBoneKey> deletion;
+        return DeletePmmKeyRecords(track, {2}, options, deletion);
+    }
+    if (step == 3 || step == 5)
+        return RestorePmmKeyRecords(track, undo, redo);
+    std::map<std::uint32_t, PmmBoneKey> discarded;
+    return RestorePmmKeyRecords(track, redo, discarded);
+}
+inline void HashSlots(std::uint64_t& hash, const PmmKeyTrack<PmmBoneKey>& track) {
+    auto all = track;
+    for (const auto& [index, key] : track.unused)
+        all.sparse.push_back({int(index), 0, key});
+    frame_line_fixture::Hash(hash, all);
 }
 }

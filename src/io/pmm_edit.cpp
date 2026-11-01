@@ -7,7 +7,7 @@
 
 namespace mikudancestudio::format {
 bool RebuildPmmBoneInterpolation(PmmKeyTrack<PmmBoneKey>& track, std::size_t channel,
-                                  std::uint32_t frame) {
+                                 std::uint32_t frame) {
     std::vector<std::vector<PmmBoneKey>> checked;
     if (!PmmTrackChains(track, checked) || channel >= track.dense.size())
         return false;
@@ -357,6 +357,44 @@ void Scene(Writer& w, const PmmSceneDocument& d) {
     }
 }
 }
+bool PreservePmmUnusedRecords(const PmmSceneDocument& source, PmmSceneDocument& target) {
+    const auto copy = [](const auto& from, auto& to) {
+        // The preservation writer also accepts legacy tracks outside the
+        // topology editor's stricter contract. Validate only this transient
+        // cache here; do not impose PmmTrackChains on unchanged disk records.
+        if (from.unused.size() > 100000)
+            return false;
+        if (!from.unused.empty()) {
+            std::set<std::uint32_t> occupied;
+            for (const auto& record : to.sparse)
+                occupied.insert(std::uint32_t(record.index));
+            for (const auto& [index, key] : from.unused)
+                if (index < to.dense.size() || index >= to.dense.size() + 100000 || key.frame ||
+                    occupied.count(index))
+                    return false;
+        }
+        to.unused = from.unused;
+        return true;
+    };
+    if (!copy(source.cameraKeys, target.cameraKeys) || !copy(source.lightKeys, target.lightKeys) ||
+        !copy(source.selfShadowKeys, target.selfShadowKeys) ||
+        !copy(source.gravityKeys, target.gravityKeys))
+        return false;
+    for (const auto& from : source.models) {
+        const auto to = std::find_if(target.models.begin(), target.models.end(),
+                                     [&](const auto& model) { return model.slot == from.slot; });
+        if (to == target.models.end() || !copy(from.boneKeys, to->boneKeys) ||
+            !copy(from.morphKeys, to->morphKeys) || !copy(from.displayKeys, to->displayKeys))
+            return false;
+    }
+    for (const auto& from : source.accessories) {
+        const auto to = std::find_if(target.accessories.begin(), target.accessories.end(),
+                                     [&](const auto& item) { return item.slot == from.slot; });
+        if (to == target.accessories.end() || !copy(from.keyRecords, to->keyRecords))
+            return false;
+    }
+    return true;
+}
 bool RebuildPmmV2(const PmmSceneDocument& source, PmmSceneDocument& output, std::string& reason) {
     try {
         Writer w;
@@ -365,6 +403,10 @@ bool RebuildPmmV2(const PmmSceneDocument& source, PmmSceneDocument& output, std:
         PmmSceneDocument checked;
         if (!ReadPmmSceneDocument(Reader::Read, &read, nullptr, nullptr, checked)) {
             reason = "pmm-rebuilt-document-rejected";
+            return false;
+        }
+        if (!PreservePmmUnusedRecords(source, checked)) {
+            reason = "pmm-unused-records-invalid";
             return false;
         }
         output = std::move(checked);

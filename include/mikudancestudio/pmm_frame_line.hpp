@@ -56,6 +56,19 @@ bool DeletePmmFrameLine(PmmKeyTrack<T>& track, std::uint32_t frame, bool autoInt
                 key.rotation = {0, 0, 0, 1};
                 key.allocated = 0;
                 rebuild(following ? following : previous);
+            } else if constexpr (std::is_same_v<T, PmmMorphKey>) {
+                key.value = 0;
+                key.allocated = 0;
+            } else if constexpr (std::is_same_v<T, PmmCameraKey>) {
+                key.perspective = 0;
+                key.distance = 0;
+                key.fov = 0;
+                key.eye[0] = key.eye[1] = key.target[0] = key.target[1] = 0;
+                for (auto& row : key.interpolation)
+                    std::fill_n(row.begin(), 4, 0);
+                key.selected = 0;
+            } else {
+                key.selected = 0;
             }
             key.previous = key.next = 0;
         } else {
@@ -88,11 +101,21 @@ bool DeletePmmFrameLine(PmmKeyTrack<T>& track, std::uint32_t frame, bool autoInt
                 }
                 if (following)
                     records.at(following)->previous = previous;
+                if constexpr (std::is_same_v<T, PmmBoneKey>) {
+                    key.position = {};
+                    key.rotation = {0, 0, 0, 1};
+                    key.allocated = 0;
+                }
                 rebuild(following ? following : previous);
+                if constexpr (std::is_same_v<T, PmmBoneKey>)
+                    key.previous = key.next = 0;
             }
         }
     }
-    // Unused native slots (frame zero after deletion/merge) are not serialized.
+    // Preserve reuse/history payloads in memory; PMM omits unused slots.
+    for (const auto& record : track.sparse)
+        if (!record.value.frame)
+            track.unused[unsigned(record.index)] = record.value;
     track.sparse.erase(std::remove_if(track.sparse.begin(), track.sparse.end(),
                                       [](const auto& record) { return !record.value.frame; }),
                        track.sparse.end());
