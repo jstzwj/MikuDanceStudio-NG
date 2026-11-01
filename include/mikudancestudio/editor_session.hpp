@@ -87,6 +87,9 @@ public:
     bool ImportPose(const format::VpdDocument&, std::uint8_t slot, std::string&);
     bool ExportMotion(std::uint8_t slot, format::VmdDocument&, std::string&) const;
     bool ExportPose(std::uint8_t slot, format::VpdDocument&, std::string&) const;
+    bool CopyBonePose(std::string&);
+    bool PasteBonePose(bool mirrored, std::string&);
+    bool HasBonePoseClipboard() const { return !poseClipboard_.empty(); }
     bool SetBone(std::uint8_t, std::uint32_t, const std::array<float, 3>&,
                  const std::array<float, 4>&, std::string&);
     bool SetMorph(std::uint8_t, std::uint32_t, float, std::string&);
@@ -143,6 +146,12 @@ private:
     std::unique_ptr<runtime::SceneRuntime> runtime_;
     std::vector<State> undo_, redo_;
     std::vector<ClipboardKey> clipboard_;
+    struct CopiedBonePose {
+        std::vector<char> name;
+        std::array<float, 3> position;
+        std::array<float, 4> rotation;
+    };
+    std::vector<CopiedBonePose> poseClipboard_;
     std::array<InterpolationCurve, 6> interpolationClipboard_{};
     bool interpolationCopied_ = false, gesture_ = false, gestureCommitted_ = false;
     Selection selection_;

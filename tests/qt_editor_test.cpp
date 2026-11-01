@@ -148,6 +148,11 @@ int main(int argc, char** argv) {
     CHECK(window.Session().Document().models[0].bonePose[0].components[1] == 2);
     window.Dispatch(panel::kUndoButton);
     CHECK(window.Session().Document().models[0].bonePose[0].components[1] == 5);
+    CHECK(window.Control(panel::kBoneReversePasteButton)->isEnabled());
+    window.Dispatch(panel::kBoneReversePasteButton);
+    CHECK(window.Session().Document().models[0].bonePose[0].components[0] == -1);
+    CHECK(window.Session().Document().models[0].bonePose[0].components[1] == 2);
+    window.Dispatch(panel::kUndoButton);
     window.Session().Selected().model = 0;
     window.Session().Selected().bones = {0};
     window.Refresh();

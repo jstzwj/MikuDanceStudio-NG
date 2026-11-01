@@ -21,7 +21,7 @@ class Bytes(bytearray):
 POSITIONS = ((-10, -8, 0), (0, 10, 0), (10, -8, 0))
 
 
-def pmd(texture='checker.bmp', alpha=1):
+def pmd(texture='checker.bmp', alpha=1, bones=None):
     b = Bytes(b'Pmd'); b.f(1); b.fixed('CPU triangle', 20); b.zero(256)
     b.u32(3)
     for index, p in enumerate(POSITIONS):
@@ -31,8 +31,12 @@ def pmd(texture='checker.bmp', alpha=1):
     for index in (0, 1, 2): b.u16(index)
     b.u32(1); b.f(.8, .6, .4, alpha, 4, .1, .1, .1, .3, .3, .3)
     b.u8(255); b.u8(1); b.u32(3); b.fixed(texture, 20)
-    b.u16(1); b.fixed('B', 20); b.u16(65535); b.u16(0)
-    b.u8(0); b.u16(0); b.f(0, 0, 0); b.u16(0)  # no IK
+    bones = bones or ('B',)
+    b.u16(len(bones))
+    for index, name in enumerate(bones):
+        b.fixed(name, 20); b.u16(0 if index else 65535); b.u16(0)
+        b.u8(0); b.u16(0); b.f(0, index, 0)
+    b.u16(0)  # no IK
     b.u16(1); b.fixed('F', 20); b.u32(3); b.u8(0)  # base morph
     for index, p in enumerate(POSITIONS): b.u32(index); b.f(*p)
     b.u8(0); b.u8(1); b.fixed('Root', 50)
@@ -258,6 +262,8 @@ def write(directory):
     (root / 'triangle.pmd').write_bytes(pmd())
     (root / 'sphere.pmd').write_bytes(pmd('s.sph'))
     (root / 'triangle.pmx').write_bytes(pmx())
+    (root / 'pose.pmd').write_bytes(pmd(bones=('center', 'A\u5de6arm', 'B\u53f3arm',
+        'C\u53f3arm', '\u5de6leg', 'neutral', 'tail', 'unused')))
     (root / 'grouped.pmx').write_bytes(pmx(display_groups=True))
     (root / 'tint-morph.pmx').write_bytes(pmx(tint_morphs=True))
     (root / 'tint-shadow.pmx').write_bytes(pmx(0x1f, tint_morphs=True))

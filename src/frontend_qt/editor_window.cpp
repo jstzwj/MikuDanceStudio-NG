@@ -482,6 +482,9 @@ void EditorWindow::Refresh() {
     Control(kRedoButton)->setEnabled(session_.CanRedo());
     actions_["undo"]->setEnabled(session_.CanUndo());
     actions_["redo"]->setEnabled(session_.CanRedo());
+    const bool posePaste = session_.Selected().model != 255 && session_.HasBonePoseClipboard();
+    Control(kBonePasteButton)->setEnabled(posePaste);
+    Control(kBoneReversePasteButton)->setEnabled(posePaste);
     edit(kCurrentFrameEdit, doc.timeline.currentFrame);
     edit(kGotoFrameEdit, doc.timeline.currentFrame);
     edit(kPlayStartFrameEdit, doc.timeline.playStartFrame);
@@ -1028,10 +1031,11 @@ void EditorWindow::Dispatch(int id) {
         break;
     }
     case kCopyBonePoseButton:
-        ok = session_.ExportPose(session_.Selected().model, poseClipboard_, r);
+        ok = session_.CopyBonePose(r);
         break;
     case kBonePasteButton:
-        ok = session_.ImportPose(poseClipboard_, session_.Selected().model, r);
+    case kBoneReversePasteButton:
+        ok = session_.PasteBonePose(id == kBoneReversePasteButton, r);
         break;
     case kResetBonePoseButton:
         ok = session_.Edit(

@@ -12,6 +12,7 @@
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
 #include "mikudancestudio/panel_controls.hpp"
+#include "mikudancestudio/bone_pose_names.hpp"
 
 namespace mikudancestudio {
 namespace {
@@ -23,10 +24,6 @@ static std::uint32_t MulOrMax(std::uint32_t a, std::uint32_t b) {
     const std::uint64_t r = static_cast<std::uint64_t>(a) * b;
     return r > 0xFFFFFFFFull ? 0xFFFFFFFFu : static_cast<std::uint32_t>(r);
 }
-
-// Shift-JIS left/right markers: x64 0x7FF7CB54D9BC / 0x7FF7CB54D9C0.
-static const char kBoneNameNeedleLeft[] = "\x8D\xB6";
-static const char kBoneNameNeedleRight[] = "\x89\x45";
 
 } // namespace
 
@@ -213,48 +210,11 @@ void PasteMirroredBonePose(MMDApp* app, HWND hwnd) {
         mikudancestudio::mdl::BoneRecord* const bones = model->boneTable;
         unsigned char* editFlags = model->bonePhysicsState;
         const BoneCopyRecord& src = records[copiedPoseIndex];
-        // Resolve the copied name before looking for its opposite-side suffix.
-        std::int32_t sourceBoneIndex = -1;
-        for (std::int32_t k = 0; k < nBones; ++k) {
-            if (strcmp(bones[k].name, src.name) == 0) {
-                sourceBoneIndex = k;
-                break;
-            }
-        }
-        if (sourceBoneIndex < 0) {
-            continue; // no exact-name bone: record skipped
-        }
-        std::int32_t targetBoneIndex = -1;
-        const char* leftMarker = strstr(bones[sourceBoneIndex].name, kBoneNameNeedleLeft);
-        if (leftMarker != nullptr) {
-            // Left to right: compare the suffix after the two-byte side marker.
-            const char* nameSuffix = leftMarker + 2;
-            for (std::int32_t k = 0; k < nBones; ++k) {
-                const char* candidateMarker = strstr(bones[k].name, kBoneNameNeedleRight);
-                if (candidateMarker != nullptr && strcmp(candidateMarker + 2, nameSuffix) == 0) {
-                    targetBoneIndex = k;
-                    break;
-                }
-            }
-        }
-        if (targetBoneIndex < 0) {
-            // Right to left uses the same exact-name bone (x64 RVA 0x4463C..0x44651).
-            const char* nameSuffix = strstr(bones[sourceBoneIndex].name, kBoneNameNeedleRight);
-            if (nameSuffix != nullptr) {
-                nameSuffix += 2;
-                for (std::int32_t k = 0; k < nBones; ++k) {
-                    const char* candidateMarker = strstr(bones[k].name, kBoneNameNeedleLeft);
-                    if (candidateMarker != nullptr &&
-                        strcmp(candidateMarker + 2, nameSuffix) == 0) {
-                        targetBoneIndex = k;
-                        break;
-                    }
-                }
-            }
-        }
-        if (targetBoneIndex < 0) {
-            targetBoneIndex = sourceBoneIndex; // fallback to the exact-name match
-        }
+        const auto targetBoneIndex = editor::FindBonePoseTarget(
+            src.name, std::size_t(nBones),
+            [&](std::size_t index) { return std::string_view(bones[index].name); }, true);
+        if (targetBoneIndex < 0)
+            continue;
         undoPoses = undo.bonePose;
         auto& rec = undoPoses[copiedPoseIndex];
         mikudancestudio::mdl::BoneRecord* bone = &bones[targetBoneIndex];

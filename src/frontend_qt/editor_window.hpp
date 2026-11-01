@@ -56,7 +56,6 @@ private:
     std::map<std::uint8_t, std::weak_ptr<const runtime::ModelResource>> scopeResources_;
     std::vector<editor::KeyScope> scopes_;
     QString lastError_;
-    format::VpdDocument poseClipboard_;
     AudioTransport audio_;
     void Layout();
     void BuildMenus();

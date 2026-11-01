@@ -289,3 +289,20 @@ regressions passed separately on DX11, DX12 and Vulkan. The never-shown Qt nativ
 viewport test passed all three backends, including hide/show, retained resource
 versions and device replacement. The NG executable built successfully; it was
 not launched on the desktop.
+
+
+Pose copy/paste is now a shared editor command rather than a whole-model VPD
+round trip. Copy retains only selected bones in model order; an empty selection
+preserves the previous clipboard. Ordinary paste selects exact-name targets.
+Mirroring resolves the exact source name, then searches CP932 side markers
+anywhere and compares the opposite suffix, preserving original first-match and
+fallback behavior. It negates position X and quaternion Y/Z and retains the
+separate pose-edited/selected flags. The Windows adapter uses the same name
+resolver. Qt now dispatches reverse paste and gates its availability.
+
+The generated eight-bone regression passed selected-only copy, duplicate/empty
+selection, prefix-independent suffix matching, unselected-bone preservation,
+model switching and missing targets. Existing Windows clipboard/reset/undo
+regression and the Qt offscreen command test also passed. This batch fixes
+clipboard semantics; the broader history scope/depth and native reset semantics
+in the portable editor remain separate pending work.
