@@ -86,3 +86,14 @@ scene_runtime_native_test --model /path/to/model.pmx
 ```
 
 最后一个入口将严格运动学对照与动态测量分别报告；公开场景的严格门禁由 CTest 的 `scene_runtime_native` 执行。下一阶段为 P3：将新运行时快照接入共享帧描述，并补齐三平台的加载器、着色器工具链、Surface 和呈现。
+
+
+P4 follow-up: the current camera attachment in the public V2 PMM generator was
+corrected to parent `-1` when unbound, or model/bone `1/1` for the explicit bound
+fixtures. The original P2 input hashes still described the prior `0/0` current
+attachment fields. A byte comparison against `5081e20` verified that the seven
+changed files differ only in those current camera fields (one four-byte word,
+or two one-byte changes from zero to one, four bytes apart); sizes and all other
+bytes match. The reviewed `input_sha256` entries were updated. The frozen CPU
+`cases`, relative tolerance `2e-5`, exact process repeat and save/reload checks
+are retained.
