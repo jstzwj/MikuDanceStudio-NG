@@ -76,9 +76,9 @@ public:
                 pa_stream_set_state_callback(stream_, &StreamState, this);
                 pa_stream_set_write_callback(stream_, &WriteRequested, this);
                 const auto target = std::uint32_t(format.bytesForDuration(100000));
-                pa_buffer_attr attributes{target * 2, target, 0,
-                                          std::uint32_t(format.bytesForDuration(5000)),
-                                          std::uint32_t(-1)};
+                pa_buffer_attr attributes{
+                    target * 2, target, std::uint32_t(format.bytesForDuration(5000)),
+                    std::uint32_t(format.bytesForDuration(5000)), std::uint32_t(-1)};
                 // The interpolator can extrapolate before the cold sink has
                 // supplied its first latency measurement, then freeze for the
                 // entire correction. Poll the server's actual sample position
@@ -86,9 +86,10 @@ public:
                 const auto flags =
                     pa_stream_flags_t(PA_STREAM_START_CORKED | PA_STREAM_AUTO_TIMING_UPDATE |
                                       PA_STREAM_ADJUST_LATENCY);
-                // prebuf=0 prevents a finite tail from waiting for samples that
-                // do not exist after an underrun. Drain is still real playback;
-                // no padding samples or elapsed-time replacement clock is used.
+                // A small positive prebuffer stops on actual underrun. Zero
+                // would keep the server rendering silence indefinitely, which
+                // prevents its render queue from acknowledging a finite drain.
+                // Drain itself disables prebuffering for the remaining tail.
                 if (pa_stream_connect_playback(stream_, nullptr, &attributes, flags, nullptr,
                                                nullptr) < 0)
                     Fail();
@@ -107,6 +108,8 @@ public:
                     else {
                         Wait([&] { return operationDone_; });
                         pa_operation_unref(operation);
+                        uncorked_ = error_.empty();
+                        Drain();
                     }
                 }
             }
@@ -162,7 +165,7 @@ public:
         processed_ = duration_ = cursor_ = start_ = 0;
         error_.clear();
         nativeError_.clear();
-        drained_ = operationDone_ = false;
+        drained_ = operationDone_ = uncorked_ = false;
     }
     void Volume(float volume) override {
         if (loop_) {
@@ -255,7 +258,10 @@ private:
             cursor_ += qint64(bytes);
             requested -= bytes;
         }
-        if (cursor_ == pcm_.size() && !drain_) {
+        Drain();
+    }
+    void Drain() {
+        if (uncorked_ && error_.empty() && cursor_ == pcm_.size() && !drain_) {
             drain_ = pa_stream_drain(stream_, &Drained, this);
             if (!drain_)
                 Fail();
@@ -316,7 +322,7 @@ private:
     pa_operation* drain_ = nullptr;
     pa_time_event* deadline_ = nullptr;
     pa_time_event* timing_ = nullptr;
-    bool loopStarted_ = false, operationDone_ = false, drained_ = false;
+    bool loopStarted_ = false, operationDone_ = false, drained_ = false, uncorked_ = false;
     QByteArray pcm_;
     QAudioFormat format_;
     qint64 start_ = 0, cursor_ = 0, duration_ = 0;
