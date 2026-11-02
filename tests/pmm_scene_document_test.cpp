@@ -153,7 +153,7 @@ void CheckEditableWriteback(Bytes fixture, bool v1) {
     scene.lightState[0] = 0.4f;
     scene.lightState[4] = -0.6f;
     if (scene.selfShadowStateOffset != 0) {
-        scene.selfShadowMode = 2;
+        scene.selfShadowEnabled = 2; // Retain a noncanonical master-switch byte.
         scene.physicsInterval = 0.02f;
     }
     if (!scene.selfShadowKeys.dense.empty()) {
@@ -207,7 +207,7 @@ void CheckEditableWriteback(Bytes fixture, bool v1) {
           reloaded.lightState[0] == 0.4f &&
           reloaded.lightState[4] == -0.6f);
     if (scene.selfShadowStateOffset != 0)
-        Check(reloaded.selfShadowMode == 2 &&
+        Check(reloaded.selfShadowEnabled == 2 && reloaded.selfShadowMode == 2 &&
               reloaded.physicsInterval == 0.02f);
     if (!scene.selfShadowKeys.dense.empty())
         Check(reloaded.selfShadowKeys.dense[0].mode == 2 &&

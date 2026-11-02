@@ -205,6 +205,14 @@ bool SceneSession::Load(ReadPmmBytesResult read, void* readContext, ResolveScene
             candidate.models_[i] = std::move(model);
         }
     }
+    // Native successful load refreshes the self-shadow panel from its track,
+    // independently of the saved master switch. Create() instead retains a
+    // session's current unregistered mode through ordinary editing.
+    if (!candidate.scene_.selfShadowKeys.dense.empty() &&
+        !EvaluatePmmSelfShadowTrack(
+            candidate.scene_.selfShadowKeys, unsigned(candidate.scene_.timeline.currentFrame),
+            candidate.scene_.selfShadowMode, candidate.scene_.physicsInterval))
+        return false;
     candidate.pose_ = CurrentPose(candidate.scene_);
     candidate.loaded_ = true;
     output = std::move(candidate);

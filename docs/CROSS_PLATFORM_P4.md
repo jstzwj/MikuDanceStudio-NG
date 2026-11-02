@@ -85,7 +85,7 @@ This closes that command's integration gap, not the complete clipboard/input gat
 | Shared editing and serialization | First local regression passed; full command/compatibility coverage pending |
 | Qt original layout and multilingual interface | Initial three-platform command/language regression passed; full original parity pending |
 | C1 scene rendering | Model outlines, texture morphs and screen history passed on three platforms; accessory self-shadow passed local DX9 comparisons on DX11/DX12/Vulkan; full C1 comparison pending |
-| WAV and synchronization | Deterministic transport and Windows native silent output passed 120s clock/seek/EOF checks; Linux/CoreAudio native qualification pending; physical speaker latency is unmeasured |
+| WAV and synchronization | Deterministic transport and dedicated-thread Windows/CoreAudio silent output passed 120s clock/seek/EOF checks; Linux steady clock passed, EOF-tail fix awaiting rerun; physical speaker latency is unmeasured |
 | Fixed-step image sequence export and cancellation | Generated 30fps sequence, strict repeat and cancellation passed on three platforms |
 | Three-platform open/edit/play/save/reopen/export | Initial generated workflow passed; complete C1 workflow coverage pending |
 | MMD v9.32 independent geometry, behavior and output comparison | Pending |
@@ -2501,3 +2501,28 @@ The menu now implements **68/103** original commands; C1 acceptance remains open
 The full local Release build, including the production editor, passed. All
 **31** local P4 regressions then passed in **105.62 seconds**, using Qt offscreen
 and DX11 WARP; no desktop window was shown.
+
+## Independent self-shadow master switch (2026-11-03)
+
+The PMM byte preceding the self-shadow track is the master switch, not the live
+0/1/2 mode. They now have separate document fields. Track evaluation changes
+only the live mode; both the topology writer and preservation writer serialize
+the switch. Validation/rebuild retains unregistered mode, while successful file
+load refreshes it from the current key, as the native self-shadow panel does.
+Raw noncanonical switch bytes remain lossless until explicitly changed.
+
+Command 279 and P toggle the independent switch in all languages, including
+during playback. They preserve dirty/history, mode, keys, CPU and physics
+counters. New retains the switch while resetting the mode; save/reopen and
+Undo/Redo retain the switch. A visual revision refreshes the prepared frame.
+The shared producer uses the fixed path while disabled and restores the same
+effect path when enabled, without modifying track state.
+
+The original dispatcher passed **18** switch cases, including contradictory
+menu/state sentinels: only the switch and P-edge fields change in the complete
+private application record. Menu calls are recorders; no window is created.
+The format tests cover nine switch/mode combinations and lossless noncanonical
+bytes. Offscreen rendering covers all three modes, byte-exact disable/restore
+and the existing color/repeat checks. Shared/Qt regressions cover key transitions,
+playback, keyboard repeat, languages, history, persistence and New. The menu now
+implements **69/103** commands; remaining C1 gates stay open.

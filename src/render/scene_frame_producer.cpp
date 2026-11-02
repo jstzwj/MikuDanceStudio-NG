@@ -521,8 +521,10 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
             return Fail(reason, "model_resource_changed_reload_required");
     if (doc && doc->avi.enabled)
         return Fail(reason, "scene_background_requires_media_service");
-    const int mode = settings.shadow.mode < 0 ? (session ? session->Pose().selfShadowMode : 0)
-                                              : settings.shadow.mode;
+    const int requestedMode = settings.shadow.mode < 0
+                                  ? (session ? session->Pose().selfShadowMode : 0)
+                                  : settings.shadow.mode;
+    const int mode = doc && !doc->selfShadowEnabled ? 0 : requestedMode;
     const auto distance = settings.shadow.distance > 0 ? settings.shadow.distance
                           : session                    ? session->Pose().selfShadowDistance
                                                        : .01125f;

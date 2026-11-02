@@ -381,7 +381,42 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 68);
+    CHECK(implemented == 69);
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        CHECK(session.New(reason) && window.SetLanguage(language));
+        CHECK(session.SetSelfShadowEnabled(true));
+        window.Refresh();
+        auto* shadow = command(MDS_CMD_TOGGLE_SELF_SHADOW);
+        CHECK(shadow->isEnabled() && shadow->isChecked());
+        const auto revision = session.Revision(), frames = session.Runtime().Counters().frames;
+        const auto mode = session.Document().selfShadowMode;
+        const auto undo = session.CanUndo(), redo = session.CanRedo();
+        shadow->trigger();
+        CHECK(!shadow->isChecked() && !session.Document().selfShadowEnabled &&
+              session.Document().selfShadowMode == mode);
+        CHECK(session.Revision() == revision && session.Runtime().Counters().frames == frames &&
+              session.CanUndo() == undo && session.CanRedo() == redo);
+        QKeyEvent toggle(QEvent::KeyPress, Qt::Key_P, Qt::NoModifier);
+        QCoreApplication::sendEvent(window.centralWidget(), &toggle);
+        CHECK(shadow->isChecked());
+        QKeyEvent repeat(QEvent::KeyPress, Qt::Key_P, Qt::NoModifier, "p", true);
+        QCoreApplication::sendEvent(window.centralWidget(), &repeat);
+        CHECK(shadow->isChecked());
+        CHECK(session.Play(reason));
+        window.Refresh();
+        CHECK(shadow->isEnabled());
+        shadow->trigger();
+        CHECK(session.Playing() && !shadow->isChecked());
+        session.Pause();
+        CHECK(window.Save(root / "shadow-switch.pmm"));
+        CHECK(session.SetSelfShadowEnabled(true));
+        CHECK(window.Open(root / "shadow-switch.pmm"));
+        CHECK(!command(MDS_CMD_TOGGLE_SELF_SHADOW)->isChecked());
+        CHECK(session.New(reason));
+        window.Refresh();
+        CHECK(!command(MDS_CMD_TOGGLE_SELF_SHADOW)->isChecked());
+    }
+    CHECK(session.SetSelfShadowEnabled(true));
     CHECK(window.FrameLimit() == 60 && command(MDS_CMD_FPS_60)->isChecked());
     const auto timer = window.findChild<QChronoTimer*>("editor.frameTimer");
     CHECK(timer && !timer->isActive());

@@ -123,6 +123,7 @@ bool Implemented(int command) {
     case MDS_CMD_FPS_60:
     case MDS_CMD_GROUND_SHADOW_COLOR:
     case MDS_CMD_EDGE_COLOR:
+    case MDS_CMD_TOGGLE_SELF_SHADOW:
         return true;
     default:
         return false;
@@ -264,6 +265,7 @@ void EditorWindow::RefreshMenus() {
     check(MDS_CMD_TOGGLE_COORDINATE_AXIS, doc.view.groundGrid);
     check(MDS_CMD_TOGGLE_CAMERA_TRACKING, doc.appearance.followCamera);
     check(MDS_CMD_TOGGLE_GROUND_SHADOW, doc.view.groundShadow);
+    check(MDS_CMD_TOGGLE_SELF_SHADOW, doc.selfShadowEnabled != 0);
     check(MDS_CMD_TOGGLE_GROUND_SHADOW_TRANSPARENCY, doc.physics.projectedShadowBlend);
     check(MDS_CMD_TOGGLE_PHYSICS_FLOOR, doc.appearance.floorVisible);
     check(MDS_CMD_TOGGLE_SEPARATE_WINDOW, separate_ != nullptr);
@@ -483,6 +485,9 @@ void EditorWindow::MenuCommand(int command) {
     case MDS_CMD_SELECT_ALL_ACCESSORY_FRAMES:
         for (const auto& accessory : session_.Document().accessories)
             select(Track::Accessory, accessory.slot);
+        break;
+    case MDS_CMD_TOGGLE_SELF_SHADOW:
+        session_.SetSelfShadowEnabled(!session_.Document().selfShadowEnabled);
         break;
     default: {
         std::string reason;

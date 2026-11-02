@@ -248,8 +248,9 @@ bool V2Tail(Cursor& cursor, PmmSceneDocument& scene) {
     if (!Track(cursor, 1, Gravity, scene.gravity, scene.gravityKeys))
         return false;
     scene.selfShadowStateOffset = cursor.offset;
-    if (!cursor.scalar(scene.selfShadowMode) || !cursor.scalar(scene.physicsInterval))
+    if (!cursor.scalar(scene.selfShadowEnabled) || !cursor.scalar(scene.physicsInterval))
         return false;
+    scene.selfShadowMode = scene.selfShadowEnabled;
     Section(scene, PmmSceneSectionKind::Gravity, begin, cursor.offset);
     begin = cursor.offset;
     if (!Track(cursor, 1, Shadow, scene.selfShadow, scene.selfShadowKeys))
@@ -334,8 +335,9 @@ bool V1Tail(Cursor& cursor, PmmSceneDocument& scene) {
     if (gate != 1)
         return cursor.remaining() == 0;
     scene.selfShadowStateOffset = cursor.offset;
-    if (!cursor.scalar(scene.selfShadowMode) || !cursor.scalar(scene.physicsInterval))
+    if (!cursor.scalar(scene.selfShadowEnabled) || !cursor.scalar(scene.physicsInterval))
         return false;
+    scene.selfShadowMode = scene.selfShadowEnabled;
     for (std::uint32_t slot = 0; slot < 255; ++slot)
         for (auto& model : scene.models)
             if (model.slot == slot && !cursor.scalar(model.toonFlag))

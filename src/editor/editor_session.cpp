@@ -361,6 +361,12 @@ bool EditorSession::SetGroundShadowColor(float value) {
     ++appearanceRevision_;
     return true;
 }
+bool EditorSession::SetSelfShadowEnabled(bool enabled) {
+    if (!runtime_ || !runtime_->SetSelfShadowEnabled(enabled))
+        return false;
+    ++appearanceRevision_;
+    return true;
+}
 bool EditorSession::SetOutlineColor(const std::array<std::uint8_t, 3>& rgb) {
     if (!runtime_ || !runtime_->SetOutlineColor(rgb))
         return false;
@@ -459,8 +465,10 @@ bool EditorSession::New(std::string& reason) {
     next.document = NewPmmScene();
     // Native ResetAppState leaves the modeless ground-shadow color and its
     // current value intact. A newly constructed editor uses the PMM default.
-    if (runtime_)
+    if (runtime_) {
         next.document.physics.projectedShadowAmbient = Document().physics.projectedShadowAmbient;
+        next.document.selfShadowEnabled = Document().selfShadowEnabled;
+    }
     std::unique_ptr<runtime::SceneRuntime> runtime;
     if (!Prepare(next, runtime, reason))
         return false;

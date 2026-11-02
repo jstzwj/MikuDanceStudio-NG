@@ -121,6 +121,12 @@ public:
         scene_.physics.projectedShadowAmbient = value;
         return true;
     }
+    bool SetSelfShadowEnabled(bool enabled) {
+        if (!loaded_)
+            return false;
+        scene_.selfShadowEnabled = std::uint8_t(enabled);
+        return true;
+    }
     bool SetOutlineColor(const std::array<std::uint8_t, 3>& rgb,
                          const std::vector<std::uint8_t>& pmdSlots) {
         if (!loaded_)

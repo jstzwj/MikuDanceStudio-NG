@@ -1754,6 +1754,12 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
             Dispatch(kPlayButton);
             return true;
         }
+        if (key->key() == Qt::Key_P &&
+            !(key->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
+            if (!key->isAutoRepeat())
+                MenuCommand(MDS_CMD_TOGGLE_SELF_SHADOW);
+            return true;
+        }
         if (key->key() == Qt::Key_L && !key->isAutoRepeat() &&
             !(key->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
             session_.CycleCoordinateSystem();

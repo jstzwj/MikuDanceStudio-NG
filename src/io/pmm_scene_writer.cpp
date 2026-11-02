@@ -282,7 +282,7 @@ bool SameEdits(const PmmSceneDocument& expected, const PmmSceneDocument& actual)
         !Same(expected.timeline.playStartFrame, actual.timeline.playStartFrame) ||
         !Same(expected.timeline.playStopFrame, actual.timeline.playStopFrame) ||
         !Same(expected.lightState, actual.lightState) ||
-        expected.selfShadowMode != actual.selfShadowMode ||
+        expected.selfShadowEnabled != actual.selfShadowEnabled ||
         !Same(expected.physicsInterval, actual.physicsInterval) ||
         expected.physics.playbackMode != actual.physics.playbackMode ||
         expected.physics.gravityNoiseEnabled != actual.physics.gravityNoiseEnabled ||
@@ -396,11 +396,11 @@ bool WritePmmSceneDocument(WritePmmBytes write, void* context, const PmmSceneDoc
     if (!PatchTrack(editor, original.gravityKeys, scene.gravityKeys, PatchGravityKey))
         return false;
     if (original.selfShadowStateOffset != 0) {
-        editor.changed(original.selfShadowStateOffset, original.selfShadowMode,
-                       scene.selfShadowMode);
+        editor.changed(original.selfShadowStateOffset, original.selfShadowEnabled,
+                       scene.selfShadowEnabled);
         editor.changed(original.selfShadowStateOffset + 1, original.physicsInterval,
                        scene.physicsInterval);
-    } else if (original.selfShadowMode != scene.selfShadowMode ||
+    } else if (original.selfShadowEnabled != scene.selfShadowEnabled ||
                original.physicsInterval != scene.physicsInterval)
         return false;
     if (!PatchTrack(editor, original.selfShadowKeys, scene.selfShadowKeys, PatchSelfShadowKey))

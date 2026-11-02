@@ -65,6 +65,17 @@ int main() {
     StableRecords<PmmGravityKey>();
     StableRecords<PmmSelfShadowKey>();
     std::string reason;
+    for (std::uint8_t enabled : {0, 1, 2})
+        for (std::uint8_t mode : {0, 1, 2}) {
+            auto input = NewPmmScene();
+            input.selfShadowEnabled = enabled;
+            input.selfShadowMode = mode;
+            PmmSceneDocument live, disk;
+            CHECK(RebuildPmmV2(input, live, reason));
+            CHECK(live.selfShadowEnabled == enabled && live.selfShadowMode == mode);
+            CHECK(ParsePmmSceneDocument(live.envelope, nullptr, nullptr, disk));
+            CHECK(disk.selfShadowEnabled == enabled && disk.selfShadowMode == enabled);
+        }
     auto source = NewPmmScene();
     PmmSceneDocument rebuilt;
     CHECK(RebuildPmmV2(source, rebuilt, reason));

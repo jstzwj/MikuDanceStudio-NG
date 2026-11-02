@@ -184,6 +184,50 @@ int main(int argc, char** argv) {
         CHECK(color.New(reason) &&
               color.Document().appearance.outlineColor == (std::array<std::int32_t, 3>{}));
     }
+    {
+        EditorSession shadow;
+        CHECK(shadow.ImportModel(root / "triangle.pmx", reason));
+        CHECK(shadow.SetBone(0, 0, {1, 2, 3}, {0, 0, 0, 1}, reason));
+        CHECK(shadow.Undo(reason) && shadow.CanRedo());
+        CHECK(shadow.Edit(
+            "shadow-modes",
+            [](auto& d, auto&) {
+                d.selfShadowMode = 2;
+                d.selfShadowKeys.dense[0].mode = 0;
+                auto key = d.selfShadowKeys.dense[0];
+                key.frame = 15;
+                key.mode = 2;
+                return format::RegisterPmmKey(d.selfShadowKeys, 0, key);
+            },
+            reason));
+        CHECK(shadow.Save(root / "shadow-switch.pmm", Write, reason));
+        const auto revision = shadow.Revision(), frames = shadow.Runtime().Counters().frames;
+        const auto undo = shadow.CanUndo(), redo = shadow.CanRedo();
+        const auto* runtime = &shadow.Runtime();
+        CHECK(shadow.SetSelfShadowEnabled(false));
+        CHECK(!shadow.Document().selfShadowEnabled && shadow.Document().selfShadowMode == 2);
+        CHECK(shadow.Revision() == revision && !shadow.Dirty() && shadow.CanUndo() == undo &&
+              shadow.CanRedo() == redo && shadow.Runtime().Counters().frames == frames &&
+              &shadow.Runtime() == runtime);
+        CHECK(shadow.Redo(reason) && !shadow.Document().selfShadowEnabled);
+        CHECK(shadow.Undo(reason) && !shadow.Document().selfShadowEnabled);
+        CHECK(shadow.SelectModel(255, reason) && shadow.Seek(0, reason));
+        CHECK(shadow.Document().selfShadowMode == 0 && !shadow.Document().selfShadowEnabled);
+        CHECK(shadow.Seek(15, reason));
+        CHECK(shadow.Document().selfShadowMode == 2 && !shadow.Document().selfShadowEnabled);
+        CHECK(shadow.Play(reason) && shadow.Document().selfShadowMode == 0);
+        CHECK(shadow.Advance(.6, reason));
+        CHECK(shadow.Document().selfShadowMode == 2 && !shadow.Document().selfShadowEnabled);
+        CHECK(shadow.SetSelfShadowEnabled(true) && shadow.Playing());
+        shadow.Pause();
+        CHECK(shadow.SetSelfShadowEnabled(false));
+        CHECK(shadow.Save(root / "shadow-switch.pmm", Write, reason));
+        CHECK(shadow.Open(root / "shadow-switch.pmm", reason));
+        CHECK(!shadow.Document().selfShadowEnabled && shadow.Document().selfShadowMode == 2);
+        CHECK(shadow.Seek(15, reason) && shadow.Document().selfShadowMode == 2);
+        CHECK(shadow.New(reason) && !shadow.Document().selfShadowEnabled &&
+              shadow.Document().selfShadowMode == 1);
+    }
     for (const char* file : {"facial.pmd", "articulated.pmx"}) {
         EditorSession bone;
         CHECK(BoneScaleFixture(bone, root, file, {0, 0, 0, 1}, reason));

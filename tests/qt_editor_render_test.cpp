@@ -370,7 +370,9 @@ int main(int argc, char** argv) {
           session.Runtime().Counters().editorUpdates == edgeUpdates);
     CHECK(session.New(reason) && session.ImportModel(root / "outline.pmd", reason));
     CHECK(session.SetEdgeThickness(8, reason));
-    for (int mode : {0, 1}) {
+    CHECK(session.SetSelfShadowEnabled(true));
+    QImage fixedPmdEdge;
+    for (int mode : {0, 1, 2}) {
         CHECK(session.Edit(
             "pmd-outline-mode",
             [&](auto& d, auto&) {
@@ -382,6 +384,18 @@ int main(int argc, char** argv) {
         CHECK(session.SetOutlineColor({0, 0, 0}));
         CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
                               edgeFirst, reason));
+        if (!mode)
+            fixedPmdEdge = edgeFirst;
+        const auto shadowMode = session.Document().selfShadowMode;
+        CHECK(session.SetSelfShadowEnabled(false));
+        CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
+                              edgeRestored, reason) &&
+              edgeRestored == fixedPmdEdge);
+        CHECK(session.Document().selfShadowMode == shadowMode);
+        CHECK(session.SetSelfShadowEnabled(true));
+        CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
+                              edgeRestored, reason) &&
+              edgeRestored == edgeFirst);
         CHECK(session.SetOutlineColor({17, 223, 91}));
         CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
                               coloredEdge, reason) &&

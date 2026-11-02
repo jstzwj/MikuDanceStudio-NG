@@ -256,6 +256,56 @@ unsigned undoCalls = 0;
 void CaptureUndo(void*) {
     ++undoCalls;
 }
+bool shadowMenuChecked;
+unsigned shadowMenuWrites;
+HMENU WINAPI ShadowMenu(HWND) {
+    return reinterpret_cast<HMENU>(1);
+}
+UINT WINAPI ShadowMenuState(HMENU, UINT command, UINT flags) {
+    Check(command == MDS_CMD_TOGGLE_SELF_SHADOW && !flags, "native shadow menu query");
+    return shadowMenuChecked ? MF_CHECKED : MF_UNCHECKED;
+}
+DWORD WINAPI ShadowMenuCheck(HMENU, UINT command, UINT flags) {
+    Check(command == MDS_CMD_TOGGLE_SELF_SHADOW &&
+              flags == (shadowMenuChecked ? MF_UNCHECKED : MF_CHECKED),
+          "native shadow menu write");
+    ++shadowMenuWrites;
+    return 0;
+}
+unsigned ShadowSwitchCommands(OriginalPhysicsModule& original) {
+    void* menu = reinterpret_cast<void*>(&ShadowMenu);
+    void* state = reinterpret_cast<void*>(&ShadowMenuState);
+    void* check = reinterpret_cast<void*>(&ShadowMenuCheck);
+    Patch menuImport(original.Function<void*>(0x1286a0), &menu, sizeof menu);
+    Patch stateImport(original.Function<void*>(0x128660), &state, sizeof state);
+    Patch checkImport(original.Function<void*>(0x1287a0), &check, sizeof check);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    unsigned count = 0;
+    for (unsigned enabled : {0u, 1u, 7u})
+        for (int mode : {0, 1, 2})
+            for (bool checked : {false, true}) {
+                std::memset(app.get(), 0, sizeof(*app));
+                app->selfShadowEnabled = std::uint8_t(enabled);
+                app->selfShadowMode = mode;
+                app->sceneModified = 0x7d;
+                app->physicsResetPending = 1;
+                app->currentFrame = 123;
+                auto expected = std::make_unique<MMDAppState>(*app);
+                expected->selfShadowEnabled = !checked;
+                expected->letterKeyState[13] = 1; // Native P edge, app+0x64.
+                shadowMenuChecked = checked;
+                shadowMenuWrites = 0;
+                original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr,
+                                                                   MDS_CMD_TOGGLE_SELF_SHADOW);
+                Check(shadowMenuWrites == 1 &&
+                          !std::memcmp(app.get(), expected.get(), sizeof(*app)),
+                      "native shadow switch changed mode, dirty, physics or other state");
+                ++count;
+            }
+    return count;
+}
 unsigned FrameRateCommands(OriginalPhysicsModule& original) {
     auto state = std::make_unique<MMDAppState>();
     auto* pointer = state.get();
@@ -1146,6 +1196,9 @@ int wmain(int argc, wchar_t** argv) try {
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     Check(argc == 3, "usage: editor_auxiliary_oracle_test original.exe generated-fixture");
     OriginalPhysicsModule original(argv[1]);
+    std::printf(
+        "%u original self-shadow switches: independent mode and unchanged application state\n",
+        ShadowSwitchCommands(original));
     std::printf("%u original FPS commands: exact rate and unchanged application state\n",
                 FrameRateCommands(original));
     unsigned count = 0;

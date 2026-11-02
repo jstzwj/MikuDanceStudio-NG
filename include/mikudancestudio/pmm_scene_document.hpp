@@ -121,6 +121,10 @@ struct PmmSceneDocument {
     PmmPhysicsSettings physics;
     std::size_t physicsOffset = 0;
     PmmSceneAppearance appearance;
+    // The byte before the shadow track is the independent master switch.
+    // Retain its raw value for lossless file edits. The current mode is live
+    // track state and must never overwrite that byte on seek/playback/save.
+    std::uint8_t selfShadowEnabled = 0;
     std::uint8_t selfShadowMode = 0;
     float physicsInterval = 0;
     std::size_t selfShadowStateOffset = 0;

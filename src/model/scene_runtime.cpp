@@ -696,6 +696,9 @@ bool SceneRuntime::SetFrameLimit(unsigned limit) {
 bool SceneRuntime::SetGroundShadowColor(float value) {
     return impl_ && impl_->session && impl_->session->SetGroundShadowColor(value);
 }
+bool SceneRuntime::SetSelfShadowEnabled(bool enabled) {
+    return impl_ && impl_->session && impl_->session->SetSelfShadowEnabled(enabled);
+}
 bool SceneRuntime::SetOutlineColor(const std::array<std::uint8_t, 3>& rgb) {
     if (!impl_ || !impl_->session)
         return false;

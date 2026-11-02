@@ -332,7 +332,7 @@ void Scene(Writer& w, const PmmSceneDocument& d) {
     w.floats(p.gravityDirection);
     w.flag(p.gravityNoiseEnabled);
     w.track(d.gravityKeys, 1);
-    w.u8(d.selfShadowMode);
+    w.u8(d.selfShadowEnabled);
     w.f(d.physicsInterval);
     w.track(d.selfShadowKeys, 1);
     const auto& a = d.appearance;
@@ -358,6 +358,7 @@ void Scene(Writer& w, const PmmSceneDocument& d) {
 }
 }
 bool PreservePmmSessionState(const PmmSceneDocument& source, PmmSceneDocument& target) {
+    target.selfShadowMode = source.selfShadowMode;
     const auto copy = [](const auto& from, auto& to) {
         // The preservation writer also accepts legacy tracks outside the
         // topology editor's stricter contract. Validate only this transient
@@ -449,7 +450,7 @@ PmmSceneDocument NewPmmScene() {
     shadow.mode = 1;
     shadow.distance = .01125f;
     d.selfShadowKeys.dense = {shadow};
-    d.selfShadowMode = 1;
+    d.selfShadowEnabled = d.selfShadowMode = 1;
     d.physicsInterval = shadow.distance;
     d.timeline.playStopFrame = 300;
     d.view.groundGrid = 1;
