@@ -43,10 +43,12 @@ function(mds_add_qt_editor)
     if(MSVC)
         target_compile_options(mikudancestudio_frontend_qt PRIVATE /utf-8 /fp:precise)
     elseif(APPLE)
-        target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/surface_mac.mm")
+        target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/surface_mac.mm"
+            "${root}/src/frontend_qt/audio_output_coreaudio.cpp")
         set_target_properties(mikudancestudio_frontend_qt PROPERTIES OBJCXX_STANDARD 17 OBJCXX_STANDARD_REQUIRED YES)
         target_compile_options(mikudancestudio_frontend_qt PRIVATE $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>)
-        target_link_libraries(mikudancestudio_frontend_qt PRIVATE "-framework Cocoa" "-framework QuartzCore")
+        target_link_libraries(mikudancestudio_frontend_qt PRIVATE "-framework Cocoa" "-framework QuartzCore"
+            "-framework AudioToolbox")
     else()
         # The small platform adapter uses QPA to retrieve Wayland wl_surface.
         # Keep the Qt minor version pinned in CI and test both X11 and Wayland.

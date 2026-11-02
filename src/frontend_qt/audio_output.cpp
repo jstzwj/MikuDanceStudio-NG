@@ -9,6 +9,8 @@
 namespace mikudancestudio::qt {
 #if defined(Q_OS_LINUX)
 std::unique_ptr<AudioOutput> CreatePulseAudioOutput();
+#elif defined(Q_OS_MACOS)
+std::unique_ptr<AudioOutput> CreateCoreAudioOutput();
 #endif
 namespace {
 class NativeAudioEngine final {
@@ -193,6 +195,8 @@ private:
 std::unique_ptr<AudioOutput> CreateAudioOutput() {
 #if defined(Q_OS_LINUX)
     return CreatePulseAudioOutput();
+#elif defined(Q_OS_MACOS)
+    return CreateCoreAudioOutput();
 #else
     return std::make_unique<NativeAudioOutput>();
 #endif

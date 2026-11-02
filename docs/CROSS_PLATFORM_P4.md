@@ -2748,3 +2748,18 @@ the unchanged 100 ms steady bound once (**111.462 ms** at about 29.8 s). Commit
 for diagnosis. Run 41510696016 passed Windows/Linux; its macOS job was cancelled
 without starting because the hosted arm64 runner could not acquire capacity.
 Neither event supplies a new macOS audio or complete P4 acceptance.
+
+## CoreAudio queue timeline implementation (2026-11-03)
+
+The diagnostic run 41513382554 retained an actual **132.512 ms** clock lag:
+the failing clock read took only 41 microseconds and the source queue remained
+full. Qt 6.8's Darwin adapter counts consumed callback frames while ignoring
+the callback's native timestamp. The macOS adapter now uses AudioQueue and
+`AudioQueueGetCurrentTime` instead. Three preallocated 50 ms buffers refill on
+the native callback thread from immutable PCM, without UI timers. Pause/seek
+discard queued audio; EOF completes only after the native asynchronous drain.
+Native queue failures and timeline discontinuities remain diagnostic data.
+
+The existing 100 ms steady clock bound, UI-block progress, startup, stop and
+short-tail EOF checks are unchanged. This implementation requires a new macOS
+build and native silent-device run; it does not itself qualify CoreAudio or P4.
