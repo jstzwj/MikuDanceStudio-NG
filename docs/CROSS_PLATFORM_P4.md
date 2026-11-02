@@ -4,6 +4,11 @@ Status: **in progress**. P4 and C1 have not been accepted. The current work also
 includes strict MMD v9.32 layout/behavior parity and multilingual UI, as requested
 on 2026-11-01. These are acceptance requirements, not claims about this revision.
 
+The macOS Qt viewport now defaults to native Metal, with Vulkan available for
+comparisons. Window generations, Retina, actual drawable pixels, backend switching
+and relocated packages have separate [Metal acceptance evidence](METAL_BACKEND.md).
+This backend addition does not close the remaining MMD layout/behavior gates.
+
 ## Shared document and commands
 
 The editor has a new PMM v2 topology writer. It rebuilds offsets and reparses
