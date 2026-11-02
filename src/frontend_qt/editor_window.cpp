@@ -730,6 +730,8 @@ void EditorWindow::Refresh() {
     for (const auto& m : doc.models)
         if (m.slot == session_.Selected().model) {
             check(kModelVisibleCheckbox, m.selection.loadComplete);
+            check(kShadowCheckbox, m.toonFlag != 0);
+            check(kAddBlendCheckbox, m.postLoadFlag != 0);
             for (int panel = 0; panel < 4; ++panel) {
                 const int combos[]{kMorphCombo0, kMorphCombo1, kMorphCombo2, kMorphCombo3};
                 const int edits[]{kMorphEdit0, kMorphEdit1, kMorphEdit2, kMorphEdit3};

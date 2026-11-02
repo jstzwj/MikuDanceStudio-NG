@@ -757,12 +757,15 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         const bool pmd = model.resource->SourceKind() == format::ModelKind::Pmd;
         const auto& source = model.resource->Document();
         float scale = 1;
+        bool modelShadow = true, additive = false;
         std::uint32_t pmdDiffuse = 0xff000000u;
         if (doc)
             for (const auto& record : doc->models)
                 if (record.slot == slot) {
                     scale = record.edgeScale;
                     pmdDiffuse = record.pmdEdgeDiffuse;
+                    modelShadow = record.toonFlag != 0;
+                    additive = record.postLoadFlag != 0;
                     break;
                 }
         Vec3 center{};
@@ -839,7 +842,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 if (!BuildModelInputs(frame, material, {}, packet.pipeline))
                     return Fail(reason, "model_pipeline");
                 packet.pipeline.vertexLayout = model.geometry->Snapshot().main.vertexLayout;
-                if (mode) {
+                if (mode && modelShadow) {
                     InstallShadow(packet.pipeline, shadow, material, saved.toonColor,
                                   material.pmd || (pose.material.flags & 8));
                     auto& s = packet.pipeline.shadow;
@@ -851,6 +854,8 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                         s.toonColor[c] = s.toonColor[c] * pose.toonTint[c] + pose.toonAdd[c];
                     s.toonColor[3] = pose.toonTint[3] + pose.toonAdd[3];
                 }
+                if (additive)
+                    packet.pipeline.raster.destinationBlend = BlendFactor::One;
                 for (unsigned stage = 0; stage < 3; ++stage) {
                     const auto role = packet.pipeline.shader.layout.stages[stage].role;
                     if (role == MaterialTextureRole::None)
@@ -873,8 +878,9 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                                             packets, stream);
         if (!built)
             return Fail(reason, built.reason);
+        const auto materialStart = main.draws.size();
         append(stream);
-        if (mode)
+        if (mode && modelShadow)
             for (std::size_t n = main.draws.size() - packets.size(); n < main.draws.size(); ++n) {
                 const auto& material =
                     snapshot->materials[packets[n - (main.draws.size() - packets.size())].material]
@@ -897,6 +903,25 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 draw.textures = {};
                 modelCasters[slot].push_back(std::move(draw));
             }
+        // The fixed-function additive path draws translucent back faces
+        // first, then front faces. Effect materials retain a single pass.
+        if (additive && (!mode || !modelShadow)) {
+            std::vector<ModelReplayDraw> draws;
+            draws.reserve(packets.size() * 2);
+            for (std::size_t n = 0; n < packets.size(); ++n) {
+                auto draw = main.draws[materialStart + n];
+                const auto alpha = snapshot->materials[packets[n].material].material.diffuse[3];
+                if (alpha < 1.f) {
+                    draw.pipeline.raster.cull = BatchCull::Clockwise;
+                    draws.push_back(draw);
+                }
+                draw.pipeline.raster.cull = BatchCull::CounterClockwise;
+                draws.push_back(std::move(draw));
+            }
+            main.draws.resize(materialStart);
+            main.draws.insert(main.draws.end(), std::make_move_iterator(draws.begin()),
+                              std::make_move_iterator(draws.end()));
+        }
         unsigned edgeFirst = 0;
         for (const auto& pose : snapshot->materials) {
             const auto& material = pose.material;
@@ -908,7 +933,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                     ground ? viewportEffects && doc && doc->view.groundShadow &&
                                  frame.scene.lightState[4] < 0 &&
                                  (pmd || ((material.flags & 2) && material.edgeColor[3] > 0))
-                           : viewportEffects && scale > 0 &&
+                           : viewportEffects && !additive && scale > 0 &&
                                  (pmd ? material.flags != 0 : (material.flags & 16) != 0);
                 if (!count || !enabled)
                     continue;

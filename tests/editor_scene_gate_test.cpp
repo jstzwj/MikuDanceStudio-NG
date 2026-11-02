@@ -129,6 +129,53 @@ int main(int argc, char** argv) try {
                             "frame gate advanced simulation");
                     ++cases;
                 }
+    for (const auto* file : {"outline.pmd", "alpha98.pmd", "tint-shadow.pmx"}) {
+        Require(session.New(reason) && session.ImportModel(root / file, reason), reason);
+        sources.models = session.Assets().modelPaths;
+        Require(producer.Load(session.Runtime(), sources, assets, reason), reason);
+        for (int mode : {0, 1})
+            for (unsigned flags = 0; flags < 4; ++flags) {
+                const bool toon = (flags & 1) != 0, additive = (flags & 2) != 0;
+                Require(session.Edit(
+                            "render-flags",
+                            [&](auto& d, auto&) {
+                                d.view.groundGrid = d.view.groundShadow = 0;
+                                d.timeline.editMode = 2;
+                                d.selfShadowEnabled = 1;
+                                d.models[0].toonFlag = toon;
+                                d.models[0].postLoadFlag = additive;
+                                return true;
+                            },
+                            reason),
+                        reason);
+                settings.shadow.mode = mode;
+                rhi::RenderFrame frame;
+                Require(producer.Build(session.Runtime(), settings, frame, reason), reason);
+                const auto& main = frame.passes[mode ? 1 : 0];
+                const bool effect = mode && toon;
+                const bool backface = additive && !effect && std::string(file) == "alpha98.pmd";
+                Require(main.draws.size() == 1u + backface + !additive,
+                        "model additive backface/outline contract");
+                for (unsigned i = 0; i < 1u + backface; ++i) {
+                    const auto& pipeline = main.draws[i].pipeline;
+                    Require(pipeline.shadow.mode == (effect ? rhi::BuiltinShadowMode::Material
+                                                            : rhi::BuiltinShadowMode::None),
+                            "per-model shadow material selection");
+                    Require(
+                        pipeline.raster.destinationBlend ==
+                            (additive ? rhi::BlendFactor::One : rhi::BlendFactor::InvSourceAlpha),
+                        "per-model additive blend");
+                }
+                if (backface)
+                    Require(main.draws[0].pipeline.raster.cull == rhi::BatchCull::Clockwise &&
+                                main.draws[1].pipeline.raster.cull ==
+                                    rhi::BatchCull::CounterClockwise,
+                            "additive back/front ordering");
+                if (mode && !toon)
+                    Require(frame.passes[0].draws.empty(), "disabled model cast a shadow");
+                Require(bool(rhi::ValidateRenderFrame(frame)), "model flag frame validation");
+            }
+    }
     std::printf(
         "%u editor frame gates: select/box/tools, playback, raw master byte, shadow modes; no window\n",
         cases);

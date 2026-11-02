@@ -5,6 +5,7 @@
 #include "mikudancestudio/accessory_layout.hpp"
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/menu_commands.h"
+#include "mikudancestudio/panel_controls.hpp"
 #include "mikudancestudio/app_layout.hpp"
 #include "editor_physics_selection_fixture.hpp"
 #include "editor_reduction_fixture.hpp"
@@ -347,6 +348,65 @@ unsigned AudioDisableCommands(OriginalPhysicsModule& original) {
                       "native disable-WAV switch changed playback, dirty or other state");
                 ++count;
             }
+    return count;
+}
+unsigned ModelRenderFlags(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    auto app = std::make_unique<MMDAppState>();
+    auto native = std::make_unique<mdl::ModelRecord>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    unsigned count = 0;
+    for (const auto* file : {"articulated.pmd", "articulated.pmx"})
+        for (bool playing : {false, true})
+            for (unsigned raw : {0u, 1u, 7u})
+                for (bool shadow : {false, true}) {
+                    EditorSession portable;
+                    std::string reason;
+                    Check(portable.ImportModel(root / file, reason), reason.c_str());
+                    Check(portable.Document().models[0].toonFlag == 1 &&
+                              portable.Document().models[0].postLoadFlag == 0,
+                          "native model import rendering defaults");
+                    Check(portable.Edit(
+                              "raw-flag",
+                              [&](auto& d, auto&) {
+                                  d.models[0].toonFlag = d.models[0].postLoadFlag =
+                                      std::uint8_t(raw);
+                                  return true;
+                              },
+                              reason),
+                          reason.c_str());
+                    if (playing)
+                        Check(portable.Play(reason), reason.c_str());
+                    std::memset(app.get(), 0, sizeof(*app));
+                    std::memset(native.get(), 0, sizeof(*native));
+                    app->modelSlots[0] = native.get();
+                    app->playbackActive = playing;
+                    app->sceneModified = 0x7d;
+                    app->currentFrame = 123;
+                    native->toonFlag = native->postLoadFlag2 = std::uint8_t(raw);
+                    const auto beforeApp = std::make_unique<MMDAppState>(*app);
+                    auto expected = std::make_unique<mdl::ModelRecord>(*native);
+                    (shadow ? expected->toonFlag : expected->postLoadFlag2) = !raw;
+                    const auto counters = portable.Runtime().Counters();
+                    const auto revision = portable.Revision();
+                    const bool undo = portable.CanUndo(), redo = portable.CanRedo();
+                    const auto* snapshot = portable.Runtime().Snapshot(0);
+                    original.Function<void (*)(HWND, WPARAM)>(0x3f550)(
+                        nullptr, shadow ? panel::kShadowCheckbox : panel::kAddBlendCheckbox);
+                    Check(!std::memcmp(app.get(), beforeApp.get(), sizeof(*app)) &&
+                              !std::memcmp(native.get(), expected.get(), sizeof(*native)),
+                          "native model rendering toggle side effects");
+                    Check(portable.ToggleModelRenderFlag(shadow), "portable rendering toggle");
+                    const auto& model = portable.Document().models[0];
+                    Check(model.toonFlag == native->toonFlag &&
+                              model.postLoadFlag == native->postLoadFlag2 &&
+                              portable.Playing() == playing && portable.Revision() == revision &&
+                              portable.CanUndo() == undo && portable.CanRedo() == redo &&
+                              portable.Runtime().Counters().frames == counters.frames &&
+                              portable.Runtime().Snapshot(0) == snapshot,
+                          "model render toggle changed pose, playback or history");
+                    ++count;
+                }
     return count;
 }
 unsigned FrameRateCommands(OriginalPhysicsModule& original) {
@@ -1239,6 +1299,8 @@ int wmain(int argc, wchar_t** argv) try {
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     Check(argc == 3, "usage: editor_auxiliary_oracle_test original.exe generated-fixture");
     OriginalPhysicsModule original(argv[1]);
+    std::printf("%u original model rendering toggles: complete model/application bytes\n",
+                ModelRenderFlags(original, argv[2]));
     std::printf(
         "%u original self-shadow switches: independent mode and unchanged application state\n",
         ShadowSwitchCommands(original));

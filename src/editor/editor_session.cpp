@@ -283,6 +283,7 @@ PmmSceneModel MakeModel(std::uint8_t slot, const runtime::ModelResource& resourc
     m.selection.loadComplete = 1;
     m.selection.maxFrame = 300;
     m.edgeScale = 1;
+    m.toonFlag = 1;
     m.boneKeys.dense.resize(m.layout.boneCount);
     m.bonePose.resize(m.layout.boneCount);
     for (std::size_t i = 0; i < m.boneKeys.dense.size(); ++i) {
@@ -363,6 +364,12 @@ bool EditorSession::SetGroundShadowColor(float value) {
 }
 bool EditorSession::SetSelfShadowEnabled(bool enabled) {
     if (!runtime_ || !runtime_->SetSelfShadowEnabled(enabled))
+        return false;
+    ++appearanceRevision_;
+    return true;
+}
+bool EditorSession::ToggleModelRenderFlag(bool shadow) {
+    if (!runtime_ || !runtime_->ToggleModelRenderFlag(selection_.model, shadow))
         return false;
     ++appearanceRevision_;
     return true;

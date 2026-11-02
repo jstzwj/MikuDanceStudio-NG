@@ -2679,3 +2679,33 @@ remain recorded above. The passing result does not qualify that configuration,
 arbitrary PulseAudio/PipeWire hardware or physical speaker latency. Windows,
 CoreAudio and this Linux profile now each have native output evidence; other
 P4/C1 command, input, layout and full-scene gates remain open.
+
+
+## Model self-shadow and additive controls (2026-11-03)
+
+Model-panel controls 440/441 now toggle the live PMM model flags. Fresh PMD/PMX
+imports initialize self-shadow to enabled, matching the original model initializer.
+The changes preserve playback, pose publications, physics counters, dirty state
+and bone history; appearance revisions invalidate the viewport cache. Save/reopen
+retains both flags and each language refreshes the checkbox state.
+
+The scene producer now selects fixed or effect materials per model and omits
+self-shadow casting for models whose shadow switch is off. Additive models use
+`SRCALPHA/ONE` and suppress outlines. The fixed transparent additive path draws
+clockwise-culled back faces before counterclockwise-culled front faces; effect
+materials retain their single draw. Projected shadows remain independent.
+
+The hash-verified original full dispatcher passed **24 exact model-toggle cases**:
+PMD/PMX, paused/playing, raw flag values 0/1/7, and both controls. Complete model
+and application bytes were compared, with the previous auxiliary oracle cases
+still passing. Public frame tests cover 24 combinations of material paths,
+transparent backface order, shadow casting and outlines. Three-language offscreen
+interaction and PMM round-trip tests passed. All **34 local P4 tests passed in
+104.91 seconds**; DX11/DX12/Vulkan offscreen pixel tests then passed additive
+changes, exact restoration and fixed-material selection. The added pixel cases
+reuse one GPU device/renderer, avoiding repeated pipeline/device creation inside
+the 60-second regression timeout. The explicit backend selector now also verifies
+Vulkan instead of silently retaining Windows' default when that name is requested.
+The existing hidden DX9 shader reference passed all **39 scene/history cases**.
+These are command, frame-contract and shader checks, not full original-editor
+scene/input parity or P4 completion.

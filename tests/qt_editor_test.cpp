@@ -68,6 +68,21 @@ int main(int argc, char** argv) {
         auxiliary.Refresh();
         const auto* runtime = &session.Runtime();
         const auto frames = runtime->Counters().frames;
+        CHECK(session.Document().models[0].toonFlag == 1);
+        const auto revision = session.Revision();
+        const auto appearance = session.AppearanceRevision();
+        auto* shadow = static_cast<QAbstractButton*>(auxiliary.Control(panel::kShadowCheckbox));
+        auto* additive = static_cast<QAbstractButton*>(auxiliary.Control(panel::kAddBlendCheckbox));
+        CHECK(shadow->isEnabled() && shadow->isChecked() && !additive->isChecked());
+        shadow->click();
+        additive->click();
+        CHECK(!shadow->isChecked() && additive->isChecked());
+        CHECK(!session.Document().models[0].toonFlag && session.Document().models[0].postLoadFlag);
+        CHECK(session.Revision() == revision && session.AppearanceRevision() == appearance + 2);
+        CHECK(session.Document().models[0].morphPose[0] == .375f);
+        CHECK(auxiliary.Save(root / "qt-render-flags.pmm"));
+        shadow->click();
+        additive->click();
         session.Selected().keys.insert({editor::Track::Bone, 0, 0, 0});
         static_cast<QAbstractButton*>(auxiliary.Control(panel::kModelVisibleCheckbox))->click();
         CHECK(!session.Document().models[0].selection.loadComplete);
@@ -84,6 +99,8 @@ int main(int argc, char** argv) {
               session.Selected().keys.count({editor::Track::Morph, 0, 0, 10}));
         CHECK(!session.CanUndo() && !session.CanRedo());
         CHECK(runtime == &session.Runtime() && frames == runtime->Counters().frames);
+        CHECK(auxiliary.Open(root / "qt-render-flags.pmm"));
+        CHECK(!shadow->isChecked() && additive->isChecked());
         CHECK(!auxiliary.isVisible());
     }
     for (const char* language : {"en", "ja", "zh_CN"})

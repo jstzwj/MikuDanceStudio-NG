@@ -155,6 +155,8 @@ public:
     bool SetFrameLimit(unsigned limit);
     bool SetGroundShadowColor(float value);
     bool SetSelfShadowEnabled(bool enabled);
+    // Native model panel flags are live PMM state, without dirty/history/evaluation.
+    bool ToggleModelRenderFlag(bool shadow);
     bool SetOutlineColor(const std::array<std::uint8_t, 3>& rgb);
     // Invalidate visual changes which preserve the document's dirty revision.
     std::uint64_t AppearanceRevision() const { return appearanceRevision_; }

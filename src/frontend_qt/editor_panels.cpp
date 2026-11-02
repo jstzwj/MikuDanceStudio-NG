@@ -265,6 +265,10 @@ bool EditorWindow::PanelCommand(int id) {
                reason);
         return true;
     }
+    if (id == kShadowCheckbox || id == kAddBlendCheckbox) {
+        session_.ToggleModelRenderFlag(id == kShadowCheckbox);
+        return true;
+    }
     if (id == kResetLightButton || (id >= kEditOffCheckbox && id <= kEditMode2Checkbox) ||
         id == kCoordAxisCheckbox || id == kInfoCheckbox || id == kIkOnRadio || id == kIkOffRadio) {
         Result(session_.Edit(

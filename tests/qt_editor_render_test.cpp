@@ -33,10 +33,23 @@ int main(int argc, char** argv) {
     const auto revision = session.Revision(), updates = session.Runtime().Counters().frames;
     rhi::BackendOptions options;
     options.backend = rhi::DefaultBackend();
-    if (qEnvironmentVariable("MDS_GPU_BACKEND") == "d3d11")
+    const auto requested = qEnvironmentVariable("MDS_GPU_BACKEND");
+    if (requested == "d3d11")
         options.backend = rhi::Backend::D3D11;
-    if (qEnvironmentVariable("MDS_GPU_BACKEND") == "d3d12")
+    else if (requested == "d3d12")
         options.backend = rhi::Backend::D3D12;
+    else if (requested == "vulkan")
+        options.backend = rhi::Backend::Vulkan;
+    else if (requested == "metal")
+        options.backend = rhi::Backend::Metal;
+    else
+        CHECK(requested.isEmpty());
+    std::cout << "Qt offscreen backend: "
+              << (options.backend == rhi::Backend::D3D11    ? "d3d11"
+                  : options.backend == rhi::Backend::D3D12  ? "d3d12"
+                  : options.backend == rhi::Backend::Vulkan ? "vulkan"
+                                                            : "metal")
+              << std::endl;
     options.vulkanLibrary = qEnvironmentVariable("MDS_TEST_VULKAN_LIBRARY").toStdString();
     if (qEnvironmentVariable("MDS_GPU_DRIVER") == "software")
         options.driver = rhi::BackendDriver::Software;
@@ -407,6 +420,75 @@ int main(int argc, char** argv) {
         CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
                               edgeRestored, reason) &&
               edgeRestored == edgeFirst);
+    }
+    {
+        auto flagsDevice = rhi::CreateOffscreenBackendDevice(128, 96, options);
+        CHECK(flagsDevice);
+        rhi::SceneRenderer flagsRenderer(*flagsDevice.device);
+        std::uint64_t sceneId = 0;
+        for (const auto* file : {"outline.pmd", "alpha98.pmd", "tint-shadow.pmx"}) {
+            editor::EditorSession flags;
+            CHECK(flags.ImportModel(root / file, reason));
+            CHECK(flags.SetEdgeThickness(0, reason));
+            render::SceneFrameProducer flagProducer;
+            render::SceneRenderSources flagSources;
+            flagSources.models = flags.Assets().modelPaths;
+            rhi::FileAssetSource flagAssets(assets);
+            CHECK(flagProducer.Load(flags.Runtime(), flagSources, flagAssets, reason));
+            render::SceneRenderSettings flagSettings;
+            flagSettings.width = 128;
+            flagSettings.height = 96;
+            flagSettings.shadow.mapSize = 32;
+            ++sceneId;
+            const auto readFlags = [&](QImage& image) {
+                rhi::RenderFrame frame;
+                if (!flagProducer.Build(flags.Runtime(), flagSettings, frame, reason))
+                    return false;
+                rhi::PreparedModelFrame prepared;
+                rhi::CompletionToken token;
+                auto result = flagsRenderer.Prepare(sceneId, frame, prepared);
+                if (result)
+                    result = flagsRenderer.Submit(prepared, token);
+                rhi::AttachmentReadback pixels;
+                if (!result) {
+                    reason = result.reason;
+                    return false;
+                }
+                if (!flagsRenderer.ReadTarget(sceneId, frame.finalColor, pixels)) {
+                    reason = "model-flag-readback";
+                    return false;
+                }
+                image =
+                    QImage(pixels.bytes.data(), 128, 96, 128 * 4, QImage::Format_RGBA8888).copy();
+                return !image.isNull();
+            };
+            QImage fixed;
+            for (int mode : {0, 1}) {
+                CHECK(flags.Edit(
+                    "model-render-flags",
+                    [&](auto& d, auto&) {
+                        d.view.groundGrid = d.view.groundShadow = 0;
+                        d.selfShadowMode = std::uint8_t(mode);
+                        return true;
+                    },
+                    reason));
+                const auto frames = flags.Runtime().Counters().frames;
+                const auto revision = flags.Revision();
+                QImage normal, additive, restored, shadowOff;
+                CHECK(readFlags(normal));
+                if (!mode)
+                    fixed = normal;
+                CHECK(flags.ToggleModelRenderFlag(false));
+                CHECK(readFlags(additive));
+                CHECK(additive != normal);
+                CHECK(flags.ToggleModelRenderFlag(false));
+                CHECK(readFlags(restored) && restored == normal);
+                CHECK(flags.ToggleModelRenderFlag(true));
+                CHECK(readFlags(shadowOff) && shadowOff == fixed);
+                CHECK(flags.ToggleModelRenderFlag(true));
+                CHECK(flags.Revision() == revision && flags.Runtime().Counters().frames == frames);
+            }
+        }
     }
     CHECK(session.New(reason) && session.ImportModel(root / "tint-morph.pmx", reason));
     CHECK(session.Edit(

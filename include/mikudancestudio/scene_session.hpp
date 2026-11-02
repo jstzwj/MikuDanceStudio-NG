@@ -101,6 +101,17 @@ public:
     bool SetModelOrder(ModelOrderKind kind, const std::vector<std::uint8_t>& orderedSlots) {
         return loaded_ && SetPmmModelOrder(scene_, kind, orderedSlots);
     }
+    bool ToggleModelRenderFlag(std::uint8_t slot, bool shadow) {
+        if (!loaded_)
+            return false;
+        for (auto& model : scene_.models)
+            if (model.slot == slot) {
+                auto& flag = shadow ? model.toonFlag : model.postLoadFlag;
+                flag = flag == 0;
+                return true;
+            }
+        return false;
+    }
     // UI-only PMM metadata; does not seek or invalidate the evaluated pose.
     void SetPanelExpanded(unsigned option, bool expanded) {
         if (option > 0 && option < scene_.envelope.settings.options.size())

@@ -671,6 +671,10 @@ bool SceneRuntime::SetModelEdgeScale(std::uint8_t slot, float value) {
     return impl_ && !impl_->failed && impl_->session &&
            impl_->session->SetModelEdgeScale(slot, value);
 }
+bool SceneRuntime::ToggleModelRenderFlag(std::uint8_t slot, bool shadow) {
+    return impl_ && !impl_->failed && impl_->session &&
+           impl_->session->ToggleModelRenderFlag(slot, shadow);
+}
 bool SceneRuntime::SetModelOrder(format::ModelOrderKind kind,
                                  const std::vector<std::uint8_t>& slots) {
     // Allocate before publication. Existing instances, poses, physics bodies
