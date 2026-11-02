@@ -67,8 +67,12 @@ void AudioTransport::Volume(float value) {
 bool AudioTransport::Running() const {
     return output_ && output_->Running();
 }
+std::string AudioTransport::Error() const {
+    return output_ ? output_->Error() : std::string{};
+}
 double AudioTransport::Position() const {
-    return start_ + (output_ ? output_->ProcessedMicroseconds() / 1000000. : 0);
+    const auto duration = wave_.sampleRate ? double(wave_.SampleFrames()) / wave_.sampleRate : 0;
+    return std::min(duration, start_ + (output_ ? output_->ProcessedMicroseconds() / 1000000. : 0));
 }
 std::optional<double> AudioTransport::ClockPosition() {
     if (!clockActive_)

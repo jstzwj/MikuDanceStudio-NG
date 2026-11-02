@@ -85,7 +85,7 @@ This closes that command's integration gap, not the complete clipboard/input gat
 | Shared editing and serialization | First local regression passed; full command/compatibility coverage pending |
 | Qt original layout and multilingual interface | Initial three-platform command/language regression passed; full original parity pending |
 | C1 scene rendering | Model outlines, texture morphs and screen history passed on three platforms; accessory self-shadow passed local DX9 comparisons on DX11/DX12/Vulkan; full C1 comparison pending |
-| WAV and synchronization | Deterministic consuming sink passed 120s clock/jitter, loop, seek, EOF and failure checks; native audio output acceptance pending |
+| WAV and synchronization | Deterministic transport and Windows native silent output passed 120s clock/seek/EOF checks; Linux/CoreAudio native qualification pending; physical speaker latency is unmeasured |
 | Fixed-step image sequence export and cancellation | Generated 30fps sequence, strict repeat and cancellation passed on three platforms |
 | Three-platform open/edit/play/save/reopen/export | Initial generated workflow passed; complete C1 workflow coverage pending |
 | MMD v9.32 independent geometry, behavior and output comparison | Pending |
@@ -2272,3 +2272,41 @@ environment variables. All three downloaded archives were checked against their
 SHA-256 files and report clean source revision `b17fc2a`. The downloaded Windows
 CI package additionally passed the relocated production check on the local
 workstation. Full P4/C1 acceptance remains open.
+
+
+## Selected-target paste and native WAV clock (2026-11-03)
+
+Selected-target paste revision `5336222` passed all three editor jobs in
+[run 41478321551](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41478321551),
+including offscreen command tests, native surfaces and relocated distributions.
+
+The explicit `qt_native_audio_test --native-silent` opens the platform audio sink
+and supplies only float-zero PCM. It is intentionally absent from ordinary CTest
+runs, which must remain safe for the developer's desktop and speakers. Native
+initialization, a 120-second processed clock, stop, seek/restart, final EOF handoff
+and the actual editor's jittered-timer clock selection are tested. Initialization
+must finish within two seconds; after warmup the processed clock must stay within
+100 ms of elapsed playback time, remain monotonic and advance regularly. The
+jittered editor test allows at most three frames against elapsed time. These are
+stream/clock bounds, not a measurement of acoustic speaker/display latency.
+
+The first Windows run exposed Qt 6.8 WASAPI counting queued input as processed:
+the clock led elapsed time by about 390 ms. The adapter now subtracts the actual
+input-format device padding on Qt 6.8 Windows only. Applying that correction to
+other platforms would count latency twice, so the version/platform condition is
+explicit. A 40 ms queue then accumulated lateness under RDP timer scheduling;
+100 ms provides adequate scheduling headroom without changing the clock bound.
+The final **120-second Windows x64 Remote Audio** run passed: maximum lag
+**80.936 ms**, no lead, exact EOF at **123 s**, and maximum jittered-editor error
+**2.344 frames**. The [recorded result](evidence/cross-platform-p4-native-audio-windows.json)
+identifies the device/profile and limits. No window was shown and no nonzero
+sample was output. A device failure during playback now pauses without advancing
+the scene and retains its diagnostic; the deterministic test verifies recovery.
+
+The editor workflow now explicitly runs the same native silent check on all
+three systems. Linux uses a real PulseAudio backend with a null sink. Windows
+and macOS runners without audio endpoints write `unavailable`, emit a warning
+and do not count as native acceptance; other failures fail the job. Reports are
+retained beside the editor artifacts. CoreAudio/PulseAudio execution and physical
+output qualification must not be inferred from the Windows result. P4/C1 remains
+in progress for the other command, input, layout and full-frame gates.

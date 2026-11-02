@@ -259,6 +259,14 @@ void EditorWindow::Tick(double seconds) {
     if (!std::isfinite(seconds) || seconds < 0)
         return;
     if (session_.Playing()) {
+        const auto audioError = audio_.Error();
+        if (!audioError.empty()) {
+            session_.Pause();
+            audio_.Stop();
+            Result(false, audioError);
+            Refresh();
+            return;
+        }
         if (const auto position = audio_.ClockPosition())
             seconds = std::max(0., *position - session_.CursorSeconds());
         std::string reason;

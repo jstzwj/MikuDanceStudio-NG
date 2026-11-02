@@ -2,6 +2,7 @@
 #include <QAudioSink>
 #include <QAudioDevice>
 #include <QMediaDevices>
+#include <algorithm>
 namespace mikudancestudio::qt {
 namespace {
 class NativeAudioOutput final : public AudioOutput {
@@ -15,6 +16,11 @@ public:
             return false;
         }
         sink_ = std::make_unique<QAudioSink>(device, format);
+        format_ = format;
+        source_ = &source;
+        // Leave enough queued data for the platform's timer scheduling quantum.
+        // The platform may round this up; the clock uses its actual padding.
+        sink_->setBufferSize(format.bytesForDuration(100000));
         sink_->setVolume(volume);
         sink_->start(&source);
         if (sink_->error() != QAudio::NoError) {
@@ -29,16 +35,44 @@ public:
         if (sink_)
             sink_->stop();
         sink_.reset();
+        source_ = nullptr;
+        processed_ = 0;
     }
     void Volume(float volume) override {
         if (sink_)
             sink_->setVolume(volume);
     }
     bool Running() const override { return sink_ && sink_->state() == QAudio::ActiveState; }
-    qint64 ProcessedMicroseconds() const override { return sink_ ? sink_->processedUSecs() : 0; }
+    std::string Error() const override {
+        // Idle at the end of a finite source is normal. Underrun while source
+        // data remains and device/IO errors must not silently switch clocks.
+        if (!sink_ || sink_->error() == QAudio::NoError ||
+            (sink_->error() == QAudio::UnderrunError && source_ && source_->atEnd()))
+            return {};
+        return "audio-output-device-failed";
+    }
+    qint64 ProcessedMicroseconds() const override {
+        if (!sink_)
+            return 0;
+        auto processed = sink_->processedUSecs();
+#if defined(Q_OS_WIN) && QT_VERSION >= QT_VERSION_CHECK(6, 8, 0) &&                                \
+    QT_VERSION < QT_VERSION_CHECK(6, 9, 0)
+        // Qt 6.8's WASAPI implementation reports totalInputBytes, including
+        // samples still queued on the device. Subtract its current padding,
+        // expressed in the input format by the public buffer queries. Other
+        // platform backends already report played samples; do not correct twice.
+        const auto queued = std::max<qsizetype>(0, sink_->bufferSize() - sink_->bytesFree());
+        processed = std::max<qint64>(0, processed - format_.durationForBytes(queued));
+#endif
+        processed_ = std::max(processed_, processed);
+        return processed_;
+    }
 
 private:
     std::unique_ptr<QAudioSink> sink_;
+    QAudioFormat format_;
+    QIODevice* source_ = nullptr;
+    mutable qint64 processed_ = 0;
 };
 }
 std::unique_ptr<AudioOutput> CreateAudioOutput() {

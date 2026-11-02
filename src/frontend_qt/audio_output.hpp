@@ -5,7 +5,7 @@
 #include <string>
 namespace mikudancestudio::qt {
 // The transport owns decoded PCM and positioning. Only this adapter touches
-// the platform audio device; acceptance tests use a deterministic consuming sink.
+// the platform audio device; ordinary tests use a deterministic consuming sink.
 class AudioOutput {
 public:
     virtual ~AudioOutput() = default;
@@ -14,6 +14,7 @@ public:
     virtual void Volume(float) = 0;
     virtual bool Running() const = 0;
     virtual qint64 ProcessedMicroseconds() const = 0;
+    virtual std::string Error() const { return {}; }
 };
 std::unique_ptr<AudioOutput> CreateAudioOutput();
 }

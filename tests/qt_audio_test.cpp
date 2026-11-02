@@ -28,6 +28,7 @@ public:
         offset = data.pos();
         elapsed = 0;
         running = true;
+        deviceFailed = false;
         error.clear();
         return true;
     }
@@ -39,6 +40,9 @@ public:
     void Volume(float) override {}
     bool Running() const override { return running; }
     qint64 ProcessedMicroseconds() const override { return elapsed; }
+    std::string Error() const override {
+        return deviceFailed ? "injected-streaming-device-failure" : "";
+    }
     void Advance(qint64 microseconds) {
         if (!running || !source)
             return;
@@ -52,7 +56,7 @@ public:
     QIODevice* source = nullptr;
     qint64 offset = 0, elapsed = 0;
     unsigned starts = 0;
-    bool running = false, fail = false;
+    bool running = false, fail = false, deviceFailed = false;
 };
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
@@ -144,6 +148,18 @@ int main(int argc, char** argv) {
     CHECK(!session.Playing() && !sink->Running());
     CHECK(window.LastError() == "injected-output-failure");
     sink->fail = false;
+    // A device lost during playback pauses at the same frame, retaining the
+    // scene and diagnostic. Restarting after recovery establishes a new clock.
+    window.Dispatch(panel::kPlayButton);
+    CHECK(session.Playing() && sink->Running());
+    const auto failedCursor = session.CursorSeconds();
+    const auto failedFrames = session.Runtime().Counters().frames;
+    sink->deviceFailed = true;
+    window.Tick(.25);
+    CHECK(!session.Playing() && !sink->Running() && session.CursorSeconds() == failedCursor);
+    CHECK(session.Runtime().Counters().frames == failedFrames &&
+          window.LastError() == "injected-streaming-device-failure");
+    sink->deviceFailed = false;
     CHECK(session.Seek(179 * 30, reason));
     CHECK(session.Edit(
         "audio-end",

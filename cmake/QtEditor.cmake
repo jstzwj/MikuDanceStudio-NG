@@ -104,6 +104,10 @@ function(mds_add_qt_editor)
         target_link_libraries(qt_audio_test PRIVATE mikudancestudio_frontend_qt)
         add_test(NAME qt_audio COMMAND qt_audio_test "${root}/res/assets")
         set_tests_properties(qt_audio PROPERTIES LABELS "p4;offscreen;qt;audio" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+        # Explicit opt-in only: this test opens a native audio device and feeds
+        # silence. It is intentionally absent from the ordinary CTest suite.
+        qt_add_executable(qt_native_audio_test "${root}/tests/qt_native_audio_test.cpp")
+        target_link_libraries(qt_native_audio_test PRIVATE mikudancestudio_frontend_qt)
         qt_add_executable(qt_editor_test "${root}/tests/qt_editor_test.cpp")
         qt_add_executable(qt_numeric_test "${root}/tests/qt_numeric_test.cpp")
         target_link_libraries(qt_numeric_test PRIVATE mikudancestudio_frontend_qt Qt6::Test)

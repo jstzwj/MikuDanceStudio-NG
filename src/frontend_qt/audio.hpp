@@ -18,6 +18,7 @@ public:
     // to the editor timer when the WAV reaches its end.
     std::optional<double> ClockPosition();
     bool Running() const;
+    std::string Error() const;
     const std::filesystem::path& Path() const { return path_; }
 
 private:
