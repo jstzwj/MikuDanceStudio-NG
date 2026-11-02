@@ -2198,7 +2198,8 @@ the portable/offscreen path and the prior independent mode tests, not that stub.
 
 The local x64 session regression passed (14.14 seconds), including invalid
 permutations, history retention, save/reopen, playback gating and slot reuse.
-The final targeted Qt numeric/menu regressions passed (11.81 seconds). The new
+The targeted Qt numeric/menu regressions passed (11.81 seconds). After rebuilding
+all targets, the complete local P4 suite passed **31/31** (183.20 seconds). The new
 distribution workflow additionally packages and verifies the production editor;
 its results and remaining platform validation are recorded separately below.
 The Win32 session regression also passed (17.78 seconds with concurrent builds),

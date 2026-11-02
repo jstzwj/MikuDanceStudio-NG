@@ -17,7 +17,9 @@ def main():
     args = parser.parse_args()
     dist = args.dist.resolve(strict=True)
     with tempfile.TemporaryDirectory(prefix='mds-relocated-package-') as temporary:
-        root = Path(temporary)
+        # macOS exposes /var through /private/var. Compare canonical roots on
+        # both sides before rejecting a dependency as external to the package.
+        root = Path(temporary).resolve()
         package = root / 'package with spaces'
         shutil.copytree(dist, package, symlinks=True)
         fixtures = root / 'fixtures'
