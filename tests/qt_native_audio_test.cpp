@@ -148,12 +148,33 @@ int main(int argc, char** argv) {
     int advancing = 0;
     while (elapsed.elapsed() < seconds * 1000) {
         if (!uiStallChecked && elapsed.elapsed() >= 1000) {
-            const auto before = transport.Position();
+            const auto beforeReadStart = elapsed.nsecsElapsed() / 1e9;
+            const auto before = transport.ClockPosition();
+            const auto beforeReadEnd = elapsed.nsecsElapsed() / 1e9;
             // A slow viewport/edit must not starve the native PCM refill timer.
             QThread::msleep(250); // Deliberately do not pump the UI event loop.
-            const auto advanced = transport.Position() - before;
+            const auto afterReadStart = elapsed.nsecsElapsed() / 1e9;
+            const auto after = transport.ClockPosition();
+            const auto afterReadEnd = elapsed.nsecsElapsed() / 1e9;
+            report["blockedUiBeforeReadStartSeconds"] = beforeReadStart;
+            report["blockedUiBeforeReadEndSeconds"] = beforeReadEnd;
+            report["blockedUiAfterReadStartSeconds"] = afterReadStart;
+            report["blockedUiAfterReadEndSeconds"] = afterReadEnd;
+            report["blockedUiDevice"] = QString::fromStdString(transport.Diagnostic());
+            if (!before || !after || !std::isfinite(*before) || !std::isfinite(*after) ||
+                !transport.Error().empty())
+                return finish(1, "Native clock failed during blocked UI: " + transport.Error());
+            const auto advanced = *after - *before;
             report["blockedUiClockAdvanceSeconds"] = advanced;
-            if (advanced < .2 || advanced > .35)
+            // Sleep is a minimum duration; a busy virtual runner may wake late.
+            // Bracket the actual device reads and retain the original 50 ms lag
+            // and 100 ms lead budgets against that observed interval. The
+            // separate steady-clock check still requires drift within 100 ms.
+            const auto minimumElapsed = afterReadStart - beforeReadEnd;
+            const auto maximumElapsed = afterReadEnd - beforeReadStart;
+            report["blockedUiMinimumElapsedSeconds"] = minimumElapsed;
+            report["blockedUiMaximumElapsedSeconds"] = maximumElapsed;
+            if (advanced < .2 || advanced < minimumElapsed - .05 || advanced > maximumElapsed + .1)
                 return finish(1, "UI work starved the native audio output thread");
             uiStallChecked = true;
         }
@@ -173,9 +194,11 @@ int main(int argc, char** argv) {
         maximumLag = std::max(maximumLag, lag);
         maximumLead = std::max(maximumLead, -lag);
         if (wall >= nextTrace || lag > .1 || lag < -.1) {
-            clockTrace.append(QJsonObject{
-                {"wallSeconds", wall}, {"positionSeconds", *position}, {"lagSeconds", lag},
-                {"readStartSeconds", readStart}, {"readEndSeconds", readEnd}});
+            clockTrace.append(QJsonObject{{"wallSeconds", wall},
+                                          {"positionSeconds", *position},
+                                          {"lagSeconds", lag},
+                                          {"readStartSeconds", readStart},
+                                          {"readEndSeconds", readEnd}});
             nextTrace = wall + (wall < 6 ? .05 : 1);
         }
         report["wallSeconds"] = wall;

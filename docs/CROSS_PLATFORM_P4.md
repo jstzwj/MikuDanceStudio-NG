@@ -2826,3 +2826,22 @@ retained zero C++ allocations. The local 139,692-vertex profile passed the stric
 33.333334 ms P95 / 100 ms maximum limits on all three Windows backends. These
 qualify the stated offscreen workloads, not physical presentation latency,
 arbitrary audio hardware or the still-open complete C1 parity gates.
+
+## Native audio UI-block timing brackets (2026-11-03)
+
+The separate macOS 26 run
+[41518937609](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41518937609)
+passed native window exposure/presentation after the exposure wait fix, but failed
+the audio UI-block assertion: the device advanced 355.896 ms during a requested
+250 ms sleep. That test did not measure the actual blocked wall interval, so the
+existing report cannot distinguish scheduler oversleep from device clock error.
+The macOS 15 qualification above does not qualify this macOS 26 profile.
+
+The test now records timestamps around both native position reads, derives the
+minimum/maximum actual interval and compares clock advancement with that interval.
+It retains the original 50 ms lag / 100 ms lead limits, minimum 200 ms progress
+and independent 100 ms steady drift limit. Missing/nonfinite clocks and device
+errors fail; native diagnostics are also captured for the blocked interval.
+The rebuilt Windows test passed a three-second silent-device smoke test: 250 ms
+clock advancement against a measured 250.059–250.947 ms interval. A new isolated
+macOS 26 run is required before that profile can be accepted.
