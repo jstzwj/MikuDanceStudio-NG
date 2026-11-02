@@ -11,7 +11,7 @@
 #include "mikudancestudio/rhi_vulkan.hpp"
 #include "mikudancestudio/rhi_render_pass.hpp"
 #include "rhi_model_constants.hpp"
-#include "rhi_vulkan_spirv.hpp"
+#include "rhi_builtin_spirv.hpp"
 #include "rhi_shader_spirv.hpp"
 #include <algorithm>
 #include <array>

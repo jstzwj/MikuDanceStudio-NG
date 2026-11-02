@@ -2,9 +2,14 @@
 #include "mikudancestudio/rhi_d3d11.hpp"
 #include "mikudancestudio/rhi_d3d12.hpp"
 #include "mikudancestudio/rhi_vulkan.hpp"
+#include "mikudancestudio/rhi_metal.hpp"
 namespace mikudancestudio::rhi {
 bool BackendAvailable(Backend backend) {
     switch (backend) {
+#ifdef MIKUDANCESTUDIO_RHI_METAL
+    case Backend::Metal:
+        return true;
+#endif
 #ifdef MIKUDANCESTUDIO_RHI_VULKAN
     case Backend::Vulkan:
         return true;
@@ -97,6 +102,10 @@ OffscreenBackendDevice CreateOffscreenBackendDevice(std::uint32_t width, std::ui
         return result;
     }
     switch (options.backend) {
+#ifdef MIKUDANCESTUDIO_RHI_METAL
+    case Backend::Metal:
+        return CreateMetalOffscreenDevice(width, height, options);
+#endif
 #ifdef MIKUDANCESTUDIO_RHI_D3D11
     case Backend::D3D11: {
         auto native = CreateD3D11OffscreenDevice(

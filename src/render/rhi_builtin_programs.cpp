@@ -2,8 +2,8 @@
 #include "rhi_generic_shaders.hpp"
 #include "rhi_model_constants.hpp"
 #include <cstring>
-#ifdef MIKUDANCESTUDIO_RHI_VULKAN
-#include "rhi_vulkan_spirv.hpp"
+#ifdef MIKUDANCESTUDIO_RHI_SPIRV
+#include "rhi_builtin_spirv.hpp"
 #endif
 namespace mikudancestudio::rhi {
 std::shared_ptr<const ShaderProgram> PostProcessProgram() {
@@ -13,7 +13,7 @@ std::shared_ptr<const ShaderProgram> PostProcessProgram() {
         d.vertex.entry = "post_vs";
         d.pixel.entry = "post_ps";
         d.vertex.hlsl = d.pixel.hlsl = genericPostSource;
-#ifdef MIKUDANCESTUDIO_RHI_VULKAN
+#ifdef MIKUDANCESTUDIO_RHI_SPIRV
         d.vertex.spirv.resize(sizeof(spirv::generic_post_vertex));
         std::memcpy(d.vertex.spirv.data(), spirv::generic_post_vertex, d.vertex.spirv.size());
         d.pixel.spirv.resize(sizeof(spirv::generic_post_pixel));

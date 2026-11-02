@@ -117,3 +117,40 @@ jobs:
             out/p3/Testing/Temporary/
             out/p3/scene-evidence/
             out/p3/p3-performance*.json
+
+  metal:
+    needs: mac-compiler
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: p3-macos-dxc
+          path: out/dxc
+      - run: chmod +x out/dxc/bin/dxc && brew install spirv-tools ccache
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/ccache
+            out/metal/_deps
+          key: metal-macos15-${{ hashFiles('cmake/Metal.cmake') }}-${{ github.sha }}
+          restore-keys: metal-macos15-${{ hashFiles('cmake/Metal.cmake') }}-
+      - name: Build without Vulkan or MoltenVK
+        run: |
+          cmake -S cmake/portable-render -B out/metal -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache -DMDS_DXC="$PWD/out/dxc/bin/dxc" -DMIKUDANCESTUDIO_RHI_VULKAN=OFF -DMIKUDANCESTUDIO_RHI_METAL=ON
+          cmake --build out/metal --parallel 3
+      - name: Native Metal offscreen regressions
+        env:
+          MTL_DEBUG_LAYER: '1'
+        run: ctest --test-dir out/metal -L metal --output-on-failure --output-junit metal.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-metal
+          path: |
+            out/metal/metal.xml
+            out/metal/Testing/Temporary/
+            out/metal/metal-scenes/
