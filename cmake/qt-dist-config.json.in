@@ -6,6 +6,7 @@
   "qmake": "@mds_qmake@",
   "version": "@mds_product_version@",
   "vulkan": @mds_dist_vulkan@,
+  "metal": @mds_dist_metal@,
   "dxc": "@MDS_DXC@",
   "dxc_runtime": "@MDS_DXC_RUNTIME_DIR@",
   "moltenvk": "@MDS_MOLTENVK_LIBRARY@"

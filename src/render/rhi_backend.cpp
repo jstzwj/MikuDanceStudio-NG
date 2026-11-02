@@ -4,6 +4,15 @@
 #include "mikudancestudio/rhi_vulkan.hpp"
 #include "mikudancestudio/rhi_metal.hpp"
 namespace mikudancestudio::rhi {
+Backend DefaultBackend() {
+#ifdef MIKUDANCESTUDIO_RHI_METAL
+    return Backend::Metal;
+#elif defined(MIKUDANCESTUDIO_RHI_VULKAN)
+    return Backend::Vulkan;
+#else
+    return Backend::D3D11;
+#endif
+}
 bool BackendAvailable(Backend backend) {
     switch (backend) {
 #ifdef MIKUDANCESTUDIO_RHI_METAL
@@ -39,6 +48,11 @@ BackendDevice CreateBackendDevice(const SwapchainDesc& desc, const BackendOption
         return result;
     }
     switch (options.backend) {
+#ifdef MIKUDANCESTUDIO_RHI_METAL
+    case Backend::Metal:
+        result = CreateMetalDevice(desc, options);
+        break;
+#endif
 #ifdef MIKUDANCESTUDIO_RHI_D3D11
     case Backend::D3D11: {
         auto native = CreateD3D11Device(
@@ -154,6 +168,10 @@ OffscreenBackendDevice CreateOffscreenBackendDevice(std::uint32_t width, std::ui
 }
 bool ReadBackendPresentation(Backend backend, Device& device, RgbaImage& image) {
     switch (backend) {
+#ifdef MIKUDANCESTUDIO_RHI_METAL
+    case Backend::Metal:
+        return ReadMetalPresentation(device, image);
+#endif
 #ifdef MIKUDANCESTUDIO_RHI_VULKAN
     case Backend::Vulkan:
         return ReadVulkanPresentation(device, image);

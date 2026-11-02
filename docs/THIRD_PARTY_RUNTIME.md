@@ -10,10 +10,13 @@ linked Qt remains replaceable by a compatible shared build.
 * Bullet 2.75: zlib license, `Bullet/LICENSE.txt`; unmodified source is retained
   under this repository's `recipes/bullet275/bullet-src` directory.
 * stb_image: MIT/public-domain alternatives, full notice in `stb_image.h`.
-* DXC, when Vulkan is enabled: upstream licenses/notices in `DXC/`.
+* DXC, when Vulkan or Metal is enabled: upstream licenses/notices in `DXC/`.
   Pinned binary source: https://github.com/microsoft/DirectXShaderCompiler/releases/tag/v1.8.2505.1
   macOS source revision: b106a961d09221b3c5bdb37be45b679257da08b8.
-* MoltenVK 1.4.2, macOS only: Apache-2.0; notices in `MoltenVK/`.
+* SPIRV-Cross, native Metal builds: Apache-2.0/MIT alternatives; statically linked
+  MSL compiler, full notice in `SPIRV-Cross/LICENSE`.
+  Source: https://github.com/KhronosGroup/SPIRV-Cross/tree/a0fba56c34a6700f1724bf9b751da5b488a3775c
+* MoltenVK 1.4.2, macOS builds with Vulkan: Apache-2.0; notices in `MoltenVK/`.
   Source: https://github.com/KhronosGroup/MoltenVK/tree/v1.4.2
 * Windows includes Microsoft's redistributable compiler runtime. Linux system
   graphics/audio services and GPU drivers remain host dependencies.

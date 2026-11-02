@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
     CHECK(session.Register({{editor::Track::Bone, 0, 0, 3}}, reason));
     const auto revision = session.Revision(), updates = session.Runtime().Counters().frames;
     rhi::BackendOptions options;
-    options.backend = rhi::Backend::Vulkan;
+    options.backend = rhi::DefaultBackend();
     if (qEnvironmentVariable("MDS_GPU_BACKEND") == "d3d11")
         options.backend = rhi::Backend::D3D11;
     if (qEnvironmentVariable("MDS_GPU_BACKEND") == "d3d12")

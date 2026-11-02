@@ -135,7 +135,7 @@ jobs:
         with:
           path: |
             ~/Library/Caches/ccache
-            out/metal/_deps
+            out/metal/_deps/spirv_cross-src
           key: metal-macos15-${{ hashFiles('cmake/Metal.cmake') }}-${{ github.sha }}
           restore-keys: metal-macos15-${{ hashFiles('cmake/Metal.cmake') }}-
       - name: Build without Vulkan or MoltenVK
@@ -159,5 +159,5 @@ jobs:
         with:
           path: |
             ~/Library/Caches/ccache
-            out/metal/_deps
+            out/metal/_deps/spirv_cross-src
           key: metal-macos15-${{ hashFiles('cmake/Metal.cmake') }}-${{ github.sha }}

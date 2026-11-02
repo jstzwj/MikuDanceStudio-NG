@@ -27,6 +27,32 @@ int main(int argc, char** argv) {
     CHECK(qEnvironmentVariable("MDS_QT_ISOLATED_DISPLAY") == "1");
 #endif
     QApplication app(argc, argv);
+    {
+        QWindow host;
+        host.resize(17, 19);
+#ifndef _WIN32
+        // Wayland creates its wl_surface when exposed. This process is already
+        // restricted to an isolated display; Windows stays hidden throughout.
+        host.show();
+        app.processEvents();
+#endif
+        auto original = qt::QtSurface(host, reason);
+        CHECK(original && original->health() == rhi::SurfaceHealth::Ready);
+        host.destroy();
+        CHECK(original->health() == rhi::SurfaceHealth::Removed);
+        host.create();
+        CHECK(original->health() == rhi::SurfaceHealth::Removed);
+#ifndef _WIN32
+        host.show();
+        app.processEvents();
+#endif
+        auto recreated = qt::QtSurface(host, reason);
+        CHECK(recreated && recreated->health() == rhi::SurfaceHealth::Ready);
+        CHECK(original->health() == rhi::SurfaceHealth::Removed);
+#ifdef _WIN32
+        CHECK(!host.isVisible());
+#endif
+    }
     CHECK(argc == 3);
     const auto root = std::filesystem::absolute(argv[1]);
     editor::EditorSession session;
@@ -39,7 +65,7 @@ int main(int argc, char** argv) {
     const auto requested = qEnvironmentVariable("MDS_GPU_BACKEND");
     for (const auto [backend, name] :
          {std::pair{rhi::Backend::D3D11, "d3d11"}, std::pair{rhi::Backend::D3D12, "d3d12"},
-          std::pair{rhi::Backend::Vulkan, "vulkan"}}) {
+          std::pair{rhi::Backend::Vulkan, "vulkan"}, std::pair{rhi::Backend::Metal, "metal"}}) {
         if (!requested.isEmpty() && requested != name)
             continue;
         if (!rhi::BackendAvailable(backend))
@@ -306,6 +332,28 @@ int main(int argc, char** argv) {
         CHECK(live.Runtime().Bodies(0) == liveBodies &&
               live.Runtime().Counters().frames == liveFrames);
         CHECK(live.Revision() == liveRevision);
+#ifdef __APPLE__
+        // Exercise the production menu transaction on the same live session.
+        for (auto selected : {rhi::Backend::Metal, rhi::Backend::Vulkan, backend}) {
+            if (selected != backend && qEnvironmentVariable("MDS_QT_TEST_BACKEND_SWITCH") != "1")
+                continue;
+            if (!rhi::BackendAvailable(selected))
+                continue;
+            QPointer<qt::Viewport> former = editor.RenderWindow();
+            QAction* choice = nullptr;
+            for (auto* action : editor.findChildren<QAction*>())
+                if (action->property("rhiBackend").isValid() &&
+                    action->property("rhiBackend").toInt() == int(selected))
+                    choice = action;
+            CHECK(choice && choice->isEnabled());
+            choice->trigger();
+            pump();
+            CHECK(former.isNull() && editor.RenderWindow()->Options().backend == selected);
+            CHECK(editor.RenderWindow()->Render(reason, true));
+            CHECK(&live.Runtime() == liveRuntime && live.Runtime().Counters().frames == liveFrames);
+            CHECK(live.Revision() == liveRevision && live.Runtime().Snapshot(0) == liveSnapshot);
+        }
+#endif
         CHECK(live.UnloadModel(0, reason));
         editor.Refresh();
         CHECK(editor.RenderWindow()->Render(reason, true));

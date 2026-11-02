@@ -1,5 +1,18 @@
 # Rendering hardware interface: incremental migration
 
+Native Metal (2026-11-02): the portable Qt editor defaults to Metal on macOS.
+The Apple-only adapter shares material/effect descriptions and HLSL with the
+other backends, translating validated SPIR-V to MSL. It implements device and
+resource lifetimes, completion-protected dynamic buffers, ordered passes,
+self-shadow, four MRT attachments, RGBA16F intermediates, explicit mip generation,
+postprocessing and native-value readback. `CAMetalLayer` presents the shared final
+color without CPU readback. Native API-validation gates cover offscreen rendering,
+actual drawable pixels, Retina, resize, window generations and backend replacement;
+deployment also tests a Metal-only package without MoltenVK. Scope, CI evidence
+and the independent MoltenVK validation limitation are recorded in
+[Native Metal](METAL_BACKEND.md). P4/C1 editor parity and the portable MME frontend
+remain separate work; adding this GPU adapter does not complete those stages.
+
 Window ownership (2026-11-02): `BackendOptions::surface` accepts a graphics-API
 independent `WindowSurfaceSource`: native window/display, ownership lease and
 health callback. Dimensions are physical pixels in `SwapchainDesc`. The device
@@ -22,7 +35,7 @@ work are explicit in that record; the Qt editor and independent MME frontend
 remain P4 and P5 work.
 
 `Device::TargetLimits()` reports implemented two-dimensional attachment limits
-for DX11, DX12 and Vulkan (zero means unsupported/unknown). Vulkan intersects
+for DX11, DX12, Vulkan and Metal (zero means unsupported/unknown). Vulkan intersects
 native image/framebuffer limits with the common 16384 attachment bound. These
 are dimension limits, not a memory reservation guarantee. The Qt output-size
 dialog additionally respects the existing 4096-per-dimension offscreen/export

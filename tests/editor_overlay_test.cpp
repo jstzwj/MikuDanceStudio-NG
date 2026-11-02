@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
               axis == saved);
     }
     rhi::BackendOptions options;
-    options.backend = rhi::Backend::Vulkan;
+    options.backend = rhi::DefaultBackend();
     if (const auto* value = std::getenv("MDS_GPU_BACKEND")) {
         if (std::string(value) == "d3d11")
             options.backend = rhi::Backend::D3D11;

@@ -1,5 +1,19 @@
 find_package(Qt6 6.8 REQUIRED COMPONENTS Widgets Multimedia Test)
 if(APPLE)
+    # Qt 6.8.3 links AGL even when the selected SDK no longer contains it.
+    # Qt does not use this obsolete framework; upstream removed the dependency:
+    # https://github.com/qt/qtbase/commit/cdb33c3d5621ce035ad6950c8e2268fe94b73de5
+    # A host framework outside that SDK can still satisfy find_library. Remove
+    # both that path and the literal fallback, retaining all other dependencies.
+    if(TARGET WrapOpenGL::WrapOpenGL)
+        get_target_property(mds_qt_gl_links WrapOpenGL::WrapOpenGL INTERFACE_LINK_LIBRARIES)
+        set(mds_qt_gl_original "${mds_qt_gl_links}")
+        list(FILTER mds_qt_gl_links EXCLUDE REGEX "(^-framework AGL$)|(/AGL\\.framework(/AGL)?$)")
+        if(NOT mds_qt_gl_links STREQUAL mds_qt_gl_original)
+            set_property(TARGET WrapOpenGL::WrapOpenGL PROPERTY INTERFACE_LINK_LIBRARIES "${mds_qt_gl_links}")
+            message(STATUS "Qt: removed obsolete AGL dependency (${mds_qt_gl_original})")
+        endif()
+    endif()
     enable_language(OBJCXX)
 elseif(UNIX)
     # Protocol metadata is C. Enable it in directory scope so CMake retains
@@ -121,6 +135,10 @@ function(mds_add_qt_editor)
         add_test(NAME qt_editor_render COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"
             --passes $<TARGET_FILE:qt_editor_render_test> --assets "${root}/res/assets")
         set_tests_properties(qt_editor_render PROPERTIES LABELS "p4;offscreen;qt;gpu" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+        if(MIKUDANCESTUDIO_RHI_METAL)
+            qt_add_executable(qt_metal_present_test "${root}/tests/qt_metal_present_test.cpp")
+            target_link_libraries(qt_metal_present_test PRIVATE mikudancestudio_frontend_qt)
+        endif()
         qt_add_executable(qt_presentation_test "${root}/tests/qt_presentation_test.cpp")
         target_link_libraries(qt_presentation_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
