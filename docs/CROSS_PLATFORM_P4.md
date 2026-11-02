@@ -2952,3 +2952,46 @@ passed all three platform jobs in CI
 and [41530437314](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41530437314).
 Remaining C1 input, complete command coverage and independent full-scene output
 gates stay open.
+
+## Independent original full-scene raster comparison (2026-11-03)
+
+The optional `editor_scene_original_gpu_test` now loads the hash-verified original
+executable without its entrypoint and invokes its actual model loading, pose,
+skinning, self-shadow and scene drawing routines. Its standard SM3 effect source
+is verified against the original binary resource. The reference receives no RHI
+packets, portable CPU snapshots, material constants or generated vertex buffers.
+Both paths independently consume the same public generated model files and
+specified editing inputs. White PMX fragments are counted through Alpha as well,
+so a white background cannot turn an empty draw into a passing scene.
+
+The ordinary D3D9 HAL remains unavailable in this RDP session. An explicitly
+selected **D3D9Ex HAL** can render on **NVIDIA TITAN Xp** using never-shown windows.
+Its test adapter maps Managed texture allocations to dynamic Default allocations,
+and Managed vertex/index buffers to Default. It hides the Ex interface query from
+D3DX so the original allocation requests reach that adapter. Original evaluation,
+shaders and draw calls are unchanged. This qualifies that raster profile; it does
+not qualify Managed eviction or ordinary D3D9 reset behavior. An exploratory
+WARP/9On12 request was ignored by the runtime and is **not** counted as software
+driver coverage.
+
+**48 independent comparisons passed**: PMD/PMX, opaque/0.375 Alpha, rest and
+registered bone/Morph poses, 512/257 pixel outputs, both self-shadow modes and
+DX11/DX12/Vulkan. All final color bytes match exactly. The maximum shadow error
+is **5.96046448e-8**, with exact coverage, within the existing absolute **1e-6**
+criterion. Each case creates a fresh backend device and submits the frozen frame
+twice; repeated color and shadow outputs are byte exact, for **96 submissions**.
+The original targets are recreated between modes. Raw numeric results and the
+binary hash are recorded in
+[the scene evidence](evidence/cross-platform-p4-original-scene.json).
+
+Run explicitly, outside ordinary public CI (no proprietary binary is uploaded):
+
+```powershell
+$env:MDS_TEST_DX9EX = '1'
+editor_scene_original_gpu_test.exe <original.exe> <res/assets> [dump-directory]
+```
+
+There is no Present, visible window, focus change or desktop input. Required
+raster coverage is asserted for every original color/shadow output. Existing
+comparison thresholds remain unchanged. Combined grid/accessory/background
+scenes, input/IME/DPI/font metrics and the other C1 exit gates remain open.

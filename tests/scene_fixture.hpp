@@ -17,6 +17,7 @@
 #include <filesystem>
 #include <float.h>
 #include <fstream>
+#include <functional>
 #include <iterator>
 #include <memory>
 #include <stdexcept>
@@ -81,7 +82,7 @@ struct Bytes {
 };
 // Independent disk fixture: a triangle, a root/child pair, and one vertex morph.
 // No runtime structure size determines a file field width.
-void WriteModel(const std::filesystem::path& path) {
+void WriteModel(const std::filesystem::path& path, float alpha = 1) {
     Bytes b;
     b.Text("Pmd", 3);
     b.F(1);
@@ -108,7 +109,7 @@ void WriteModel(const std::filesystem::path& path) {
     b.U(2, 2);
     b.U(1);
     for (int i = 0; i < 4; ++i)
-        b.F(1);
+        b.F(i == 3 ? alpha : 1.f);
     for (int i = 0; i < 7; ++i)
         b.F(0);
     b.U(255, 1);
@@ -156,7 +157,7 @@ void WriteModel(const std::filesystem::path& path) {
 // Independent PMX 2.0 fixture: a bent two-link leg, an IK controller,
 // fixed/local axes, append rotation/translation, and a group morph.
 void WriteComplexModel(const std::filesystem::path& path, bool withPhysics = false,
-                       bool renderFeatures = false) {
+                       bool renderFeatures = false, float alpha = 1) {
     Bytes b;
     const auto text = [&](const wchar_t* value) {
         b.U(static_cast<unsigned>(wcslen(value) * 2));
@@ -210,7 +211,7 @@ void WriteComplexModel(const std::filesystem::path& path, bool withPhysics = fal
     text(L"surface");
     text(L"");
     for (int i = 0; i < 4; ++i)
-        b.F(1);
+        b.F(i == 3 ? alpha : 1.f);
     vector(0, 0, 0);
     b.F(0);
     vector(.5f, .5f, .5f);
@@ -504,7 +505,9 @@ struct Fixture {
     std::filesystem::path directory;
     bool ready = false;
     explicit Fixture(bool allowMemoryDevice = false,
-                     DWORD vertexProcessing = D3DCREATE_SOFTWARE_VERTEXPROCESSING) {
+                     DWORD vertexProcessing = D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+                     IDirect3D9* explicitApi = nullptr,
+                     const std::function<IDirect3DDevice9*(IDirect3DDevice9*)>& decorateDevice = {}) {
         app->state = {};
         wchar_t temp[MAX_PATH]{}, unique[MAX_PATH]{};
         Check(GetTempPathW(MAX_PATH, temp) && GetTempFileNameW(temp, L"mds", 0, unique),
@@ -518,7 +521,11 @@ struct Fixture {
         std::filesystem::create_directory(directory);
         window = CreateWindowW(L"STATIC", L"Scene roundtrip", WS_OVERLAPPED, 0, 0, 900, 900,
                                nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
-        d3d = Direct3DCreate9(D3D_SDK_VERSION);
+        d3d = explicitApi;
+        if (d3d)
+            d3d->AddRef();
+        else
+            d3d = Direct3DCreate9(D3D_SDK_VERSION);
         if (!window || !d3d)
             return;
         D3DPRESENT_PARAMETERS pp{};
@@ -556,6 +563,8 @@ struct Fixture {
                 std::puts("scene state fixture uses a D3D9 reference device");
             }
         }
+        if (decorateDevice)
+            device = decorateDevice(device);
         app->InitDefaults();
         app->Hwnd() = window;
         app->HInstance() = GetModuleHandleW(nullptr);

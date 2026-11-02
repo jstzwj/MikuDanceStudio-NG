@@ -1756,6 +1756,15 @@ if(BUILD_TESTING)
     target_compile_definitions(scene_effect_gpu_test PRIVATE MDS_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME scene_effect_gpu COMMAND scene_effect_gpu_test)
     set_tests_properties(scene_effect_gpu PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        # Explicit local oracle: proprietary original EXE is supplied at runtime.
+        # Its native window is never shown; ordinary public CI needs no binary.
+        add_executable(editor_scene_original_gpu_test EXCLUDE_FROM_ALL tests/editor_scene_original_gpu_test.cpp)
+        target_include_directories(editor_scene_original_gpu_test PRIVATE third_party/mmeffect/src/mmeffect)
+        target_link_libraries(editor_scene_original_gpu_test PRIVATE mikudancestudio_core MMEffect dsound bcrypt
+            mikudancestudio_editor_core mikudancestudio_scene_render)
+        target_compile_definitions(editor_scene_original_gpu_test PRIVATE MDS_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+    endif()
     if(MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 4)
         # Leave the non-relocatable original x86 EXE's 0x400000..0x5A3000 free.
         target_link_options(scene_render_gpu_test PRIVATE /BASE:0x20000000 /DYNAMICBASE:NO)

@@ -291,7 +291,7 @@ P4 实施顺序：可编辑 PMM 文档与关键帧拓扑 → 共享 EditorSessio
 
 最近进展：模型绘制／计算顺序已接入共享命令与三语言原版模板，24 组原版隐藏对话框对照通过。新增 Qt `dist` 目标、依赖部署、编译缓存和三平台下载产物，Windows／Linux／macOS 开发包均通过脱离 SDK 的重定位启动、翻译、着色器编译及离屏渲染检查；见 CI [41366224450](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41366224450)。此前物理帧 ON／OFF、时间轴选择、重力、关键帧倍率与偏移等分项证据保留于 [P4 验收记录](docs/CROSS_PLATFORM_P4.md)。完整输入／IME／DPI、其余对话框和剪贴板链式操作、原生音频及 C1 整帧验收仍未完成，P4 仍为实施中。
 
-2026-11-03 增量：口型帧偏移及其数值对话框已接入，原版完整记录池、删除槽复用、定位和播放的 240 组独立对照通过；低功耗帧门禁通过 48 组完整命令和 432 组原版指令检查。自动眨眼注册新增 32 组原版命令对照，三语言原版对话框模板现覆盖 32 类，菜单实现 80／103 项。本地 36 项 P4 回归通过。Windows Remote Audio、macOS 15／26 AudioQueue 和 Linux 指定虚拟设备的 120 秒静音时钟测试已分别通过，Sour Miku 与三平台生成场景的完整 CPU／GPU 帧预算已有记录；这不代表任意设备或物理输出延迟均已验收。独立原版整帧 GPU 对照仍受当前普通 DX9 不可用阻塞，正在验证显式 D3D9On12 路径，其余输入、布局和完整命令门禁继续实施。
+2026-11-03 增量：口型帧偏移及其数值对话框已接入，原版完整记录池、删除槽复用、定位和播放的 240 组独立对照通过；低功耗帧门禁通过 48 组完整命令和 432 组原版指令检查。自动眨眼注册新增 32 组原版命令对照，三语言原版对话框模板现覆盖 32 类，菜单实现 80／103 项。本地 36 项 P4 回归通过。Windows Remote Audio、macOS 15／26 AudioQueue 和 Linux 指定虚拟设备的 120 秒静音时钟测试已分别通过，Sour Miku 与三平台生成场景的完整 CPU／GPU 帧预算已有记录；这不代表任意设备或物理输出延迟均已验收。独立原版整帧 GPU 对照已通过显式 DX9 Ex 硬件配置的 48 组生成 PMD／PMX 检查，覆盖半透明、骨骼／Morph 姿态、两种阴影、奇数尺寸及严格重复提交；普通 DX9 与 Managed 重建行为未据此验收。组合场景、输入、布局和完整命令门禁继续实施。
 
 原生 Metal 增量（2026-11-02）：通用窗口租约、原生 Metal 离屏与 `CAMetalLayer` 呈现已接入，macOS 默认使用 Metal。共享 HLSL 的材质、自阴影、MRT／HDR、mip、后处理和动态缓冲门禁，以及 Qt 原生 drawable 严格比较、2× 缩放、窗口重建、Metal／Vulkan 切换、无 MoltenVK 发布包搬迁测试均已通过；三平台编辑器回归见 [41430923652](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41430923652)，macOS 26 追加验收见 [41430845275](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41430845275)，具体能力和剩余硬件验收见 [Metal 后端记录](docs/METAL_BACKEND.md)。这不替代 P4/C1 的原版行为验收。
 
