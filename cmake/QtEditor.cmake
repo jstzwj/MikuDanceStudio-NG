@@ -1,5 +1,18 @@
 find_package(Qt6 6.8 REQUIRED COMPONENTS Widgets Multimedia Test)
 if(APPLE)
+    # Qt 6.8.3 falls back to a literal AGL link flag when the SDK has no AGL.
+    # Qt does not use this obsolete framework; upstream removed the dependency:
+    # https://github.com/qt/qtbase/commit/cdb33c3d5621ce035ad6950c8e2268fe94b73de5
+    # Remove only that missing-framework fallback, retaining OpenGL and every
+    # other Qt dependency. Newer Qt packages need no adjustment.
+    if(TARGET WrapOpenGL::WrapOpenGL AND NOT WrapOpenGL_AGL)
+        get_target_property(mds_qt_gl_links WrapOpenGL::WrapOpenGL INTERFACE_LINK_LIBRARIES)
+        if("-framework AGL" IN_LIST mds_qt_gl_links)
+            list(REMOVE_ITEM mds_qt_gl_links "-framework AGL")
+            set_property(TARGET WrapOpenGL::WrapOpenGL PROPERTY INTERFACE_LINK_LIBRARIES "${mds_qt_gl_links}")
+            message(STATUS "Qt: removed obsolete AGL fallback for this macOS SDK")
+        endif()
+    endif()
     enable_language(OBJCXX)
 elseif(UNIX)
     # Protocol metadata is C. Enable it in directory scope so CMake retains

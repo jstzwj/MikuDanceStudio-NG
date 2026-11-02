@@ -30,15 +30,28 @@ int main(int argc, char** argv) {
     {
         QWindow host;
         host.resize(17, 19);
+#ifndef _WIN32
+        // Wayland creates its wl_surface when exposed. This process is already
+        // restricted to an isolated display; Windows stays hidden throughout.
+        host.show();
+        app.processEvents();
+#endif
         auto original = qt::QtSurface(host, reason);
         CHECK(original && original->health() == rhi::SurfaceHealth::Ready);
         host.destroy();
         CHECK(original->health() == rhi::SurfaceHealth::Removed);
         host.create();
         CHECK(original->health() == rhi::SurfaceHealth::Removed);
+#ifndef _WIN32
+        host.show();
+        app.processEvents();
+#endif
         auto recreated = qt::QtSurface(host, reason);
         CHECK(recreated && recreated->health() == rhi::SurfaceHealth::Ready);
-        CHECK(original->health() == rhi::SurfaceHealth::Removed && !host.isVisible());
+        CHECK(original->health() == rhi::SurfaceHealth::Removed);
+#ifdef _WIN32
+        CHECK(!host.isVisible());
+#endif
     }
     CHECK(argc == 3);
     const auto root = std::filesystem::absolute(argv[1]);
