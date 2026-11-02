@@ -291,6 +291,8 @@ P4 实施顺序：可编辑 PMM 文档与关键帧拓扑 → 共享 EditorSessio
 
 最近进展：模型绘制／计算顺序已接入共享命令与三语言原版模板，24 组原版隐藏对话框对照通过。新增 Qt `dist` 目标、依赖部署、编译缓存和三平台下载产物，Windows／Linux／macOS 开发包均通过脱离 SDK 的重定位启动、翻译、着色器编译及离屏渲染检查；见 CI [41366224450](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41366224450)。此前物理帧 ON／OFF、时间轴选择、重力、关键帧倍率与偏移等分项证据保留于 [P4 验收记录](docs/CROSS_PLATFORM_P4.md)。完整输入／IME／DPI、其余对话框和剪贴板链式操作、原生音频及 C1 整帧验收仍未完成，P4 仍为实施中。
 
+原生 Metal 增量（2026-11-02）：通用窗口租约、原生 Metal 离屏与 `CAMetalLayer` 呈现已接入，macOS 默认使用 Metal。共享 HLSL 的材质、自阴影、MRT／HDR、mip、后处理和动态缓冲门禁，以及 Qt 原生 drawable 严格比较、2× 缩放、窗口重建、Metal／Vulkan 切换、无 MoltenVK 发布包搬迁测试均已通过；三平台编辑器回归见 [41427342227](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41427342227)，具体能力和剩余硬件验收见 [Metal 后端记录](docs/METAL_BACKEND.md)。这不替代 P4/C1 的原版行为验收。
+
 每个提交围绕一个可验收边界：接口、共享实现、Windows 适配和必要回归一起修改。迁出算法后减少重复实现；删除旧路径前先证明替代路径覆盖对应行为。
 
 main 的兼容修复通过共享层传播到 next 和各前端；固定兼容基线，合并时记录数值、文件或效果范围变化。平台专用代码集中在适配模块，避免在核心算法内持续扩散平台分支。

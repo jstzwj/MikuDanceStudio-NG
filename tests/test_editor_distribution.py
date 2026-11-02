@@ -58,6 +58,21 @@ def main():
         diagnostic.with_suffix('.log').write_text(result.stdout + result.stderr, encoding='utf-8')
         if result.returncode:
             print(result.stdout, result.stderr)
+            # Keep a native stack for packaging-only crashes on isolated Apple
+            # runners. The original failure remains fatal even if rerunning it
+            # under the debugger succeeds; never turn this into a retry gate.
+            if system == 'Darwin' and os.environ.get('GITHUB_ACTIONS') == 'true':
+                try:
+                    trace = subprocess.run(
+                        ['/usr/bin/lldb', '--batch', '-o', 'run', '-k', 'thread backtrace all',
+                         '--', str(exe), '--deployment-check', str(report), str(fixtures / 'v2.pmm')],
+                        cwd=root, env=env, capture_output=True, text=True, encoding='utf-8',
+                        errors='replace', timeout=60)
+                    diagnostic.with_suffix('.lldb.log').write_text(trace.stdout + trace.stderr,
+                                                                   encoding='utf-8')
+                    print(trace.stdout, trace.stderr)
+                except (OSError, subprocess.TimeoutExpired) as error:
+                    print(f'Could not collect native crash stack: {error}')
             raise RuntimeError(f'Relocated distribution failed ({result.returncode}); see {diagnostic.with_suffix(".log")}')
         evidence = json.loads(report.read_text(encoding='utf-8'))
         for key in ('plugins', 'translations', 'assets'):
