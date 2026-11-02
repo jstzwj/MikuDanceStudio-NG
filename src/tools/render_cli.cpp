@@ -250,7 +250,8 @@ int Run(const std::vector<std::string>& args) {
            << ",\"backend\":"
            << Quote(options.backend == Backend::Vulkan  ? "vulkan"
                     : options.backend == Backend::D3D11 ? "dx11"
-                                                        : options.backend == Backend::Metal ? "metal" : "dx12")
+                    : options.backend == Backend::Metal ? "metal"
+                                                        : "dx12")
            << ",\"width\":" << actual.description.width
            << ",\"height\":" << actual.description.height << ",\"frames\":" << frames
            << ",\"cpu_updates\":" << scene.Counters().frames - initial.frames

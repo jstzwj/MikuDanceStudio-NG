@@ -131,7 +131,7 @@ jobs:
           name: p3-macos-dxc
           path: out/dxc
       - run: chmod +x out/dxc/bin/dxc && brew install spirv-tools ccache
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         with:
           path: |
             ~/Library/Caches/ccache
@@ -141,7 +141,7 @@ jobs:
       - name: Build without Vulkan or MoltenVK
         run: |
           cmake -S cmake/portable-render -B out/metal -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache -DMDS_DXC="$PWD/out/dxc/bin/dxc" -DMIKUDANCESTUDIO_RHI_VULKAN=OFF -DMIKUDANCESTUDIO_RHI_METAL=ON
-          cmake --build out/metal --parallel 3
+          cmake --build out/metal --target rhi_metal_resources_test rhi_generic_shader_test rhi_post_process_test rhi_mrt_hdr_test rhi_render_mips_test rhi_multipass_gpu_test rhi_dynamic_buffer_test mds_render_cli --parallel 3
       - name: Native Metal offscreen regressions
         env:
           MTL_DEBUG_LAYER: '1'
@@ -154,3 +154,10 @@ jobs:
             out/metal/metal.xml
             out/metal/Testing/Temporary/
             out/metal/metal-scenes/
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            ~/Library/Caches/ccache
+            out/metal/_deps
+          key: metal-macos15-${{ hashFiles('cmake/Metal.cmake') }}-${{ github.sha }}

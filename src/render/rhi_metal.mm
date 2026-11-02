@@ -13,7 +13,7 @@
 
 namespace mikudancestudio::rhi {
 namespace {
-constexpr std::size_t UniformBytes = 16 * 1024 * 1024;
+constexpr std::size_t UniformBytes = 2 * 1024 * 1024;
 constexpr unsigned VertexBufferSlot = 16, MaxDraws = 4096;
 MTLPixelFormat PixelFormat(TextureFormat f) {
     switch (f) {
@@ -128,7 +128,7 @@ public:
     ShaderCapabilities ShaderFeatures() const override {
         auto c = GraphicsShaderProfile(detail::RuntimeSpirvCompilerAvailable(), true);
         c.constantAlignment = 256;
-        c.legacyDrawConstantBytes = 2048;
+        c.legacyDrawConstantBytes = 2560;
         c.maxFrameConstantBytes = UniformBytes;
         c.maxColorAttachments = 4;
         return c;
@@ -219,47 +219,51 @@ public:
     }
     id<MTLTexture> MakeTexture(unsigned w, unsigned h, MTLPixelFormat f, unsigned mips,
                                MTLTextureUsage usage) {
-        auto d = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:f
-                                                                    width:w
-                                                                   height:h
-                                                                mipmapped:NO];
-        d.mipmapLevelCount = mips;
-        d.storageMode = MTLStorageModePrivate;
-        d.usage = usage;
-        return [native newTextureWithDescriptor:d];
+        @autoreleasepool {
+            auto d = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:f
+                                                                        width:w
+                                                                       height:h
+                                                                    mipmapped:NO];
+            d.mipmapLevelCount = mips;
+            d.storageMode = MTLStorageModePrivate;
+            d.usage = usage;
+            return [native newTextureWithDescriptor:d];
+        }
     }
     bool UploadImage(id<MTLTexture> target, const std::vector<RgbaImage>& levels) {
-        if (inFrame)
-            return false;
-        auto cmd = [queue commandBuffer];
-        auto blit = [cmd blitCommandEncoder];
-        if (!blit)
-            return false;
-        for (unsigned n = 0; n < levels.size(); ++n) {
-            const auto& image = levels[n];
-            const std::size_t pitch = (std::size_t(image.width) * 4 + 255) & ~std::size_t(255);
-            auto staging = [native newBufferWithLength:pitch * image.height
-                                               options:MTLResourceStorageModeShared];
-            if (!staging) {
-                [blit endEncoding];
+        @autoreleasepool {
+            if (inFrame)
                 return false;
+            auto cmd = [queue commandBuffer];
+            auto blit = [cmd blitCommandEncoder];
+            if (!blit)
+                return false;
+            for (unsigned n = 0; n < levels.size(); ++n) {
+                const auto& image = levels[n];
+                const std::size_t pitch = (std::size_t(image.width) * 4 + 255) & ~std::size_t(255);
+                auto staging = [native newBufferWithLength:pitch * image.height
+                                                   options:MTLResourceStorageModeShared];
+                if (!staging) {
+                    [blit endEncoding];
+                    return false;
+                }
+                for (unsigned y = 0; y < image.height; ++y)
+                    std::memcpy(static_cast<char*>(staging.contents) + y * pitch,
+                                image.pixels.data() + std::size_t(y) * image.width * 4,
+                                image.width * 4);
+                [blit copyFromBuffer:staging
+                           sourceOffset:0
+                      sourceBytesPerRow:pitch
+                    sourceBytesPerImage:pitch * image.height
+                             sourceSize:MTLSizeMake(image.width, image.height, 1)
+                              toTexture:target
+                       destinationSlice:0
+                       destinationLevel:n
+                      destinationOrigin:MTLOriginMake(0, 0, 0)];
             }
-            for (unsigned y = 0; y < image.height; ++y)
-                std::memcpy(static_cast<char*>(staging.contents) + y * pitch,
-                            image.pixels.data() + std::size_t(y) * image.width * 4,
-                            image.width * 4);
-            [blit copyFromBuffer:staging
-                       sourceOffset:0
-                  sourceBytesPerRow:pitch
-                sourceBytesPerImage:pitch * image.height
-                         sourceSize:MTLSizeMake(image.width, image.height, 1)
-                          toTexture:target
-                   destinationSlice:0
-                   destinationLevel:n
-                  destinationOrigin:MTLOriginMake(0, 0, 0)];
+            [blit endEncoding];
+            return Complete(cmd);
         }
-        [blit endEncoding];
-        return Complete(cmd);
     }
     Handle CreateBuffer(BufferDesc d, const void* bytes) override {
         if (!Live() || !d.size || d.size > native.maxBufferLength || unsigned(d.usage) > 2 ||
@@ -359,7 +363,7 @@ public:
             return {};
         Resource r;
         r.textureDesc = {d.width, d.height, d.format};
-        auto usage = MTLTextureUsageRenderTarget;
+        MTLTextureUsage usage = MTLTextureUsageRenderTarget;
         if (d.access & unsigned(TextureAccess::Sampled))
             usage |= MTLTextureUsageShaderRead;
         r.texture = MakeTexture(d.width, d.height, PixelFormat(d.format), d.mips, usage);
@@ -431,55 +435,59 @@ public:
         }
     }
     bool BeginNative(const RenderPassDesc* pass, ClearColor clear = {}) {
-        EndEncoder();
-        auto desc = [MTLRenderPassDescriptor renderPassDescriptor];
-        auto colors =
-            pass ? ColorAttachments(*pass) : std::vector<PassAttachment>{PassAttachment{}};
-        for (unsigned n = 0; n < colors.size(); ++n) {
-            const auto& attachment = colors[n];
-            auto nativeAttachment = desc.colorAttachments[n];
-            auto* resource = pass ? Find(attachment.texture) : nullptr;
-            nativeAttachment.texture = resource ? resource->texture : color;
-            if (resource)
-                resource->lastUse = issued + 1;
-            nativeAttachment.loadAction = Load(attachment.load);
-            nativeAttachment.storeAction = Store(attachment.store);
-            auto c = pass ? attachment.clear : clear;
-            nativeAttachment.clearColor = MTLClearColorMake(c.red, c.green, c.blue, c.alpha);
+        @autoreleasepool {
+            EndEncoder();
+            auto desc = [MTLRenderPassDescriptor renderPassDescriptor];
+            auto colors =
+                pass ? ColorAttachments(*pass) : std::vector<PassAttachment>{PassAttachment{}};
+            for (unsigned n = 0; n < colors.size(); ++n) {
+                const auto& attachment = colors[n];
+                auto nativeAttachment = desc.colorAttachments[n];
+                auto* resource = pass ? Find(attachment.texture) : nullptr;
+                nativeAttachment.texture = resource ? resource->texture : color;
+                if (resource)
+                    resource->lastUse = issued + 1;
+                nativeAttachment.loadAction = Load(attachment.load);
+                nativeAttachment.storeAction = Store(attachment.store);
+                auto c = pass ? attachment.clear : clear;
+                nativeAttachment.clearColor = MTLClearColorMake(c.red, c.green, c.blue, c.alpha);
+            }
+            if (!pass || pass->depthStencil) {
+                const auto attachment = pass ? *pass->depthStencil : PassAttachment{};
+                auto* resource = pass ? Find(attachment.texture) : nullptr;
+                auto z = resource ? resource->texture : depth;
+                if (resource)
+                    resource->lastUse = issued + 1;
+                desc.depthAttachment.texture = desc.stencilAttachment.texture = z;
+                desc.depthAttachment.loadAction = desc.stencilAttachment.loadAction =
+                    Load(attachment.load);
+                desc.depthAttachment.storeAction = desc.stencilAttachment.storeAction =
+                    Store(attachment.store);
+                desc.depthAttachment.clearDepth = attachment.clearDepth;
+                desc.stencilAttachment.clearStencil = attachment.clearStencil;
+            }
+            encoder = [commands renderCommandEncoderWithDescriptor:desc];
+            return encoder != nil;
         }
-        if (!pass || pass->depthStencil) {
-            const auto attachment = pass ? *pass->depthStencil : PassAttachment{};
-            auto* resource = pass ? Find(attachment.texture) : nullptr;
-            auto z = resource ? resource->texture : depth;
-            if (resource)
-                resource->lastUse = issued + 1;
-            desc.depthAttachment.texture = desc.stencilAttachment.texture = z;
-            desc.depthAttachment.loadAction = desc.stencilAttachment.loadAction =
-                Load(attachment.load);
-            desc.depthAttachment.storeAction = desc.stencilAttachment.storeAction =
-                Store(attachment.store);
-            desc.depthAttachment.clearDepth = attachment.clearDepth;
-            desc.stencilAttachment.clearStencil = attachment.clearStencil;
-        }
-        encoder = [commands renderCommandEncoderWithDescriptor:desc];
-        return encoder != nil;
     }
     bool BeginFrame(ClearColor clear) override {
-        Collect();
-        if (!Live() || inFrame || !color)
-            return false;
-        frameIndex = unsigned(issued % frames.size());
-        auto& f = frames[frameIndex];
-        if (f.serial && !WaitCompletion({status.identity, f.serial}, 5000))
-            return false;
-        f.offset = 0;
-        draws = 0;
-        commands = [queue commandBuffer];
-        if (!commands)
-            return false;
-        inFrame = true;
-        modelReady = genericReady = genericBound = false;
-        return BeginNative(nullptr, clear);
+        @autoreleasepool {
+            Collect();
+            if (!Live() || inFrame || !color)
+                return false;
+            frameIndex = unsigned(issued % frames.size());
+            auto& f = frames[frameIndex];
+            if (f.serial && !WaitCompletion({status.identity, f.serial}, 5000))
+                return false;
+            f.offset = 0;
+            draws = 0;
+            commands = [queue commandBuffer];
+            if (!commands)
+                return false;
+            inFrame = true;
+            modelReady = genericReady = genericBound = false;
+            return BeginNative(nullptr, clear);
+        }
     }
     bool BeginRenderPass(const RenderPassDesc& p) override {
         if (!Live() || !inFrame || !passes.Begin(p))
@@ -534,48 +542,52 @@ public:
         return true;
     }
     bool EndFrame() override {
-        if (!Live() || !inFrame || passes.Active())
-            return false;
-        EndEncoder();
-        [commands commit];
-        submissions.push_back({++issued, commands});
-        frames[frameIndex].serial = issued;
-        commands = nil;
-        inFrame = false;
-        modelReady = genericReady = genericBound = false;
-        return true;
+        @autoreleasepool {
+            if (!Live() || !inFrame || passes.Active())
+                return false;
+            EndEncoder();
+            [commands commit];
+            submissions.push_back({++issued, commands});
+            frames[frameIndex].serial = issued;
+            commands = nil;
+            inFrame = false;
+            modelReady = genericReady = genericBound = false;
+            return true;
+        }
     }
-    bool Present() override { return !inFrame && Live(); }
+    bool Present() override { return false; }
     bool Read(id<MTLTexture> texture, unsigned bytesPerPixel, std::vector<std::uint8_t>& bytes) {
-        if (!Live() || inFrame || !texture)
-            return false;
-        const auto pitch = (texture.width * bytesPerPixel + 255) & ~NSUInteger(255);
-        auto staging = [native newBufferWithLength:pitch * texture.height
-                                           options:MTLResourceStorageModeShared];
-        if (!staging)
-            return false;
-        auto cmd = [queue commandBuffer];
-        auto blit = [cmd blitCommandEncoder];
-        if (!blit)
-            return false;
-        [blit copyFromTexture:texture
-                         sourceSlice:0
-                         sourceLevel:0
-                        sourceOrigin:MTLOriginMake(0, 0, 0)
-                          sourceSize:MTLSizeMake(texture.width, texture.height, 1)
-                            toBuffer:staging
-                   destinationOffset:0
-              destinationBytesPerRow:pitch
-            destinationBytesPerImage:pitch * texture.height];
-        [blit endEncoding];
-        if (!Complete(cmd))
-            return false;
-        const auto rowBytes = texture.width * bytesPerPixel;
-        bytes.resize(rowBytes * texture.height);
-        for (unsigned y = 0; y < texture.height; ++y)
-            std::memcpy(bytes.data() + y * rowBytes,
-                        static_cast<const char*>(staging.contents) + y * pitch, rowBytes);
-        return true;
+        @autoreleasepool {
+            if (!Live() || inFrame || !texture)
+                return false;
+            const auto pitch = (texture.width * bytesPerPixel + 255) & ~NSUInteger(255);
+            auto staging = [native newBufferWithLength:pitch * texture.height
+                                               options:MTLResourceStorageModeShared];
+            if (!staging)
+                return false;
+            auto cmd = [queue commandBuffer];
+            auto blit = [cmd blitCommandEncoder];
+            if (!blit)
+                return false;
+            [blit copyFromTexture:texture
+                             sourceSlice:0
+                             sourceLevel:0
+                            sourceOrigin:MTLOriginMake(0, 0, 0)
+                              sourceSize:MTLSizeMake(texture.width, texture.height, 1)
+                                toBuffer:staging
+                       destinationOffset:0
+                  destinationBytesPerRow:pitch
+                destinationBytesPerImage:pitch * texture.height];
+            [blit endEncoding];
+            if (!Complete(cmd))
+                return false;
+            const auto rowBytes = texture.width * bytesPerPixel;
+            bytes.resize(rowBytes * texture.height);
+            for (unsigned y = 0; y < texture.height; ++y)
+                std::memcpy(bytes.data() + y * rowBytes,
+                            static_cast<const char*>(staging.contents) + y * pitch, rowBytes);
+            return true;
+        }
     }
     bool ReadModelTarget(RgbaImage& image) override {
         std::vector<std::uint8_t> bytes;
@@ -615,52 +627,55 @@ public:
     bool SetFixedPipeline(FixedPipelineState) override { return false; }
     id<MTLFunction> Function(const std::uint32_t* words, std::size_t count,
                              const std::string& entry, bool vertex, bool genericAbi) {
-        try {
-            spirv_cross::CompilerMSL compiler(words, count);
-            const auto stage = vertex ? spv::ExecutionModelVertex : spv::ExecutionModelFragment;
-            compiler.set_entry_point(entry, stage);
-            auto options = compiler.get_msl_options();
-            options.platform = spirv_cross::CompilerMSL::Options::macOS;
-            options.set_msl_version(2, 3);
-            compiler.set_msl_options(options);
-            for (unsigned i = 0; i < 4; ++i) {
-                spirv_cross::MSLResourceBinding b;
-                b.stage = stage;
-                b.binding = i;
-                b.msl_buffer = i;
-                compiler.add_msl_resource_binding(b);
-            }
-            for (unsigned i = 0; i < (genericAbi ? GraphicsTextureSlots : 4); ++i) {
-                spirv_cross::MSLResourceBinding b;
-                b.stage = stage;
-                b.binding = 4 + i;
-                b.msl_texture = i;
-                compiler.add_msl_resource_binding(b);
-                b.binding = (genericAbi ? 20 : 8) + i;
-                b.msl_sampler = i;
-                compiler.add_msl_resource_binding(b);
-            }
-            const auto msl = compiler.compile();
-            auto compile = [MTLCompileOptions new];
-            compile.languageVersion = MTLLanguageVersion2_3;
-            compile.fastMathEnabled = NO;
-            NSError* failure = nil;
-            auto library = [native newLibraryWithSource:[NSString stringWithUTF8String:msl.c_str()]
-                                                options:compile
-                                                  error:&failure];
-            if (!library) {
-                error = failure.localizedDescription.UTF8String;
+        @autoreleasepool {
+            try {
+                spirv_cross::CompilerMSL compiler(words, count);
+                const auto stage = vertex ? spv::ExecutionModelVertex : spv::ExecutionModelFragment;
+                compiler.set_entry_point(entry, stage);
+                auto options = compiler.get_msl_options();
+                options.platform = spirv_cross::CompilerMSL::Options::macOS;
+                options.set_msl_version(2, 3);
+                compiler.set_msl_options(options);
+                for (unsigned i = 0; i < 4; ++i) {
+                    spirv_cross::MSLResourceBinding b;
+                    b.stage = stage;
+                    b.binding = i;
+                    b.msl_buffer = i;
+                    compiler.add_msl_resource_binding(b);
+                }
+                for (unsigned i = 0; i < (genericAbi ? GraphicsTextureSlots : 4); ++i) {
+                    spirv_cross::MSLResourceBinding b;
+                    b.stage = stage;
+                    b.binding = 4 + i;
+                    b.msl_texture = i;
+                    compiler.add_msl_resource_binding(b);
+                    b.binding = (genericAbi ? 20 : 8) + i;
+                    b.msl_sampler = i;
+                    compiler.add_msl_resource_binding(b);
+                }
+                const auto msl = compiler.compile();
+                auto compile = [MTLCompileOptions new];
+                compile.languageVersion = MTLLanguageVersion2_3;
+                compile.fastMathEnabled = NO;
+                NSError* failure = nil;
+                auto library =
+                    [native newLibraryWithSource:[NSString stringWithUTF8String:msl.c_str()]
+                                         options:compile
+                                           error:&failure];
+                if (!library) {
+                    error = failure.localizedDescription.UTF8String;
+                    return nil;
+                }
+                const auto name = compiler.get_cleansed_entry_point_name(entry, stage);
+                auto function =
+                    [library newFunctionWithName:[NSString stringWithUTF8String:name.c_str()]];
+                if (!function)
+                    error = "metal_entrypoint_not_found";
+                return function;
+            } catch (const std::exception& e) {
+                error = e.what();
                 return nil;
             }
-            const auto name = compiler.get_cleansed_entry_point_name(entry, stage);
-            auto function =
-                [library newFunctionWithName:[NSString stringWithUTF8String:name.c_str()]];
-            if (!function)
-                error = "metal_entrypoint_not_found";
-            return function;
-        } catch (const std::exception& e) {
-            error = e.what();
-            return nil;
         }
     }
     bool PrepareShaderPipeline(const ShaderPipeline& p) override {
@@ -728,153 +743,156 @@ public:
         return true;
     }
     bool Select(const ModelPipeline& p, const ShaderProgram* shader = nullptr) {
-        std::string programKey = shader                                        ? shader->key
-                                 : p.postProcess.mode != PostProcessMode::None ? "post"
-                                 : p.shadow.mode != BuiltinShadowMode::None
-                                     ? (p.shadow.mode == BuiltinShadowMode::Outline ? "outline"
-                                        : AdditionalVertexUvs(p.vertexLayout)       ? "shadow_uv"
-                                                                                    : "shadow")
-                                 : p.vertexLayout == VertexLayout::PositionColor ? "color"
-                                 : AdditionalVertexUvs(p.vertexLayout)           ? "model_uv"
-                                                                                 : "model";
-        NativeProgram program;
-        if (shader)
-            program = programs.at(programKey);
-        else if (!Builtin(programKey, program))
-            return false;
-        std::ostringstream k;
-        k << programKey << ':';
-        for (auto value : {unsigned(p.vertexLayout),
-                           unsigned(p.raster.depthTest),
-                           unsigned(p.raster.depthWrite),
-                           unsigned(p.raster.depthCompare),
-                           unsigned(p.raster.alphaBlend),
-                           unsigned(p.raster.sourceBlend),
-                           unsigned(p.raster.destinationBlend),
-                           unsigned(p.separateAlpha),
-                           unsigned(p.sourceAlpha),
-                           unsigned(p.destinationAlpha),
-                           unsigned(p.colorOperation),
-                           unsigned(p.alphaOperation),
-                           unsigned(p.stencil),
-                           unsigned(p.stencilReadMask),
-                           unsigned(p.stencilWriteMask),
-                           unsigned(p.stencilCompare),
-                           unsigned(p.stencilFail),
-                           unsigned(p.stencilDepthFail),
-                           unsigned(p.stencilPass),
-                           unsigned(p.colorWriteMask),
-                           unsigned(ActiveDepth().pixelFormat)})
-            k << value << ',';
-        auto formats = ColorFormats();
-        for (auto f : formats)
-            k << unsigned(f) << ',';
-        const auto key = k.str();
-        auto found = pipelines.find(key);
-        if (found == pipelines.end()) {
-            auto d = [MTLRenderPipelineDescriptor new];
-            d.vertexFunction = program.vertex;
-            d.fragmentFunction = program.pixel;
-            auto vd = [MTLVertexDescriptor vertexDescriptor];
-            auto inputs =
-                shader ? shader->description.inputs : StandardShaderInputs(p.vertexLayout);
-            // Builtin postprocess and shadow shaders consume only their declared inputs.
-            if (!shader && p.postProcess.mode != PostProcessMode::None)
-                inputs = {{"POSITION", 0, 0, 0, ShaderVertexFormat::Float3},
-                          {"TEXCOORD", 0, 1, 24, ShaderVertexFormat::Float2}};
-            for (const auto& input : inputs) {
-                auto a = vd.attributes[input.location];
-                a.bufferIndex = VertexBufferSlot;
-                a.offset = input.offset;
-                a.format = input.format == ShaderVertexFormat::Float2   ? MTLVertexFormatFloat2
-                           : input.format == ShaderVertexFormat::Float3 ? MTLVertexFormatFloat3
-                           : input.format == ShaderVertexFormat::Float4
-                               ? MTLVertexFormatFloat4
-                               : MTLVertexFormatUChar4Normalized;
-            }
-            vd.layouts[VertexBufferSlot].stride = ModelVertexStride(p.vertexLayout);
-            d.vertexDescriptor = vd;
-            for (unsigned n = 0; n < formats.size(); ++n) {
-                auto a = d.colorAttachments[n];
-                a.pixelFormat = PixelFormat(formats[n]);
-                a.writeMask = MTLColorWriteMaskNone;
-                if (p.colorWriteMask & 1)
-                    a.writeMask |= MTLColorWriteMaskRed;
-                if (p.colorWriteMask & 2)
-                    a.writeMask |= MTLColorWriteMaskGreen;
-                if (p.colorWriteMask & 4)
-                    a.writeMask |= MTLColorWriteMaskBlue;
-                if (p.colorWriteMask & 8)
-                    a.writeMask |= MTLColorWriteMaskAlpha;
-                a.blendingEnabled = p.raster.alphaBlend;
-                a.sourceRGBBlendFactor = Blend(p.raster.sourceBlend);
-                a.destinationRGBBlendFactor = Blend(p.raster.destinationBlend);
-                a.sourceAlphaBlendFactor =
-                    Blend(p.separateAlpha ? p.sourceAlpha : p.raster.sourceBlend);
-                a.destinationAlphaBlendFactor =
-                    Blend(p.separateAlpha ? p.destinationAlpha : p.raster.destinationBlend);
-                a.rgbBlendOperation = MTLBlendOperation(unsigned(p.colorOperation) - 1);
-                a.alphaBlendOperation = MTLBlendOperation(unsigned(p.alphaOperation) - 1);
-            }
-            if (ActiveDepth())
-                d.depthAttachmentPixelFormat = d.stencilAttachmentPixelFormat =
-                    ActiveDepth().pixelFormat;
-            NSError* failure = nil;
-            NativePipeline pipeline;
-            pipeline.render = [native newRenderPipelineStateWithDescriptor:d error:&failure];
-            if (!pipeline.render) {
-                error = failure.localizedDescription.UTF8String;
+        @autoreleasepool {
+            std::string programKey = shader                                        ? shader->key
+                                     : p.postProcess.mode != PostProcessMode::None ? "post"
+                                     : p.shadow.mode != BuiltinShadowMode::None
+                                         ? (p.shadow.mode == BuiltinShadowMode::Outline ? "outline"
+                                            : AdditionalVertexUvs(p.vertexLayout) ? "shadow_uv"
+                                                                                  : "shadow")
+                                     : p.vertexLayout == VertexLayout::PositionColor ? "color"
+                                     : AdditionalVertexUvs(p.vertexLayout)           ? "model_uv"
+                                                                                     : "model";
+            NativeProgram program;
+            if (shader)
+                program = programs.at(programKey);
+            else if (!Builtin(programKey, program))
                 return false;
+            std::ostringstream k;
+            k << programKey << ':';
+            for (auto value : {unsigned(p.vertexLayout),
+                               unsigned(p.raster.depthTest),
+                               unsigned(p.raster.depthWrite),
+                               unsigned(p.raster.depthCompare),
+                               unsigned(p.raster.alphaBlend),
+                               unsigned(p.raster.sourceBlend),
+                               unsigned(p.raster.destinationBlend),
+                               unsigned(p.separateAlpha),
+                               unsigned(p.sourceAlpha),
+                               unsigned(p.destinationAlpha),
+                               unsigned(p.colorOperation),
+                               unsigned(p.alphaOperation),
+                               unsigned(p.stencil),
+                               unsigned(p.stencilReadMask),
+                               unsigned(p.stencilWriteMask),
+                               unsigned(p.stencilCompare),
+                               unsigned(p.stencilFail),
+                               unsigned(p.stencilDepthFail),
+                               unsigned(p.stencilPass),
+                               unsigned(p.colorWriteMask),
+                               unsigned(ActiveDepth().pixelFormat)})
+                k << value << ',';
+            auto formats = ColorFormats();
+            for (auto f : formats)
+                k << unsigned(f) << ',';
+            const auto key = k.str();
+            auto found = pipelines.find(key);
+            if (found == pipelines.end()) {
+                auto d = [MTLRenderPipelineDescriptor new];
+                d.vertexFunction = program.vertex;
+                d.fragmentFunction = program.pixel;
+                auto vd = [MTLVertexDescriptor vertexDescriptor];
+                auto inputs =
+                    shader ? shader->description.inputs : StandardShaderInputs(p.vertexLayout);
+                // Builtin postprocess and shadow shaders consume only their declared inputs.
+                if (!shader && p.postProcess.mode != PostProcessMode::None)
+                    inputs = {{"POSITION", 0, 0, 0, ShaderVertexFormat::Float3},
+                              {"TEXCOORD", 0, 1, 24, ShaderVertexFormat::Float2}};
+                for (const auto& input : inputs) {
+                    auto a = vd.attributes[input.location];
+                    a.bufferIndex = VertexBufferSlot;
+                    a.offset = input.offset;
+                    a.format = input.format == ShaderVertexFormat::Float2   ? MTLVertexFormatFloat2
+                               : input.format == ShaderVertexFormat::Float3 ? MTLVertexFormatFloat3
+                               : input.format == ShaderVertexFormat::Float4
+                                   ? MTLVertexFormatFloat4
+                                   : MTLVertexFormatUChar4Normalized;
+                }
+                vd.layouts[VertexBufferSlot].stride = ModelVertexStride(p.vertexLayout);
+                d.vertexDescriptor = vd;
+                for (unsigned n = 0; n < formats.size(); ++n) {
+                    auto a = d.colorAttachments[n];
+                    a.pixelFormat = PixelFormat(formats[n]);
+                    a.writeMask = MTLColorWriteMaskNone;
+                    if (p.colorWriteMask & 1)
+                        a.writeMask |= MTLColorWriteMaskRed;
+                    if (p.colorWriteMask & 2)
+                        a.writeMask |= MTLColorWriteMaskGreen;
+                    if (p.colorWriteMask & 4)
+                        a.writeMask |= MTLColorWriteMaskBlue;
+                    if (p.colorWriteMask & 8)
+                        a.writeMask |= MTLColorWriteMaskAlpha;
+                    a.blendingEnabled = p.raster.alphaBlend;
+                    a.sourceRGBBlendFactor = Blend(p.raster.sourceBlend);
+                    a.destinationRGBBlendFactor = Blend(p.raster.destinationBlend);
+                    a.sourceAlphaBlendFactor =
+                        Blend(p.separateAlpha ? p.sourceAlpha : p.raster.sourceBlend);
+                    a.destinationAlphaBlendFactor =
+                        Blend(p.separateAlpha ? p.destinationAlpha : p.raster.destinationBlend);
+                    a.rgbBlendOperation = MTLBlendOperation(unsigned(p.colorOperation) - 1);
+                    a.alphaBlendOperation = MTLBlendOperation(unsigned(p.alphaOperation) - 1);
+                }
+                if (ActiveDepth())
+                    d.depthAttachmentPixelFormat = d.stencilAttachmentPixelFormat =
+                        ActiveDepth().pixelFormat;
+                NSError* failure = nil;
+                NativePipeline pipeline;
+                pipeline.render = [native newRenderPipelineStateWithDescriptor:d error:&failure];
+                if (!pipeline.render) {
+                    error = failure.localizedDescription.UTF8String;
+                    return false;
+                }
+                auto ds = [MTLDepthStencilDescriptor new];
+                ds.depthCompareFunction = p.raster.depthTest
+                                              ? MTLCompareFunction(unsigned(p.raster.depthCompare))
+                                              : MTLCompareFunctionAlways;
+                ds.depthWriteEnabled = p.raster.depthWrite && p.raster.depthTest;
+                if (p.stencil) {
+                    auto s = [MTLStencilDescriptor new];
+                    s.stencilCompareFunction = MTLCompareFunction(unsigned(p.stencilCompare));
+                    s.stencilFailureOperation = Stencil(p.stencilFail);
+                    s.depthFailureOperation = Stencil(p.stencilDepthFail);
+                    s.depthStencilPassOperation = Stencil(p.stencilPass);
+                    s.readMask = p.stencilReadMask;
+                    s.writeMask = p.stencilWriteMask;
+                    ds.frontFaceStencil = ds.backFaceStencil = s;
+                }
+                pipeline.depth = [native newDepthStencilStateWithDescriptor:ds];
+                if (!pipeline.depth)
+                    return false;
+                found = pipelines.emplace(key, pipeline).first;
             }
-            auto ds = [MTLDepthStencilDescriptor new];
-            ds.depthCompareFunction = p.raster.depthTest
-                                          ? MTLCompareFunction(unsigned(p.raster.depthCompare))
-                                          : MTLCompareFunctionAlways;
-            ds.depthWriteEnabled = p.raster.depthWrite && p.raster.depthTest;
-            if (p.stencil) {
-                auto s = [MTLStencilDescriptor new];
-                s.stencilCompareFunction = MTLCompareFunction(unsigned(p.stencilCompare));
-                s.stencilFailureOperation = Stencil(p.stencilFail);
-                s.depthFailureOperation = Stencil(p.stencilDepthFail);
-                s.depthStencilPassOperation = Stencil(p.stencilPass);
-                s.readMask = p.stencilReadMask;
-                s.writeMask = p.stencilWriteMask;
-                ds.frontFaceStencil = ds.backFaceStencil = s;
+            if (!encoder) {
+                // Continue the already cleared legacy frame after an explicit pass.
+                RenderPassDesc legacy;
+                auto d = [MTLRenderPassDescriptor renderPassDescriptor];
+                d.colorAttachments[0].texture = color;
+                d.colorAttachments[0].loadAction = MTLLoadActionLoad;
+                d.colorAttachments[0].storeAction = MTLStoreActionStore;
+                d.depthAttachment.texture = d.stencilAttachment.texture = depth;
+                d.depthAttachment.loadAction = d.stencilAttachment.loadAction = MTLLoadActionLoad;
+                d.depthAttachment.storeAction = d.stencilAttachment.storeAction =
+                    MTLStoreActionStore;
+                encoder = [commands renderCommandEncoderWithDescriptor:d];
+                if (!encoder)
+                    return false;
             }
-            pipeline.depth = [native newDepthStencilStateWithDescriptor:ds];
-            if (!pipeline.depth)
-                return false;
-            found = pipelines.emplace(key, pipeline).first;
+            [encoder setRenderPipelineState:found->second.render];
+            [encoder setDepthStencilState:found->second.depth];
+            [encoder setStencilReferenceValue:p.stencilReference];
+            [encoder setFrontFacingWinding:MTLWindingClockwise];
+            [encoder setCullMode:p.raster.cull == BatchCull::None               ? MTLCullModeNone
+                                 : p.raster.cull == BatchCull::CounterClockwise ? MTLCullModeBack
+                                                                                : MTLCullModeFront];
+            const auto v =
+                p.viewport.value_or(ModelViewport{0, 0, RenderWidth(), RenderHeight(), 0, 1});
+            const double offset = p.shadow.mode == BuiltinShadowMode::None ? 0 : .5;
+            [encoder setViewport:MTLViewport{v.x + offset, v.y + offset, double(v.width),
+                                             double(v.height), v.minDepth, v.maxDepth}];
+            [encoder setScissorRect:MTLScissorRect{0, 0, RenderWidth(), RenderHeight()}];
+            viewport = v;
+            return true;
         }
-        if (!encoder) {
-            // Continue the already cleared legacy frame after an explicit pass.
-            RenderPassDesc legacy;
-            auto d = [MTLRenderPassDescriptor renderPassDescriptor];
-            d.colorAttachments[0].texture = color;
-            d.colorAttachments[0].loadAction = MTLLoadActionLoad;
-            d.colorAttachments[0].storeAction = MTLStoreActionStore;
-            d.depthAttachment.texture = d.stencilAttachment.texture = depth;
-            d.depthAttachment.loadAction = d.stencilAttachment.loadAction = MTLLoadActionLoad;
-            d.depthAttachment.storeAction = d.stencilAttachment.storeAction = MTLStoreActionStore;
-            encoder = [commands renderCommandEncoderWithDescriptor:d];
-            if (!encoder)
-                return false;
-        }
-        [encoder setRenderPipelineState:found->second.render];
-        [encoder setDepthStencilState:found->second.depth];
-        [encoder setStencilReferenceValue:p.stencilReference];
-        [encoder setFrontFacingWinding:MTLWindingClockwise];
-        [encoder setCullMode:p.raster.cull == BatchCull::None               ? MTLCullModeNone
-                             : p.raster.cull == BatchCull::CounterClockwise ? MTLCullModeBack
-                                                                            : MTLCullModeFront];
-        const auto v =
-            p.viewport.value_or(ModelViewport{0, 0, RenderWidth(), RenderHeight(), 0, 1});
-        const double offset = p.shadow.mode == BuiltinShadowMode::None ? 0 : .5;
-        [encoder setViewport:MTLViewport{v.x + offset, v.y + offset, double(v.width),
-                                         double(v.height), v.minDepth, v.maxDepth}];
-        [encoder setScissorRect:MTLScissorRect{0, 0, RenderWidth(), RenderHeight()}];
-        viewport = v;
-        return true;
     }
     bool SetModelPipeline(const ModelPipeline& p) override;
     bool SetShaderPipeline(const ShaderPipeline& p) override {
@@ -938,31 +956,34 @@ public:
         return true;
     }
     id<MTLSamplerState> Sampler(const SamplerDesc& d) {
-        std::ostringstream k;
-        for (auto v : {unsigned(d.min), unsigned(d.mag), unsigned(d.mip), unsigned(d.u),
-                       unsigned(d.v), d.maxAnisotropy})
-            k << v << ',';
-        auto found = samplers.find(k.str());
-        if (found != samplers.end())
-            return found->second;
-        auto s = [MTLSamplerDescriptor new];
-        s.minFilter = d.min == SamplerFilter::Point ? MTLSamplerMinMagFilterNearest
-                                                    : MTLSamplerMinMagFilterLinear;
-        s.magFilter = d.mag == SamplerFilter::Point ? MTLSamplerMinMagFilterNearest
-                                                    : MTLSamplerMinMagFilterLinear;
-        s.mipFilter =
-            d.mip == SamplerFilter::Point ? MTLSamplerMipFilterNearest : MTLSamplerMipFilterLinear;
-        s.sAddressMode = d.u == SamplerAddress::Wrap ? MTLSamplerAddressModeRepeat
-                                                     : MTLSamplerAddressModeClampToEdge;
-        s.tAddressMode = d.v == SamplerAddress::Wrap ? MTLSamplerAddressModeRepeat
-                                                     : MTLSamplerAddressModeClampToEdge;
-        s.maxAnisotropy = d.min == SamplerFilter::Anisotropic || d.mag == SamplerFilter::Anisotropic
-                              ? d.maxAnisotropy
-                              : 1;
-        auto sampler = [native newSamplerStateWithDescriptor:s];
-        if (sampler)
-            samplers.emplace(k.str(), sampler);
-        return sampler;
+        @autoreleasepool {
+            std::ostringstream k;
+            for (auto v : {unsigned(d.min), unsigned(d.mag), unsigned(d.mip), unsigned(d.u),
+                           unsigned(d.v), d.maxAnisotropy})
+                k << v << ',';
+            auto found = samplers.find(k.str());
+            if (found != samplers.end())
+                return found->second;
+            auto s = [MTLSamplerDescriptor new];
+            s.minFilter = d.min == SamplerFilter::Point ? MTLSamplerMinMagFilterNearest
+                                                        : MTLSamplerMinMagFilterLinear;
+            s.magFilter = d.mag == SamplerFilter::Point ? MTLSamplerMinMagFilterNearest
+                                                        : MTLSamplerMinMagFilterLinear;
+            s.mipFilter = d.mip == SamplerFilter::Point ? MTLSamplerMipFilterNearest
+                                                        : MTLSamplerMipFilterLinear;
+            s.sAddressMode = d.u == SamplerAddress::Wrap ? MTLSamplerAddressModeRepeat
+                                                         : MTLSamplerAddressModeClampToEdge;
+            s.tAddressMode = d.v == SamplerAddress::Wrap ? MTLSamplerAddressModeRepeat
+                                                         : MTLSamplerAddressModeClampToEdge;
+            s.maxAnisotropy =
+                d.min == SamplerFilter::Anisotropic || d.mag == SamplerFilter::Anisotropic
+                    ? d.maxAnisotropy
+                    : 1;
+            auto sampler = [native newSamplerStateWithDescriptor:s];
+            if (sampler)
+                samplers.emplace(k.str(), sampler);
+            return sampler;
+        }
     }
     bool Constant(unsigned slot, const void* bytes, std::size_t size, unsigned stages) {
         auto& f = frames[frameIndex];
@@ -1108,35 +1129,37 @@ public:
         return true;
     }
     bool Init(unsigned w, unsigned h) {
-        native = MTLCreateSystemDefaultDevice();
-        if (!native) {
-            error = "metal_device_unavailable";
-            return false;
-        }
-        queue = [native newCommandQueue];
-        if (!queue) {
-            error = "metal_queue_creation_failed";
-            return false;
-        }
-        for (auto& f : frames) {
-            f.uniforms =
-                [native newBufferWithLength:UniformBytes options:MTLResourceStorageModeShared];
-            if (!f.uniforms) {
-                error = "metal_uniform_arena_failed";
+        @autoreleasepool {
+            native = MTLCreateSystemDefaultDevice();
+            if (!native) {
+                error = "metal_device_unavailable";
                 return false;
             }
+            queue = [native newCommandQueue];
+            if (!queue) {
+                error = "metal_queue_creation_failed";
+                return false;
+            }
+            for (auto& f : frames) {
+                f.uniforms =
+                    [native newBufferWithLength:UniformBytes options:MTLResourceStorageModeShared];
+                if (!f.uniforms) {
+                    error = "metal_uniform_arena_failed";
+                    return false;
+                }
+            }
+            white = MakeTexture(1, 1, MTLPixelFormatRGBA8Unorm, 1, MTLTextureUsageShaderRead);
+            if (!white || !UploadImage(white, {RgbaImage{1, 1, {255, 255, 255, 255}}}))
+                return false;
+            HistoryDesc target;
+            target.width = w;
+            target.height = h;
+            if (!EnsureModelTarget(target)) {
+                error = "metal_target_creation_failed";
+                return false;
+            }
+            return true;
         }
-        white = MakeTexture(1, 1, MTLPixelFormatRGBA8Unorm, 1, MTLTextureUsageShaderRead);
-        if (!white || !UploadImage(white, {RgbaImage{1, 1, {255, 255, 255, 255}}}))
-            return false;
-        HistoryDesc target;
-        target.width = w;
-        target.height = h;
-        if (!EnsureModelTarget(target)) {
-            error = "metal_target_creation_failed";
-            return false;
-        }
-        return true;
     }
 };
 bool MetalDevice::SetModelPipeline(const ModelPipeline& p) {
