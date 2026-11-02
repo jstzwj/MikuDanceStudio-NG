@@ -33,6 +33,7 @@ struct BackendDevice {
     explicit operator bool() const { return device && swapchain; }
 };
 bool BackendAvailable(Backend);
+Backend DefaultBackend();
 BackendDevice CreateBackendDevice(const SwapchainDesc&, const BackendOptions&);
 struct OffscreenBackendDevice {
     std::unique_ptr<Device> device;

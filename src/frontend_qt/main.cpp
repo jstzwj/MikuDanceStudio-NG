@@ -33,10 +33,11 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
     const auto audioDevices = QMediaDevices::audioOutputs();
     rhi::BackendOptions options;
     const auto backend = qEnvironmentVariable("MDS_GPU_BACKEND");
-    options.backend = backend == "d3d12"                            ? rhi::Backend::D3D12
-                      : backend == "d3d11"                          ? rhi::Backend::D3D11
-                      : rhi::BackendAvailable(rhi::Backend::Vulkan) ? rhi::Backend::Vulkan
-                                                                    : rhi::Backend::D3D11;
+    options.backend = backend == "d3d12"    ? rhi::Backend::D3D12
+                      : backend == "d3d11"  ? rhi::Backend::D3D11
+                      : backend == "vulkan" ? rhi::Backend::Vulkan
+                      : backend == "metal"  ? rhi::Backend::Metal
+                                            : rhi::DefaultBackend();
     if (qEnvironmentVariable("MDS_GPU_DRIVER") == "software")
         options.driver = rhi::BackendDriver::Software;
     QImage image;
@@ -46,7 +47,7 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
         std::cerr << "deployment render: " << reason << '\n';
         return 4;
     }
-    if (rhi::BackendAvailable(rhi::Backend::Vulkan)) {
+    if (rhi::BackendAvailable(rhi::Backend::Vulkan) || rhi::BackendAvailable(rhi::Backend::Metal)) {
         rhi::ShaderModule shader;
         shader.stage = rhi::ShaderStage::Pixel;
         shader.entry = "main";
@@ -70,7 +71,9 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
                        {"audioDevices", int(audioDevices.size())},
                        {"width", image.width()},
                        {"height", image.height()},
-                       {"vulkan", rhi::BackendAvailable(rhi::Backend::Vulkan)}};
+                       {"vulkan", rhi::BackendAvailable(rhi::Backend::Vulkan)},
+                       {"metal", rhi::BackendAvailable(rhi::Backend::Metal)},
+                       {"nativeMetal", options.backend == rhi::Backend::Metal}};
     QFile output(report);
     if (!output.open(QIODevice::WriteOnly) || output.write(QJsonDocument(result).toJson()) < 0)
         return 7;

@@ -74,7 +74,7 @@ def runtime(stage, config):
         for name in ('msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll'):
             if not (bindir / name).is_file():
                 raise RuntimeError(f'The configured MSVC redistributables are missing {name}')
-    if config['vulkan']:
+    if config['vulkan'] or config.get('metal', False):
         compiler = Path(config['dxc'])
         runtime_dir = Path(config['dxc_runtime']) if config['dxc_runtime'] else compiler.parent
         copy_file(compiler, bindir / compiler.name)
@@ -107,13 +107,14 @@ def runtime(stage, config):
         if not notices:
             raise RuntimeError('Use a DXC runtime distribution containing its license files')
     if system == 'Darwin':
-        molten = Path(config['moltenvk'])
-        copy_file(molten, libdir / 'libMoltenVK.dylib')
-        notices = list(molten.parent.glob('LICENSE*'))
-        if not notices:
-            raise RuntimeError('MoltenVK runtime is missing its license notices')
-        for path in notices:
-            copy_file(path, stage / 'licenses/MoltenVK' / path.name)
+        if config['vulkan']:
+            molten = Path(config['moltenvk'])
+            copy_file(molten, libdir / 'libMoltenVK.dylib')
+            notices = list(molten.parent.glob('LICENSE*'))
+            if not notices:
+                raise RuntimeError('MoltenVK runtime is missing its license notices')
+            for path in notices:
+                copy_file(path, stage / 'licenses/MoltenVK' / path.name)
         # macdeployqt has already fixed framework dependencies. Fix the extra
         # offscreen plugin too; it was copied after that deployment step.
         tool = Path(config['qmake']).parent / 'macdeployqt'
@@ -160,7 +161,7 @@ def main():
         # stb carries its public-domain/MIT notice in the source distribution.
         copy_file(source / 'third_party/stb/stb_image.h', stage / 'licenses/stb_image.h')
         commit = run('git', '-C', source, 'rev-parse', 'HEAD', capture_output=True, text=True).stdout.strip()
-        metadata = {key: config[key] for key in ('system', 'qt', 'version', 'vulkan')}
+        metadata = {key: config[key] for key in ('system', 'qt', 'version', 'vulkan', 'metal')}
         dirty = bool(run('git', '-C', source, 'status', '--porcelain', '--untracked-files=no',
                          capture_output=True, text=True).stdout.strip())
         metadata.update(commit=commit, arch=platform.machine(), development=True, modified=dirty)

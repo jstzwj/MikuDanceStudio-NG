@@ -19,7 +19,7 @@ int main(int argc, char** argv) try {
     const auto root = std::filesystem::absolute(std::filesystem::u8path(argv[1]));
     FileAssetSource assets(std::filesystem::absolute(std::filesystem::u8path(argv[2])));
     BackendOptions options;
-    options.backend = Backend::Vulkan;
+    options.backend = DefaultBackend();
     if (const auto* backend = std::getenv("MDS_GPU_BACKEND")) {
         if (std::string(backend) == "d3d11")
             options.backend = Backend::D3D11;

@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     const auto requested = qEnvironmentVariable("MDS_GPU_BACKEND");
     for (const auto [backend, name] :
          {std::pair{rhi::Backend::D3D11, "d3d11"}, std::pair{rhi::Backend::D3D12, "d3d12"},
-          std::pair{rhi::Backend::Vulkan, "vulkan"}}) {
+          std::pair{rhi::Backend::Vulkan, "vulkan"}, std::pair{rhi::Backend::Metal, "metal"}}) {
         if (!requested.isEmpty() && requested != name)
             continue;
         if (!rhi::BackendAvailable(backend))
@@ -306,6 +306,26 @@ int main(int argc, char** argv) {
         CHECK(live.Runtime().Bodies(0) == liveBodies &&
               live.Runtime().Counters().frames == liveFrames);
         CHECK(live.Revision() == liveRevision);
+#ifdef __APPLE__
+        // Exercise the production menu transaction on the same live session.
+        for (auto selected : {rhi::Backend::Metal, rhi::Backend::Vulkan, backend}) {
+            if (!rhi::BackendAvailable(selected))
+                continue;
+            QPointer<qt::Viewport> former = editor.RenderWindow();
+            QAction* choice = nullptr;
+            for (auto* action : editor.findChildren<QAction*>())
+                if (action->property("rhiBackend").isValid() &&
+                    action->property("rhiBackend").toInt() == int(selected))
+                    choice = action;
+            CHECK(choice && choice->isEnabled());
+            choice->trigger();
+            pump();
+            CHECK(former.isNull() && editor.RenderWindow()->Options().backend == selected);
+            CHECK(editor.RenderWindow()->Render(reason, true));
+            CHECK(&live.Runtime() == liveRuntime && live.Runtime().Counters().frames == liveFrames);
+            CHECK(live.Revision() == liveRevision && live.Runtime().Snapshot(0) == liveSnapshot);
+        }
+#endif
         CHECK(live.UnloadModel(0, reason));
         editor.Refresh();
         CHECK(editor.RenderWindow()->Render(reason, true));

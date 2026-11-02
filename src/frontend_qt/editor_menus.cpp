@@ -182,8 +182,10 @@ void EditorWindow::BuildMenus() {
     renderer->setObjectName("menu.renderer");
     for (auto pair : {std::pair{rhi::Backend::D3D11, "DirectX 11"},
                       {rhi::Backend::D3D12, "DirectX 12"},
-                      {rhi::Backend::Vulkan, "Vulkan"}}) {
+                      {rhi::Backend::Vulkan, "Vulkan"},
+                      {rhi::Backend::Metal, "Metal"}}) {
         auto* a = renderer->addAction(pair.second);
+        a->setProperty("rhiBackend", int(pair.first));
         a->setEnabled(rhi::BackendAvailable(pair.first));
         a->setCheckable(true);
         a->setChecked(viewport_->Options().backend == pair.first);

@@ -65,6 +65,10 @@ def main():
             evidence[key] = str(path.relative_to(package))
         if evidence['visible'] or evidence['languages'] != ['en', 'ja', 'zh_CN'] or (evidence['width'], evidence['height']) != (96, 64):
             raise RuntimeError(f'Incomplete package check: {evidence}')
+        build = json.loads((package / 'build-info.json').read_text(encoding='utf-8'))
+        if system == 'Darwin' and build.get('metal'):
+            if not evidence.get('nativeMetal') or not (package / 'licenses/SPIRV-Cross/LICENSE').is_file():
+                raise RuntimeError('macOS package did not use native Metal with its compiler notices')
         labels = evidence['standardCancelLabels']
         if labels[0] != 'Cancel' or any(not text or text == 'Cancel' for text in labels[1:]):
             raise RuntimeError(f'Qt standard dialog translations were not deployed: {labels}')

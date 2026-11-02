@@ -230,8 +230,7 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
         controls_[spec.id] = widget;
     }
     rhi::BackendOptions options;
-    options.backend =
-        rhi::BackendAvailable(rhi::Backend::Vulkan) ? rhi::Backend::Vulkan : rhi::Backend::D3D11;
+    options.backend = rhi::DefaultBackend();
     options.vulkanLibrary = qEnvironmentVariable("MDS_TEST_VULKAN_LIBRARY").toStdString();
     if (qEnvironmentVariable("MDS_GPU_DRIVER") == "software")
         options.driver = rhi::BackendDriver::Software;

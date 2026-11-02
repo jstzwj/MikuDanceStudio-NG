@@ -5,6 +5,7 @@
 #include "rhi_shader_spirv.hpp"
 #include <spirv_msl.hpp>
 #import <Metal/Metal.h>
+#import <QuartzCore/CAMetalLayer.h>
 #include <algorithm>
 #include <chrono>
 #include <deque>
@@ -82,6 +83,72 @@ public:
     id<MTLDevice> native = nil;
     id<MTLCommandQueue> queue = nil;
     std::string error;
+    std::shared_ptr<const WindowSurfaceSource> surface;
+    SwapchainDesc presentation;
+    CAMetalLayer* layer = nil;
+    id<CAMetalDrawable> lastDrawable = nil;
+    id<MTLRenderPipelineState> presentPipeline = nil;
+    bool retired = false, drawableUnavailable = false, outputReady = false;
+    MetalStats stats;
+    SurfaceHealth Health() const {
+        if (retired || status.state == DeviceState::Removed)
+            return SurfaceHealth::Removed;
+        if (!surface)
+            return SurfaceHealth::Unknown;
+        const auto health = surface->health();
+        if (health != SurfaceHealth::Ready)
+            return health;
+        return drawableUnavailable ? SurfaceHealth::Resettable : SurfaceHealth::Ready;
+    }
+    bool ValidSurface(const SwapchainDesc& d) const {
+        return surface && ValidWindowSurface(*surface) && ValidSwapchainDesc(d) &&
+               d.window.system == WindowSystem::Cocoa &&
+               d.window.handle == surface->window.handle && d.samples == 1 && !d.quality &&
+               d.windowed && d.swap == SurfaceSwap::Discard && d.color == SurfaceColor::Rgba8 &&
+               d.depth == SurfaceDepth::Depth24Stencil8 && d.width <= 4096 && d.height <= 4096;
+    }
+    RebuildResult RebuildSurface(const SwapchainDesc& d) {
+        @autoreleasepool {
+            if (retired || !Live())
+                return RebuildResult::ReplacementRequired;
+            if (inFrame)
+                return RebuildResult::Busy;
+            if (!ValidSurface(d))
+                return RebuildResult::Unsupported;
+            const auto health = surface->health();
+            if (health == SurfaceHealth::Removed)
+                return RebuildResult::ReplacementRequired;
+            if (health != SurfaceHealth::Ready)
+                return RebuildResult::RetryLater;
+            HistoryDesc target;
+            target.width = d.width;
+            target.height = d.height;
+            const auto epoch = status.epoch;
+            if (!EnsureModelTarget(target))
+                return RebuildResult::Failed;
+            if (epoch == status.epoch) {
+                ++status.epoch;
+                passes.InvalidateContents();
+            }
+            layer.device = native;
+            layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+            // Keep explicit acceptance readback available; ordinary frames never read it.
+            layer.framebufferOnly = NO;
+            layer.opaque = YES;
+            layer.maximumDrawableCount = 3;
+            layer.allowsNextDrawableTimeout = YES;
+            layer.displaySyncEnabled = d.present == PresentMode::VSync;
+            layer.drawableSize = CGSizeMake(d.width, d.height);
+            CGColorSpaceRef space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+            layer.colorspace = space;
+            CGColorSpaceRelease(space);
+            presentation = d;
+            drawableUnavailable = false;
+            outputReady = false;
+            lastDrawable = nil;
+            return RebuildResult::Success;
+        }
+    }
     unsigned width = 0, height = 0;
     DeviceStatus status{detail::NextDeviceIdentity(), 1, DeviceState::Ready};
     struct Submission {
@@ -145,7 +212,8 @@ public:
         return {};
     }
     ModelCapabilities ModelFeatures() const override {
-        return {true, true, true, true, true, true, true, true, true, true, false, MaxDraws};
+        return {true, true, true, true, true,          true,
+                true, true, true, true, bool(surface), MaxDraws};
     }
     ResourceLifecycleCapabilities ResourceLifecycleFeatures() const override {
         return {true, true, true, false, true};
@@ -473,7 +541,7 @@ public:
     bool BeginFrame(ClearColor clear) override {
         @autoreleasepool {
             Collect();
-            if (!Live() || inFrame || !color)
+            if (!Live() || inFrame || !color || (surface && Health() != SurfaceHealth::Ready))
                 return false;
             frameIndex = unsigned(issued % frames.size());
             auto& f = frames[frameIndex];
@@ -484,6 +552,7 @@ public:
             commands = [queue commandBuffer];
             if (!commands)
                 return false;
+            outputReady = false;
             inFrame = true;
             modelReady = genericReady = genericBound = false;
             return BeginNative(nullptr, clear);
@@ -548,6 +617,7 @@ public:
             EndEncoder();
             [commands commit];
             submissions.push_back({++issued, commands});
+            outputReady = true;
             frames[frameIndex].serial = issued;
             commands = nil;
             inFrame = false;
@@ -555,7 +625,7 @@ public:
             return true;
         }
     }
-    bool Present() override { return false; }
+    bool Present() override;
     bool Read(id<MTLTexture> texture, unsigned bytesPerPixel, std::vector<std::uint8_t>& bytes) {
         @autoreleasepool {
             if (!Live() || inFrame || !texture)
@@ -581,6 +651,7 @@ public:
             [blit endEncoding];
             if (!Complete(cmd))
                 return false;
+            ++stats.readbacks;
             const auto rowBytes = texture.width * bytesPerPixel;
             bytes.resize(rowBytes * texture.height);
             for (unsigned y = 0; y < texture.height; ++y)
@@ -588,6 +659,11 @@ public:
                             static_cast<const char*>(staging.contents) + y * pitch, rowBytes);
             return true;
         }
+    }
+    bool EnsurePresentationTarget(const HistoryDesc& d) override {
+        return surface && Health() == SurfaceHealth::Ready && ValidHistoryDesc(d) &&
+               d.width == presentation.width && d.height == presentation.height && d.samples == 1 &&
+               d.color && d.depth && d.stencil && EnsureModelTarget(d);
     }
     bool ReadModelTarget(RgbaImage& image) override {
         std::vector<std::uint8_t> bytes;
@@ -1221,6 +1297,112 @@ bool MetalDevice::SetModelPipeline(const ModelPipeline& p) {
     modelReady = true;
     return true;
 }
+bool MetalDevice::Present() {
+    @autoreleasepool {
+        Collect();
+        if (!surface || !Live() || inFrame || !outputReady || Health() != SurfaceHealth::Ready)
+            return false;
+        if (!presentPipeline) {
+            NativeProgram program;
+            if (!Builtin("post", program))
+                return false;
+            auto d = [MTLRenderPipelineDescriptor new];
+            d.vertexFunction = program.vertex;
+            d.fragmentFunction = program.pixel;
+            d.colorAttachments[0].pixelFormat = MTLPixelFormatBGRA8Unorm;
+            auto v = [MTLVertexDescriptor vertexDescriptor];
+            v.attributes[0].format = MTLVertexFormatFloat3;
+            v.attributes[0].offset = 0;
+            v.attributes[0].bufferIndex = VertexBufferSlot;
+            v.attributes[1].format = MTLVertexFormatFloat2;
+            v.attributes[1].offset = 24;
+            v.attributes[1].bufferIndex = VertexBufferSlot;
+            v.layouts[VertexBufferSlot].stride = 32;
+            d.vertexDescriptor = v;
+            NSError* failure = nil;
+            presentPipeline = [native newRenderPipelineStateWithDescriptor:d error:&failure];
+            if (!presentPipeline) {
+                error = failure.localizedDescription.UTF8String;
+                return false;
+            }
+        }
+        auto drawable = [layer nextDrawable];
+        if (!drawable) {
+            drawableUnavailable = true;
+            return false;
+        }
+        if (drawable.texture.width != width || drawable.texture.height != height) {
+            drawableUnavailable = true;
+            return false;
+        }
+        // RGBA8 finalColor -> BGRA8 drawable through the shared exact-copy HLSL.
+        // No CPU readback, channel conversion, gamma transform or alpha blend.
+        auto cmd = [queue commandBuffer];
+        auto pass = [MTLRenderPassDescriptor renderPassDescriptor];
+        pass.colorAttachments[0].texture = drawable.texture;
+        pass.colorAttachments[0].loadAction = MTLLoadActionDontCare;
+        pass.colorAttachments[0].storeAction = MTLStoreActionStore;
+        auto copy = [cmd renderCommandEncoderWithDescriptor:pass];
+        if (!copy)
+            return false;
+        [copy setRenderPipelineState:presentPipeline];
+        [copy setCullMode:MTLCullModeNone];
+        [copy setViewport:MTLViewport{0, 0, double(width), double(height), 0, 1}];
+        constexpr float triangle[][8] = {
+            {-1, 1, 0, 0, 0, 1, 0, 0}, {3, 1, 0, 0, 0, 1, 2, 0}, {-1, -3, 0, 0, 0, 1, 0, 2}};
+        [copy setVertexBytes:triangle length:sizeof(triangle) atIndex:VertexBufferSlot];
+        ModelPipeline pipeline;
+        pipeline.postProcess.mode = PostProcessMode::Copy;
+        const auto constants = detail::BuildPostProcessConstants(pipeline);
+        [copy setFragmentBytes:&constants length:sizeof(constants) atIndex:3];
+        [copy setFragmentTexture:color atIndex:0];
+        auto sampler = Sampler({SamplerFilter::Point, SamplerFilter::Point, SamplerFilter::Point,
+                                SamplerAddress::Clamp, SamplerAddress::Clamp, 1});
+        [copy setFragmentSamplerState:sampler atIndex:0];
+        [copy drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+        [copy endEncoding];
+        [cmd presentDrawable:drawable];
+        [cmd commit];
+        submissions.push_back({++issued, cmd});
+        lastDrawable = drawable;
+        ++stats.presentations;
+        outputReady = false;
+        return true;
+    }
+}
+class MetalSwapchain final : public Swapchain {
+    MetalDevice& device;
+
+public:
+    explicit MetalSwapchain(MetalDevice& value) : device(value) {}
+    ~MetalSwapchain() override { Retire(); }
+    SwapchainDesc Description() const override { return device.presentation; }
+    SwapchainSupport Query(const SwapchainDesc& d) const override {
+        if (device.retired || !device.Live() || !device.ValidSurface(d) ||
+            Health() == SurfaceHealth::Removed)
+            return {};
+        return {true, true, true, true, true, 1};
+    }
+    SurfaceHealth Health() const override { return device.Health(); }
+    RebuildResult Rebuild(const SwapchainDesc& d, RebuildReason reason) override {
+        return reason == RebuildReason::DeviceReplacement ? RebuildResult::ReplacementRequired
+                                                          : device.RebuildSurface(d);
+    }
+    bool Retire() override {
+        if (device.retired)
+            return true;
+        if (device.inFrame)
+            return false;
+        if (device.Live() && device.issued &&
+            !device.WaitCompletion({device.status.identity, device.issued}, 5000))
+            return false;
+        device.retired = true;
+        ++device.status.epoch;
+        device.status.state = DeviceState::ResetPending;
+        device.passes.InvalidateContents();
+        return true;
+    }
+};
 } // namespace
 OffscreenBackendDevice CreateMetalOffscreenDevice(unsigned width, unsigned height,
                                                   const BackendOptions& options) {
@@ -1249,5 +1431,59 @@ OffscreenBackendDevice CreateMetalOffscreenDevice(unsigned width, unsigned heigh
         result.device = std::move(device);
         return result;
     }
+}
+BackendDevice CreateMetalDevice(const SwapchainDesc& desc, const BackendOptions& options) {
+    @autoreleasepool {
+        BackendDevice result;
+        if (!options.surface || options.surface->window.system != WindowSystem::Cocoa ||
+            !ValidWindowSurface(*options.surface) ||
+            desc.window.handle != options.surface->window.handle) {
+            result.reason = "invalid_metal_surface";
+            return result;
+        }
+        auto offscreen = CreateMetalOffscreenDevice(desc.width, desc.height, options);
+        if (!offscreen) {
+            result.reason = offscreen.reason;
+            return result;
+        }
+        auto* device = static_cast<MetalDevice*>(offscreen.device.get());
+        device->surface = options.surface;
+        device->layer =
+            (__bridge CAMetalLayer*)reinterpret_cast<void*>(options.surface->window.handle);
+        if (device->RebuildSurface(desc) != RebuildResult::Success) {
+            result.reason = "metal_surface_creation_failed";
+            return result;
+        }
+        result.adapter = offscreen.adapter;
+        result.swapchain = std::make_unique<MetalSwapchain>(*device);
+        result.device = std::move(offscreen.device);
+        return result;
+    }
+}
+MetalStats QueryMetalStats(Device& device) {
+    if (device.BackendType() != Backend::Metal)
+        return {};
+    auto& native = static_cast<MetalDevice&>(device);
+    native.Collect();
+    auto result = native.stats;
+    result.submissions = native.issued;
+    result.completed = native.completed;
+    return result;
+}
+bool ReadMetalPresentation(Device& device, RgbaImage& image) {
+    if (device.BackendType() != Backend::Metal)
+        return false;
+    auto& native = static_cast<MetalDevice&>(device);
+    if (!native.surface || !native.lastDrawable)
+        return false;
+    std::vector<std::uint8_t> bytes;
+    auto texture = native.lastDrawable.texture;
+    if (!native.Read(texture, 4, bytes))
+        return false;
+    for (std::size_t n = 0; n < bytes.size(); n += 4)
+        std::swap(bytes[n], bytes[n + 2]);
+    image = {unsigned(texture.width), unsigned(texture.height), {}};
+    image.pixels = std::move(bytes);
+    return true;
 }
 } // namespace mikudancestudio::rhi

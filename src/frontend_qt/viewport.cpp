@@ -21,7 +21,7 @@ Viewport::Viewport(editor::EditorSession& session, const std::filesystem::path& 
     : session_(session), builtins_(assets) {
     setObjectName("mmd.viewport");
     setSurfaceType(QSurface::RasterSurface);
-    options_.backend = rhi::Backend::Vulkan;
+    options_.backend = rhi::DefaultBackend();
     options_.vulkanLibrary = qEnvironmentVariable("MDS_TEST_VULKAN_LIBRARY").toStdString();
     if (qEnvironmentVariable("MDS_GPU_DRIVER") == "software")
         options_.driver = rhi::BackendDriver::Software;
