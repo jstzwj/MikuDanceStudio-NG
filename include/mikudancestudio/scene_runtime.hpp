@@ -33,6 +33,7 @@ public:
     bool SetModelOrder(format::ModelOrderKind, const std::vector<std::uint8_t>&);
     bool Reset(std::string&);
     bool StartPlayback(std::string&, format::PmmSceneApplication = {});
+    bool StartPlayback(std::string&, format::PmmSceneApplication, bool forcePhysicsOnOff);
     void Pause();
     bool Playing() const;
     bool Advance(float absoluteSeconds, float deltaSeconds, std::string&,

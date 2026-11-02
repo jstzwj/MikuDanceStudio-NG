@@ -36,6 +36,7 @@ struct SceneRuntime::Impl {
     int constraintId = 0;
     std::uint32_t frame = 0, randomState = 1;
     bool playing = false, failed = false;
+    std::optional<int> savedPlaybackPhysicsMode;
     std::string failure;
     Impl() { CreatePhysicsWorld(world); }
     ~Impl() {
@@ -548,7 +549,7 @@ bool SceneRuntime::Seek(std::uint32_t frame, std::string& reason,
         reason = "scene-track-seek-failed";
         return false;
     }
-    impl_->playing = false;
+    Pause();
     impl_->frame = frame;
     impl_->simulation.cursorSeconds = float(frame) / 30.f;
     impl_->simulation.remainingSeconds = 0;
@@ -608,6 +609,10 @@ bool SceneRuntime::RegisterGravity(std::string& reason) {
     return impl_->session->RegisterGravity(reason);
 }
 bool SceneRuntime::StartPlayback(std::string& reason, format::PmmSceneApplication application) {
+    return StartPlayback(reason, application, false);
+}
+bool SceneRuntime::StartPlayback(std::string& reason, format::PmmSceneApplication application,
+                                 bool forcePhysicsOnOff) {
     double evaluatedFrame;
     if (!impl_ || impl_->failed ||
         !format::PmmPlaybackFrame(impl_->simulation.cursorSeconds, evaluatedFrame,
@@ -621,6 +626,9 @@ bool SceneRuntime::StartPlayback(std::string& reason, format::PmmSceneApplicatio
         reason = "scene-playback-start-failed";
         return false;
     }
+    if (!impl_->savedPlaybackPhysicsMode)
+        impl_->savedPlaybackPhysicsMode = impl_->simulation.physicsMode;
+    impl_->simulation.physicsMode = forcePhysicsOnOff ? 2 : *impl_->savedPlaybackPhysicsMode;
     for (auto& pair : impl_->items)
         pair.second.timeline.Start(impl_->simulation.cursorSeconds, impl_->simulation.physicsMode,
                                    *pair.second.physics);
@@ -630,8 +638,15 @@ bool SceneRuntime::StartPlayback(std::string& reason, format::PmmSceneApplicatio
     return true;
 }
 void SceneRuntime::Pause() {
-    if (impl_)
+    if (impl_) {
         impl_->playing = false;
+        if (impl_->savedPlaybackPhysicsMode) {
+            impl_->simulation.physicsMode = impl_->session
+                                                ? impl_->session->Document().physics.playbackMode
+                                                : *impl_->savedPlaybackPhysicsMode;
+            impl_->savedPlaybackPhysicsMode.reset();
+        }
+    }
 }
 bool SceneRuntime::Playing() const {
     return impl_ && impl_->playing;

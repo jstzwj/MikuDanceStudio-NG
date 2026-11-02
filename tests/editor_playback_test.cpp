@@ -64,6 +64,72 @@ int main(int argc, char** argv) {
     editor::EditorSession session;
     const auto root = std::filesystem::absolute(argv[1]);
     for (const char* file : {"floor.pmd", "floor.pmx"})
+        for (unsigned mode = 0; mode < 4; ++mode)
+            for (bool force : {false, true}) {
+                editor::EditorSession policy;
+                CHECK(policy.ImportModel(root / file, reason));
+                CHECK(policy.Edit(
+                    "playback physics policy",
+                    [=](auto& d, auto&) {
+                        d.physics.playbackMode = std::uint8_t(mode);
+                        d.appearance.floorVisible = 0;
+                        d.timeline.startAtCurrent = 1;
+                        return true;
+                    },
+                    reason));
+                const auto* runtime = &policy.Runtime();
+                const auto revision = policy.Revision(), frames = runtime->Counters().frames;
+                const auto initial = runtime->Bodies(0);
+                const bool undo = policy.CanUndo(), redo = policy.CanRedo();
+                policy.SetPlaybackPhysicsOnOff(force);
+                CHECK(runtime->Counters().frames == frames && runtime->Bodies(0) == initial);
+                CHECK(policy.Revision() == revision && policy.CanUndo() == undo &&
+                      policy.CanRedo() == redo);
+                CHECK(policy.Play(reason));
+                const auto activeMode = force ? 2u : mode;
+                CHECK(runtime->Simulation().physicsMode == activeMode);
+                CHECK(policy.Document().physics.playbackMode == mode);
+                policy.SetPlaybackPhysicsOnOff(!force);
+                CHECK(runtime->Simulation().physicsMode == activeMode);
+                for (unsigned i = 0; i < 30; ++i)
+                    CHECK(policy.Advance(1. / 60, reason));
+                const auto body = runtime->Bodies(0);
+                std::cout << "policy " << file << " mode=" << mode << " force=" << force
+                          << " active=" << activeMode << " y=" << initial[0][13] << " -> "
+                          << body[0][13] << " physics="
+                          << unsigned(policy.Document().models[0].boneKeys.dense[0].physicsDisabled)
+                          << '\n';
+                CHECK(activeMode ? body[0][13] < initial[0][13] - 1 : body == initial);
+                policy.Pause();
+                CHECK(!policy.Playing() && runtime == &policy.Runtime());
+                CHECK(runtime->Simulation().physicsMode == mode);
+                CHECK(policy.Revision() == revision);
+                CHECK(policy.Play(reason));
+                CHECK(runtime->Simulation().physicsMode == (force ? mode : 2u));
+                CHECK(policy.Seek(0, reason));
+                CHECK(!policy.Playing() && runtime->Simulation().physicsMode == mode);
+                CHECK(policy.New(reason) && policy.PlaybackPhysicsOnOff() == !force);
+            }
+    for (bool loop : {false, true}) {
+        editor::EditorSession policy;
+        CHECK(policy.Edit(
+            "short forced run",
+            [=](auto& d, auto&) {
+                d.physics.playbackMode = 0;
+                d.timeline.playStopFrame = 3;
+                d.timeline.playbackLoop = loop;
+                return true;
+            },
+            reason));
+        policy.SetPlaybackPhysicsOnOff(true);
+        CHECK(policy.Play(reason) && policy.Runtime().Simulation().physicsMode == 2);
+        CHECK(policy.Advance(.2, reason));
+        CHECK(policy.Playing() == loop);
+        CHECK(policy.Runtime().Simulation().physicsMode == (loop ? 2 : 0));
+        policy.Pause();
+        CHECK(policy.Runtime().Simulation().physicsMode == 0);
+    }
+    for (const char* file : {"floor.pmd", "floor.pmx"})
         for (unsigned mode = 0; mode < 4; ++mode) {
             editor::EditorSession idle;
             CHECK(idle.ImportModel(root / file, reason));

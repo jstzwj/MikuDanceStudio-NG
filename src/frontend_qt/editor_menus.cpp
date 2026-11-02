@@ -131,6 +131,7 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_WAVE_DISABLED:
     case MDS_CMD_TOGGLE_MODEL_TRANSPARENCY:
     case MDS_CMD_TOGGLE_MODEL_NON_DISPLAY:
+    case MDS_CMD_TOGGLE_PLAYBACK_PHYSICS_ON_OFF:
         return true;
     default:
         return false;
@@ -276,6 +277,7 @@ void EditorWindow::RefreshMenus() {
     check(MDS_CMD_TOGGLE_GROUND_SHADOW, doc.view.groundShadow);
     check(MDS_CMD_TOGGLE_SELF_SHADOW, doc.selfShadowEnabled != 0);
     check(MDS_CMD_TOGGLE_WAVE_DISABLED, session_.PlaybackAudioDisabled());
+    check(MDS_CMD_TOGGLE_PLAYBACK_PHYSICS_ON_OFF, session_.PlaybackPhysicsOnOff());
     check(MDS_CMD_TOGGLE_MODEL_TRANSPARENCY, session_.DisplayOptions().transparentModels);
     check(MDS_CMD_TOGGLE_MODEL_NON_DISPLAY, session_.DisplayOptions().hideModels);
     check(MDS_CMD_TOGGLE_GROUND_SHADOW_TRANSPARENCY, doc.physics.projectedShadowBlend);
@@ -411,6 +413,11 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_TOGGLE_PHYSICS_FLOOR) {
         session_.SetPhysicsFloor(!session_.Document().appearance.floorVisible);
+        Refresh();
+        return;
+    }
+    if (command == MDS_CMD_TOGGLE_PLAYBACK_PHYSICS_ON_OFF) {
+        session_.SetPlaybackPhysicsOnOff(!session_.PlaybackPhysicsOnOff());
         Refresh();
         return;
     }

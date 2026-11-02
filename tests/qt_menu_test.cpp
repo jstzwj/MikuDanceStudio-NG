@@ -178,6 +178,24 @@ int main(int argc, char** argv) {
         for (int i = 0; i < 4; ++i)
             CHECK(command(ids[i])->isChecked() == (i == mode));
     }
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        CHECK(window.SetLanguage(language));
+        auto* policy = command(MDS_CMD_TOGGLE_PLAYBACK_PHYSICS_ON_OFF);
+        CHECK(policy->isEnabled() && !policy->isChecked());
+        const auto revision = session.Revision(), updates = session.Runtime().Counters().frames;
+        policy->trigger();
+        CHECK(policy->isChecked() && session.PlaybackPhysicsOnOff());
+        CHECK(session.Revision() == revision && session.Runtime().Counters().frames == updates);
+        CHECK(session.Play(reason));
+        window.Refresh();
+        CHECK(policy->isEnabled() && session.Runtime().Simulation().physicsMode == 2);
+        policy->trigger();
+        CHECK(session.Playing() && !session.PlaybackPhysicsOnOff() && !policy->isChecked());
+        CHECK(session.Runtime().Simulation().physicsMode == 2);
+        session.Pause();
+        CHECK(session.Runtime().Simulation().physicsMode == 3);
+        CHECK(session.Document().physics.playbackMode == 3 && session.Revision() == revision);
+    }
     for (int id : {MDS_CMD_TOGGLE_GROUND_SHADOW, MDS_CMD_TOGGLE_GROUND_SHADOW_TRANSPARENCY,
                    MDS_CMD_TOGGLE_BLACK_BACKGROUND}) {
         const auto before = command(id)->isChecked();
@@ -382,7 +400,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 76);
+    CHECK(implemented == 77);
     for (const char* language : {"en", "ja", "zh_CN"})
         for (int id : {MDS_CMD_DELETE_MOUTH_FRAMES, MDS_CMD_DELETE_EYE_FRAMES,
                        MDS_CMD_DELETE_EYEBROW_FRAMES}) {

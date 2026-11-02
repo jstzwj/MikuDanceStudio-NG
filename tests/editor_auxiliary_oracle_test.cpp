@@ -351,6 +351,43 @@ unsigned AudioDisableCommands(OriginalPhysicsModule& original) {
             }
     return count;
 }
+unsigned PlaybackPhysicsSwitchCommands(OriginalPhysicsModule& original) {
+    switchMenuCommand = MDS_CMD_TOGGLE_PLAYBACK_PHYSICS_ON_OFF;
+    void* menu = reinterpret_cast<void*>(&ShadowMenu);
+    void* state = reinterpret_cast<void*>(&ShadowMenuState);
+    void* check = reinterpret_cast<void*>(&ShadowMenuCheck);
+    Patch menuImport(original.Function<void*>(0x1286a0), &menu, sizeof menu);
+    Patch stateImport(original.Function<void*>(0x128660), &state, sizeof state);
+    Patch checkImport(original.Function<void*>(0x1287a0), &check, sizeof check);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    unsigned count = 0;
+    for (unsigned raw : {0u, 1u, 7u})
+        for (bool checked : {false, true})
+            for (bool playing : {false, true})
+                for (bool camera : {false, true}) {
+                    std::memset(app.get(), 0, sizeof(*app));
+                    app->playbackAlwaysOnOffMode = std::uint8_t(raw);
+                    app->playbackActive = playing;
+                    app->optflag[0] = camera;
+                    app->playbackPhysicsMode = 3;
+                    app->savedPlaybackPhysicsMode = 1;
+                    app->sceneModified = 0x7d;
+                    app->physicsResetPending = 1;
+                    auto expected = std::make_unique<MMDAppState>(*app);
+                    expected->playbackAlwaysOnOffMode = !checked;
+                    expected->letterKeyState[13] = 1;
+                    shadowMenuChecked = checked;
+                    shadowMenuWrites = 0;
+                    original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, switchMenuCommand);
+                    Check(shadowMenuWrites == 1 &&
+                              !std::memcmp(app.get(), expected.get(), sizeof(*app)),
+                          "native playback physics switch changes only next-start policy");
+                    ++count;
+                }
+    return count;
+}
 unsigned ModelRenderFlags(OriginalPhysicsModule& original, const std::filesystem::path& root) {
     auto app = std::make_unique<MMDAppState>();
     auto native = std::make_unique<mdl::ModelRecord>();
@@ -1464,6 +1501,9 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf(
         "%u original disable-WAV switches: unchanged playback and complete application state\n",
         AudioDisableCommands(original));
+    std::printf(
+        "%u original playback physics switches: menu authority, pending policy and complete state\n",
+        PlaybackPhysicsSwitchCommands(original));
     std::printf(
         "%u original model display commands: sparse slots, playback, raw flags and complete state\n",
         ModelDisplayCommands(original));

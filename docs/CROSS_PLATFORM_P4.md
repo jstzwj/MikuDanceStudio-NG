@@ -2784,3 +2784,20 @@ category/chain/name-mapping combinations, persistence, re-registration, retained
 redo and playback/camera gating. Three-language Qt offscreen menus passed;
 implementation count is **76/103**. All **34 local P4 tests passed in 113.89 s**.
 These close the purge command's gap, not the remaining complete P4 exit gates.
+
+## Playback physics policy (2026-11-03)
+
+Menu 271 now implements the native next-start policy: force On/Off mode at
+playback initialization, retain that mode while the run is active and restore
+the previous mode on pause, seek or terminal stop. Toggling the policy during
+playback takes effect at the next start, including a loop restart. The editable
+PMM mode, world ownership, dirty revision and history remain separate from this
+live override. New/Open retain the application policy; new instances default off.
+
+The original complete dispatcher passed **24 byte-exact application comparisons**
+with independent menu check state, raw policy values, camera/model and playback
+states. Public tests cover all four modes on PMD/PMX, actual falling rigid bodies,
+next-start changes, pause/seek restoration, loop and terminal stop. Three-language
+Qt menu tests passed; command count is **77/103**. All **34 local P4 tests passed
+in 104.82 seconds**. The legacy Windows editor also built successfully after the
+preceding shared Morph purge correction.

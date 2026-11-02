@@ -131,6 +131,9 @@ public:
     void SetAutoInterpolation(bool enabled) { autoInterpolation_ = enabled; }
     bool PlaybackAudioDisabled() const { return playbackAudioDisabled_; }
     void SetPlaybackAudioDisabled(bool disabled) { playbackAudioDisabled_ = disabled; }
+    bool PlaybackPhysicsOnOff() const { return playbackPhysicsOnOff_; }
+    // Native menu policy affects the next playback start, not an active run.
+    void SetPlaybackPhysicsOnOff(bool enabled) { playbackPhysicsOnOff_ = enabled; }
     bool RegistrationPhysics() const { return registrationPhysics_; }
     void SetRegistrationPhysics(bool enabled) { registrationPhysics_ = enabled; }
     bool Copy(const std::set<KeyAddress>&, std::string&);
@@ -268,6 +271,7 @@ private:
     bool playing_ = false;
     bool autoInterpolation_ = true;
     bool playbackAudioDisabled_ = false;
+    bool playbackPhysicsOnOff_ = false;
     bool registrationPhysics_ = true;
     unsigned coordinateSystem_ = 0, boneDragMode_ = 0;
     double cursorSeconds_ = 0;

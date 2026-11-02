@@ -2082,7 +2082,7 @@ bool EditorSession::Play(std::string& reason) {
         return false;
     auto history = FrameHistory();
     const bool globals = AppliesGlobalTracks();
-    if (!runtime_->StartPlayback(reason, PlaybackApplication()))
+    if (!runtime_->StartPlayback(reason, PlaybackApplication(), playbackPhysicsOnOff_))
         return false;
     if (globals && !RefreshTrackedView(false, reason))
         return false;
@@ -2122,7 +2122,7 @@ bool EditorSession::Advance(double delta, std::string& reason) {
     if (cursor * 30 > settings.playStopFrame) {
         if (settings.playbackLoop) {
             if (!Seek(std::uint32_t(settings.playStartFrame), reason) ||
-                !runtime_->StartPlayback(reason, PlaybackApplication()))
+                !runtime_->StartPlayback(reason, PlaybackApplication(), playbackPhysicsOnOff_))
                 return false;
             if (AppliesGlobalTracks() && !RefreshTrackedView(false, reason))
                 return false;
