@@ -85,12 +85,12 @@ This closes that command's integration gap, not the complete clipboard/input gat
 | Shared editing and serialization | First local regression passed; full command/compatibility coverage pending |
 | Qt original layout and multilingual interface | Initial three-platform command/language regression passed; full original parity pending |
 | C1 scene rendering | Model outlines, texture morphs and screen history passed on three platforms; accessory self-shadow passed local DX9 comparisons on DX11/DX12/Vulkan; full C1 comparison pending |
-| WAV and synchronization | Windows/PulseAudio qualified silent profiles passed; CoreAudio previously passed but a later run exceeded the 100 ms clock bound and remains under investigation; Linux uses an explicit 50 ms virtual queue; physical speaker latency and the default two-second cold null-sink profile are unqualified |
+| WAV and synchronization | Qualified Windows silent profile and new CoreAudio/PulseAudio 120-second runs passed; latest Windows hosted runner has no audio device and reports unavailable; Linux uses an explicit 50 ms virtual queue; physical speaker latency and the default two-second cold null-sink profile are unqualified |
 | Fixed-step image sequence export and cancellation | Generated 30fps sequence, strict repeat and cancellation passed on three platforms |
 | Three-platform open/edit/play/save/reopen/export | Initial generated workflow passed; complete C1 workflow coverage pending |
 | MMD v9.32 independent geometry, behavior and output comparison | Pending |
 | Input, IME, DPI, font metrics and lifecycle acceptance | Native surface lifecycle passed on all platforms; full input/IME/DPI/font acceptance pending |
-| CPU frame-production performance | Local Sour Miku complete offscreen CPU/GPU budget passed on DX11/DX12/Vulkan; latest generated three-platform qualification pending; physical presentation latency is separate |
+| CPU frame-production performance | Local Sour Miku complete offscreen CPU/GPU budget passed on DX11/DX12/Vulkan; generated three-platform CPU/GPU qualification passed at 6dbc9cf; physical presentation latency is separate |
 
 All local UI testing uses Qt `offscreen` or windows that are never shown. Actual
 window presentation/interaction uses isolated runners. Language changes must not
@@ -2801,3 +2801,28 @@ next-start changes, pause/seek restoration, loop and terminal stop. Three-langua
 Qt menu tests passed; command count is **77/103**. All **34 local P4 tests passed
 in 104.82 seconds**. The legacy Windows editor also built successfully after the
 preceding shared Morph purge correction.
+
+## CoreAudio and three-platform performance qualification (2026-11-03)
+
+[Run 41518934198](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41518934198)
+at `6dbc9cf` passed Windows, Linux and macOS jobs, including isolated native
+presentation and relocated Qt distributions. The new CoreAudio queue timeline
+passed the unchanged **120-second** silent-device gate: maximum lag **0.486 ms**,
+lead **0.105 ms**, startup **351 ms**, stop **15 ms**, **321.73 ms** of clock
+progress while the UI was blocked, and exact final position **123 s** after native
+drain. The [native report](evidence/cross-platform-p4-native-audio-macos.json)
+retains device/timeline diagnostics, including the initial discontinuity. Earlier
+Qt callback-clock failures remain recorded above. Linux also passed its qualified
+45 ms null-sink profile; this Windows hosted runner explicitly reported its audio
+device unavailable, so its green job does not add new Windows device evidence.
+
+The [full performance evidence](evidence/cross-platform-p4-editor-gpu.json)
+contains generated CPU/GPU reports from all three platforms and the existing
+local Sour Miku DX11/DX12/Vulkan measurements. Each GPU profile includes **503
+submissions** and GPU completion in total time, with no timed image readbacks.
+All five CI cases passed unchanged 100 ms P95 / 500 ms maximum budgets; the largest
+P95 was **11.714 ms** on the virtual Metal adapter. Cached static CPU preparation
+retained zero C++ allocations. The local 139,692-vertex profile passed the stricter
+33.333334 ms P95 / 100 ms maximum limits on all three Windows backends. These
+qualify the stated offscreen workloads, not physical presentation latency,
+arbitrary audio hardware or the still-open complete C1 parity gates.
