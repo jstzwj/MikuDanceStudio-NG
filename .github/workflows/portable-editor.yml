@@ -17,7 +17,7 @@ on:
         default: macos-15
         options: [macos-15, macos-26]
 concurrency:
-  group: editor-${{ github.workflow }}-${{ github.ref }}
+  group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
