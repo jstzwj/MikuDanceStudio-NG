@@ -11,9 +11,22 @@
 #include <QMediaDevices>
 #include <QAudioDevice>
 #include "mikudancestudio/shader_compiler.hpp"
+#include <cstdio>
 #include <iostream>
 
 namespace {
+#ifdef __APPLE__
+void AppleMessageHandler(QtMsgType, const QMessageLogContext& context, const QString& message) {
+    // Qt 6.8.3's AppleUnifiedLogger retains a static QString bundle identifier.
+    // Plugin cleanup can log after that object has been destroyed (observed as
+    // an invalid free on macOS 26). Keep the sink alive through process exit,
+    // with no static Qt objects. Category filtering and fatal handling remain Qt's.
+    const auto utf8 = message.toUtf8();
+    std::fprintf(stderr, "[%s] %s\n", context.category ? context.category : "default",
+                 utf8.constData());
+    std::fflush(stderr);
+}
+#endif
 int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& report,
                     const std::filesystem::path& assets, const QString& project) {
     using namespace mikudancestudio;
@@ -82,6 +95,9 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
 }
 }
 int main(int argc, char** argv) {
+#ifdef __APPLE__
+    qInstallMessageHandler(AppleMessageHandler);
+#endif
     QApplication app(argc, argv);
     QCoreApplication::setOrganizationName("MikuDanceStudio");
     QCoreApplication::setApplicationName("MikuDanceStudio-NG");

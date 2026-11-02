@@ -49,13 +49,20 @@ def main():
         elif system == 'Linux':
             env['MDS_GPU_DRIVER'] = 'software'
         report = root / 'deployment.json'
-        result = subprocess.run([str(exe), '--deployment-check', str(report), str(fixtures / 'v2.pmm')],
-                                cwd=root, env=env, text=True, encoding='utf-8', errors='replace',
-                                capture_output=True, timeout=120,
-                                creationflags=subprocess.CREATE_NO_WINDOW if system == 'Windows' else 0)
+        output = []
+        # Exercise actual process teardown repeatedly: Qt's Apple logging sink
+        # previously failed intermittently while unloading plugins at exit.
+        for attempt in range(3 if system == 'Darwin' else 1):
+            result = subprocess.run([str(exe), '--deployment-check', str(report), str(fixtures / 'v2.pmm')],
+                                    cwd=root, env=env, text=True, encoding='utf-8', errors='replace',
+                                    capture_output=True, timeout=120,
+                                    creationflags=subprocess.CREATE_NO_WINDOW if system == 'Windows' else 0)
+            output.append(f'Process {attempt + 1}, exit {result.returncode}\n' + result.stdout + result.stderr)
+            if result.returncode:
+                break
         diagnostic = args.report or dist.parent / 'distribution-check.json'
         diagnostic.parent.mkdir(parents=True, exist_ok=True)
-        diagnostic.with_suffix('.log').write_text(result.stdout + result.stderr, encoding='utf-8')
+        diagnostic.with_suffix('.log').write_text('\n'.join(output), encoding='utf-8')
         if result.returncode:
             print(result.stdout, result.stderr)
             # Keep a native stack for packaging-only crashes on isolated Apple

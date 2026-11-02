@@ -84,6 +84,17 @@ following [Qt's upstream removal](https://github.com/qt/qtbase/commit/cdb33c3d56
 OpenGL and all other Qt dependencies remain linked. This permits the pinned Qt
 package to build against the macOS 26 SDK without changing renderer behavior.
 
+Package testing on macOS 26 also caught an intermittent exit-time invalid free
+in Qt 6.8.3's `AppleUnifiedLogger`, called by plugin cleanup (native crash report
+in [41429609406](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41429609406)).
+That logger keeps a static `QString` bundle identifier which can be destroyed
+before the last plugin log. The macOS application installs a stderr message sink
+before constructing `QApplication`; it uses no static Qt objects, remains valid
+through process exit, and retains Qt's category filtering and fatal behavior.
+Relocated Apple package tests require three successful process exits, with plugin
+diagnostics and Metal API validation enabled. A failed exit remains fatal even
+if its diagnostic debugger rerun succeeds.
+
 Known comparison limitation: enabling `MTL_DEBUG_LAYER=1` for MoltenVK 1.4.2
 triggered `MTLDebugDevice::notifyExternalReferencesNonZeroOnDealloc` during the
 existing Qt Vulkan lifecycle test in [41421819905](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41421819905).
