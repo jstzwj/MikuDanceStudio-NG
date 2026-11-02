@@ -2845,3 +2845,16 @@ errors fail; native diagnostics are also captured for the blocked interval.
 The rebuilt Windows test passed a three-second silent-device smoke test: 250 ms
 clock advancement against a measured 250.059–250.947 ms interval. A new isolated
 macOS 26 run is required before that profile can be accepted.
+
+The new macOS 26 run
+[41522505900](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41522505900)
+at `bce9a01` passed the full 120-second gate, native presentation, relocated Qt
+distribution and Metal-only package. Its [raw report](evidence/cross-platform-p4-native-audio-macos26.json)
+measured **359.666 ms** clock advancement against an observed interval bracket
+of **359.648–359.691 ms** for the requested 250 ms sleep. This confirms that the
+fixed requested-sleep bound can reject correct device progress on this runner.
+Maximum steady lag was **0.862 ms**, lead **0.075 ms**, stop **10 ms**, EOF position
+**123 s**, and editor frame error below **7e-15**. This qualifies the stated
+macOS 26 virtual audio profile alongside macOS 15; it does not cover arbitrary
+physical devices. The revised local Windows Remote Audio test also passed
+120 seconds with the same limits; P4/C1's other acceptance gates remain open.
