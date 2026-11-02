@@ -6,7 +6,7 @@
 #endif
 namespace mikudancestudio::qt {
 #ifndef __APPLE__
-std::shared_ptr<const rhi::VulkanSurfaceSource> QtSurface(QWindow& window, std::string& reason) {
+std::shared_ptr<const rhi::WindowSurfaceSource> QtSurface(QWindow& window, std::string& reason) {
     window.create();
     auto lease = std::make_shared<QPointer<QWindow>>(&window);
     rhi::NativeWindow native;
@@ -34,16 +34,7 @@ std::shared_ptr<const rhi::VulkanSurfaceSource> QtSurface(QWindow& window, std::
         return (*lease)->width() > 0 && (*lease)->height() > 0 ? rhi::SurfaceHealth::Ready
                                                                : rhi::SurfaceHealth::Suspended;
     };
-#ifdef MIKUDANCESTUDIO_RHI_VULKAN
-    return rhi::CreateNativeVulkanSurface(native, display, lease, health, reason);
-#else
-    auto source = std::make_shared<rhi::VulkanSurfaceSource>();
-    source->window = native;
-    source->lease = lease;
-    source->health = health;
-    reason.clear();
-    return source;
-#endif
+    return rhi::CreateWindowSurface(native, display, lease, health, reason);
 }
 #endif
 }

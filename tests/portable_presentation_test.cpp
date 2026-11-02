@@ -32,7 +32,7 @@ int Benchmark(const std::string& argument, const char* output) {
     ConfigureVulkanTest(options, argument);
     options.profiling = true;
     std::string reason;
-    options.surface = CreateNativeVulkanSurface(
+    options.surface = CreateWindowSurface(
         host->window, host->display, host, [] { return SurfaceHealth::Ready; }, reason);
     SwapchainDesc description;
     description.window = host->window;
@@ -207,7 +207,7 @@ int main(int argc, char** argv) try {
         std::string reason;
         const auto attach = [&](const std::shared_ptr<NativeSurfaceHost>& current) {
             std::weak_ptr<NativeSurfaceHost> weak = current;
-            return CreateNativeVulkanSurface(
+            return CreateWindowSurface(
                 current->window, current->display, current,
                 [weak] {
                     auto h = weak.lock();

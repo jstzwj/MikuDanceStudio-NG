@@ -23,6 +23,12 @@ bool BackendAvailable(Backend backend) {
 }
 BackendDevice CreateBackendDevice(const SwapchainDesc& desc, const BackendOptions& options) {
     BackendDevice result;
+    if (options.surface && (!ValidWindowSurface(*options.surface) ||
+                            options.surface->window.system != desc.window.system ||
+                            options.surface->window.handle != desc.window.handle)) {
+        result.reason = "invalid_window_surface";
+        return result;
+    }
     if (options.driver != BackendDriver::Hardware && options.driver != BackendDriver::Software) {
         result.reason = "invalid_driver";
         return result;
@@ -58,12 +64,15 @@ BackendDevice CreateBackendDevice(const SwapchainDesc& desc, const BackendOption
 #endif
 #ifdef MIKUDANCESTUDIO_RHI_VULKAN
     case Backend::Vulkan: {
-        auto native =
-            CreateVulkanDevice(desc,
-                               options.driver == BackendDriver::Software ? VulkanDriver::Software
-                                                                         : VulkanDriver::Hardware,
-                               {options.model, options.debugLayer, options.vulkanLibrary,
-                                options.surface, options.profiling});
+        auto surface =
+            options.surface ? CreateVulkanSurface(options.surface, result.reason) : nullptr;
+        if (options.surface && !surface)
+            return result;
+        auto native = CreateVulkanDevice(
+            desc,
+            options.driver == BackendDriver::Software ? VulkanDriver::Software
+                                                      : VulkanDriver::Hardware,
+            {options.model, options.debugLayer, options.vulkanLibrary, surface, options.profiling});
         result.device = std::move(native.device);
         result.swapchain = std::move(native.swapchain);
         result.reason = std::move(native.creationReason);
@@ -76,6 +85,8 @@ BackendDevice CreateBackendDevice(const SwapchainDesc& desc, const BackendOption
         result.reason = "backend_not_built";
         break;
     }
+    if (result.device)
+        result.device->presentationHost_ = options.surface;
     return result;
 }
 OffscreenBackendDevice CreateOffscreenBackendDevice(std::uint32_t width, std::uint32_t height,
@@ -118,8 +129,7 @@ OffscreenBackendDevice CreateOffscreenBackendDevice(std::uint32_t width, std::ui
             width, height,
             options.driver == BackendDriver::Software ? VulkanDriver::Software
                                                       : VulkanDriver::Hardware,
-            {options.model, options.debugLayer, options.vulkanLibrary, options.surface,
-             options.profiling});
+            {options.model, options.debugLayer, options.vulkanLibrary, {}, options.profiling});
         result.device = std::move(native.device);
         result.reason = std::move(native.creationReason);
         result.adapter = std::move(native.adapterName);

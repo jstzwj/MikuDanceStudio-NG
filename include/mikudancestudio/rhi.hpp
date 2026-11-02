@@ -468,7 +468,16 @@ struct RenderPassDesc;
 struct AttachmentReadback;
 struct ShaderPipeline;
 struct ShaderResourceBindings;
+struct WindowSurfaceSource;
+struct SwapchainDesc;
+struct BackendOptions;
+struct BackendDevice;
 class Device {
+    // Released after derived native resources, including when Device is moved
+    // out of the factory bundle. Removal is reported separately by the host.
+    std::shared_ptr<const WindowSurfaceSource> presentationHost_;
+    friend BackendDevice CreateBackendDevice(const SwapchainDesc&, const BackendOptions&);
+
 public:
     virtual ~Device() = default;
     virtual Backend BackendType() const = 0;

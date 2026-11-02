@@ -1,6 +1,6 @@
 #pragma once
 #include "rhi_swapchain.hpp"
-#include "vulkan_surface.hpp"
+#include "rhi_surface.hpp"
 #include "rhi_model_pipeline.hpp"
 #include "rhi_image.hpp"
 #include "rhi_material_sampling.hpp"
@@ -20,7 +20,7 @@ struct BackendOptions {
     // Direct/offscreen consumers explicitly call ApplyMaterialSampling.
     MaterialSamplingPolicy materialSampling = MaterialSamplingPolicy::PortableTrilinear;
     std::string vulkanLibrary;
-    std::shared_ptr<const VulkanSurfaceSource> surface;
+    std::shared_ptr<const WindowSurfaceSource> surface;
     bool profiling = false;
 };
 // Factory owns native API selection. Destruction order is intentional: all

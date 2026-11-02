@@ -23,14 +23,19 @@ namespace mikudancestudio::rhi {
 std::shared_ptr<const VulkanSurfaceSource>
 CreateNativeVulkanSurface(NativeWindow window, std::uintptr_t display, std::shared_ptr<void> lease,
                           std::function<SurfaceHealth()> health, std::string& reason) {
-    if (!window.handle || !lease || !health) {
-        reason = "surface_requires_native_window_lease_and_health";
+    auto host = CreateWindowSurface(window, display, std::move(lease), std::move(health), reason);
+    return host ? CreateVulkanSurface(std::move(host), reason) : nullptr;
+}
+std::shared_ptr<const VulkanSurfaceSource>
+CreateVulkanSurface(std::shared_ptr<const WindowSurfaceSource> host, std::string& reason) {
+    if (!host || !ValidWindowSurface(*host)) {
+        reason = "invalid_window_surface";
         return {};
     }
+    const auto window = host->window;
+    const auto display = host->display;
     auto source = std::make_shared<VulkanSurfaceSource>();
-    source->window = window;
-    source->lease = std::move(lease);
-    source->health = std::move(health);
+    static_cast<WindowSurfaceSource&>(*source) = *host;
     source->instanceExtensions = {VK_KHR_SURFACE_EXTENSION_NAME};
     const char* extension = nullptr;
     std::function<VkResult(VkInstance, const VulkanProcLookup&, VkSurfaceKHR&)> create;

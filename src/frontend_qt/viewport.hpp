@@ -8,7 +8,7 @@
 #include <QImage>
 #include <functional>
 namespace mikudancestudio::qt {
-std::shared_ptr<const rhi::VulkanSurfaceSource> QtSurface(QWindow&, std::string&);
+std::shared_ptr<const rhi::WindowSurfaceSource> QtSurface(QWindow&, std::string&);
 struct FrameCpuTimings {
     double view = 0, assets = 0, scene = 0, overlay = 0;
 };

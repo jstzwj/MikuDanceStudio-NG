@@ -1,5 +1,15 @@
 # Rendering hardware interface: incremental migration
 
+Window ownership (2026-11-02): `BackendOptions::surface` accepts a graphics-API
+independent `WindowSurfaceSource`: native window/display, ownership lease and
+health callback. Dimensions are physical pixels in `SwapchainDesc`. The device
+retains the lease until its native resources have been destroyed; the host reports
+suspension/removal without destroying a layer still referenced by the GPU. Vulkan
+constructs its extensions and surface callback inside the backend adapter. Qt
+provides the same contract on Win32, Cocoa, XCB and Wayland. The headless
+`rhi_surface` test covers invalid sources, identity, health and lease ownership;
+hidden Qt DX11/DX12 tests cover resize, replacement and window recreation.
+
 Cross-platform status (2026-11-01): P3 adds the production Vulkan loader,
 native surface leases (HWND, Cocoa/Metal layer, XCB and Wayland), portable
 runtime DXC/SPIR-V compilation, and a scene-frame producer consuming P2 CPU
