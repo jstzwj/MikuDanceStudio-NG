@@ -249,10 +249,18 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     Refresh();
     if (!testing_ && QSettings().value("viewport/separate", false).toBool())
         SetSeparateWindow(true);
-    connect(&timer_, &QTimer::timeout, this, [this] { Tick(clock_.restart() / 1000.); });
+    timer_.setParent(this);
+    timer_.setObjectName("editor.frameTimer");
+    timer_.setTimerType(Qt::PreciseTimer);
+    RefreshFrameTimer();
+    connect(&timer_, &QChronoTimer::timeout, this, [this] {
+        const auto nanoseconds = clock_.nsecsElapsed();
+        clock_.restart();
+        Tick(double(nanoseconds) / 1000000000.);
+    });
     clock_.start();
     if (!testing_)
-        timer_.start(16);
+        timer_.start();
     TranslateStandardDialogs();
 }
 void EditorWindow::Tick(double seconds) {
@@ -611,8 +619,17 @@ void EditorWindow::resizeEvent(QResizeEvent* event) {
     QMainWindow::resizeEvent(event);
     Layout();
 }
+void EditorWindow::RefreshFrameTimer() {
+    const double requested = session_.Document().view.fpsLimit;
+    const double rate =
+        std::isfinite(requested) && requested >= 1 && requested <= 1000 ? requested : 60.;
+    const auto interval = std::chrono::nanoseconds(qint64(1000000000. / rate));
+    if (timer_.interval() != interval)
+        timer_.setInterval(interval);
+}
 void EditorWindow::Refresh() {
     refreshing_ = true;
+    RefreshFrameTimer();
     if (!session_.Playing())
         audio_.Stop();
     const auto& doc = session_.Document();
@@ -942,7 +959,7 @@ void EditorWindow::FileAction(const QString& id) {
             Result(ok, r);
         clock_.restart();
         if (!testing_)
-            timer_.start(16);
+            timer_.start();
         Refresh();
         return;
     }

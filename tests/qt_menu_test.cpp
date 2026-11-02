@@ -11,6 +11,7 @@
 #include <QMenuBar>
 #include <QPointer>
 #include <QStyleFactory>
+#include <QThread>
 #include <iostream>
 using namespace mikudancestudio;
 using namespace editor;
@@ -380,7 +381,59 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 62);
+    CHECK(implemented == 65);
+    CHECK(window.FrameLimit() == 60 && command(MDS_CMD_FPS_60)->isChecked());
+    const auto timer = window.findChild<QChronoTimer*>("editor.frameTimer");
+    CHECK(timer && !timer->isActive());
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        CHECK(window.SetLanguage(language));
+        for (int id : {MDS_CMD_FPS_30, MDS_CMD_FPS_UNLIMITED, MDS_CMD_FPS_60}) {
+            const auto revision = session.Revision();
+            const auto frames = session.Runtime().Counters().frames;
+            const auto undo = session.CanUndo(), redo = session.CanRedo();
+            command(id)->trigger();
+            const auto rate = id == MDS_CMD_FPS_30 ? 30 : id == MDS_CMD_FPS_60 ? 60 : 1000;
+            CHECK(window.FrameLimit() == unsigned(rate) &&
+                  timer->interval() == std::chrono::nanoseconds(1000000000 / rate));
+            CHECK(session.Revision() == revision && session.Runtime().Counters().frames == frames &&
+                  session.CanUndo() == undo && session.CanRedo() == redo);
+            for (int other : {MDS_CMD_FPS_30, MDS_CMD_FPS_UNLIMITED, MDS_CMD_FPS_60})
+                CHECK(command(other)->isEnabled() && command(other)->isChecked() == (other == id));
+        }
+    }
+    // Run the actual automatic timer while remaining offscreen. Display caps
+    // change its cadence, never the 30fps document timeline's real-time speed.
+    CHECK(session.New(reason));
+    window.Refresh();
+    for (int id : {MDS_CMD_FPS_30, MDS_CMD_FPS_60, MDS_CMD_FPS_UNLIMITED}) {
+        command(id)->trigger();
+        window.Dispatch(panel::kPlayButton);
+        CHECK(session.Playing());
+        const auto begin = session.CursorSeconds();
+        QElapsedTimer wall;
+        wall.start();
+        timer->start();
+        while (wall.elapsed() < 220) {
+            app.processEvents();
+            QThread::msleep(1);
+        }
+        timer->stop();
+        const auto advanced = session.CursorSeconds() - begin;
+        CHECK(std::abs(advanced - wall.nsecsElapsed() / 1e9) < .05);
+        CHECK(session.Playing() && !window.isVisible() && !window.RenderWindow()->Submissions());
+        window.Dispatch(panel::kPlayButton);
+    }
+    command(MDS_CMD_FPS_30)->trigger();
+    CHECK(window.Save(root / "frame-cap.pmm"));
+    CHECK(session.New(reason));
+    window.Refresh();
+    CHECK(window.FrameLimit() == 60 && command(MDS_CMD_FPS_60)->isChecked());
+    command(MDS_CMD_FPS_60)->trigger();
+    CHECK(window.Open(root / "frame-cap.pmm"));
+    CHECK(window.FrameLimit() == 30 && command(MDS_CMD_FPS_30)->isChecked());
+    const auto capRevision = session.Revision();
+    CHECK(!session.SetFrameLimit(0) && !session.SetFrameLimit(31) &&
+          session.Revision() == capRevision && window.FrameLimit() == 30);
     for (const char* language : {"en", "ja", "zh_CN"}) {
         CHECK(session.New(reason) && session.ImportModel(root / "articulated.pmx", reason));
         CHECK(session.Copy({{Track::Bone, 0, 0, 0}}, reason));

@@ -352,6 +352,9 @@ void EditorSession::SetPanelExpanded(unsigned option, bool expanded) {
 void EditorSession::SetSidebarWidth(int width) {
     runtime_->SetSidebarWidth(width);
 }
+bool EditorSession::SetFrameLimit(unsigned limit) {
+    return runtime_ && runtime_->SetFrameLimit(limit);
+}
 void EditorSession::SetPhysicsFloor(bool enabled) {
     runtime_->SetPhysicsFloor(enabled);
 }

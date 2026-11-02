@@ -7,7 +7,7 @@
 #include <QMainWindow>
 #include <QByteArray>
 #include <QElapsedTimer>
-#include <QTimer>
+#include <QChronoTimer>
 #include <QAction>
 #include <QPointer>
 #include <QTranslator>
@@ -27,6 +27,7 @@ public:
     Viewport* RenderWindow() const { return viewport_; }
     QWidget* SeparateWindow() const { return separate_; }
     bool FullScreenViewport() const { return fullScreen_; }
+    float FrameLimit() const { return session_.Document().view.fpsLimit; }
     bool SetLanguage(const QString&);
     QString CurrentLanguage() const { return language_.Code(); }
     bool Open(const std::filesystem::path&);
@@ -71,7 +72,7 @@ private:
     std::map<QString, QAction*> actions_;
     std::map<int, QAction*> menuActions_;
     ui::EditorLayoutOptions layout_;
-    QTimer timer_;
+    QChronoTimer timer_;
     QElapsedTimer clock_;
     bool testing_ = false, refreshing_ = false;
     bool windowTransition_ = false;
@@ -90,6 +91,7 @@ private:
     void FinishSidebarDrag();
     void BuildMenus();
     void RefreshMenus();
+    void RefreshFrameTimer();
     void MenuCommand(int);
     void Texts();
     void EditField(int);

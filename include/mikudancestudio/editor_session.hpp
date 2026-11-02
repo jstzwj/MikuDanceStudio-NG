@@ -149,6 +149,7 @@ public:
     bool Seek(std::uint32_t, std::string&);
     void SetPanelExpanded(unsigned option, bool expanded);
     void SetSidebarWidth(int width);
+    bool SetFrameLimit(unsigned limit);
     void SetPhysicsFloor(bool enabled);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
     void SetEditMode(std::int32_t mode);

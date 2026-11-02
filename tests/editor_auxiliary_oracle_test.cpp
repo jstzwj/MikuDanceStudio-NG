@@ -5,6 +5,7 @@
 #include "mikudancestudio/accessory_layout.hpp"
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/menu_commands.h"
+#include "mikudancestudio/app_layout.hpp"
 #include "editor_physics_selection_fixture.hpp"
 #include "editor_reduction_fixture.hpp"
 #include "editor_morph_scale_fixture.hpp"
@@ -254,6 +255,33 @@ unsigned ResetCommand(OriginalPhysicsModule& original, const std::filesystem::pa
 unsigned undoCalls = 0;
 void CaptureUndo(void*) {
     ++undoCalls;
+}
+unsigned FrameRateCommands(OriginalPhysicsModule& original) {
+    auto state = std::make_unique<MMDAppState>();
+    auto* pointer = state.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    const auto execute = original.Function<void (*)(HWND, WPARAM)>(0x3f550);
+    unsigned count = 0;
+    for (float previous : {30.f, 60.f, 1000.f})
+        for (int command : {MDS_CMD_FPS_UNLIMITED, MDS_CMD_FPS_30, MDS_CMD_FPS_60}) {
+            std::memset(state.get(), 0, sizeof(*state));
+            state->fpsLimit = previous;
+            state->sceneModified = 0x7d;
+            state->physicsResetPending = 1;
+            state->currentFrame = 123;
+            std::vector<unsigned char> expected(sizeof(*state));
+            std::memcpy(expected.data(), state.get(), expected.size());
+            const float target = command == MDS_CMD_FPS_30   ? 30.f
+                                 : command == MDS_CMD_FPS_60 ? 60.f
+                                                             : 1000.f;
+            std::memcpy(expected.data() + offsetof(MMDAppState, fpsLimit), &target, sizeof target);
+            // No original entrypoint, window, device or simulation is involved.
+            execute(nullptr, command);
+            Check(!std::memcmp(state.get(), expected.data(), expected.size()),
+                  "native FPS command changed fields other than the display rate");
+            ++count;
+        }
+    return count;
 }
 unsigned SceneCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
     // Execute the full original dispatcher with a private application record.
@@ -1118,6 +1146,8 @@ int wmain(int argc, wchar_t** argv) try {
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     Check(argc == 3, "usage: editor_auxiliary_oracle_test original.exe generated-fixture");
     OriginalPhysicsModule original(argv[1]);
+    std::printf("%u original FPS commands: exact rate and unchanged application state\n",
+                FrameRateCommands(original));
     unsigned count = 0;
     for (const char* file : {"articulated.pmd", "articulated.pmx", "facial.pmd"}) {
         EditorSession session;

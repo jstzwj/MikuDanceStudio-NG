@@ -2310,3 +2310,38 @@ and do not count as native acceptance; other failures fail the job. Reports are
 retained beside the editor artifacts. CoreAudio/PulseAudio execution and physical
 output qualification must not be inferred from the Windows result. P4/C1 remains
 in progress for the other command, input, layout and full-frame gates.
+
+
+## Display frame caps and timer precision (2026-11-03)
+
+Original commands 234/235/236 now select 1000/30/60 display frames per second.
+The shared session updates PMM's `view.fpsLimit` without marking the document
+modified, capturing history, evaluating poses or rebuilding resources. Save
+retains the rate, Open restores it and New resets it to 60, as in native
+`ResetAppState`. Unrecognized loaded rates retain their stored value, select the
+original 60 radio fallback and use a bounded timer interval; invalid user-set
+rates reject without mutation. Display caps do not change the document's 30fps
+time base. The optional original auxiliary oracle executes the complete native
+command dispatcher for nine prior/new-rate pairs and compares the whole private
+application state, including dirty, physics reset and cursor sentinels: only the
+rate float changes. No window or device is created for that comparison.
+
+Qt now uses a precise `QChronoTimer` with nanosecond intervals and elapsed-time
+sampling. The previous millisecond `restart()` discarded a fractional millisecond
+per tick, which could accumulate playback-speed error without an audio clock.
+Frame caps preserve that elapsed interval across switches and export restores
+the selected cadence instead of forcing 16 ms. The offscreen menu regression
+checks all three languages/radios, shared-state invariants, persistence, invalid
+rates and the real automatic timer at 30/60/1000: elapsed scene time stays within
+50 ms of elapsed wall time for each 220 ms sampling window. The menu now exposes
+65 of the original 103 commands; this count does not establish complete C1 parity.
+
+The audio revision `c30add0` passed all 31 local P4 checks and the Windows CI
+editor job. Its new PulseAudio test identified cold-start prebuffering, while
+CoreAudio passed 120-second stream clock and EOF but failed the editor-versus-wall
+startup assumption. The acceptance separates bounded startup from steady drift:
+wait at most two seconds for the first processed samples, then retain the strict
+100 ms steady bound. The editor test observes the same actual native adapter and
+requires cursor agreement within one frame, recording wall latency separately.
+It does not substitute wall time for the audio clock or classify startup as a
+steady-state pass. Three-platform acceptance of this refinement remains pending.

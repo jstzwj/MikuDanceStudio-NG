@@ -690,6 +690,9 @@ void SceneRuntime::SetSidebarWidth(int width) {
     if (impl_->session)
         impl_->session->SetSidebarWidth(width);
 }
+bool SceneRuntime::SetFrameLimit(unsigned limit) {
+    return impl_ && impl_->session && impl_->session->SetFrameLimit(limit);
+}
 void SceneRuntime::SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded) {
     if (impl_ && impl_->session)
         impl_->session->SetGroupExpanded(slot, group, expanded);

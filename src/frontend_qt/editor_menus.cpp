@@ -117,6 +117,9 @@ bool Implemented(int command) {
     case MDS_CMD_MODEL_DRAW_ORDER:
     case MDS_CMD_MODEL_CALCULATION_ORDER:
     case MDS_CMD_PASTE_AT_DIFFERENT_FRAME:
+    case MDS_CMD_FPS_UNLIMITED:
+    case MDS_CMD_FPS_30:
+    case MDS_CMD_FPS_60:
         return true;
     default:
         return false;
@@ -262,6 +265,9 @@ void EditorWindow::RefreshMenus() {
     check(MDS_CMD_TOGGLE_PHYSICS_FLOOR, doc.appearance.floorVisible);
     check(MDS_CMD_TOGGLE_SEPARATE_WINDOW, separate_ != nullptr);
     check(MDS_CMD_TOGGLE_ALWAYS_ON_TOP, separateOnTop_);
+    check(MDS_CMD_FPS_UNLIMITED, doc.view.fpsLimit == 1000);
+    check(MDS_CMD_FPS_30, doc.view.fpsLimit == 30);
+    check(MDS_CMD_FPS_60, doc.view.fpsLimit != 30 && doc.view.fpsLimit != 1000);
 }
 
 void EditorWindow::MenuCommand(int command) {
@@ -274,6 +280,15 @@ void EditorWindow::MenuCommand(int command) {
         return;
     if (const auto* name = FileCommand(command)) {
         FileAction(name);
+        return;
+    }
+    if (command == MDS_CMD_FPS_UNLIMITED || command == MDS_CMD_FPS_30 ||
+        command == MDS_CMD_FPS_60) {
+        session_.SetFrameLimit(command == MDS_CMD_FPS_30   ? 30
+                               : command == MDS_CMD_FPS_60 ? 60
+                                                           : 1000);
+        RefreshFrameTimer();
+        RefreshMenus();
         return;
     }
     if (command == MDS_CMD_PASTE_AT_DIFFERENT_FRAME) {

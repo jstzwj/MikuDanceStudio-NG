@@ -109,6 +109,12 @@ public:
         if (width >= 250 && width <= 1000000)
             scene_.envelope.settings.editPanelWidth = width;
     }
+    bool SetFrameLimit(unsigned limit) {
+        if (!loaded_ || (limit != 30 && limit != 60 && limit != 1000))
+            return false;
+        scene_.view.fpsLimit = float(limit);
+        return true;
+    }
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded) {
         for (auto& model : scene_.models)
             if (model.slot == slot && group < model.selection.groupFlags.size())
