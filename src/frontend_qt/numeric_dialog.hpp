@@ -98,6 +98,16 @@ public:
 private:
     std::array<float, 2> values_{1.f, 0.f};
 };
+class FrameShiftDialog final : public TemplateDialog {
+public:
+    FrameShiftDialog(const Language&, QWidget* parent = nullptr);
+    QLineEdit* Field() const { return Edit(616); }
+    std::int32_t Value() const { return value_; }
+    void accept() override;
+
+private:
+    std::int32_t value_ = 0;
+};
 class CameraScaleDialog final : public TemplateDialog {
 public:
     CameraScaleDialog(const Language&, QWidget* parent = nullptr);

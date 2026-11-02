@@ -2,7 +2,7 @@
 
 当前独立维护仓库：[MikuDanceStudio-NG](https://github.com/jstzwj/MikuDanceStudio-NG)，默认分支 `main`，由原仓库 `next@9afd91a` 保留完整历史迁入。下文初始 `main`／`next` 基线和历史验收链接均指迁移前的 MikuDanceStudio 仓库。
 
-更新时间：2026-11-02。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
+更新时间：2026-11-03。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
 
 实施状态：**P0 已完成**。三平台基础构建、两轮精确文件／数值回归、统一 Bullet 包装与分配／销毁验证、macOS 无窗口 Vulkan 探测均已执行；Windows x64／x86 编辑器构建通过。能力表、最低环境决策、依赖图、证据和仍未覆盖的范围见 [P0 实施与验收记录](docs/CROSS_PLATFORM_P0.md)。
 
@@ -290,6 +290,8 @@ P4 新增要求（2026-11-01）：Qt 前端以 MMD v9.32 的界面与操作行�
 P4 实施顺序：可编辑 PMM 文档与关键帧拓扑 → 共享 EditorSession／命令／撤销重做 → Qt 原版布局与多语言 → RHI、输入、时间轴与 C1 渲染补齐 → WAV 同步与固定步进图像序列导出 → 三平台闭环及原版差分验收。
 
 最近进展：模型绘制／计算顺序已接入共享命令与三语言原版模板，24 组原版隐藏对话框对照通过。新增 Qt `dist` 目标、依赖部署、编译缓存和三平台下载产物，Windows／Linux／macOS 开发包均通过脱离 SDK 的重定位启动、翻译、着色器编译及离屏渲染检查；见 CI [41366224450](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41366224450)。此前物理帧 ON／OFF、时间轴选择、重力、关键帧倍率与偏移等分项证据保留于 [P4 验收记录](docs/CROSS_PLATFORM_P4.md)。完整输入／IME／DPI、其余对话框和剪贴板链式操作、原生音频及 C1 整帧验收仍未完成，P4 仍为实施中。
+
+2026-11-03 增量：口型帧偏移及其数值对话框已接入，原版完整记录池、删除槽复用、定位和播放的 240 组独立对照通过；三语言原版对话框模板现覆盖 30 类，菜单实现 78／103 项。本地 35 项 P4 回归通过。Windows Remote Audio、macOS 15／26 AudioQueue 和 Linux 指定虚拟设备的 120 秒静音时钟测试已分别通过，Sour Miku 与三平台生成场景的完整 CPU／GPU 帧预算已有记录；这不代表任意设备或物理输出延迟均已验收。独立原版整帧 GPU 对照仍受当前 DX9 不可用阻塞，其余输入、布局和完整命令门禁继续实施。
 
 原生 Metal 增量（2026-11-02）：通用窗口租约、原生 Metal 离屏与 `CAMetalLayer` 呈现已接入，macOS 默认使用 Metal。共享 HLSL 的材质、自阴影、MRT／HDR、mip、后处理和动态缓冲门禁，以及 Qt 原生 drawable 严格比较、2× 缩放、窗口重建、Metal／Vulkan 切换、无 MoltenVK 发布包搬迁测试均已通过；三平台编辑器回归见 [41430923652](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41430923652)，macOS 26 追加验收见 [41430845275](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41430845275)，具体能力和剩余硬件验收见 [Metal 后端记录](docs/METAL_BACKEND.md)。这不替代 P4/C1 的原版行为验收。
 

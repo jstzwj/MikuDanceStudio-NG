@@ -400,7 +400,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 77);
+    CHECK(implemented == 78);
     for (const char* language : {"en", "ja", "zh_CN"})
         for (int id : {MDS_CMD_DELETE_MOUTH_FRAMES, MDS_CMD_DELETE_EYE_FRAMES,
                        MDS_CMD_DELETE_EYEBROW_FRAMES}) {

@@ -1,5 +1,6 @@
 #include "mikudancestudio/pmm_scene_evaluation.hpp"
 #include "mikudancestudio/playback_frame.hpp"
+#include "mikudancestudio/pmm_edit.hpp"
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -10,9 +11,11 @@
 namespace mikudancestudio::format {
 namespace {
 template <class Key> struct TrackLookup {
+    const PmmKeyTrack<Key>& source;
+    const Key cleared{};
     std::unordered_map<std::uint32_t, const Key*> keys;
     bool valid = true;
-    explicit TrackLookup(const PmmKeyTrack<Key>& track) {
+    explicit TrackLookup(const PmmKeyTrack<Key>& track) : source(track) {
         keys.reserve(track.dense.size() + track.sparse.size());
         for (std::size_t i = 0; i < track.dense.size(); ++i)
             keys.emplace(static_cast<std::uint32_t>(i), &track.dense[i]);
@@ -24,6 +27,12 @@ template <class Key> struct TrackLookup {
     const Key* Get(std::uint32_t index) const {
         const auto found = keys.find(index);
         return found == keys.end() ? nullptr : found->second;
+    }
+    const Key* MorphPrevious(std::uint32_t index) const {
+        if (const auto* key = Get(index))
+            return key;
+        const auto free = source.unused.find(index);
+        return free == source.unused.end() ? &cleared : &free->second;
     }
     bool BracketAt(std::uint32_t head, double frame, const Key*& left, const Key*& right) const {
         if (!valid)
@@ -74,8 +83,17 @@ bool AdvanceCursor(const TrackLookup<Key>& track, double frame, PmmTrackCursor& 
             return true;
         }
         const Key* next = track.Get(key->next);
-        if (!next || next->previous != cursor.index || next->frame <= key->frame)
+        if (!next || next->frame <= key->frame)
             return false;
+        if (next->previous != cursor.index) {
+            if constexpr (!std::is_same_v<Key, PmmMorphKey>)
+                return false;
+            else {
+                std::vector<std::vector<Key>> checked;
+                if (!PmmTrackChains(track.source, checked))
+                    return false;
+            }
+        }
         cursor.index = key->next;
         key = next;
     }
@@ -168,9 +186,7 @@ bool AdvanceModel(const PmmSceneModel& source, double frame, PmmModelPlaybackCur
             pose.morphValues[i] = key->value;
             continue;
         }
-        const auto* previous = morphs.Get(key->previous);
-        if (!previous || previous->next != cursor.index || previous->frame >= key->frame)
-            return false;
+        const auto* previous = morphs.MorphPrevious(key->previous);
         pose.morphValues[i] = InterpolatePmmMorphValue(previous->value, key->value, previous->frame,
                                                        key->frame, frame);
     }

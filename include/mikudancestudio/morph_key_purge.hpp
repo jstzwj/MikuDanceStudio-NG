@@ -18,4 +18,22 @@ template <class At> void PurgeMorphChain(std::uint32_t root, At&& at) {
         index = next;
     }
 }
+// Original x64 4D1DE..4D47B: shift linked mouth keys, never frame zero.
+// Deleting a key changes root.next and clears that slot; it deliberately leaves
+// the successor's previous index intact. Addition wraps like the native ADD.
+template <class At> void ShiftMorphChain(std::uint32_t root, std::int32_t shift, At&& at) {
+    auto index = at(root).next;
+    while (index) {
+        auto& key = at(index);
+        const auto next = key.next;
+        key.frame += std::uint32_t(shift);
+        if (!key.frame || key.frame > 0x7fffffffU) {
+            at(root).next = next;
+            key.frame = key.previous = key.next = 0;
+            key.allocated = 0;
+            key.value = 0.f;
+        }
+        index = next;
+    }
+}
 }

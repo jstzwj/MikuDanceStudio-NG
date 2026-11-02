@@ -22,6 +22,7 @@ NAMES = [('bone', 'en', 663), ('bone', 'ja', 648),
 NAMES += [('ground_shadow', 'en', 658), ('ground_shadow', 'ja', 624)]
 NAMES += [('center_bias', 'en', 651), ('center_bias', 'ja', 600)]
 NAMES += [('accessory_order', 'en', 659), ('accessory_order', 'ja', 627)]
+NAMES += [('frame_shift', 'en', 655), ('frame_shift', 'ja', 615)]
 
 
 def source_dialogs():
@@ -37,6 +38,7 @@ def source_dialogs():
                    'ground_shadow': 'GROUND_SHADOW_COLOR',
                    'center_bias': 'CENTER_POSITION_BIAS',
                    'accessory_order': 'ACCESSORY_ORDER',
+                   'frame_shift': 'FRAME_SHIFT',
                    'calculation_order': 'MODEL_CALCULATE_ORDER'}.get(kind, kind.upper() + '_NUMERIC_INPUT')
         tag = f'MDS_DLG_{command}_{"EN" if language == "en" else "JP"}'
         block = source.split(tag + ' DIALOGEX ', 1)[1].split('\n  END', 1)[0]
@@ -151,6 +153,7 @@ def run(check):
           'pos X ': '\u4f4d\u7f6eX ', 'pos Y ': '\u4f4d\u7f6eY ', 'pos Z ': '\u4f4d\u7f6eZ ',
           'degree': '\u89d2\u5ea6(\u00b0)', 'axis X': 'X\u8f74', 'axis Y': 'Y\u8f74', 'axis Z': 'Z\u8f74',
           'distance': '\u8ddd\u79bb', 'OK': '\u786e\u5b9a', 'cancel': '\u53d6\u6d88',
+          'frame number to shift': '\u79fb\u52a8\u5e27\u6570',
           'screen size': '\u5c4f\u5e55\u5c3a\u5bf8', 'width': '\u5bbd\u5ea6', 'height': '\u9ad8\u5ea6',
           'thickness of edge line': '\u63cf\u8fb9\u7c97\u7ec6', 'thickness': '\u7c97\u7ec6',
           '0                     1                    2': '0                     1                    2',

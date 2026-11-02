@@ -2858,3 +2858,38 @@ Maximum steady lag was **0.862 ms**, lead **0.075 ms**, stop **10 ms**, EOF posi
 macOS 26 virtual audio profile alongside macOS 15; it does not cover arbitrary
 physical devices. The revised local Windows Remote Audio test also passed
 120 seconds with the same limits; P4/C1's other acceptance gates remain open.
+
+## Mouth-frame shift and reused predecessor evaluation (2026-11-03)
+
+Command 225 and control 616 now use the original mouth-shift dialog: 75 by 45
+dialog units, initial selected zero, original focus/tab/default/cancel behavior,
+and localized English/Japanese/Chinese strings. Parsing matches the original
+20-byte ANSI buffer and Windows `atoi`, including decimal prefixes and signed
+saturation. The independent native parser checks passed six boundary cases.
+The template catalog now verifies 30 original dialogs; implemented menu commands
+are **78/103**, with the remaining commands still explicitly unavailable.
+
+The shared shift kernel is used by both frontends. It selects the Morph panel,
+adds frame offsets with unsigned wrap and preserves the original root-link and
+unrepaired predecessor behavior when removing nonpositive frames. Detached
+occupied slots and unrelated free payloads survive. The portable track validator
+accepts those specific native topologies while continuing to reject cycles,
+invalid ranges, foreign active ownership and nonzero free predecessors.
+
+Reusing a deleted predecessor revealed an additional arithmetic distinction:
+integer seek wraps both frame differences to unsigned 32-bit, while playback
+subtracts floating frame time and wraps only the denominator. Both paths now
+follow their independently executed original routines. A shifted/reused fixture
+seeks to **-0.125** and plays to **0.375**; public tests retain those exact golden
+values instead of deriving both expected results from the implementation.
+
+The hash-verified original dispatcher passed **240** complete record-pool cases
+covering PMD/PMX, reordered channels, boundary shifts, native seek/playback and
+subsequent registration into a freed slot. UI paint work is stubbed; the original
+pool, seek, playback and registration routines execute independently. The public
+regression covers 32 shift configurations, pending foreign poses, undo/redo,
+watermarks, dirty state, save/reopen and playback gating. All **35 local P4 tests
+passed in 128.81 seconds**, followed by the strengthened exact-value regression
+in 11.61 seconds. The legacy application also built successfully. Tests used
+offscreen or never-shown windows; no local desktop interaction occurred.
+This closes the mouth-shift command, not the remaining C1 input/output gates.

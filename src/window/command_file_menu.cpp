@@ -1191,11 +1191,8 @@ void CmdFileMenu(MMDApp* app, HWND hwnd, std::uint16_t id, std::uint16_t notify)
     // ------------------------------------------------------------------
     // 225 (0x00488DDE): morph-frame cleanup.  DialogBoxParamA (sub_40F0B0,
     // tpl 0x28F EN / 0x267 JP) lets the user type a frame shift
-    // (app+0xA08F4).  On OK every type-3 (lip) morph's frame chain is
-    // walked: the first frame of the chain is the morph's own record, then
-    // each successor; a frame is dropped (relinked out of the chain and its
-    // record zeroed) while (frame0 + shift) <= 0, and the walk stops once
-    // the shifted value turns positive; the chain tail ends the walk.
+    // (app+0xA08F4). Shift linked panel-3 keys, retaining native freed-slot
+    // predecessor links and signed 32-bit wrap (x64 4D1DE..4D4D5).
     // ------------------------------------------------------------------
     case MDS_CMD_SHIFT_MOUTH_FRAMES: {
         if (app->CameraMode() != 0) { // 0x2F8
@@ -1215,59 +1212,12 @@ void CmdFileMenu(MMDApp* app, HWND hwnd, std::uint16_t id, std::uint16_t notify)
         for (std::uint16_t m = 0; static_cast<std::int32_t>(m) < morphCount; ++m) {
             model = ActiveModel(app);
             const mdl::MorphRecord* const morphs = model->morphs;
-            if (morphs[m].type != 3) {
+            if (morphs[m].panel != mdl::MorphPanel::mouth) {
                 continue;
             }
             mdl::MorphKey* frames = model->morphKeys;
-            std::int32_t cur = frames[m].next; // chain head
-            if (cur == 0) {
-                continue;
-            }
-            for (;;) {
-                model = ActiveModel(app);
-                frames = model->morphKeys;
-                const std::int32_t next = frames[cur].next;
-                if (next != 0) {
-                    if (cur == m) { // self-loop edge (original 0x488F61)
-                        cur = next;
-                        continue;
-                    }
-                    std::int32_t v =
-                        static_cast<std::int32_t>(frames[cur].frame) + app->MorphFrameShift();
-                    frames[cur].frame = v;
-                    if (v > 0) {
-                        cur = frames[cur].next;
-                        continue; // stop dropping, keep walking
-                    }
-                    // drop cur: relink m's chain past it, zero its record
-                    const std::int32_t oldNext = frames[cur].next;
-                    frames[m].next = oldNext;
-                    frames[cur].frame = 0;
-                    frames[cur].next = 0;
-                    frames[cur].previous = 0;
-                    frames[cur].allocated = 0;
-                    frames[cur].value = 0.0f;
-                    cur = oldNext;
-                    continue;
-                }
-                // chain tail reached
-                if (cur == m) {
-                    break;
-                }
-                std::int32_t v =
-                    static_cast<std::int32_t>(frames[cur].frame) + app->MorphFrameShift();
-                frames[cur].frame = v;
-                if (v > 0) {
-                    break;
-                }
-                frames[m].next = frames[cur].next;
-                frames[cur].frame = 0;
-                frames[cur].next = 0;
-                frames[cur].previous = 0;
-                frames[cur].allocated = 0;
-                frames[cur].value = 0.0f;
-                break;
-            }
+            keyframe_edit::ShiftMorphChain(m, app->MorphFrameShift(),
+                                            [&](unsigned index) -> auto& { return frames[index]; });
         }
         FramePurgeTail(app);
         break;

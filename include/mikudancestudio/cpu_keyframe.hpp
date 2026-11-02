@@ -716,10 +716,11 @@ template <class Traits> struct Kernel {
                     const float delta = rec.value - prev.value;
                     v = (float)((double)tF * (double)delta + (double)prev.value);
 #else
-                    // Keep subtraction, division and interpolation in single precision.
+                    // x64 CC51C/CC52C zero-extend both wrapped 32-bit
+                    // differences before cvtsi2ss; freed-slot reuse can make
+                    // the predecessor newer than this key.
                     const float tF = static_cast<float>(frameU32 - prev.frame) /
-                                     static_cast<float>(static_cast<int>(rec.frame) -
-                                                        static_cast<int>(prev.frame));
+                                     static_cast<float>(rec.frame - prev.frame);
                     v = tF * (rec.value - prev.value) + prev.value;
 #endif
                 }

@@ -129,6 +129,25 @@ int main() {
     broken = morphs;
     broken.sparse[0].value.previous = 99;
     CHECK(!PmmTrackChains(broken, chains));
+    // Native mouth shifts may leave the first survivor referring to a freed
+    // predecessor. Live nonzero free payloads are not silently treated as zero.
+    PmmKeyTrack<PmmMorphKey> shifted;
+    shifted.dense.resize(2);
+    shifted.dense[0].next = 3;
+    PmmMorphKey survivor;
+    survivor.frame = 5;
+    survivor.previous = 2;
+    survivor.value = .5f;
+    shifted.sparse.push_back({3, 0, survivor});
+    CHECK(PmmTrackChains(shifted, chains));
+    shifted.unused[2].value = .25f;
+    CHECK(!PmmTrackChains(shifted, chains));
+    shifted.unused[2].value = 0;
+    CHECK(PmmTrackChains(shifted, chains));
+    shifted.sparse[0].value.previous = 100002;
+    CHECK(!PmmTrackChains(shifted, chains));
+    shifted.sparse[0].value.previous = 3;
+    CHECK(!PmmTrackChains(shifted, chains));
     // Invalid changes cannot publish a partially rebuilt document/session.
     CHECK(RebuildPmmV2(source, rebuilt, reason));
     CHECK(rebuilt.cameraKeys.sparse[0].index == 1);

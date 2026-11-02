@@ -485,4 +485,18 @@ inline constexpr NumericControl kNumericAccessoryOrderJaControls[] = {
 };
 inline constexpr NumericTemplate kNumericAccessoryOrderJa = {
     627, 175, 145, 9, "MS PGothic", "dialog.numeric.accessory_order.title", kNumericAccessoryOrderJaControls, 13};
+inline constexpr NumericControl kNumericFrameShiftEnControls[] = {
+    {616, 16, 5, 45, 12, NumericControlKind::Edit, ""},
+    {1, 6, 25, 30, 14, NumericControlKind::Button, "dialog.numeric.frame_shift.control.1"},
+    {2, 40, 25, 30, 14, NumericControlKind::Button, "dialog.numeric.frame_shift.control.2"},
+};
+inline constexpr NumericTemplate kNumericFrameShiftEn = {
+    655, 75, 45, 9, "Arial", "dialog.numeric.frame_shift.title", kNumericFrameShiftEnControls, 3};
+inline constexpr NumericControl kNumericFrameShiftJaControls[] = {
+    {616, 16, 5, 45, 12, NumericControlKind::Edit, ""},
+    {1, 6, 25, 30, 14, NumericControlKind::Button, "dialog.numeric.frame_shift.control.1"},
+    {2, 40, 25, 30, 14, NumericControlKind::Button, "dialog.numeric.frame_shift.control.2"},
+};
+inline constexpr NumericTemplate kNumericFrameShiftJa = {
+    615, 75, 45, 9, "MS PGothic", "dialog.numeric.frame_shift.title", kNumericFrameShiftJaControls, 3};
 }

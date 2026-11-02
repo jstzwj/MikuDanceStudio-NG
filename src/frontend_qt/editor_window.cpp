@@ -1179,6 +1179,15 @@ void EditorWindow::MorphScale() {
     Result(session_.ScaleMorphKeys(values[0], values[1], reason), reason);
     Refresh();
 }
+void EditorWindow::ShiftMouthFrames() {
+    FrameShiftDialog dialog(language_, this);
+    dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    std::string reason;
+    Result(session_.ShiftMouthKeys(dialog.Value(), reason), reason);
+    Refresh();
+}
 void EditorWindow::CameraScale() {
     CameraScaleDialog dialog(language_, this);
     dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);

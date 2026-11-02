@@ -17,6 +17,7 @@
 #include "mikudancestudio/camera_key_math.hpp"
 #include "mikudancestudio/cpu_model_state.hpp"
 #include <cstdio>
+#include <climits>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -1118,13 +1119,29 @@ int WINAPI PurgeMessage(HWND, LPCSTR text, LPCSTR title, UINT flags) {
           "original purge confirmation text and flags");
     return purgeConfirm ? IDOK : IDCANCEL;
 }
-unsigned MorphPurgeCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+INT_PTR WINAPI ShiftDialog(HINSTANCE, LPCSTR resource, HWND, DLGPROC, LPARAM parameter) {
+    Check(reinterpret_cast<std::uintptr_t>(resource) == 655 && parameter == 0,
+          "original mouth-shift dialog resource");
+    return purgeConfirm ? IDOK : IDCANCEL;
+}
+unsigned MorphPurgeCommands(OriginalPhysicsModule& original, const std::filesystem::path& root,
+                            bool shifting = false) {
+    if (shifting) {
+        const auto parse = *original.Function<int (**)(const char*)>(0x128478);
+        for (const auto& [text, value] : std::vector<std::pair<const char*, int>>{
+                 {" -15tail", -15}, {"+7.5", 7}, {"nonsense", 0}, {"--1", 0},
+                 {"2147483648", INT_MAX}, {"-2147483649", INT_MIN}})
+            Check(parse(text) == value, "original frame-shift integer prefix/overflow");
+    }
     const unsigned char ret = 0xc3;
     Patch paint(original.Function<void*>(0x60ea0), &ret, 1);
     Patch curve(original.Function<void*>(0x62bb0), &ret, 1);
+    const auto seekByte = *original.Function<unsigned char*>(0xcbd90);
     Patch seek(original.Function<void*>(0xcbd90), &ret, 1);
     auto message = &PurgeMessage;
     Patch prompt(original.Function<void*>(0x128618), &message, sizeof message);
+    auto dialog = &ShiftDialog;
+    Patch modal(original.Function<void*>(0x128600), &dialog, sizeof dialog);
     std::vector<unsigned char> app(0xa3000);
     auto* pointer = app.data();
     Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
@@ -1132,83 +1149,154 @@ unsigned MorphPurgeCommands(OriginalPhysicsModule& original, const std::filesyst
     for (const auto* file : {"morph-panels.pmd", "morph-panels.pmx"})
         for (bool reverse : {false, true})
             for (unsigned length : {0u, 1u, 2u})
-                for (unsigned panel : {1u, 2u, 3u})
-                    for (bool accept : {false, true}) {
-                        EditorSession portable;
-                        std::string reason;
-                        Check(MorphPurgeFixture(portable, root, file, reverse, length, reason),
-                              reason.c_str());
-                        const auto before = portable.Document().models[0];
-                        NativeAuxiliary native(
-                            before, portable.Runtime().Resource(0)->SourceKind() == ModelKind::Pmx);
-                        const auto put = [&](unsigned i, const auto& key) {
-                            auto& out = native.morphs.at(i);
-                            out.frame = key.frame;
-                            out.previous = key.previous;
-                            out.next = key.next;
-                            out.value = key.value;
-                            out.allocated = key.allocated;
-                        };
-                        for (unsigned i = 0; i < before.morphKeys.dense.size(); ++i) {
-                            put(i, before.morphKeys.dense[i]);
-                            int mapped;
-                            Check(portable.Runtime().DocumentMorphIndex(0, int(i), mapped, reason),
+                for (unsigned panel :
+                     shifting ? std::vector<unsigned>{3} : std::vector<unsigned>{1, 2, 3})
+                    for (bool accept : {false, true})
+                        for (auto shift :
+                             shifting ? std::vector<std::int32_t>{INT_MIN, -21, -20, -15, -10, -1,
+                                                                  0, 1, INT_MAX - 15, INT_MAX}
+                                      : std::vector<std::int32_t>{0}) {
+                            EditorSession portable;
+                            std::string reason;
+                            Check(MorphPurgeFixture(portable, root, file, reverse, length, reason),
                                   reason.c_str());
-                            native.poses[i].panel = static_cast<mdl::MorphPanel>(portable.Runtime()
-                                                                                     .Resource(0)
-                                                                                     ->Document()
-                                                                                     .morphs[mapped]
-                                                                                     .header.panel);
+                            const auto before = portable.Document().models[0];
+                            NativeAuxiliary native(before,
+                                                   portable.Runtime().Resource(0)->SourceKind() ==
+                                                       ModelKind::Pmx);
+                            const auto put = [&](unsigned i, const auto& key) {
+                                auto& out = native.morphs.at(i);
+                                out.frame = key.frame;
+                                out.previous = key.previous;
+                                out.next = key.next;
+                                out.value = key.value;
+                                out.allocated = key.allocated;
+                            };
+                            for (unsigned i = 0; i < before.morphKeys.dense.size(); ++i) {
+                                put(i, before.morphKeys.dense[i]);
+                                int mapped;
+                                Check(portable.Runtime().DocumentMorphIndex(0, int(i), mapped,
+                                                                            reason),
+                                      reason.c_str());
+                                native.poses[i].panel =
+                                    static_cast<mdl::MorphPanel>(portable.Runtime()
+                                                                     .Resource(0)
+                                                                     ->Document()
+                                                                     .morphs[mapped]
+                                                                     .header.panel);
+                            }
+                            for (const auto& key : before.morphKeys.sparse)
+                                put(unsigned(key.index), key.value);
+                            for (const auto& [i, key] : before.morphKeys.unused)
+                                put(i, key);
+                            auto* model = native.model.get();
+                            std::fill(app.begin(), app.end(), 0);
+                            std::memcpy(app.data() + 0xbe8, &model, sizeof model);
+                            app[0xa1b90] = 1;
+                            if (shifting)
+                                std::memcpy(app.data() + 0xa1918, &shift, sizeof shift);
+                            auto expectedApp = app;
+                            expectedApp[0xc0] = 1;
+                            if (accept)
+                                expectedApp[0xa1b31] = 1;
+                            purgePanel = panel;
+                            purgeConfirm = accept;
+                            original.Function<void (*)(HWND, WPARAM)>(0x3f550)(
+                                nullptr, shifting     ? MDS_CMD_SHIFT_MOUTH_FRAMES
+                                         : panel == 3 ? MDS_CMD_DELETE_MOUTH_FRAMES
+                                         : panel == 2 ? MDS_CMD_DELETE_EYE_FRAMES
+                                                      : MDS_CMD_DELETE_EYEBROW_FRAMES);
+                            if (accept) {
+                                const bool ok = shifting ? portable.ShiftMouthKeys(shift, reason)
+                                                         : portable.PurgeMorphKeys(panel, reason);
+                                if (!ok)
+                                    std::fprintf(
+                                        stderr,
+                                        "morph edit failed %s reverse=%u length=%u shift=%d: %s\n",
+                                        file, unsigned(reverse), length, shift, reason.c_str());
+                                Check(ok, reason.c_str());
+                            }
+                            const auto& track = portable.Document().models[0].morphKeys;
+                            std::map<unsigned, PmmMorphKey> expected(track.unused.begin(),
+                                                                     track.unused.end());
+                            for (unsigned i = 0; i < track.dense.size(); ++i)
+                                expected[i] = track.dense[i];
+                            for (const auto& key : track.sparse)
+                                expected[unsigned(key.index)] = key.value;
+                            for (unsigned i = 0; i < native.morphs.size(); ++i) {
+                                const auto& a = native.morphs[i];
+                                const auto b = expected.count(i) ? expected.at(i) : PmmMorphKey{};
+                                if (a.frame != b.frame || a.previous != b.previous ||
+                                    a.next != b.next || a.allocated != b.allocated ||
+                                    std::memcmp(&a.value, &b.value, sizeof(float)))
+                                    std::fprintf(
+                                        stderr,
+                                        "morph edit %s reverse=%u length=%u panel=%u accept=%u shift=%d slot=%u native=%u/%u/%u/%u/%g portable=%u/%u/%u/%u/%g\n",
+                                        file, unsigned(reverse), length, panel, unsigned(accept),
+                                        shift, i, a.frame, a.previous, a.next, a.allocated, a.value,
+                                        b.frame, b.previous, b.next, b.allocated, b.value);
+                                Check(a.frame == b.frame && a.previous == b.previous &&
+                                          a.next == b.next && a.allocated == b.allocated &&
+                                          !std::memcmp(&a.value, &b.value, sizeof(float)),
+                                      "original morph purge full pool differs");
+                            }
+                            Check(app == expectedApp && model->UndoCursor() == 29 &&
+                                      model->LatestUndoCursor() == 29,
+                                  "original purge application/history side effects");
+                            if (shifting && accept) {
+                                Patch nativeSeek(original.Function<void*>(0xcbd90), &seekByte, 1);
+                                std::vector<std::uint32_t> cursors(native.poses.size());
+                                std::vector<unsigned char> active(native.poses.size());
+                                model->morphKeyCursors = cursors.data();
+                                model->morphTrackActive = active.data();
+                                const auto playback = [&] {
+                                    original.Function<void (*)(mdl::ModelRecord*, float, int)>(0xd0320)(model, 0, 0);
+                                    original.Function<void (*)(mdl::ModelRecord*, float, int)>(0xd08c0)(model, .1f, 0);
+                                    PmmScenePlaybackState state;
+                                    Check(StartPmmScenePlayback(portable.Document(), state), "shifted playback start");
+                                    Check(AdvancePmmScenePlayback(portable.Document(), .1f, state,
+                                                                 {true, true, PmmPlaybackArithmetic::NativeFloat}),
+                                          "shifted playback advance");
+                                    for (unsigned i = 0; i < native.poses.size(); ++i)
+                                        Check(!std::memcmp(&state.pose.models[0].morphValues[i], &native.poses[i].value, sizeof(float)),
+                                              "original playback after mouth shift/reuse differs");
+                                };
+                                playback();
+                                original.Function<int (*)(mdl::ModelRecord*, int, int)>(0xcbd90)(
+                                    model, 2, 0);
+                                const bool ok = portable.Seek(2, reason);
+                                Check(ok, reason.c_str());
+                                const auto& values = portable.Document().models[0].morphPose;
+                                for (unsigned i = 0; i < values.size(); ++i)
+                                    Check(!std::memcmp(&values[i], &native.poses[i].value,
+                                                       sizeof(float)),
+                                          "original seek after mouth shift differs");
+                                unsigned channel = 0;
+                                while (channel < native.poses.size() &&
+                                       native.poses[channel].panel != mdl::MorphPanel::mouth)
+                                    ++channel;
+                                Check(channel < native.poses.size(), "mouth fixture channel");
+                                Check(portable.Seek(30, reason), reason.c_str());
+                                Check(portable.SetMorph(0, channel, .375f, reason), reason.c_str());
+                                native.Register(original, portable.Document().models[0], Track::Morph, 30, channel);
+                                const bool registered = portable.RegisterMorph(0, channel, reason);
+                                Check(registered, reason.c_str());
+                                native.Compare(portable.Document().models[0]);
+                                original.Function<int (*)(mdl::ModelRecord*, int, int)>(0xcbd90)(model, 2, 0);
+                                const bool sought = portable.Seek(2, reason);
+                                Check(sought, reason.c_str());
+                                const auto& reused = portable.Document().models[0].morphPose;
+                                for (unsigned i = 0; i < reused.size(); ++i) {
+                                    if (std::memcmp(&reused[i], &native.poses[i].value, sizeof(float)))
+                                        std::fprintf(stderr, "reuse %s reverse=%u length=%u shift=%d channel=%u portable=%.9g native=%.9g\n",
+                                                     file, unsigned(reverse), length, shift, i, reused[i], native.poses[i].value);
+                                    Check(!std::memcmp(&reused[i], &native.poses[i].value, sizeof(float)),
+                                          "original seek after freed-slot reuse differs");
+                                }
+                                playback();
+                            }
+                            ++cases;
                         }
-                        for (const auto& key : before.morphKeys.sparse)
-                            put(unsigned(key.index), key.value);
-                        for (const auto& [i, key] : before.morphKeys.unused)
-                            put(i, key);
-                        auto* model = native.model.get();
-                        std::fill(app.begin(), app.end(), 0);
-                        std::memcpy(app.data() + 0xbe8, &model, sizeof model);
-                        app[0xa1b90] = 1;
-                        auto expectedApp = app;
-                        expectedApp[0xc0] = 1;
-                        if (accept)
-                            expectedApp[0xa1b31] = 1;
-                        purgePanel = panel;
-                        purgeConfirm = accept;
-                        original.Function<void (*)(HWND, WPARAM)>(0x3f550)(
-                            nullptr, panel == 3   ? MDS_CMD_DELETE_MOUTH_FRAMES
-                                     : panel == 2 ? MDS_CMD_DELETE_EYE_FRAMES
-                                                  : MDS_CMD_DELETE_EYEBROW_FRAMES);
-                        if (accept)
-                            Check(portable.PurgeMorphKeys(panel, reason), reason.c_str());
-                        const auto& track = portable.Document().models[0].morphKeys;
-                        std::map<unsigned, PmmMorphKey> expected(track.unused.begin(),
-                                                                 track.unused.end());
-                        for (unsigned i = 0; i < track.dense.size(); ++i)
-                            expected[i] = track.dense[i];
-                        for (const auto& key : track.sparse)
-                            expected[unsigned(key.index)] = key.value;
-                        for (unsigned i = 0; i < native.morphs.size(); ++i) {
-                            const auto& a = native.morphs[i];
-                            const auto b = expected.count(i) ? expected.at(i) : PmmMorphKey{};
-                            if (a.frame != b.frame || a.previous != b.previous ||
-                                a.next != b.next || a.allocated != b.allocated ||
-                                std::memcmp(&a.value, &b.value, sizeof(float)))
-                                std::fprintf(
-                                    stderr,
-                                    "purge %s reverse=%u length=%u panel=%u accept=%u slot=%u native=%u/%u/%u/%u/%g portable=%u/%u/%u/%u/%g\n",
-                                    file, unsigned(reverse), length, panel, unsigned(accept), i,
-                                    a.frame, a.previous, a.next, a.allocated, a.value, b.frame,
-                                    b.previous, b.next, b.allocated, b.value);
-                            Check(a.frame == b.frame && a.previous == b.previous &&
-                                      a.next == b.next && a.allocated == b.allocated &&
-                                      !std::memcmp(&a.value, &b.value, sizeof(float)),
-                                  "original morph purge full pool differs");
-                        }
-                        Check(app == expectedApp && model->UndoCursor() == 29 &&
-                                  model->LatestUndoCursor() == 29,
-                              "original purge application/history side effects");
-                        ++cases;
-                    }
     return cases;
 }
 unsigned CameraScaleCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
@@ -1491,8 +1579,15 @@ void GravityCapacity(OriginalPhysicsModule& original) {
 int wmain(int argc, wchar_t** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     std::setvbuf(stdout, nullptr, _IONBF, 0);
-    Check(argc == 3, "usage: editor_auxiliary_oracle_test original.exe generated-fixture");
+    Check(argc == 3 || argc == 4,
+          "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
+    if (argc == 4) {
+        Check(std::wcscmp(argv[3], L"--mouth-shift") == 0, "unknown oracle filter");
+        std::printf("%u original mouth shifts passed\n",
+                    MorphPurgeCommands(original, argv[2], true));
+        return 0;
+    }
     std::printf("%u original model rendering toggles: complete model/application bytes\n",
                 ModelRenderFlags(original, argv[2]));
     std::printf(
@@ -1585,6 +1680,9 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf(
         "%u original morph purges: complete pool, tail, categories, reordered channels and cancellation\n",
         MorphPurgeCommands(original, argv[2]));
+    std::printf(
+        "%u original mouth shifts: full pool, freed predecessors, overflow, reordered channels and cancellation\n",
+        MorphPurgeCommands(original, argv[2], true));
     std::printf(
         "%u original camera-scale applies: full pool bytes, angle conversion and signed FOV\n",
         CameraScaleCommands(original, argv[2]));

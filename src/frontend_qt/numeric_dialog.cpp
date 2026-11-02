@@ -465,6 +465,39 @@ int GravityPosition(float value) {
     return std::clamp(editor::GravityInteger(value * 100.f), -100, 100);
 }
 }
+FrameShiftDialog::FrameShiftDialog(const Language& language, QWidget* parent)
+    : TemplateDialog(language.Code() == "en" ? ui::kNumericFrameShiftEn : ui::kNumericFrameShiftJa,
+                     language, parent) {
+    setObjectName("mmd.frameShift");
+    Prefill(616, "0");
+    Field()->setFocus(Qt::OtherFocusReason);
+    Field()->selectAll();
+}
+void FrameShiftDialog::accept() {
+    // Native GetWindowTextA has a 20-byte buffer, then MSVC atoi: decimal
+    // prefix, zero for no digits, and saturation at the Windows signed range.
+    const auto text = Field()->text().toUtf8().left(19);
+    const char* begin = text.constData();
+    const char* end = begin + text.size();
+    while (begin < end && (*begin == ' ' || (*begin >= '\t' && *begin <= '\r')))
+        ++begin;
+    bool negative = false;
+    if (begin < end && (*begin == '+' || *begin == '-'))
+        negative = *begin++ == '-';
+    std::uint32_t magnitude = 0;
+    const std::uint32_t limit = negative ? 2147483648u : 2147483647u;
+    for (; begin < end && *begin >= '0' && *begin <= '9'; ++begin) {
+        const auto digit = unsigned(*begin - '0');
+        if (magnitude > (limit - digit) / 10) {
+            magnitude = limit;
+            break;
+        }
+        magnitude = magnitude * 10 + digit;
+    }
+    value_ = negative ? (magnitude == 2147483648u ? INT_MIN : -std::int32_t(magnitude))
+                      : std::int32_t(magnitude);
+    QDialog::accept();
+}
 MorphScaleDialog::MorphScaleDialog(const Language& language, QWidget* parent)
     : TemplateDialog(language.Code() == "en" ? ui::kNumericMorphScaleEn : ui::kNumericMorphScaleJa,
                      language, parent) {

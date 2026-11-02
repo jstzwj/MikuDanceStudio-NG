@@ -32,7 +32,21 @@ bool PmmTrackChains(const PmmKeyTrack<T>& track, std::vector<std::vector<T>>& ch
         if (index < track.dense.size() || index >= track.dense.size() + 100000 || key.frame ||
             sparse.count(index))
             return false;
+    const auto clearedMorphSlot = [&](std::uint32_t index) {
+        if constexpr (std::is_same_v<T, PmmMorphKey>) {
+            if (index < track.dense.size() || index >= track.dense.size() + 100000 ||
+                sparse.count(index))
+                return false;
+            const auto found = track.unused.find(index);
+            // PMM serializes occupied slots only; an absent free record is zero.
+            return found == track.unused.end() ||
+                   (!found->second.frame && !found->second.previous && !found->second.next &&
+                    !found->second.allocated && found->second.value == 0.f);
+        }
+        return false;
+    };
     std::set<std::uint32_t> visited;
+    std::map<std::uint32_t, std::uint32_t> activeRoots;
     std::vector<std::pair<std::uint32_t, std::uint32_t>> bypassed;
     std::vector<std::vector<T>> result(track.dense.size());
     for (std::size_t root = 0; root < track.dense.size(); ++root) {
@@ -50,19 +64,46 @@ bool PmmTrackChains(const PmmKeyTrack<T>& track, std::vector<std::vector<T>>& ch
                 next->second->frame <= key->frame || next->second->frame > 0x7fffffffU)
                 return false;
             if (next->second->previous != index) {
-                if constexpr (!std::is_same_v<T, PmmBoneKey>)
+                if constexpr (std::is_same_v<T, PmmBoneKey>)
+                    bypassed.emplace_back(std::uint32_t(root), next->first);
+                else if constexpr (std::is_same_v<T, PmmMorphKey>) {
+                    const auto previous = next->second->previous;
+                    // A freed predecessor can later be reused by registration,
+                    // even for another channel. Only the first active key can
+                    // retain this native shift artifact; forward edges remain
+                    // ordered, unique and acyclic.
+                    if (index != root || previous == next->first ||
+                        previous < track.dense.size() ||
+                        (!sparse.count(previous) && !clearedMorphSlot(previous)))
+                        return false;
+                } else
                     return false;
-                bypassed.emplace_back(std::uint32_t(root), next->first);
             }
             index = next->first;
+            activeRoots.emplace(index, std::uint32_t(root));
             key = next->second;
             result[root].push_back(*key);
         }
     }
     // Native root resets and frame-line undo can retain nonzero records that
     // are detached from the root's next chain. They remain allocated/savable.
-    // Validate their references and strict time ordering, without inventing a
-    // reciprocal link into the active chain. Ordering rules exclude cycles.
+    // Validate detached ancestry without inventing a reciprocal active edge.
+    // Native mouth shifting can retain detached keys pointing to an earlier
+    // active key of the same channel, or to a freed slot. Neither can form a
+    // cycle: active chains have already been checked and never enter this key.
+    const auto detachedRoot = [&](std::uint32_t index) {
+        for (std::size_t n = 0; n <= sparse.size(); ++n) {
+            if (index < track.dense.size())
+                return index;
+            if (const auto found = activeRoots.find(index); found != activeRoots.end())
+                return found->second;
+            const auto found = sparse.find(index);
+            if (found == sparse.end())
+                break;
+            index = found->second->previous;
+        }
+        return std::uint32_t(-1);
+    };
     for (const auto& [index, key] : sparse) {
         if (visited.count(index))
             continue;
@@ -77,7 +118,12 @@ bool PmmTrackChains(const PmmKeyTrack<T>& track, std::vector<std::vector<T>>& ch
             return false;
         if (key->next) {
             const auto found = sparse.find(key->next);
-            if (found == sparse.end() || found->second->frame <= key->frame)
+            const auto active = activeRoots.find(key->next);
+            const bool shiftedMorph = std::is_same_v<T, PmmMorphKey> &&
+                                      active != activeRoots.end() &&
+                                      detachedRoot(key->previous) == active->second;
+            if (found == sparse.end() ? !clearedMorphSlot(key->next)
+                                      : !shiftedMorph && found->second->frame <= key->frame)
                 return false;
         }
     }
@@ -114,6 +160,11 @@ bool PmmRecordChannels(const PmmKeyTrack<T>& track,
         result.emplace(i, i);
     for (const auto& key : track.sparse)
         records.emplace(std::uint32_t(key.index), &key.value);
+    // A native mouth shift can free the first key without repairing the next
+    // key's predecessor. Active ownership comes from the validated forward chain.
+    for (std::uint32_t root = 0; root < track.dense.size(); ++root)
+        for (auto next = track.dense[root].next; next; next = records.at(next)->next)
+            result.emplace(next, root);
     for (const auto& [index, key] : records) {
         auto previous = index;
         std::vector<std::uint32_t> path;

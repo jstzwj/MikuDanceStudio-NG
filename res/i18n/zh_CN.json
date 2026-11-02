@@ -614,5 +614,8 @@
   "dialog.morph_purge.title.3": "删除口型帧",
   "dialog.morph_purge.text.1": "将删除所有眉毛帧。\n表情帧的修改无法撤销。\n\n是否继续？",
   "dialog.morph_purge.text.2": "将删除所有眼睛帧。\n表情帧的修改无法撤销。\n\n是否继续？",
-  "dialog.morph_purge.text.3": "将删除所有口型帧。\n表情帧的修改无法撤销。\n\n是否继续？"
+  "dialog.morph_purge.text.3": "将删除所有口型帧。\n表情帧的修改无法撤销。\n\n是否继续？",
+  "dialog.numeric.frame_shift.title": "移动帧数",
+  "dialog.numeric.frame_shift.control.1": "确定",
+  "dialog.numeric.frame_shift.control.2": "取消"
 }

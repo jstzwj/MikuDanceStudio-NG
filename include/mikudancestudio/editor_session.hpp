@@ -92,6 +92,7 @@ public:
     bool ResetMorphs(std::uint8_t, std::string&);
     bool ScaleMorphKeys(float scale, float add, std::string&);
     bool PurgeMorphKeys(unsigned panel, std::string&);
+    bool ShiftMouthKeys(std::int32_t shift, std::string&);
     bool ScaleCameraKeys(const std::array<float, 16>& scaleAndOffset, std::string&);
     bool ScaleBoneKeys(const std::array<float, 12>& scaleAndOffset, std::string&);
     bool OffsetRootBoneKeys(const std::array<float, 3>& offset, std::string&);
@@ -219,6 +220,7 @@ private:
         std::uint64_t revision = 0;
     };
     State state_;
+    bool EditMorphKeys(unsigned panel, const std::optional<std::int32_t>& shift, std::string&);
     bool DeleteKeys(State next, const std::set<KeyAddress>&, std::string&, bool markedModelRecords);
     std::uint64_t gravityEpoch_ = 0;
     std::uint64_t appearanceRevision_ = 0;

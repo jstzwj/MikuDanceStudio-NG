@@ -4,6 +4,13 @@
 
 namespace mikudancestudio::editor {
 bool EditorSession::PurgeMorphKeys(unsigned panel, std::string& reason) {
+    return EditMorphKeys(panel, std::nullopt, reason);
+}
+bool EditorSession::ShiftMouthKeys(std::int32_t shift, std::string& reason) {
+    return EditMorphKeys(3, shift, reason);
+}
+bool EditorSession::EditMorphKeys(unsigned panel, const std::optional<std::int32_t>& shift,
+                                  std::string& reason) {
     if (playing_ || selection_.model == 255 || panel < 1 || panel > 3) {
         reason = "morph-key-purge-unavailable";
         return false;
@@ -32,9 +39,13 @@ bool EditorSession::PurgeMorphKeys(unsigned panel, std::string& reason) {
         int mapped;
         if (!runtime_->DocumentMorphIndex(selection_.model, int(i), mapped, reason))
             return false;
-        if (resource->Document().morphs.at(std::size_t(mapped)).header.panel == panel)
-            keyframe_edit::PurgeMorphChain(
-                i, [&](unsigned index) -> auto& { return *records.at(index); });
+        if (resource->Document().morphs.at(std::size_t(mapped)).header.panel == panel) {
+            const auto at = [&](unsigned index) -> auto& { return *records.at(index); };
+            if (shift)
+                keyframe_edit::ShiftMorphChain(i, *shift, at);
+            else
+                keyframe_edit::PurgeMorphChain(i, at);
+        }
     }
     for (const auto& key : track.sparse)
         if (!key.value.frame)

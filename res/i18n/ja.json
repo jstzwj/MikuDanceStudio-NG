@@ -614,5 +614,8 @@
   "dialog.morph_purge.title.3": "リップフレーム削除",
   "dialog.morph_purge.text.1": "まゆのフレームを全て削除します\n表情フレームの変更は元に戻せません\n\nよろしいですか？",
   "dialog.morph_purge.text.2": "目のフレームを全て削除します\n表情フレームの変更は元に戻せません\n\nよろしいですか？",
-  "dialog.morph_purge.text.3": "リップのフレームを全て削除します\n表情フレームの変更は元に戻せません\n\nよろしいですか？"
+  "dialog.morph_purge.text.3": "リップのフレームを全て削除します\n表情フレームの変更は元に戻せません\n\nよろしいですか？",
+  "dialog.numeric.frame_shift.title": "シフトするﾌﾚｰﾑ数",
+  "dialog.numeric.frame_shift.control.1": "OK",
+  "dialog.numeric.frame_shift.control.2": "ｷｬﾝｾﾙ"
 }

@@ -14,6 +14,7 @@ template <class Key> struct Bracket {
 template <class Key> struct IndexedTrack {
     const PmmKeyTrack<Key>& track;
     std::unordered_map<std::uint32_t, const Key*> keys;
+    const Key cleared{};
     bool valid = true;
     explicit IndexedTrack(const PmmKeyTrack<Key>& source) : track(source) {
         keys.reserve(track.dense.size() + track.sparse.size());
@@ -44,18 +45,28 @@ template <class Key> struct IndexedTrack {
             const Key* following = next->second;
             const Key* left = current;
             if (following->previous != index) {
-                if constexpr (!std::is_same_v<Key, PmmBoneKey>) {
+                if constexpr (!std::is_same_v<Key, PmmBoneKey> &&
+                              !std::is_same_v<Key, PmmMorphKey>) {
                     return false;
                 } else {
                     std::vector<std::vector<Key>> checked;
                     if (!PmmTrackChains(track, checked))
                         return false;
-                    left = keys.at(following->previous);
+                    if constexpr (std::is_same_v<Key, PmmMorphKey>) {
+                        if (const auto previous = keys.find(following->previous); previous != keys.end())
+                            left = previous->second;
+                        else {
+                            const auto free = track.unused.find(following->previous);
+                            left = free == track.unused.end() ? &cleared : &free->second;
+                        }
+                    } else
+                        left = keys.at(following->previous);
                 }
             }
             if (frame <= following->frame) {
                 bracket = frame == following->frame ? Bracket<Key>{following, following}
-                          : frame < left->frame     ? Bracket<Key>{left, left}
+                          : !std::is_same_v<Key, PmmMorphKey> && frame < left->frame
+                                                   ? Bracket<Key>{left, left}
                                                     : Bracket<Key>{left, following};
                 return true;
             }
@@ -645,7 +656,7 @@ float InterpolatePmmMorphValue(float previousValue, float nextValue, std::uint32
                                std::uint32_t nextFrame, std::uint32_t frame) {
     const float fraction =
         static_cast<float>(frame - previousFrame) /
-        static_cast<float>(static_cast<int>(nextFrame) - static_cast<int>(previousFrame));
+        static_cast<float>(nextFrame - previousFrame);
     return fraction * (nextValue - previousValue) + previousValue;
 }
 
@@ -653,7 +664,7 @@ float InterpolatePmmMorphValue(float previousValue, float nextValue, std::uint32
                                std::uint32_t nextFrame, double frame) {
     const float fraction =
         (static_cast<float>(frame) - static_cast<float>(previousFrame)) /
-        static_cast<float>(static_cast<int>(nextFrame) - static_cast<int>(previousFrame));
+        static_cast<float>(nextFrame - previousFrame);
     return fraction * (nextValue - previousValue) + previousValue;
 }
 

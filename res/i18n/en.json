@@ -614,5 +614,8 @@
   "dialog.morph_purge.title.3": "delete lip frame",
   "dialog.morph_purge.text.1": "Trying to delete all eyebrow frame.\nYou cannot undo this oparation.\n\nAre you OK?",
   "dialog.morph_purge.text.2": "Trying to delete all eyes frame.\nYou cannot undo this oparation.\n\nAre you OK?",
-  "dialog.morph_purge.text.3": "Trying to delete all lip frame.\nYou cannot undo this oparation.\n\nAre you OK?"
+  "dialog.morph_purge.text.3": "Trying to delete all lip frame.\nYou cannot undo this oparation.\n\nAre you OK?",
+  "dialog.numeric.frame_shift.title": "frame number to shift",
+  "dialog.numeric.frame_shift.control.1": "OK",
+  "dialog.numeric.frame_shift.control.2": "cancel"
 }

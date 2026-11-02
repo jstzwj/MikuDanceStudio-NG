@@ -116,6 +116,7 @@ private:
     void OutlineColor();
     void GravitySettings();
     void MorphScale();
+    void ShiftMouthFrames();
     void CameraScale();
     void BoneScale();
     void PhysicsKeys();
