@@ -2230,5 +2230,25 @@ The local Windows package passed the clean-environment relocation check after
 MSVC runtime deployment was made explicit; English/Japanese/Chinese standard
 Cancel labels, bundled DXC, generated PMM and the 96x64 render passed. MoltenVK's
 pinned archive and license extraction were also verified. These are development
-packages, not P4/C1 acceptance. Cross-platform packaging results will be recorded
-after the new CI jobs complete.
+packages, not P4/C1 acceptance.
+
+Revision `b17fc2a` passed all three jobs in
+[run 41366224450](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41366224450):
+Windows **31/31**, Linux **35/35**, macOS **30/30** P4 regressions, followed by
+native presentation and relocated production-package checks. Windows explicitly
+executes DX11 and DX12 WARP; Linux runs Vulkan on isolated X11 and Wayland displays,
+and macOS runs Vulkan through the bundled MoltenVK. Windows compiles and ships
+Vulkan, but its hosted runner has no Vulkan driver; this is not a Windows Vulkan
+execution result. Every package passes the bundled DXC compile check.
+
+The run publishes `editor-dist-windows`, `editor-dist-linux`, and
+`editor-dist-macos`, each containing its platform archive and SHA-256 file.
+Qt and pinned-tool cache restores were exercised, and Linux also restored the
+previous revision's compiler object cache. The two deployment issues found by
+these checks are fixed: macOS temporary paths are canonicalized before comparison,
+and its Qt configuration explicitly points to `Resources/translations`.
+The Windows package includes MSVC runtime DLLs independently of developer-shell
+environment variables. All three downloaded archives were checked against their
+SHA-256 files and report clean source revision `b17fc2a`. The downloaded Windows
+CI package additionally passed the relocated production check on the local
+workstation. Full P4/C1 acceptance remains open.
