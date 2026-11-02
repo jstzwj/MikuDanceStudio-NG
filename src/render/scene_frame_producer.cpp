@@ -533,7 +533,15 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
     const int requestedMode = settings.shadow.mode < 0
                                   ? (session ? session->Pose().selfShadowMode : 0)
                                   : settings.shadow.mode;
-    const int mode = doc && !doc->selfShadowEnabled ? 0 : requestedMode;
+    // Original frame gate (x64 RVA 2A427): bone select/box modes keep
+    // fixed-function materials and omit projected shadows/outlines while
+    // paused. Timeline/export callers have no editor mode and render a frame
+    // with the playback convention. The native master test uses its low bit.
+    const bool viewportEffects =
+        !settings.editorModel || scene.Playing() || (doc && doc->timeline.editMode >= 2);
+    const int mode = viewportEffects && requestedMode > 0 && (!doc || (doc->selfShadowEnabled & 1))
+                         ? requestedMode
+                         : 0;
     const auto distance = settings.shadow.distance > 0 ? settings.shadow.distance
                           : session                    ? session->Pose().selfShadowDistance
                                                        : .01125f;
@@ -897,9 +905,11 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                  {SceneDrawFamily::ProjectedModelShadow, SceneDrawFamily::ModelOutline}) {
                 const bool ground = family == SceneDrawFamily::ProjectedModelShadow;
                 const bool enabled =
-                    ground ? doc && doc->view.groundShadow && frame.scene.lightState[4] < 0 &&
+                    ground ? viewportEffects && doc && doc->view.groundShadow &&
+                                 frame.scene.lightState[4] < 0 &&
                                  (pmd || ((material.flags & 2) && material.edgeColor[3] > 0))
-                           : scale > 0 && (pmd ? material.flags != 0 : (material.flags & 16) != 0);
+                           : viewportEffects && scale > 0 &&
+                                 (pmd ? material.flags != 0 : (material.flags & 16) != 0);
                 if (!count || !enabled)
                     continue;
                 ModelReplayStream edgeStream;
@@ -1064,7 +1074,8 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                     draw.textures = {};
                     accessoryCasters[pose.slot].push_back(std::move(draw));
                 }
-                if (pose.shadowEnabled && doc->view.groundShadow && frame.scene.lightState[4] < 0) {
+                if (viewportEffects && pose.shadowEnabled && doc->view.groundShadow &&
+                    frame.scene.lightState[4] < 0) {
                     auto draw = main.draws[start + n];
                     draw.shadowTarget = 0;
                     if (!BuildScenePassInputs(frame, SceneDrawFamily::ProjectedModelShadow, passes,

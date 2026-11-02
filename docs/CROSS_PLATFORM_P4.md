@@ -2627,3 +2627,28 @@ The largest individual sample was 36.41 ms. Retained-frame immutability, strict
 repeated final color and unload/resize submission passed on all three backends.
 This qualifies the named local offscreen profile; it does not measure physical
 display latency or imply that all original commands/C1 behavior are accepted.
+
+
+## Native editor frame effect gate (2026-11-03)
+
+The shared producer now follows the original frame predicate at x64 RVA
+`0x2A427`: paused bone-select/box modes omit self-shadow, projected ground
+shadows and model outlines. Tool modes and playback enable those families;
+the self-shadow master is tested by its low bit independently of its mode.
+Timeline/sequence producers without an editor context retain playback rendering.
+No simulation update is performed while choosing or preparing this frame.
+
+The optional `editor_scene_gate_oracle_test` maps the hash-verified original,
+executes its unchanged 50-byte predicate in a register-preserving wrapper and
+compares the produced frame's targets and draw families. **120 cases passed**:
+five edit modes, playback on/off, raw master values 0/1/2/7 and modes 0/1/2.
+The original application state remains byte-identical. No window or original
+entry point is used. The same public cases run as `editor_scene_gate` on all
+three platforms. Local frame-contract, editor gate, generated GPU performance
+and Qt rendering regressions all passed (four tests, 19.64 seconds).
+
+Linux run 41505954622 compiled the native PulseAudio changes, but stopped at
+`p4_scene_frame_contract` because the workflow's explicit target list omitted
+its executable. The other 36 tests passed; native audio was not reached. The
+workflow now explicitly builds both scene-contract and editor-gate executables.
+This failure does not establish any native audio result.

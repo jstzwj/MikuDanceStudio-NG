@@ -142,6 +142,12 @@ function(mds_add_qt_editor)
             "${root}/tests/test_runtime_cpu_scene.py" --passes $<TARGET_FILE:scene_frame_producer_test>
             --assets "${root}/res/assets")
         set_tests_properties(p4_scene_frame_contract PROPERTIES LABELS "p4;headless" TIMEOUT 120)
+        add_executable(editor_scene_gate_test "${root}/tests/editor_scene_gate_test.cpp")
+        target_link_libraries(editor_scene_gate_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render)
+        add_test(NAME editor_scene_gate COMMAND ${Python3_EXECUTABLE}
+            "${root}/tests/test_runtime_cpu_scene.py" --passes $<TARGET_FILE:editor_scene_gate_test>
+            --assets "${root}/res/assets")
+        set_tests_properties(editor_scene_gate PROPERTIES LABELS "p4;headless;oracle" TIMEOUT 120)
         target_link_libraries(qt_editor_performance_test PRIVATE mikudancestudio_frontend_qt)
         add_test(NAME qt_editor_performance COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_qt_editor_performance.py"
             --test $<TARGET_FILE:qt_editor_performance_test> --assets "${root}/res/assets"
@@ -164,6 +170,9 @@ function(mds_add_qt_editor)
         target_link_libraries(qt_presentation_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
             if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+                add_executable(editor_scene_gate_oracle_test EXCLUDE_FROM_ALL "${root}/tests/editor_scene_gate_test.cpp")
+                target_compile_definitions(editor_scene_gate_oracle_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN MDS_NATIVE_SCENE_GATE_ORACLE)
+                target_link_libraries(editor_scene_gate_oracle_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render bcrypt)
                 add_executable(editor_numeric_oracle_test EXCLUDE_FROM_ALL "${root}/tests/editor_numeric_oracle_test.cpp")
                 target_compile_definitions(editor_numeric_oracle_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
                 target_link_libraries(editor_numeric_oracle_test PRIVATE mikudancestudio_editor_core bcrypt)
