@@ -1,5 +1,6 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "bone_clipboard_fixture.hpp"
+#include <fstream>
 #include <iostream>
 using namespace mikudancestudio;
 using namespace editor;
@@ -275,6 +276,131 @@ int main(int argc, char** argv) {
     const auto lastRevision = globals.Revision();
     CHECK(!globals.Paste(0xffffffffU, false, reason));
     CHECK(globals.Revision() == lastRevision && !live->Simulation().resetPending);
+    // Command 250 ignores copied names/slots, but keeps the offset relative to
+    // the minimum of the complete copied selection (including other tracks).
+    EditorSession selectedTrack;
+    CHECK(selectedTrack.ImportModel(root / "articulated.pmx", reason));
+    CHECK(selectedTrack.Edit(
+        "selected-track source",
+        [](auto& d, auto&) {
+            d.physics.playbackMode = 0;
+            auto& model = d.models[0];
+            auto a = model.boneKeys.dense[0], b = model.boneKeys.dense[1];
+            a.frame = 8;
+            a.position = {2, 3, 4};
+            b.frame = 13;
+            b.position = {5, 6, 7};
+            auto morph = model.morphKeys.dense[0];
+            morph.frame = 5;
+            morph.value = .5f;
+            return RegisterPmmKey(model.boneKeys, 0, a) && RegisterPmmKey(model.boneKeys, 1, b) &&
+                   RegisterPmmKey(model.morphKeys, 0, morph);
+        },
+        reason));
+    CHECK(selectedTrack.Copy(
+        {{Track::Bone, 0, 0, 8}, {Track::Bone, 0, 1, 13}, {Track::Morph, 0, 0, 5}}, reason));
+    CHECK(selectedTrack.CanPasteToSelectedTrack());
+    CHECK(selectedTrack.SelectBones({0}, 0, reason));
+    CHECK(selectedTrack.Seek(20, reason));
+    const auto* retained = &selectedTrack.Runtime();
+    const auto updates = retained->Counters().frames;
+    CHECK(selectedTrack.PasteToSelectedTrack(20, reason));
+    CHECK(&selectedTrack.Runtime() == retained && retained->Counters().frames == updates);
+    CHECK(KeyAt(selectedTrack, 0, 23) &&
+          (KeyAt(selectedTrack, 0, 23)->position == std::array<float, 3>{2, 3, 4}));
+    CHECK(KeyAt(selectedTrack, 0, 28) &&
+          (KeyAt(selectedTrack, 0, 28)->position == std::array<float, 3>{5, 6, 7}));
+    CHECK(!KeyAt(selectedTrack, 1, 28));
+    for (const auto& key : selectedTrack.Keys())
+        CHECK(key.track != Track::Morph || key.frame == 0 || key.frame == 5);
+    CHECK(selectedTrack.Undo(reason) && !KeyAt(selectedTrack, 0, 23) &&
+          !KeyAt(selectedTrack, 0, 28));
+    CHECK(selectedTrack.Redo(reason) && KeyAt(selectedTrack, 0, 23) && KeyAt(selectedTrack, 0, 28));
+    CHECK(selectedTrack.SelectBones({}, -1, reason));
+    const auto noBoneRevision = selectedTrack.Revision();
+    CHECK(!selectedTrack.PasteToSelectedTrack(40, reason) && reason == "clipboard-select-bone");
+    CHECK(selectedTrack.Revision() == noBoneRevision);
+    CHECK(selectedTrack.SelectBones({0}, 0, reason));
+    CHECK(!selectedTrack.PasteToSelectedTrack(0x7fffffff, reason) &&
+          selectedTrack.Revision() == noBoneRevision);
+    CHECK(selectedTrack.Paste(40, false, reason) && KeyAt(selectedTrack, 1, 48));
+    CHECK(selectedTrack.Play(reason) && !selectedTrack.CanPasteToSelectedTrack());
+    CHECK(!selectedTrack.PasteToSelectedTrack(0, reason));
+    selectedTrack.Pause();
+    // Forced targeting also works across models with different bone names;
+    // returning to ordinary paste still uses the original source names.
+    CHECK(selectedTrack.ImportModel(root / "triangle.pmd", reason));
+    CHECK(selectedTrack.SelectBones({0}, 0, reason));
+    CHECK(selectedTrack.PasteToSelectedTrack(60, reason));
+    std::vector<std::vector<PmmBoneKey>> targetChains;
+    CHECK(PmmTrackChains(selectedTrack.Document().models[1].boneKeys, targetChains));
+    CHECK(targetChains[0].back().frame == 68);
+    const auto write = [](const auto& path, const auto& bytes, auto& error) {
+        std::ofstream file(path, std::ios::binary);
+        file.write(reinterpret_cast<const char*>(bytes.data()), std::streamsize(bytes.size()));
+        file.close();
+        if (!file)
+            error = "write-failed";
+        return bool(file);
+    };
+    CHECK(selectedTrack.Save(root / "selected-track.pmm", write, reason));
+    EditorSession reopened;
+    CHECK(reopened.Open(root / "selected-track.pmm", reason));
+    CHECK(PmmTrackChains(reopened.Document().models[1].boneKeys, targetChains) &&
+          targetChains[0].back().frame == 68);
+    CHECK(KeyAt(reopened, 0, 23) && KeyAt(reopened, 0, 28));
+
+    EditorSession selectedAccessory;
+    CHECK(selectedAccessory.ImportModel(root / "triangle.pmd", reason));
+    CHECK(selectedAccessory.ImportAccessory(root / "bound.x", reason));
+    CHECK(selectedAccessory.ImportAccessory(root / "bound.x", reason));
+    CHECK(selectedAccessory.Edit(
+        "accessory source",
+        [](auto& d, auto&) {
+            d.physics.playbackMode = 1;
+            auto camera = d.cameraKeys.dense[0];
+            camera.frame = 2;
+            auto a = d.accessories[0].keyRecords.dense[0];
+            a.frame = 7;
+            a.position = {3, 4, 5};
+            return RegisterPmmKey(d.cameraKeys, 0, camera) &&
+                   RegisterPmmKey(d.accessories[0].keyRecords, 0, a);
+        },
+        reason));
+    CHECK(selectedAccessory.SelectModel(255, reason));
+    CHECK(
+        selectedAccessory.Copy({{Track::Camera, 255, 0, 2}, {Track::Accessory, 0, 0, 7}}, reason));
+    CHECK(selectedAccessory.SelectModel(0, reason));
+    CHECK(selectedAccessory.TickIdle(1. / 60, reason));
+    CHECK(selectedAccessory.SelectModel(255, reason));
+    CHECK(!selectedAccessory.Runtime().Simulation().resetPending);
+    CHECK(selectedAccessory.Edit(
+        "pending model pose",
+        [](auto& d, auto&) {
+            d.models[0].bonePose[0].components[0] = 77;
+            return true;
+        },
+        reason));
+    CHECK(selectedAccessory.CanPasteToSelectedTrack() &&
+          selectedAccessory.PasteToSelectedTrack(30, reason));
+    CHECK(!selectedAccessory.Runtime().Simulation().resetPending &&
+          selectedAccessory.Document().models[0].bonePose[0].components[0] == 77);
+    std::vector<std::vector<PmmAccessoryKey>> accessoryChains;
+    CHECK(PmmTrackChains(selectedAccessory.Document().accessories[1].keyRecords, accessoryChains));
+    CHECK(accessoryChains[0].back().frame == 35 &&
+          (accessoryChains[0].back().position == std::array<float, 3>{3, 4, 5}));
+    for (const auto& key : selectedAccessory.Keys())
+        CHECK(key.track != Track::Camera || key.frame == 0 || key.frame == 2);
+    CHECK(selectedAccessory.Save(root / "selected-accessory.pmm", write, reason));
+    CHECK(reopened.Open(root / "selected-accessory.pmm", reason));
+    CHECK(PmmTrackChains(reopened.Document().accessories[1].keyRecords, accessoryChains) &&
+          accessoryChains[0].back().frame == 35 &&
+          (accessoryChains[0].back().position == std::array<float, 3>{3, 4, 5}));
+    CHECK(selectedAccessory.UnloadAccessory(1, reason));
+    const auto noAccessoryRevision = selectedAccessory.Revision();
+    CHECK(!selectedAccessory.PasteToSelectedTrack(40, reason) &&
+          reason == "clipboard-select-accessory" &&
+          selectedAccessory.Revision() == noAccessoryRevision);
     std::cout
         << "168 original clipboard tables, PMD/PMX paste, partial history and mode scopes passed\n";
 }

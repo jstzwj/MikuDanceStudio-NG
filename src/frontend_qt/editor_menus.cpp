@@ -116,6 +116,7 @@ bool Implemented(int command) {
     case MDS_CMD_MULTIPLY_CAMERA_FRAMES:
     case MDS_CMD_MODEL_DRAW_ORDER:
     case MDS_CMD_MODEL_CALCULATION_ORDER:
+    case MDS_CMD_PASTE_AT_DIFFERENT_FRAME:
         return true;
     default:
         return false;
@@ -237,6 +238,8 @@ void EditorWindow::RefreshMenus() {
             enabled &= !model && !session_.Playing();
         if (command == MDS_CMD_MODEL_DRAW_ORDER || command == MDS_CMD_MODEL_CALCULATION_ORDER)
             enabled &= !session_.Playing();
+        if (command == MDS_CMD_PASTE_AT_DIFFERENT_FRAME)
+            enabled &= session_.CanPasteToSelectedTrack();
         action->setEnabled(enabled);
     }
     const auto check = [&](int command, bool value) {
@@ -271,6 +274,32 @@ void EditorWindow::MenuCommand(int command) {
         return;
     if (const auto* name = FileCommand(command)) {
         FileAction(name);
+        return;
+    }
+    if (command == MDS_CMD_PASTE_AT_DIFFERENT_FRAME) {
+        const bool model = session_.Selected().model != 255;
+        if (!testing_) {
+            QMessageBox confirm(
+                QMessageBox::NoIcon, language_.Text("dialog.track_paste.title"),
+                language_.Text(model ? "dialog.track_paste.bone" : "dialog.track_paste.accessory"),
+                QMessageBox::Ok | QMessageBox::Cancel, this);
+            if (separate_)
+                confirm.setWindowFlag(Qt::WindowStaysOnTopHint);
+            if (confirm.exec() != QMessageBox::Ok)
+                return;
+        }
+        std::string reason;
+        const bool ok = session_.PasteToSelectedTrack(
+            unsigned(session_.Document().timeline.currentFrame), reason);
+        if (!ok && (reason == "clipboard-select-bone" || reason == "clipboard-select-accessory")) {
+            lastError_ = language_.Text(model ? "dialog.track_paste.select_bone"
+                                              : "dialog.track_paste.select_accessory");
+            if (!testing_)
+                QMessageBox::information(this, language_.Text("dialog.track_paste.title"),
+                                         lastError_);
+        } else
+            Result(ok, reason);
+        Refresh();
         return;
     }
     if (command == MDS_CMD_EDGE_THICKNESS) {

@@ -380,7 +380,35 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 61);
+    CHECK(implemented == 62);
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        CHECK(session.New(reason) && session.ImportModel(root / "articulated.pmx", reason));
+        CHECK(session.Copy({{Track::Bone, 0, 0, 0}}, reason));
+        CHECK(session.SelectBones({1}, 1, reason) && session.Seek(17, reason));
+        CHECK(window.SetLanguage(language));
+        CHECK(command(MDS_CMD_PASTE_AT_DIFFERENT_FRAME)->isEnabled());
+        command(MDS_CMD_PASTE_AT_DIFFERENT_FRAME)->trigger();
+        CHECK(window.LastError().isEmpty() && session.CanUndo());
+        const auto hasKey = [&](unsigned frame) {
+            for (const auto& key : session.Keys())
+                if (key.track == Track::Bone && key.channel == 1 && key.frame == frame)
+                    return true;
+            return false;
+        };
+        CHECK(hasKey(17));
+        CHECK(session.Undo(reason) && !hasKey(17));
+        CHECK(session.Seek(23, reason));
+        QKeyEvent paste(QEvent::KeyPress, Qt::Key_F, Qt::NoModifier);
+        QCoreApplication::sendEvent(window.centralWidget(), &paste);
+        CHECK(hasKey(23));
+        CHECK(session.Play(reason));
+        window.Refresh();
+        CHECK(!command(MDS_CMD_PASTE_AT_DIFFERENT_FRAME)->isEnabled());
+        session.Pause();
+        CHECK(session.Copy({}, reason));
+        window.Refresh();
+        CHECK(!command(MDS_CMD_PASTE_AT_DIFFERENT_FRAME)->isEnabled());
+    }
     CHECK(window.LastError().isEmpty());
     CHECK(!window.isVisible() && window.RenderWindow()->Submissions() == 0);
     std::cout

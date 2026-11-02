@@ -1710,11 +1710,27 @@ bool EditorSession::CanPasteFrames(bool mirror) const {
     });
 }
 bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason) {
+    return PasteFrames(frame, mirror, false, reason);
+}
+bool EditorSession::CanPasteToSelectedTrack() const {
+    if (playing_)
+        return false;
+    const bool camera = selection_.model == 255;
+    const auto track = camera ? Track::Accessory : Track::Bone;
+    const auto& clipboard = clipboards_[camera];
+    return std::any_of(clipboard.begin(), clipboard.end(),
+                       [&](const auto& item) { return item.address.track == track; });
+}
+bool EditorSession::PasteToSelectedTrack(std::uint32_t frame, std::string& reason) {
+    return PasteFrames(frame, false, true, reason);
+}
+bool EditorSession::PasteFrames(std::uint32_t frame, bool mirror, bool selectedTrack,
+                                std::string& reason) {
     if (playing_) {
         reason = "clipboard-paste-during-playback";
         return false;
     }
-    if (!CanPasteFrames(mirror)) {
+    if (!(selectedTrack ? CanPasteToSelectedTrack() : CanPasteFrames(mirror))) {
         reason.clear();
         return true; // Original empty/unsupported-mode paste is a no-op.
     }
@@ -1726,6 +1742,15 @@ bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason)
     auto next = Current();
     auto& d = next.document;
     auto* model = Model(d, selection_.model);
+    const auto selectedBone = ActiveBone();
+    if (selectedTrack &&
+        (model ? selectedBone < 0
+               : std::none_of(
+                     d.accessories.begin(), d.accessories.end(),
+                     [&](const auto& a) { return a.slot == selection_.accessory; }))) {
+        reason = model ? "clipboard-select-bone" : "clipboard-select-accessory";
+        return false;
+    }
     const bool boneClipboard =
         std::any_of(clipboard.begin(), clipboard.end(),
                     [](const auto& item) { return item.address.track == Track::Bone; });
@@ -1781,6 +1806,8 @@ bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason)
                 ++it;
     }
     for (auto item : clipboard) {
+        if (selectedTrack && item.address.track != (model ? Track::Bone : Track::Accessory))
+            continue;
         if (mirror && item.address.track != Track::Bone)
             continue;
         const auto offset = item.address.frame - first;
@@ -1792,7 +1819,12 @@ bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason)
         if (item.address.track == Track::Bone || item.address.track == Track::Morph ||
             item.address.track == Track::Display)
             item.address.slot = selection_.model;
-        if (item.address.track == Track::Bone || item.address.track == Track::Morph) {
+        if (selectedTrack) {
+            if (model)
+                item.address.channel = unsigned(selectedBone);
+            else
+                item.address.slot = selection_.accessory;
+        } else if (item.address.track == Track::Bone || item.address.track == Track::Morph) {
             const auto& names =
                 item.address.track == Track::Bone ? model->boneNames : model->morphNames;
             const int index = FindPmmClipboardBone(
@@ -1889,17 +1921,19 @@ bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason)
             return false;
         }
         auto result = evaluated.Document();
-        // Native camera-mode paste seeks the remembered selected model, then
-        // refreshes every global/accessory track at the current cursor.
+        // Ordinary camera-mode paste also seeks the remembered selected model.
+        // Command 250 only refreshes global/accessory tracks, preserving every
+        // model's pending pose and the existing physics reset state.
         // ReloadModels is the legacy name of camera-track evaluation.
         for (auto& entry : result.models)
-            if (entry.slot != d.envelope.selectedModelSlot)
+            if (selectedTrack || entry.slot != d.envelope.selectedModelSlot)
                 entry = *Model(d, entry.slot);
         d = std::move(result);
     }
     if (!Commit(std::move(next), reason, history, false))
         return false;
-    runtime_->RequestPhysicsReset();
+    if (modelClipboard || !selectedTrack)
+        runtime_->RequestPhysicsReset();
     return true;
 }
 

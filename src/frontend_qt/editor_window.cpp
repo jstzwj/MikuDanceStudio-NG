@@ -1697,6 +1697,12 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
             Dispatch(kDeleteFramesButton);
             return true;
         }
+        if (key->key() == Qt::Key_F &&
+            !(key->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
+            if (!key->isAutoRepeat())
+                MenuCommand(MDS_CMD_PASTE_AT_DIFFERENT_FRAME);
+            return true;
+        }
     }
     return QMainWindow::eventFilter(object, event);
 }

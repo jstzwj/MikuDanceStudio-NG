@@ -65,6 +65,21 @@ behavior and all frame-line operations require further implementation/comparison
 
 ## Remaining exit gates
 
+The selected-target clipboard command (250, F) is now connected to the shared
+session and all three Qt languages. It pastes only copied bone/accessory keys
+into the active bone/accessory, retaining time offsets relative to the complete
+copied selection. Bone paste uses partial per-model history; accessory paste
+preserves all models' pending poses and the physics reset flag, as in the original
+dispatcher. Missing targets and frame overflow leave the document/history intact.
+The optional original-executable clipboard oracle passed **168 additional exact
+selected-target cases**, including ignored source names, movable/rotation-only
+and fixed-axis targets, overwrite/insertion/append and storage orders. The earlier
+168 ordinary tables, 168 fixed-axis cases and seven mirrored-name comparisons
+still pass. Public regressions cover mixed-track offsets, cross-model targeting,
+undo/redo, save/reopen, unloaded targets, retained clipboard and playback gating;
+Qt menu/F dispatch passed in English, Japanese and Chinese under `offscreen`.
+This closes that command's integration gap, not the complete clipboard/input gate.
+
 | Gate | Current state |
 |---|---|
 | Shared editing and serialization | First local regression passed; full command/compatibility coverage pending |
