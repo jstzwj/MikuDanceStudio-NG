@@ -21,7 +21,7 @@ class Bytes(bytearray):
 POSITIONS = ((-10, -8, 0), (0, 10, 0), (10, -8, 0))
 
 
-def pmd(texture='checker.bmp', alpha=1, bones=None, bone_types=None, bone_parents=None, facial=False, outline=False):
+def pmd(texture='checker.bmp', alpha=1, bones=None, bone_types=None, bone_parents=None, facial=False, outline=False, facial_panels=None):
     b = Bytes(b'Pmd'); b.f(1); b.fixed('CPU triangle', 20); b.zero(256)
     b.u32(3)
     for index, p in enumerate(POSITIONS):
@@ -45,12 +45,14 @@ def pmd(texture='checker.bmp', alpha=1, bones=None, bone_types=None, bone_parent
         b.fixed(name, 20); b.u16(bone_parents[index] if bone_parents else (0 if index else 65535)); b.u16(0)
         b.u8(bone_types[index] if bone_types else 0); b.u16(0); b.f(0, index, 0)
     b.u16(0)  # no IK
-    b.u16(2 if facial else 1); b.fixed('F', 20); b.u32(3); b.u8(0)  # base morph
+    panels = tuple(facial_panels) if facial_panels is not None else ((4,) if facial else ())
+    b.u16(1 + len(panels)); b.fixed('F', 20); b.u32(3); b.u8(0)  # base morph
     for index, p in enumerate(POSITIONS): b.u32(index); b.f(*p)
-    if facial:
-        b.fixed('Smile', 20); b.u32(1); b.u8(4); b.u32(0); b.f(2, 0, 0)
-    b.u8(1 if facial else 0)
-    if facial: b.u16(1)
+    for i, panel in enumerate(panels):
+        b.fixed('Smile' if len(panels) == 1 else 'Expression' + str(i), 20)
+        b.u32(1); b.u8(panel); b.u32(0); b.f(2, 0, 0)
+    b.u8(len(panels))
+    for i in range(len(panels)): b.u16(i + 1)
     b.u8(1); b.fixed('Root', 50)
     b.u32(1); b.u16(0); b.u8(0); b.u8(0)  # display, English flag
     for index in range(10): b.fixed('toon%02d.bmp' % (index + 1), 100)
@@ -58,7 +60,7 @@ def pmd(texture='checker.bmp', alpha=1, bones=None, bone_types=None, bone_parent
     return b
 
 
-def pmx(material_flags=0x11, tint_morphs=False, display_groups=False, extra_uv=0, subtexture=False, base=True, tail_offset=False, copies=1, outline=False, tile_copies=False):
+def pmx(material_flags=0x11, tint_morphs=False, display_groups=False, extra_uv=0, subtexture=False, base=True, tail_offset=False, copies=1, outline=False, tile_copies=False, morph_panels=(4, 4, 4)):
     assert 1 <= copies <= 21845
     b = Bytes(b'PMX '); b.f(2); b.u8(8)
     b.extend(bytes((0, extra_uv, 2, 1, 1, 1, 1, 1)))
@@ -101,11 +103,11 @@ def pmx(material_flags=0x11, tint_morphs=False, display_groups=False, extra_uv=0
     b.u8(255); b.u32(0); b.u16(8 if tail_offset else 9)
     if tail_offset: b.f(4, 2, 0)
     else: b.u8(0)
-    b.u32((3 if tint_morphs else 1) + (1 if extra_uv else 0)); b.text('F'); b.text(''); b.u8(4); b.u8(1)
+    b.u32((3 if tint_morphs else 1) + (1 if extra_uv else 0)); b.text('F'); b.text(''); b.u8(morph_panels[0]); b.u8(1)
     b.u32(1); b.u16(0); b.f(2, 0, 0)  # vertex morph
     if tint_morphs:
         for operation in (0, 1):
-            b.text('Tint' + str(operation)); b.text(''); b.u8(4); b.u8(8)
+            b.text('Tint' + str(operation)); b.text(''); b.u8(morph_panels[operation + 1]); b.u8(8)
             b.u32(1); b.u8(0); b.u8(operation)
             channels = [1.0 if operation == 0 else 0.0] * 28
             channels[16:20] = [.5, .8, .25, .75] if operation == 0 else [.2, -.1, .3, .1]
@@ -296,6 +298,8 @@ def write(directory):
     root.mkdir(parents=True, exist_ok=True)
     (root / 'triangle.pmd').write_bytes(pmd())
     (root / 'facial.pmd').write_bytes(pmd(facial=True))
+    (root / 'morph-panels.pmd').write_bytes(pmd(facial_panels=(1, 2, 3, 4)))
+    (root / 'morph-panels.pmx').write_bytes(pmx(tint_morphs=True, morph_panels=(1, 2, 3)))
     (root / 'sphere.pmd').write_bytes(pmd('s.sph'))
     (root / 'triangle.pmx').write_bytes(pmx())
     (root / 'outline.pmx').write_bytes(pmx(outline=True))

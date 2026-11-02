@@ -2763,3 +2763,24 @@ Native queue failures and timeline discontinuities remain diagnostic data.
 The existing 100 ms steady clock bound, UI-block progress, startup, stop and
 short-tail EOF checks are unchanged. This implementation requires a new macOS
 build and native silent-device run; it does not itself qualify CoreAudio or P4.
+
+## Morph category frame purge (2026-11-03)
+
+Commands 226/228/231 now clear all active mouth/eye/eyebrow keys, including
+frame-zero and terminal records. Category selection uses the Morph panel,
+independently of its vertex/bone/material type. The shared kernel also corrects
+the legacy dispatcher, whose earlier port used the wrong field and left the
+last key behind. Detached occupied records and unrelated free-slot payloads
+survive. The command keeps bone undo/redo, frame watermarks and other models'
+pending poses, re-evaluates the selected model and marks the document dirty.
+Confirmation text and the original English/Japanese title quirks have localized
+catalog entries. Cancellation makes no document change.
+
+The full original dispatcher passed **72 exact pool comparisons**: PMD/PMX,
+three categories, zero/one/two successors, reordered PMM names and accept/cancel.
+Only the native UI refresh/seek tail is stubbed in that harness; its pool and
+application writes execute independently. Public integration covers **36**
+category/chain/name-mapping combinations, persistence, re-registration, retained
+redo and playback/camera gating. Three-language Qt offscreen menus passed;
+implementation count is **76/103**. All **34 local P4 tests passed in 113.89 s**.
+These close the purge command's gap, not the remaining complete P4 exit gates.

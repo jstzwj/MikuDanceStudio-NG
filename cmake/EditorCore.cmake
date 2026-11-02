@@ -7,6 +7,7 @@ function(mds_add_editor_core)
         "${root}/src/editor/editor_session.cpp" "${root}/src/editor/editor_motion.cpp"
         "${root}/src/editor/editor_interpolation.cpp")
     target_sources(mikudancestudio_editor_core PRIVATE "${root}/src/editor/editor_selection.cpp")
+    target_sources(mikudancestudio_editor_core PRIVATE "${root}/src/editor/editor_morph_edit.cpp")
     target_sources(mikudancestudio_editor_core PRIVATE "${root}/src/editor/editor_pose.cpp"
         "${root}/src/editor/editor_history.cpp" "${root}/src/editor/editor_frame_line.cpp")
     target_sources(mikudancestudio_editor_core PRIVATE "${root}/src/editor/editor_navigation.cpp"

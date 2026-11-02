@@ -85,6 +85,9 @@ bool ModelCommand(int command) {
     case MDS_CMD_MULTIPLY_BONE_FRAMES:
     case MDS_CMD_TOGGLE_FRAME_PHYSICS:
     case MDS_CMD_CENTER_POSITION_BIAS:
+    case MDS_CMD_DELETE_MOUTH_FRAMES:
+    case MDS_CMD_DELETE_EYE_FRAMES:
+    case MDS_CMD_DELETE_EYEBROW_FRAMES:
         return true;
     default:
         return false;
@@ -471,6 +474,25 @@ void EditorWindow::MenuCommand(int command) {
             for (int id :
                  {panel::kMorphEdit0, panel::kMorphEdit1, panel::kMorphEdit2, panel::kMorphEdit3})
                 static_cast<QLineEdit*>(Control(id))->setText("0.00000");
+        return;
+    }
+    if (command == MDS_CMD_DELETE_MOUTH_FRAMES || command == MDS_CMD_DELETE_EYE_FRAMES ||
+        command == MDS_CMD_DELETE_EYEBROW_FRAMES) {
+        const unsigned panel = command == MDS_CMD_DELETE_MOUTH_FRAMES ? 3
+                               : command == MDS_CMD_DELETE_EYE_FRAMES ? 2
+                                                                      : 1;
+        if (!testing_) {
+            QMessageBox confirm(QMessageBox::NoIcon,
+                                language_.Text(QString("dialog.morph_purge.title.%1").arg(panel)),
+                                language_.Text(QString("dialog.morph_purge.text.%1").arg(panel)),
+                                QMessageBox::Ok | QMessageBox::Cancel, this);
+            confirm.setWindowFlag(Qt::WindowStaysOnTopHint);
+            if (confirm.exec() != QMessageBox::Ok)
+                return;
+        }
+        std::string reason;
+        Result(session_.PurgeMorphKeys(panel, reason), reason);
+        Refresh();
         return;
     }
     if (command == MDS_CMD_TOGGLE_INFORMATION)

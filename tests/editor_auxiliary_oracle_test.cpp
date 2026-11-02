@@ -10,6 +10,7 @@
 #include "editor_physics_selection_fixture.hpp"
 #include "editor_reduction_fixture.hpp"
 #include "editor_morph_scale_fixture.hpp"
+#include "editor_morph_purge_fixture.hpp"
 #include "editor_camera_scale_fixture.hpp"
 #include "gravity_edit_reference.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
@@ -1068,6 +1069,111 @@ unsigned MorphScaleCommands(OriginalPhysicsModule& original, const std::filesyst
         }
     return cases;
 }
+bool purgeConfirm;
+unsigned purgePanel;
+int WINAPI PurgeMessage(HWND, LPCSTR text, LPCSTR title, UINT flags) {
+    const auto wanted = std::string("Trying to delete all ") +
+                        (purgePanel == 3   ? "lip"
+                         : purgePanel == 2 ? "eyes"
+                                           : "eyebrow") +
+                        " frame.\nYou cannot undo this oparation.\n\nAre you OK?";
+    Check(text == wanted && std::strcmp(title, "delete lip frame") == 0 && flags == 0x40001,
+          "original purge confirmation text and flags");
+    return purgeConfirm ? IDOK : IDCANCEL;
+}
+unsigned MorphPurgeCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    const unsigned char ret = 0xc3;
+    Patch paint(original.Function<void*>(0x60ea0), &ret, 1);
+    Patch curve(original.Function<void*>(0x62bb0), &ret, 1);
+    Patch seek(original.Function<void*>(0xcbd90), &ret, 1);
+    auto message = &PurgeMessage;
+    Patch prompt(original.Function<void*>(0x128618), &message, sizeof message);
+    std::vector<unsigned char> app(0xa3000);
+    auto* pointer = app.data();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    unsigned cases = 0;
+    for (const auto* file : {"morph-panels.pmd", "morph-panels.pmx"})
+        for (bool reverse : {false, true})
+            for (unsigned length : {0u, 1u, 2u})
+                for (unsigned panel : {1u, 2u, 3u})
+                    for (bool accept : {false, true}) {
+                        EditorSession portable;
+                        std::string reason;
+                        Check(MorphPurgeFixture(portable, root, file, reverse, length, reason),
+                              reason.c_str());
+                        const auto before = portable.Document().models[0];
+                        NativeAuxiliary native(
+                            before, portable.Runtime().Resource(0)->SourceKind() == ModelKind::Pmx);
+                        const auto put = [&](unsigned i, const auto& key) {
+                            auto& out = native.morphs.at(i);
+                            out.frame = key.frame;
+                            out.previous = key.previous;
+                            out.next = key.next;
+                            out.value = key.value;
+                            out.allocated = key.allocated;
+                        };
+                        for (unsigned i = 0; i < before.morphKeys.dense.size(); ++i) {
+                            put(i, before.morphKeys.dense[i]);
+                            int mapped;
+                            Check(portable.Runtime().DocumentMorphIndex(0, int(i), mapped, reason),
+                                  reason.c_str());
+                            native.poses[i].panel = static_cast<mdl::MorphPanel>(portable.Runtime()
+                                                                                     .Resource(0)
+                                                                                     ->Document()
+                                                                                     .morphs[mapped]
+                                                                                     .header.panel);
+                        }
+                        for (const auto& key : before.morphKeys.sparse)
+                            put(unsigned(key.index), key.value);
+                        for (const auto& [i, key] : before.morphKeys.unused)
+                            put(i, key);
+                        auto* model = native.model.get();
+                        std::fill(app.begin(), app.end(), 0);
+                        std::memcpy(app.data() + 0xbe8, &model, sizeof model);
+                        app[0xa1b90] = 1;
+                        auto expectedApp = app;
+                        expectedApp[0xc0] = 1;
+                        if (accept)
+                            expectedApp[0xa1b31] = 1;
+                        purgePanel = panel;
+                        purgeConfirm = accept;
+                        original.Function<void (*)(HWND, WPARAM)>(0x3f550)(
+                            nullptr, panel == 3   ? MDS_CMD_DELETE_MOUTH_FRAMES
+                                     : panel == 2 ? MDS_CMD_DELETE_EYE_FRAMES
+                                                  : MDS_CMD_DELETE_EYEBROW_FRAMES);
+                        if (accept)
+                            Check(portable.PurgeMorphKeys(panel, reason), reason.c_str());
+                        const auto& track = portable.Document().models[0].morphKeys;
+                        std::map<unsigned, PmmMorphKey> expected(track.unused.begin(),
+                                                                 track.unused.end());
+                        for (unsigned i = 0; i < track.dense.size(); ++i)
+                            expected[i] = track.dense[i];
+                        for (const auto& key : track.sparse)
+                            expected[unsigned(key.index)] = key.value;
+                        for (unsigned i = 0; i < native.morphs.size(); ++i) {
+                            const auto& a = native.morphs[i];
+                            const auto b = expected.count(i) ? expected.at(i) : PmmMorphKey{};
+                            if (a.frame != b.frame || a.previous != b.previous ||
+                                a.next != b.next || a.allocated != b.allocated ||
+                                std::memcmp(&a.value, &b.value, sizeof(float)))
+                                std::fprintf(
+                                    stderr,
+                                    "purge %s reverse=%u length=%u panel=%u accept=%u slot=%u native=%u/%u/%u/%u/%g portable=%u/%u/%u/%u/%g\n",
+                                    file, unsigned(reverse), length, panel, unsigned(accept), i,
+                                    a.frame, a.previous, a.next, a.allocated, a.value, b.frame,
+                                    b.previous, b.next, b.allocated, b.value);
+                            Check(a.frame == b.frame && a.previous == b.previous &&
+                                      a.next == b.next && a.allocated == b.allocated &&
+                                      !std::memcmp(&a.value, &b.value, sizeof(float)),
+                                  "original morph purge full pool differs");
+                        }
+                        Check(app == expectedApp && model->UndoCursor() == 29 &&
+                                  model->LatestUndoCursor() == 29,
+                              "original purge application/history side effects");
+                        ++cases;
+                    }
+    return cases;
+}
 unsigned CameraScaleCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
     const unsigned char ret = 0xc3;
     Patch seek(original.Function<void*>(0x59c30), &ret, 1);
@@ -1436,6 +1542,9 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf(
         "%u original morph-scale applies: full pool bytes, prefix parsing and unused slots\n",
         MorphScaleCommands(original, argv[2]));
+    std::printf(
+        "%u original morph purges: complete pool, tail, categories, reordered channels and cancellation\n",
+        MorphPurgeCommands(original, argv[2]));
     std::printf(
         "%u original camera-scale applies: full pool bytes, angle conversion and signed FOV\n",
         CameraScaleCommands(original, argv[2]));

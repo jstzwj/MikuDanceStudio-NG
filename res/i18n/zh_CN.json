@@ -608,5 +608,11 @@
   "dialog.numeric.accessory_order.control.8": "个之后",
   "dialog.numeric.accessory_order.control.9": "的附件在模型之后绘制",
   "dialog.numeric.accessory_order.control.10": "确定",
-  "dialog.numeric.accessory_order.control.11": "取消"
+  "dialog.numeric.accessory_order.control.11": "取消",
+  "dialog.morph_purge.title.1": "删除眉毛帧",
+  "dialog.morph_purge.title.2": "删除眼睛帧",
+  "dialog.morph_purge.title.3": "删除口型帧",
+  "dialog.morph_purge.text.1": "将删除所有眉毛帧。\n表情帧的修改无法撤销。\n\n是否继续？",
+  "dialog.morph_purge.text.2": "将删除所有眼睛帧。\n表情帧的修改无法撤销。\n\n是否继续？",
+  "dialog.morph_purge.text.3": "将删除所有口型帧。\n表情帧的修改无法撤销。\n\n是否继续？"
 }

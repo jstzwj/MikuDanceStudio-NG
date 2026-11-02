@@ -109,6 +109,7 @@
 #define NOMINMAX
 #include "mikudancestudio/dialog_resources.h"
 #include "mikudancestudio/menu_commands.h"
+#include "mikudancestudio/morph_key_purge.hpp"
 #include <Windows.h>
 #include <commctrl.h>
 #include <commdlg.h>
@@ -351,45 +352,15 @@ void FramePurgeTail(MMDApp* app) {
     app->SceneModified() = 1;
 }
 
-// 0xE2/0xE4/0xE7 morph-frame purge (0x488C4C / 0x48911F / 0x4892F1): for
-// every morph of the active model whose type byte (morph table +0x58)
-// equals `type`, clear the frame record of the morph itself and of every
-// chain successor that still has a successor (the chain tail survives -
-// original quirk).  The frame records live at model+0x26E4 (0x14 stride);
-// +8 is the chain successor index, +4/+0/+0xC/+0x10 the cleared fields.
+// Original x64 dispatcher clears the complete active chain, including its
+// terminal record. Preserve detached records and unrelated free-slot payloads.
 void PurgeMorphFrames(MMDApp* app, std::uint8_t type) {
-    mdl::ModelRecord* model = ActiveModel(app);
-    const std::int32_t morphCount = static_cast<std::int32_t>(model->morphCount);
-    for (std::uint16_t m = 0; static_cast<std::int32_t>(m) < morphCount; ++m) {
-        model = ActiveModel(app);
-        const mdl::MorphRecord* const morphs = model->morphs;
-        if (morphs[m].type != type) {
-            continue;
-        }
-        mdl::MorphKey* frames = model->morphKeys;
-        std::int32_t cur = m; // chain cursor, starts at the morph itself
-        if (frames[m].next != 0) {
-            for (;;) {
-                frames[cur].frame = 0;
-                frames[cur].previous = 0;
-                frames[cur].allocated = 0;
-                frames[cur].value = 0.0f;
-                const std::int32_t next = static_cast<std::int32_t>(frames[cur].next);
-                frames[m].next = 0;
-                cur = next;
-                model = ActiveModel(app); // original re-derives per step
-                frames = model->morphKeys;
-                if (frames[cur].next == 0) {
-                    break;
-                }
-            }
-        }
-        // the morph's own record is cleared again (loc_488D12 pattern)
-        frames[m].frame = 0;
-        frames[m].previous = 0;
-        frames[m].allocated = 0;
-        frames[m].value = 0.0f;
-    }
+    auto* model = ActiveModel(app);
+    for (std::uint32_t m = 0; m < model->morphCount; ++m)
+        if (static_cast<std::uint8_t>(model->morphs[m].panel) == type)
+            keyframe_edit::PurgeMorphChain(m, [&](std::uint32_t index) -> auto& {
+                return model->morphKeys[index];
+            });
 }
 
 // ---------------------------------------------------------------------------

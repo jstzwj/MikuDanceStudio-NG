@@ -2,6 +2,7 @@
 #include "mikudancestudio/menu_commands.h"
 #include "editor_physics_selection_fixture.hpp"
 #include "editor_reduction_fixture.hpp"
+#include "editor_morph_purge_fixture.hpp"
 #include <QApplication>
 #include <QAbstractButton>
 #include <QFile>
@@ -381,7 +382,28 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 73);
+    CHECK(implemented == 76);
+    for (const char* language : {"en", "ja", "zh_CN"})
+        for (int id : {MDS_CMD_DELETE_MOUTH_FRAMES, MDS_CMD_DELETE_EYE_FRAMES,
+                       MDS_CMD_DELETE_EYEBROW_FRAMES}) {
+            CHECK(MorphPurgeFixture(session, root, "morph-panels.pmx", true, 2, reason));
+            CHECK(window.SetLanguage(language));
+            auto* action = command(id);
+            CHECK(action->isEnabled());
+            const auto before = session.Document().models[0].morphKeys.sparse.size();
+            const auto undo = session.CanUndo(), redo = session.CanRedo();
+            action->trigger();
+            CHECK(window.LastError().isEmpty() && session.Dirty());
+            CHECK(session.Document().models[0].morphKeys.sparse.size() == before - 2);
+            CHECK(session.CanUndo() == undo && session.CanRedo() == redo);
+            CHECK(session.Play(reason));
+            window.Refresh();
+            CHECK(!action->isEnabled());
+            session.Pause();
+            CHECK(session.SelectModel(255, reason));
+            window.Refresh();
+            CHECK(!action->isEnabled());
+        }
     for (const char* language : {"en", "ja", "zh_CN"}) {
         CHECK(session.New(reason) && session.ImportModel(root / "outline.pmd", reason));
         session.SetHiddenModels(false);

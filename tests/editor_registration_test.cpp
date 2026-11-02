@@ -1,5 +1,6 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "bone_registration_fixture.hpp"
+#include "editor_morph_purge_fixture.hpp"
 #include <fstream>
 #include <iostream>
 using namespace mikudancestudio;
@@ -372,6 +373,66 @@ int main(int argc, char** argv) {
     CHECK(reorderedMorph.Document().models[0].morphKeys.dense[0].next != 0);
     CHECK(reorderedMorph.Document().models[0].morphKeys.dense[1].next == 0);
     CHECK(reorderedMorph.Document().models[0].morphKeys.sparse[0].value.value == .75f);
+    for (const auto* file : {"morph-panels.pmd", "morph-panels.pmx"})
+        for (bool reverse : {false, true})
+            for (unsigned length : {0u, 1u, 2u})
+                for (unsigned panel : {1u, 2u, 3u}) {
+                    EditorSession expressions;
+                    CHECK(MorphPurgeFixture(expressions, root, file, reverse, length, reason));
+                    CHECK(expressions.SetBone(1, 0, {7, 8, 9}, {0, 0, 0, 1}, reason));
+                    CHECK(expressions.SetBone(0, 0, {2, 3, 4}, {0, 0, 0, 1}, reason));
+                    CHECK(expressions.Undo(reason) && expressions.CanRedo());
+                    const auto before = expressions.Document().models[0];
+                    const auto watermark = expressions.Document().timeline.lastRegisteredFrame;
+                    const auto frames = expressions.Runtime().Counters().frames;
+                    const auto* runtime = &expressions.Runtime();
+                    CHECK(expressions.PurgeMorphKeys(panel, reason));
+                    CHECK(expressions.CanRedo() && expressions.Dirty());
+                    CHECK(&expressions.Runtime() == runtime &&
+                          runtime->Counters().frames == frames);
+                    CHECK(expressions.Document().models[1].bonePose[0].components[0] == 7);
+                    CHECK(expressions.Document().models[0].selection.maxFrame ==
+                              before.selection.maxFrame &&
+                          expressions.Document().timeline.lastRegisteredFrame == watermark);
+                    const auto& track = expressions.Document().models[0].morphKeys;
+                    std::vector<unsigned> cleared;
+                    for (unsigned i = 0; i < track.dense.size(); ++i) {
+                        int mapped;
+                        CHECK(runtime->DocumentMorphIndex(0, int(i), mapped, reason));
+                        const bool selected =
+                            runtime->Resource(0)->Document().morphs[mapped].header.panel == panel;
+                        const auto& key = track.dense[i];
+                        if (selected) {
+                            CHECK(!key.next && !key.previous && !key.allocated && key.value == 0);
+                            CHECK(expressions.Document().models[0].morphPose[i] == 0);
+                            cleared.push_back(i);
+                        } else
+                            CHECK(key.next == before.morphKeys.dense[i].next &&
+                                  key.value == before.morphKeys.dense[i].value &&
+                                  key.allocated == before.morphKeys.dense[i].allocated);
+                        CHECK(std::any_of(track.sparse.begin(), track.sparse.end(),
+                                          [&](const auto& k) { return k.index == int(100 + i); }));
+                    }
+                    CHECK(!cleared.empty());
+                    CHECK(track.unused.at(19999).value == .625f &&
+                          track.unused.at(19999).allocated == 1);
+                    const auto path = root / "purged-expressions.pmm";
+                    CHECK(expressions.Save(path, writer, reason) && expressions.Open(path, reason));
+                    for (auto channel : cleared)
+                        CHECK(expressions.Document().models[0].morphKeys.dense[channel].next == 0);
+                    CHECK(expressions.SelectModel(0, reason));
+                    CHECK(expressions.Seek(30, reason));
+                    CHECK(expressions.SetMorph(0, cleared[0], .375f, reason));
+                    CHECK(expressions.RegisterMorph(0, cleared[0], reason));
+                    CHECK(expressions.Document().models[0].morphKeys.dense[cleared[0]].next != 0);
+                    CHECK(expressions.Play(reason));
+                    const auto revision = expressions.Revision();
+                    CHECK(!expressions.PurgeMorphKeys(panel, reason));
+                    CHECK(expressions.Playing() && expressions.Revision() == revision);
+                    expressions.Pause();
+                    CHECK(expressions.SelectModel(255, reason));
+                    CHECK(!expressions.PurgeMorphKeys(panel, reason));
+                }
     std::cout
         << cases
         << " PMD/PMX physics registration cases, history, persistence and name mapping passed\n";

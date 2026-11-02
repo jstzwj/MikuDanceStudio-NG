@@ -608,5 +608,11 @@
   "dialog.numeric.accessory_order.control.8": "th",
   "dialog.numeric.accessory_order.control.9": "accessory described after models",
   "dialog.numeric.accessory_order.control.10": "OK",
-  "dialog.numeric.accessory_order.control.11": "cancel"
+  "dialog.numeric.accessory_order.control.11": "cancel",
+  "dialog.morph_purge.title.1": "delete lip frame",
+  "dialog.morph_purge.title.2": "delete lip frame",
+  "dialog.morph_purge.title.3": "delete lip frame",
+  "dialog.morph_purge.text.1": "Trying to delete all eyebrow frame.\nYou cannot undo this oparation.\n\nAre you OK?",
+  "dialog.morph_purge.text.2": "Trying to delete all eyes frame.\nYou cannot undo this oparation.\n\nAre you OK?",
+  "dialog.morph_purge.text.3": "Trying to delete all lip frame.\nYou cannot undo this oparation.\n\nAre you OK?"
 }
