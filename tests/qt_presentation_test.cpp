@@ -91,7 +91,13 @@ int main(int argc, char** argv) {
         };
 #ifndef _WIN32
         viewport.show();
-        pump();
+        // Exposure is asynchronous on Cocoa/Wayland. Wait for the actual
+        // condition, retaining a finite deadline and the exposure assertion.
+        QElapsedTimer exposure;
+        exposure.start();
+        do {
+            pump();
+        } while (!viewport.isExposed() && exposure.elapsed() < 5000);
         CHECK(viewport.isExposed());
 #else
         CHECK(!viewport.isVisible());
