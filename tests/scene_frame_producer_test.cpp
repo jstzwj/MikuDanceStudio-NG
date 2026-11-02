@@ -44,6 +44,31 @@ int main(int argc, char** argv) try {
           producer.Build(scene, settings, second, reason));
     CHECK(scene.Counters().frames == updates && Keys(first) == Keys(second));
     CHECK(rhi::ValidateRenderFrame(first));
+    const auto compareFresh = [&] {
+        render::SceneFrameProducer fresh;
+        rhi::RenderFrame reference;
+        CHECK(fresh.Load(scene, sources, assets, reason));
+        CHECK(producer.Build(scene, settings, second, reason));
+        CHECK(fresh.Build(scene, settings, reference, reason));
+        CHECK(second.resources.size() == reference.resources.size());
+        for (std::size_t i = 0; i < second.resources.size(); ++i) {
+            const auto& a = second.resources[i];
+            const auto& b = reference.resources[i];
+            CHECK(a.kind == b.kind && a.vertexLayout == b.vertexLayout && a.bytes == b.bytes);
+        }
+    };
+    // A new viewport/outline mode must update camera-dependent geometry even
+    // when the CPU pose did not publish. Compare with an uncached producer.
+    settings.width = 127;
+    settings.height = 91;
+    compareFresh();
+    settings.shadow.mode = 2;
+    compareFresh();
+    settings.shadow.mode = 0;
+    compareFresh();
+    settings.width = 63;
+    settings.height = 47;
+    settings.shadow.mode = 1;
     settings.width = 0;
     second.finalColor = 123;
     CHECK(!producer.Build(scene, settings, second, reason) && second.finalColor == 123 &&
@@ -69,6 +94,7 @@ int main(int argc, char** argv) try {
     }
     CHECK(changed);
     CHECK(rhi::ValidateRenderFrame(second));
+    compareFresh();
     // A resource replacement cannot silently reuse a prior scene's geometry.
     CHECK(scene.LoadModel(document, reason));
     second.finalColor = 123;

@@ -181,6 +181,7 @@ int main(int argc, char** argv) {
     double reuseSeconds = 0, freshSeconds = 0;
     std::size_t freshAllocations = 0, freshBytes = 0;
     for (unsigned frame = 0; frame < 122; ++frame) {
+        const auto priorPublication = instance.Snapshot().publication;
         if (!bones.empty())
             bones[0].translation[0] = float(frame % 7) * .2f;
         for (auto& weight : morphs)
@@ -190,6 +191,7 @@ int main(int argc, char** argv) {
         CHECK(instance.PreparePoseReusing(frame, bones, morphs, scratch, reason));
         CHECK(scratch.Solve(false, nullptr, 0, reason) && scratch.Solve(true, nullptr, 0, reason));
         CHECK(scratch.Finish(reason) && instance.Publish(std::move(scratch), reason));
+        CHECK(instance.Snapshot().publication > priorPublication);
         const auto end = std::chrono::steady_clock::now();
         counting = false;
         CHECK(allocations == 0 && allocatedBytes == 0);
@@ -209,18 +211,44 @@ int main(int argc, char** argv) {
             freshSeconds += std::chrono::duration<double>(freshEnd - freshBegin).count();
         }
         CHECK(Same(instance.Snapshot(), reference.Snapshot()));
+        CHECK(reference.Snapshot().publication != instance.Snapshot().publication);
     }
     const auto saved = instance.Snapshot();
     CHECK(!instance.Publish(std::move(scratch), reason));
+    CHECK(instance.Snapshot().publication == saved.publication);
     if (!bones.empty()) {
         bones[0].translation[0] = std::numeric_limits<float>::quiet_NaN();
         CHECK(!instance.PreparePoseReusing(123, bones, morphs, scratch, reason));
         CHECK(!scratch.Solve(false, nullptr, 0, reason));
         CHECK(Same(instance.Snapshot(), saved));
+        CHECK(instance.Snapshot().publication == saved.publication);
         bones[0].translation[0] = 0;
         CHECK(instance.PreparePoseReusing(124, bones, morphs, scratch, reason));
         CHECK(scratch.Solve(false, nullptr, 0, reason) && scratch.Solve(true, nullptr, 0, reason));
         CHECK(scratch.Finish(reason) && instance.Publish(std::move(scratch), reason));
+    }
+    if (argc == 1) {
+        // Reusing scratch across resources may reduce the active UV layout.
+        // Stale UV morph values from the former resource must not survive.
+        auto uvless = Generated();
+        uvless.pmx.header.additionalUvCount = 0;
+        uvless.pmx.morphs.erase(uvless.pmx.morphs.begin() + 1);
+        std::shared_ptr<const runtime::ModelResource> other;
+        CHECK(runtime::ModelResource::Create(uvless, other, reason));
+        runtime::ModelInstance replaced(other), freshInstance(other);
+        std::vector<float> otherMorphs(other->MorphNames().size(), .25f);
+        runtime::ModelEvaluation fresh;
+        CHECK(replaced.PreparePoseReusing(0, bones, otherMorphs, scratch, reason));
+        CHECK(freshInstance.PreparePose(0, bones, otherMorphs, fresh, reason));
+        for (auto* evaluation : {&scratch, &fresh})
+            CHECK(evaluation->Solve(false, nullptr, 0, reason) &&
+                  evaluation->Solve(true, nullptr, 0, reason) && evaluation->Finish(reason));
+        CHECK(replaced.Publish(std::move(scratch), reason));
+        CHECK(freshInstance.Publish(std::move(fresh), reason));
+        CHECK(Same(replaced.Snapshot(), freshInstance.Snapshot()));
+        for (const auto& vertex : replaced.Snapshot().vertices)
+            for (const auto& uv : vertex.additionalUv)
+                CHECK((uv == std::array<float, 4>{}));
     }
     std::cout << "CPU evaluation reuse: 120 exact frames, vertices="
               << resource->Document().vertices.size() << " reuse_ms=" << reuseSeconds * 1000 / 120

@@ -2589,3 +2589,15 @@ TITAN Xp improved from 16.38 ms to 3.76 ms p95 for static DX11 frames and from
 cases still exceed the local budget on one or more backends; all three hardware
 reports correctly fail the unchanged gate. CPU update and geometry publication
 remain optimization work. These results do not close the P4 performance gate.
+
+The next geometry change assigns process-unique identities to CPU publications,
+including edits at the same frame and replacement instances. The frame producer
+uses that identity and exact outline inputs to skip unchanged channels; material
+outline constants are evaluated per material. Selective publication preserves
+the other channel's immutable storage. CPU skinning writes its unpublished
+vertex slots directly, with inactive UV sets cleared when resources change.
+Seven targeted regressions passed, including cached versus fresh-producer byte
+comparisons, publication failure atomicity, cross-resource UV reuse and strict
+GPU repeat checks. The generated GPU profile passed in 4.14 seconds. Sour Miku
+navigation p95 was 10.14 / 14.34 / 10.84 ms on DX11 / DX12 / Vulkan respectively;
+animation and bone-edit reports still fail the existing local frame budget.

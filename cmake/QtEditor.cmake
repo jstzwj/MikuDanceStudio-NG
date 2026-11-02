@@ -134,6 +134,14 @@ function(mds_add_qt_editor)
             --passes $<TARGET_FILE:qt_channel_binding_test> --assets "${root}/res/assets")
         set_tests_properties(qt_channel_binding PROPERTIES LABELS "p4;offscreen;qt" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_editor_performance_test "${root}/tests/qt_editor_performance_test.cpp")
+        if(NOT TARGET scene_frame_producer_test)
+            add_executable(scene_frame_producer_test "${root}/tests/scene_frame_producer_test.cpp")
+            target_link_libraries(scene_frame_producer_test PRIVATE mikudancestudio_scene_render)
+        endif()
+        add_test(NAME p4_scene_frame_contract COMMAND ${Python3_EXECUTABLE}
+            "${root}/tests/test_runtime_cpu_scene.py" --passes $<TARGET_FILE:scene_frame_producer_test>
+            --assets "${root}/res/assets")
+        set_tests_properties(p4_scene_frame_contract PROPERTIES LABELS "p4;headless" TIMEOUT 120)
         target_link_libraries(qt_editor_performance_test PRIVATE mikudancestudio_frontend_qt)
         add_test(NAME qt_editor_performance COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_qt_editor_performance.py"
             --test $<TARGET_FILE:qt_editor_performance_test> --assets "${root}/res/assets"

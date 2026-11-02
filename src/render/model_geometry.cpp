@@ -81,11 +81,12 @@ bool ModelGeometry::SetIndices(rhi::IndexFormat format, const void* data, std::s
     Replace(snapshot.indices, std::move(bytes));
     return true;
 }
-bool ModelGeometry::Publish() {
-    if (!snapshot.indices.key.version || edges.size() != snapshot.vertexCount)
+bool ModelGeometry::Publish(bool mainDirty, bool edgeDirty) {
+    if (!snapshot.indices.key.version || edges.size() != snapshot.vertexCount ||
+        (!mainDirty && !snapshot.main.key.version) || (!edgeDirty && !snapshot.edge.key.version))
         return false;
     const auto* source = static_cast<const std::uint8_t*>(MainData());
-    for (std::size_t i = 0; i < snapshot.vertexCount; ++i) {
+    for (std::size_t i = 0; edgeDirty && i < snapshot.vertexCount; ++i) {
         auto* out = outlineBytes.data() + i * 16;
         std::memcpy(out, edges[i].position, 12);
         const auto argb = edges[i].diffuse;
@@ -102,8 +103,9 @@ bool ModelGeometry::Publish() {
         return !resource.key.version || resource.bytes.size() != size ||
                std::memcmp(resource.bytes.data(), data, size) != 0;
     };
-    const bool mainChanged = changed(snapshot.main, source, MainSize());
-    const bool edgeChanged = changed(snapshot.edge, outlineBytes.data(), outlineBytes.size());
+    const bool mainChanged = mainDirty && changed(snapshot.main, source, MainSize());
+    const bool edgeChanged =
+        edgeDirty && changed(snapshot.edge, outlineBytes.data(), outlineBytes.size());
     // Prepare both allocations before publishing either version. Prior frames
     // retain their immutable storage even while staging is reused next frame.
     auto mainBytes =

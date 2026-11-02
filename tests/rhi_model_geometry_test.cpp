@@ -68,11 +68,29 @@ int main() {
         CHECK(ValidateModelReplay(Stream(geometry.Snapshot())));
     }
     CHECK(geometry.Snapshot().main.key.version == 2);
+    // Camera-only publication preserves immutable main storage. A skipped
+    // channel must have a real published version; callers explicitly promise
+    // not to mutate its staging until that channel is next marked dirty.
+    render::ModelGeometry unpublished(901, 3);
+    CHECK(unpublished.SetIndices(IndexFormat::UInt16, indices, sizeof(indices)));
+    CHECK(!unpublished.Publish(false, true) && !unpublished.Publish(true, false));
+    const auto mainBeforeOutline = geometry.Snapshot().main;
+    geometry.Edges()[1].position[0] = .25f;
+    CHECK(geometry.Publish(false, true));
+    CHECK(geometry.Snapshot().main.key.version == mainBeforeOutline.key.version &&
+          geometry.Snapshot().main.bytes.data() == mainBeforeOutline.bytes.data());
+    const auto edgeBeforeMain = geometry.Snapshot().edge;
+    vertices[2].position[2] += .125f;
+    CHECK(geometry.Publish(true, false));
+    CHECK(geometry.Snapshot().main.key.version == 3 &&
+          geometry.Snapshot().edge.key.version == edgeBeforeMain.key.version &&
+          geometry.Snapshot().edge.bytes.data() == edgeBeforeMain.bytes.data());
+    CHECK(geometry.Publish(false, false));
     geometry.Edges().pop_back();
     CHECK(!geometry.Publish());
     geometry.Edges().emplace_back();
     vertices[1].position[1] -= .125f;
-    CHECK(geometry.Publish() && geometry.Snapshot().main.key.version == 3);
+    CHECK(geometry.Publish() && geometry.Snapshot().main.key.version == 4);
     CHECK(ValidateModelReplay(Stream(geometry.Snapshot(), true)));
     auto duplicate = Stream(geometry.Snapshot());
     const auto before = duplicate.events.size();

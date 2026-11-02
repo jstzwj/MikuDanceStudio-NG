@@ -7,6 +7,7 @@
 #include "mikudancestudio/cpu_bone_axis.hpp"
 #include "runtime_model_import.hpp"
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <limits>
 #include <map>
@@ -533,6 +534,10 @@ bool ModelInstance::PreparePoseReusing(std::uint32_t frame,
     if (poses.size() != resource_->BoneNames().size() ||
         morphs.size() != resource_->MorphNames().size())
         return Fail(reason, "pose-shape-mismatch");
+    // A different layout must value-initialize vertex slots again. Same-model
+    // scratch retains its inactive UV sets as zero across publications.
+    if (next.resource_ != resource_)
+        next.snapshot_.vertices.clear();
     next.resource_ = resource_;
     next.snapshot_.frame = frame;
     next.snapshot_.morphWeights = morphs;
@@ -558,8 +563,16 @@ bool ModelInstance::Publish(ModelEvaluation&& state, std::string& reason) {
     if (!resource_ || state.resource_ != resource_ || !state.finished_ ||
         state.snapshot_.vertices.size() != resource_->Document().vertices.size())
         return Fail(reason, "evaluation-resource-mismatch");
+    static std::atomic<std::uint64_t> nextPublication{1};
+    auto publication = nextPublication.load(std::memory_order_relaxed);
+    do {
+        if (publication == std::numeric_limits<std::uint64_t>::max())
+            return Fail(reason, "model-publication-exhausted");
+    } while (!nextPublication.compare_exchange_weak(publication, publication + 1,
+                                                    std::memory_order_relaxed));
     // The displaced snapshot becomes next frame's unpublished storage.
     std::swap(snapshot_, state.snapshot_);
+    snapshot_.publication = publication;
     state.prepared_ = state.finished_ = false;
     reason.clear();
     return true;

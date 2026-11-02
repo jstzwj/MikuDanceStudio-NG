@@ -25,7 +25,10 @@ public:
     unsigned AdditionalUvCount() const { return snapshot.additionalUvCount; }
     // Already-normalized contiguous indices, not loader-specific padding.
     bool SetIndices(rhi::IndexFormat, const void*, std::size_t);
-    bool Publish();
+    // A false flag promises that channel's staging has not changed. It must
+    // already be published. This lets camera-only frames rebuild outlines
+    // without scanning/copying immutable material vertices again.
+    bool Publish(bool mainDirty = true, bool edgeDirty = true);
     const ModelGeometrySnapshot& Snapshot() const { return snapshot; }
 
 private:

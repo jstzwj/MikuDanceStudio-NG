@@ -298,6 +298,15 @@ struct SceneFrameProducer::Impl {
         ModelSubmissionBuilder submission;
         std::vector<Material> materials;
         std::vector<unsigned> edgeMaterials;
+        struct EdgeStyle {
+            float size = 0;
+            std::uint32_t diffuse = 0;
+        };
+        std::vector<EdgeStyle> edgeStyles;
+        std::uint64_t geometryPublication = 0;
+        float outlineScale = 0;
+        std::uint32_t outlineDiffuse = 0;
+        unsigned outlineMode = 0;
         explicit Model(std::uint64_t id) : submission(id + 16) {}
     };
     struct Accessory {
@@ -760,28 +769,50 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                    dz = worldCenter[2] - eye[2];
         const auto edgeScale = cpu_edge::DistanceScale(std::sqrt(dx * dx + dy * dy + dz * dz),
                                                        frame.scene.camera.fov, scale);
-        for (std::size_t n = 0; n < snapshot->vertices.size(); ++n) {
+        const bool mainDirty =
+            !snapshot->publication || snapshot->publication != model.geometryPublication;
+        const bool edgeDirty = mainDirty ||
+                               std::memcmp(&edgeScale, &model.outlineScale, sizeof(float)) != 0 ||
+                               pmdDiffuse != model.outlineDiffuse || mode != model.outlineMode;
+        if (edgeDirty) {
+            model.edgeStyles.resize(snapshot->materials.size());
+            for (std::size_t n = 0; n < snapshot->materials.size(); ++n) {
+                const auto& material = snapshot->materials[n].material;
+                model.edgeStyles[n] = {material.edgeSize,
+                                       pmd ? pmdDiffuse
+                                           : cpu_edge::Color(material.edgeColor, mode != 0)};
+            }
+        }
+        for (std::size_t n = 0; (mainDirty || edgeDirty) && n < snapshot->vertices.size(); ++n) {
             const auto& v = snapshot->vertices[n];
-            auto* output = vertices + n * vertexStride;
-            std::memcpy(output, v.position.data(), 12);
-            std::memcpy(output + 12, v.normal.data(), 12);
-            std::memcpy(output + 24, v.uv.data(), 8);
-            for (unsigned u = 0; u < extraUv; ++u)
-                std::memcpy(output + 32 + u * 16, v.additionalUv[u].data(), 16);
+            if (mainDirty) {
+                auto* output = vertices + n * vertexStride;
+                std::memcpy(output, v.position.data(), 12);
+                std::memcpy(output + 12, v.normal.data(), 12);
+                std::memcpy(output + 24, v.uv.data(), 8);
+                for (unsigned u = 0; u < extraUv; ++u)
+                    std::memcpy(output + 32 + u * 16, v.additionalUv[u].data(), 16);
+            }
+            if (!edgeDirty)
+                continue;
             auto& edge = model.geometry->Edges()[n];
             const auto& original = source.vertices[n];
-            const auto& material = snapshot->materials.at(model.edgeMaterials[n]).material;
+            const auto& style = model.edgeStyles.at(model.edgeMaterials[n]);
             for (unsigned c = 0; c < 3; ++c)
                 edge.position[c] =
                     pmd ? cpu_edge::Component(v.position[c], v.normal[c],
                                               original.edgeScale == 0 ? -.004999999888241291f
                                                                       : edgeScale)
                         : cpu_edge::PmxComponent(v.position[c], v.normal[c], edgeScale,
-                                                 original.edgeScale, material.edgeSize);
-            edge.diffuse = pmd ? pmdDiffuse : cpu_edge::Color(material.edgeColor, mode != 0);
+                                                 original.edgeScale, style.size);
+            edge.diffuse = style.diffuse;
         }
-        if (!model.geometry->Publish())
+        if (!model.geometry->Publish(mainDirty, edgeDirty))
             return Fail(reason, "model_geometry_publish");
+        model.geometryPublication = snapshot->publication;
+        model.outlineScale = edgeScale;
+        model.outlineDiffuse = pmdDiffuse;
+        model.outlineMode = mode;
         std::vector<ModelMaterialPacket> packets;
         unsigned first = 0;
         for (std::size_t n = 0; n < snapshot->materials.size(); ++n) {

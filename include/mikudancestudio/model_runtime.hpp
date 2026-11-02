@@ -129,6 +129,9 @@ struct MaterialPose {
     std::array<float, 4> textureAdd{}, sphereAdd{}, toonAdd{};
 };
 struct ModelSnapshot {
+    // Process-unique publication identity. Frame numbers alone cannot identify
+    // edited/paused poses or a replacement ModelInstance at the same frame.
+    std::uint64_t publication = 0;
     std::uint32_t frame = 0;
     std::vector<BonePose> bones;
     std::vector<float> morphWeights;

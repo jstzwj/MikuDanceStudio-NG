@@ -274,7 +274,10 @@ bool ModelEvaluation::Finish(std::string& reason) {
     snapshot_.vertices.resize(vertices_.size());
     for (std::size_t n = 0; n < vertices_.size(); ++n) {
         const auto& v = vertices_[n];
-        VertexPose out;
+        // Finish writes unpublished storage directly. Preparing a different
+        // resource clears the slots; inactive additional UVs stay initialized
+        // to zero instead of clearing/copying a 96-byte temporary per vertex.
+        auto& out = snapshot_.vertices[n];
         const auto matrix = [&](int b) {
             return v.bone[b] < 0 ? zero.data() : bones_[v.bone[b]].matInit;
         };
@@ -305,12 +308,11 @@ bool ModelEvaluation::Finish(std::string& reason) {
             reason = "nonfinite-vertex-output:" + std::to_string(n);
             return false;
         }
-        for (const auto& uv : out.additionalUv)
-            if (!Finite(uv)) {
+        for (unsigned set = 0; set < resource_->document_.header.additionalUvCount; ++set)
+            if (!Finite(out.additionalUv[set])) {
                 reason = "nonfinite-uv-output";
                 return false;
             }
-        snapshot_.vertices[n] = out;
     }
     finished_ = true;
     reason.clear();
