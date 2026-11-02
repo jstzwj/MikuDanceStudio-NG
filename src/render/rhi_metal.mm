@@ -139,7 +139,7 @@ public:
         if (f == TextureFormat::Depth24Stencil8)
             return {bool(native.depth24Stencil8PixelFormatSupported), false, false, false};
         if (f == TextureFormat::Rgba8)
-            return {true, true, true, true, true};
+            return {true, true, true, false, true};
         if (f == TextureFormat::Rgba16Float || f == TextureFormat::R32Float)
             return {true, true, true, true};
         return {};
@@ -148,7 +148,7 @@ public:
         return {true, true, true, true, true, true, true, true, true, true, false, MaxDraws};
     }
     ResourceLifecycleCapabilities ResourceLifecycleFeatures() const override {
-        return {true, true, true, true, true};
+        return {true, true, true, false, true};
     }
     DeviceStatus Status() const override { return status; }
     const char* ShaderDiagnostic() const override { return error.c_str(); }
@@ -610,9 +610,9 @@ public:
             return false;
         if (issued && !WaitCompletion({status.identity, issued}, 5000))
             return false;
-        for (unsigned i = 0; i < resources.size(); ++i)
-            if (resources[i].alive && resources[i].buffer && resources[i].bufferDesc.dynamic)
-                Destroy({i, resources[i].generation, status.identity});
+        // Logical target reset retains both static and dynamic upload storage.
+        // Epoch invalidation rejects recorded draws; native device replacement
+        // has a new identity and rebuilds every resource through SceneRenderer.
         passes.InvalidateContents();
         status.state = DeviceState::ResetPending;
         ++status.epoch;

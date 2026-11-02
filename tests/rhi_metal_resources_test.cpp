@@ -54,9 +54,10 @@ int main() try {
     CHECK(d.ReadModelTarget(expected));
     const auto stale = d.Record(draw);
     CHECK(d.PrepareForReset() && d.Status().state == DeviceState::ResetPending);
-    CHECK(!d.BeginFrame({}) && !d.Destroy(dynamic) &&
+    CHECK(!d.BeginFrame({}) && !d.Upload(dynamic, 0, vertices.data(), vertices.size()) &&
           d.PollCompletion(first) == CompletionState::Complete);
     CHECK(d.RestoreAfterReset() && d.Status().state == DeviceState::Ready);
+    CHECK(d.Upload(dynamic, 0, vertices.data(), vertices.size()) && d.Destroy(dynamic));
     CHECK(d.BeginFrame({}) && d.SetModelPipeline(pipeline) && d.BindTexture(0, texture));
     CHECK(!d.Draw(stale) && d.Draw(d.Record(draw)) && d.EndFrame());
     render();
