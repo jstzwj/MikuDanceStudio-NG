@@ -258,21 +258,22 @@ void CaptureUndo(void*) {
 }
 bool shadowMenuChecked;
 unsigned shadowMenuWrites;
+unsigned switchMenuCommand = MDS_CMD_TOGGLE_SELF_SHADOW;
 HMENU WINAPI ShadowMenu(HWND) {
     return reinterpret_cast<HMENU>(1);
 }
 UINT WINAPI ShadowMenuState(HMENU, UINT command, UINT flags) {
-    Check(command == MDS_CMD_TOGGLE_SELF_SHADOW && !flags, "native shadow menu query");
+    Check(command == switchMenuCommand && !flags, "native switch menu query");
     return shadowMenuChecked ? MF_CHECKED : MF_UNCHECKED;
 }
 DWORD WINAPI ShadowMenuCheck(HMENU, UINT command, UINT flags) {
-    Check(command == MDS_CMD_TOGGLE_SELF_SHADOW &&
-              flags == (shadowMenuChecked ? MF_UNCHECKED : MF_CHECKED),
+    Check(command == switchMenuCommand && flags == (shadowMenuChecked ? MF_UNCHECKED : MF_CHECKED),
           "native shadow menu write");
     ++shadowMenuWrites;
     return 0;
 }
 unsigned ShadowSwitchCommands(OriginalPhysicsModule& original) {
+    switchMenuCommand = MDS_CMD_TOGGLE_SELF_SHADOW;
     void* menu = reinterpret_cast<void*>(&ShadowMenu);
     void* state = reinterpret_cast<void*>(&ShadowMenuState);
     void* check = reinterpret_cast<void*>(&ShadowMenuCheck);
@@ -302,6 +303,48 @@ unsigned ShadowSwitchCommands(OriginalPhysicsModule& original) {
                 Check(shadowMenuWrites == 1 &&
                           !std::memcmp(app.get(), expected.get(), sizeof(*app)),
                       "native shadow switch changed mode, dirty, physics or other state");
+                ++count;
+            }
+    return count;
+}
+unsigned AudioDisableCommands(OriginalPhysicsModule& original) {
+    void* menu = reinterpret_cast<void*>(&ShadowMenu);
+    void* check = reinterpret_cast<void*>(&ShadowMenuCheck);
+    Patch menuImport(original.Function<void*>(0x1286a0), &menu, sizeof menu);
+    Patch checkImport(original.Function<void*>(0x1287a0), &check, sizeof check);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    switchMenuCommand = MDS_CMD_TOGGLE_WAVE_DISABLED;
+    unsigned count = 0;
+    for (unsigned disabled : {0u, 1u, 7u})
+        for (unsigned playing : {0u, 1u})
+            for (unsigned wave : {0u, 1u}) {
+                std::memset(app.get(), 0, sizeof(*app));
+                app->automaticFrameAdvanceEnabled = std::uint8_t(disabled);
+                app->playbackActive = std::uint8_t(playing);
+                app->waveEnabled = std::uint8_t(wave);
+                app->sceneModified = 0x7d;
+                app->physicsResetPending = 1;
+                app->currentFrame = 123;
+                auto expected = std::make_unique<MMDAppState>(*app);
+                expected->automaticFrameAdvanceEnabled = !disabled;
+                expected->letterKeyState[5] = 1; // Native x64 D latch, app+0x44.
+                shadowMenuChecked = disabled != 0;
+                shadowMenuWrites = 0;
+                original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr,
+                                                                   MDS_CMD_TOGGLE_WAVE_DISABLED);
+                if (std::memcmp(app.get(), expected.get(), sizeof(*app))) {
+                    const auto* actual = reinterpret_cast<const unsigned char*>(app.get());
+                    const auto* wanted = reinterpret_cast<const unsigned char*>(expected.get());
+                    for (std::size_t i = 0; i < sizeof(*app); ++i)
+                        if (actual[i] != wanted[i])
+                            std::fprintf(stderr, "audio switch byte %zx: actual=%u expected=%u\n", i,
+                                         unsigned(actual[i]), unsigned(wanted[i]));
+                }
+                Check(shadowMenuWrites == 1 &&
+                          !std::memcmp(app.get(), expected.get(), sizeof(*app)),
+                      "native disable-WAV switch changed playback, dirty or other state");
                 ++count;
             }
     return count;
@@ -1199,6 +1242,9 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf(
         "%u original self-shadow switches: independent mode and unchanged application state\n",
         ShadowSwitchCommands(original));
+    std::printf(
+        "%u original disable-WAV switches: unchanged playback and complete application state\n",
+        AudioDisableCommands(original));
     std::printf("%u original FPS commands: exact rate and unchanged application state\n",
                 FrameRateCommands(original));
     unsigned count = 0;

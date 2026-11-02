@@ -127,6 +127,8 @@ public:
     bool DeleteFrameLine(Track, std::string&, bool fromMenu = false);
     bool AutoInterpolation() const { return autoInterpolation_; }
     void SetAutoInterpolation(bool enabled) { autoInterpolation_ = enabled; }
+    bool PlaybackAudioDisabled() const { return playbackAudioDisabled_; }
+    void SetPlaybackAudioDisabled(bool disabled) { playbackAudioDisabled_ = disabled; }
     bool RegistrationPhysics() const { return registrationPhysics_; }
     void SetRegistrationPhysics(bool enabled) { registrationPhysics_ = enabled; }
     bool Copy(const std::set<KeyAddress>&, std::string&);
@@ -257,6 +259,7 @@ private:
     std::uint64_t revision_ = 0, savedRevision_ = 0, nextRevision_ = 1;
     bool playing_ = false;
     bool autoInterpolation_ = true;
+    bool playbackAudioDisabled_ = false;
     bool registrationPhysics_ = true;
     unsigned coordinateSystem_ = 0, boneDragMode_ = 0;
     double cursorSeconds_ = 0;

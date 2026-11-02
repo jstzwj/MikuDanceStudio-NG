@@ -125,6 +125,7 @@ bool Implemented(int command) {
     case MDS_CMD_EDGE_COLOR:
     case MDS_CMD_TOGGLE_SELF_SHADOW:
     case MDS_CMD_ACCESSORY_SETTINGS:
+    case MDS_CMD_TOGGLE_WAVE_DISABLED:
         return true;
     default:
         return false;
@@ -269,6 +270,7 @@ void EditorWindow::RefreshMenus() {
     check(MDS_CMD_TOGGLE_CAMERA_TRACKING, doc.appearance.followCamera);
     check(MDS_CMD_TOGGLE_GROUND_SHADOW, doc.view.groundShadow);
     check(MDS_CMD_TOGGLE_SELF_SHADOW, doc.selfShadowEnabled != 0);
+    check(MDS_CMD_TOGGLE_WAVE_DISABLED, session_.PlaybackAudioDisabled());
     check(MDS_CMD_TOGGLE_GROUND_SHADOW_TRANSPARENCY, doc.physics.projectedShadowBlend);
     check(MDS_CMD_TOGGLE_PHYSICS_FLOOR, doc.appearance.floorVisible);
     check(MDS_CMD_TOGGLE_SEPARATE_WINDOW, separate_ != nullptr);
@@ -296,6 +298,13 @@ void EditorWindow::MenuCommand(int command) {
                                : command == MDS_CMD_FPS_60 ? 60
                                                            : 1000);
         RefreshFrameTimer();
+        RefreshMenus();
+        return;
+    }
+    if (command == MDS_CMD_TOGGLE_WAVE_DISABLED) {
+        // Native 297 only changes the startup/loop gate. Current PCM playback
+        // continues; the switch does not mute, stop or seek the active device.
+        session_.SetPlaybackAudioDisabled(!session_.PlaybackAudioDisabled());
         RefreshMenus();
         return;
     }

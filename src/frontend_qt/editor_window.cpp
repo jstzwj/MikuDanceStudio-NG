@@ -283,9 +283,12 @@ void EditorWindow::Tick(double seconds) {
         if (seconds > 0 && !Result(session_.Advance(std::min(1., seconds), reason), reason))
             session_.Pause();
         if (session_.Playing() && session_.PlaybackEpoch() != epoch &&
-            session_.Document().wave.enabled && !session_.Assets().wave.empty() &&
-            !Result(audio_.Play(session_.CursorSeconds(), reason), reason))
-            session_.Pause();
+            session_.Document().wave.enabled && !session_.Assets().wave.empty()) {
+            if (session_.PlaybackAudioDisabled())
+                audio_.ReleaseClock();
+            else if (!Result(audio_.Play(session_.CursorSeconds(), reason), reason))
+                session_.Pause();
+        }
         Refresh();
     } else {
         std::string reason;
@@ -1342,7 +1345,8 @@ void EditorWindow::Dispatch(int id) {
         } else {
             clock_.restart();
             ok = session_.Play(r);
-            if (ok && session_.Document().wave.enabled && !session_.Assets().wave.empty()) {
+            if (ok && !session_.PlaybackAudioDisabled() && session_.Document().wave.enabled &&
+                !session_.Assets().wave.empty()) {
                 if (audio_.Path() != session_.Assets().wave)
                     ok = audio_.Load(session_.Assets().wave, r);
                 if (ok)

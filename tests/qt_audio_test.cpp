@@ -1,5 +1,6 @@
 #include "editor_window.hpp"
 #include "mikudancestudio/panel_controls.hpp"
+#include "mikudancestudio/menu_commands.h"
 #include <QApplication>
 #include <QFile>
 #include <QDataStream>
@@ -177,6 +178,62 @@ int main(int argc, char** argv) {
     CHECK(session.CursorSeconds() == 180.25 && session.Playing());
     window.Dispatch(panel::kPlayButton);
     CHECK(!window.isVisible() && window.RenderWindow()->Submissions() == 0);
+    const auto disableAudio = [&]() -> QAction* {
+        for (auto* action : window.findChildren<QAction*>())
+            if (action->property("mmdCommandId").toInt() == MDS_CMD_TOGGLE_WAVE_DISABLED)
+                return action;
+        return nullptr;
+    };
+    CHECK(session.Edit(
+        "disabled-wave-range",
+        [](auto& d, auto&) {
+            d.timeline.playStartFrame = 30;
+            d.timeline.playStopFrame = 33;
+            d.timeline.startAtCurrent = 0;
+            d.timeline.playbackLoop = 1;
+            return true;
+        },
+        reason));
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(window.SetLanguage(code));
+        auto* action = disableAudio();
+        CHECK(action && action->isEnabled() && !action->isChecked());
+        const auto revision = session.Revision(),
+                   framesBefore = session.Runtime().Counters().frames;
+        const auto beforeStarts = sink->starts;
+        action->trigger();
+        CHECK(session.PlaybackAudioDisabled() && action->isChecked() &&
+              session.Revision() == revision &&
+              session.Runtime().Counters().frames == framesBefore);
+        sink->fail = true;
+        window.Dispatch(panel::kPlayButton);
+        CHECK(session.Playing() && !sink->Running() && sink->starts == beforeStarts);
+        window.Tick(.05);
+        CHECK(std::abs(session.CursorSeconds() - 1.05) < 1e-9);
+        window.Dispatch(panel::kPlayButton);
+        sink->fail = false;
+        action->trigger();
+        window.Dispatch(panel::kPlayButton);
+        CHECK(sink->Running() && sink->starts == beforeStarts + 1);
+        const auto clockEpoch = session.PlaybackEpoch();
+        action->trigger(); // Changing the gate leaves current PCM/clock running.
+        sink->Advance(150000);
+        window.Tick(.001);
+        CHECK(session.Playing() && sink->Running() && session.PlaybackEpoch() == clockEpoch + 1 &&
+              sink->starts == beforeStarts + 1 && session.CursorSeconds() == 1);
+        sink->Advance(10000);
+        window.Tick(.02);
+        CHECK(std::abs(session.CursorSeconds() - 1.02) < 1e-9);
+        action->trigger(); // The next loop can establish a new native clock.
+        window.Tick(.1);
+        CHECK(sink->starts == beforeStarts + 2 && sink->elapsed == 0 &&
+              session.CursorSeconds() == 1 && !session.PlaybackAudioDisabled());
+        window.Dispatch(panel::kPlayButton);
+    }
+    disableAudio()->trigger();
+    CHECK(window.Save(qt::Path(dir.path() + "/audio-pref.pmm")) &&
+          window.Open(qt::Path(dir.path() + "/audio-pref.pmm")) && session.PlaybackAudioDisabled());
+    CHECK(session.New(reason) && session.PlaybackAudioDisabled());
     std::cout
         << "Silent audio transport: PCM offsets, 120s clock/jitter, loop, seek, stop and output failure passed\n";
 }

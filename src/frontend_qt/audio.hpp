@@ -17,6 +17,7 @@ public:
     // Reports the final processed position once before handing the clock back
     // to the editor timer when the WAV reaches its end.
     std::optional<double> ClockPosition();
+    void ReleaseClock() { clockActive_ = false; }
     bool Running() const;
     std::string Error() const;
     std::string Diagnostic() const;

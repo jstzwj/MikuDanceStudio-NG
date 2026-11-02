@@ -2551,3 +2551,21 @@ Local Qt offscreen numeric/menu and shared-session regressions passed, including
 all three languages, actual modal accept/cancel, CP932 roundtrip, retained model
 history and playback gating. The menu implements **70/103** original commands.
 This closes this dialog's integration gap; the remaining P4/C1 gates stay open.
+## Disable-WAV playback preference
+
+Command 297 is a session preference independent of PMM's WAV reference. It gates
+native audio startup and loop restarts, without changing a playing stream, scene
+revision, dirty flag, history, pose or simulation counters. On a disabled loop,
+the previous PCM may finish naturally while the editor releases that old clock;
+reenabling the preference takes effect on the next loop/start. New/Open retain
+the preference. All three Qt languages exercise these transitions with the
+consuming-device adapter, including disabled startup with an injected device
+failure, active-stream toggles, loop handoff and save/reopen.
+
+The optional original full-dispatch oracle passed **12 independent command 297
+cases**, comparing the entire application state for disabled bytes 0/1/7,
+playing/stopped and WAV present/absent, plus the actual menu check write. Native
+x64's D latch is at app+44. Existing 18 shadow-switch, nine FPS and all auxiliary
+command/hidden-control cases still pass. Local Qt audio/menu regressions passed.
+The menu implements **71/103** commands. This is not native audio qualification
+or complete P4 acceptance.

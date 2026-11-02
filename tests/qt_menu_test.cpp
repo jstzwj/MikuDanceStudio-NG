@@ -381,7 +381,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 70);
+    CHECK(implemented == 71);
     for (const char* language : {"en", "ja", "zh_CN"}) {
         CHECK(session.New(reason) && window.SetLanguage(language));
         CHECK(session.SetSelfShadowEnabled(true));
