@@ -617,5 +617,16 @@
   "dialog.morph_purge.text.3": "将删除所有口型帧。\n表情帧的修改无法撤销。\n\n是否继续？",
   "dialog.numeric.frame_shift.title": "移动帧数",
   "dialog.numeric.frame_shift.control.1": "确定",
-  "dialog.numeric.frame_shift.control.2": "取消"
+  "dialog.numeric.frame_shift.control.2": "取消",
+  "dialog.numeric.blink.title": "登记眨眼",
+  "dialog.numeric.blink.control.0": "开始帧",
+  "dialog.numeric.blink.control.1": "结束帧",
+  "dialog.numeric.blink.control.4": "确定",
+  "dialog.numeric.blink.control.5": "取消",
+  "dialog.blink.missing": "此模型没有“まばたき”表情，无法自动登记眨眼。",
+  "dialog.blink.missing_title": "随机登记眨眼",
+  "dialog.blink.report": "已添加 %1 次眨眼",
+  "dialog.blink.report_title": "添加眨眼",
+  "dialog.blink.capacity": "关键帧数量不能超过 20000。\n请执行“删除无用帧”。",
+  "dialog.blink.capacity_title": "登记关键帧"
 }

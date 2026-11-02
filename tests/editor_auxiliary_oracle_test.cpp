@@ -11,12 +11,14 @@
 #include "editor_reduction_fixture.hpp"
 #include "editor_morph_scale_fixture.hpp"
 #include "editor_morph_purge_fixture.hpp"
+#include "editor_blink_fixture.hpp"
 #include "editor_camera_scale_fixture.hpp"
 #include "gravity_edit_reference.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
 #include "mikudancestudio/camera_key_math.hpp"
 #include "mikudancestudio/cpu_model_state.hpp"
 #include "mikudancestudio/idle_render_gate.hpp"
+#include "mikudancestudio/blink_registration.hpp"
 #include <cstdio>
 #include <climits>
 #include <cstdlib>
@@ -1406,6 +1408,183 @@ unsigned MorphPurgeCommands(OriginalPhysicsModule& original, const std::filesyst
                         }
     return cases;
 }
+const unsigned blinkSamples[]{32767, 0, 0, 16384, 1, 32766, 12000};
+unsigned nativeBlinkCalls, blinkReported, blinkOverflow;
+unsigned blinkDialogs, blinkMissing;
+bool blinkAccept = true;
+int NativeBlinkRandom() {
+    return int(blinkSamples[nativeBlinkCalls++ % std::size(blinkSamples)]);
+}
+INT_PTR WINAPI BlinkDialog(HINSTANCE, LPCSTR resource, HWND, DLGPROC, LPARAM parameter) {
+    Check(reinterpret_cast<std::uintptr_t>(resource) == 656 && !parameter,
+          "native blink dialog resource");
+    ++blinkDialogs;
+    return blinkAccept ? IDOK : IDCANCEL;
+}
+int WINAPI BlinkReport(HWND, LPCSTR text, LPCSTR title, UINT flags) {
+    if (!std::strcmp(title, "randomly register blinking")) {
+        Check(
+            flags == MB_TOPMOST &&
+                !std::strcmp(
+                    text,
+                    "You cannot register blinking because this model has not facial motion of 'blink'."),
+            "native missing-blink notification");
+        ++blinkMissing;
+        return IDOK;
+    }
+    if (!std::strcmp(title, "register frame")) {
+        Check(!flags && std::strstr(text, "20000"), "native blink pool overflow");
+        ++blinkOverflow;
+        return IDOK;
+    }
+    Check(std::strcmp(title, "register blinking") == 0 && flags == MB_TOPMOST,
+          "native blink report title/flags");
+    Check(std::sscanf(text, "%u blinking is registerd", &blinkReported) == 1,
+          "native blink report count");
+    char expected[100];
+    std::snprintf(expected, sizeof expected, "%u blinking is registerd", blinkReported);
+    Check(!std::strcmp(text, expected), "native complete blink report text");
+    return IDOK;
+}
+unsigned BlinkCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    const unsigned char ret = 0xc3;
+    Patch paint(original.Function<void*>(0x60ea0), &ret, 1);
+    Patch curve(original.Function<void*>(0x62bb0), &ret, 1);
+    Patch seek(original.Function<void*>(0xcbd90), &ret, 1);
+    auto message = &BlinkReport;
+    auto dialog = &BlinkDialog;
+    auto random = &NativeBlinkRandom;
+    Patch prompt(original.Function<void*>(0x128618), &message, sizeof message);
+    Patch modal(original.Function<void*>(0x128600), &dialog, sizeof dialog);
+    Patch rng(original.Function<void*>(0x128440), &random, sizeof random);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    unsigned cases = 0;
+    blinkAccept = true;
+    for (const auto* file : {"blink.pmd", "blink.pmx"})
+        for (const auto& range :
+             std::vector<std::pair<int, int>>{{0, 0}, {0, 1}, {10, 500}, {500, 10}, {-1, 50}})
+            for (int free : {-1, 0, 2}) {
+                if (free >= 0 && range != std::pair{0, 1})
+                    continue;
+                EditorSession portable;
+                std::string reason;
+                Check(portable.ImportModel(root / file, reason), reason.c_str());
+                Check(portable.HasBlinkMorph(), "public fixture must have a blink morph");
+                if (free >= 0)
+                    Check(portable.Edit(
+                              "blink-capacity",
+                              [&](auto& d, auto&) {
+                                  FillBlinkCapacity(d, unsigned(free));
+                                  return true;
+                              },
+                              reason),
+                          reason.c_str());
+                const auto before = portable.Document().models[0];
+                NativeAuxiliary native(before, portable.Runtime().Resource(0)->SourceKind() ==
+                                                   ModelKind::Pmx);
+                auto* model = native.model.get();
+                model->physicsFlags = 1;
+                model->maxFrame = before.selection.maxFrame;
+                for (const auto& key : before.morphKeys.sparse) {
+                    auto& out = native.morphs[unsigned(key.index)];
+                    out.frame = key.value.frame;
+                    out.previous = key.value.previous;
+                    out.next = key.value.next;
+                    out.value = key.value.value;
+                    out.allocated = key.value.allocated;
+                }
+                for (unsigned i = 0; i < before.morphKeys.dense.size(); ++i)
+                    native.morphs[i].next = before.morphKeys.dense[i].next;
+                for (unsigned i = 0; i < native.poses.size(); ++i)
+                    std::memcpy(native.poses[i].name, before.morphNames[i].data(),
+                                before.morphNames[i].size());
+                std::memset(app.get(), 0, sizeof(*app));
+                app->modelSlots[0] = model;
+                app->englishUI = 1;
+                auto* bytes = reinterpret_cast<unsigned char*>(app.get());
+                const int start = range.first, end = range.second;
+                std::memcpy(bytes + 0xa191c, &start, sizeof start);
+                std::memcpy(bytes + 0xa1920, &end, sizeof end);
+                // Repeat without resetting native/portable phase or the key pools.
+                for (int repeat = 0; repeat < 2; ++repeat) {
+                    nativeBlinkCalls = 0;
+                    blinkOverflow = 0;
+                    blinkReported = UINT_MAX;
+                    original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr,
+                                                                       MDS_CMD_REGISTER_BLINKING);
+                    unsigned portableCalls = 0, count = UINT_MAX, failed = UINT_MAX;
+                    const bool ok = portable.RegisterBlinks(
+                        start, end, count, reason,
+                        [&] { return blinkSamples[portableCalls++ % std::size(blinkSamples)]; },
+                        &failed);
+                    Check(ok, reason.c_str());
+                    Check(count == blinkReported && nativeBlinkCalls == portableCalls &&
+                              failed == blinkOverflow,
+                          "native blink count/random consumption differs");
+                    native.Compare(portable.Document().models[0]);
+                    Check(portable.Document().timeline.lastRegisteredFrame ==
+                                  app->lastRegisteredFrame &&
+                              app->sceneModified,
+                          "native blink dirty/watermark differs");
+                    ++cases;
+                }
+            }
+    blinkAccept = false;
+    for (bool pmx : {false, true})
+        for (bool missing : {false, true}) {
+            EditorSession portable;
+            std::string reason;
+            const auto file = missing ? (pmx ? "tint-morph.pmx" : "facial.pmd")
+                                      : (pmx ? "blink.pmx" : "blink.pmd");
+            Check(portable.ImportModel(root / file, reason), reason.c_str());
+            const auto before = portable.Document().models[0];
+            NativeAuxiliary native(before, pmx);
+            auto* model = native.model.get();
+            for (unsigned i = 0; i < native.poses.size(); ++i)
+                std::memcpy(native.poses[i].name, before.morphNames[i].data(),
+                            before.morphNames[i].size());
+            const auto modelBefore = std::make_unique<mdl::ModelRecord>(*model);
+            std::memset(app.get(), 0, sizeof(*app));
+            app->modelSlots[0] = model;
+            app->englishUI = 1;
+            app->sceneModified = 0x7d;
+            app->physicsResetPending = 1;
+            auto expected = std::make_unique<MMDAppState>(*app);
+            const std::uint32_t enter = 1;
+            std::memcpy(reinterpret_cast<unsigned char*>(expected.get()) + 0xc0, &enter, sizeof enter);
+            blinkDialogs = blinkMissing = nativeBlinkCalls = 0;
+            original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, MDS_CMD_REGISTER_BLINKING);
+            if (blinkDialogs != unsigned(!missing) || blinkMissing != unsigned(missing) ||
+                nativeBlinkCalls || std::memcmp(app.get(), expected.get(), sizeof(*app)) ||
+                std::memcmp(model, modelBefore.get(), sizeof(*model))) {
+                std::fprintf(stderr, "blink cancel %s missing=%u dialogs=%u messages=%u random=%u\n",
+                             file, unsigned(missing), blinkDialogs, blinkMissing, nativeBlinkCalls);
+                const auto differences = [](const void* a, const void* b, std::size_t size) {
+                    const auto* x = static_cast<const unsigned char*>(a);
+                    const auto* y = static_cast<const unsigned char*>(b);
+                    unsigned count = 0;
+                    for (std::size_t i = 0; i < size && count < 20; ++i)
+                        if (x[i] != y[i]) {
+                            std::fprintf(stderr, "byte %zx actual=%u expected=%u\n", i,
+                                         unsigned(x[i]), unsigned(y[i]));
+                            ++count;
+                        }
+                };
+                differences(app.get(), expected.get(), sizeof(*app));
+                differences(model, modelBefore.get(), sizeof(*model));
+            }
+            Check(blinkDialogs == unsigned(!missing) && blinkMissing == unsigned(missing) &&
+                      !nativeBlinkCalls && !std::memcmp(app.get(), expected.get(), sizeof(*app)) &&
+                      !std::memcmp(model, modelBefore.get(), sizeof(*model)),
+                  "native cancelled/missing blink command state");
+            native.Compare(before);
+            ++cases;
+        }
+    blinkAccept = true;
+    return cases;
+}
 unsigned CameraScaleCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
     const unsigned char ret = 0xc3;
     Patch seek(original.Function<void*>(0x59c30), &ret, 1);
@@ -1690,6 +1869,11 @@ int wmain(int argc, wchar_t** argv) try {
           "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
     if (argc == 4) {
+        if (std::wcscmp(argv[3], L"--blink") == 0) {
+            std::printf("%u original blink command comparisons passed\n",
+                        BlinkCommands(original, argv[2]));
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--low-power") == 0) {
             std::printf("%u original low-power commands and %u render-gate checkpoints passed\n",
                         LowPowerCommands(original), LowPowerFrameGate(original));
@@ -1702,6 +1886,7 @@ int wmain(int argc, wchar_t** argv) try {
     }
     std::printf("%u original low-power commands and %u render-gate checkpoints passed\n",
                 LowPowerCommands(original), LowPowerFrameGate(original));
+    std::printf("%u original blink command comparisons passed\n", BlinkCommands(original, argv[2]));
     std::printf("%u original model rendering toggles: complete model/application bytes\n",
                 ModelRenderFlags(original, argv[2]));
     std::printf(

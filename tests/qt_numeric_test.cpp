@@ -1539,6 +1539,87 @@ int main(int argc, char** argv) {
         owner.Refresh();
         CHECK(!action->isEnabled() && !owner.isVisible());
     }
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(language.Set(code));
+        qt::BlinkDialog form(language);
+        const auto expected =
+            reference[QString("blink.") + (language.Code() == "en" ? "en" : "ja")].toObject();
+        const auto controls = expected["controls"].toArray();
+        const int unitY = language.Code() == "en" ? 15 : 12;
+        CHECK(form.Template().id == expected["id"].toInt() && controls.size() == 6);
+        CHECK(form.size() == QSize(175, (50 * unitY + 4) / 8));
+        CHECK(form.Field(0)->text().isEmpty() && form.Field(1)->text().isEmpty());
+        for (int i = 0; i < controls.size(); ++i) {
+            auto* widget = form.findChild<QWidget*>(QString("numeric.control.%1").arg(i));
+            CHECK(widget);
+            const auto control = controls[i].toObject();
+            const auto r = control["rect"].toArray();
+            CHECK(widget->geometry() ==
+                  QRect((r[0].toInt() * 7 + 2) / 4, (r[1].toInt() * unitY + 4) / 8,
+                        (r[2].toInt() * 7 + 2) / 4, (r[3].toInt() * unitY + 4) / 8));
+            CHECK(widget->property("mmdControlId").toInt() == control["id"].toInt());
+            if (auto* button = qobject_cast<QPushButton*>(widget))
+                CHECK(button->isDefault() == (control["id"].toInt() == 1));
+            if (language.Code() != "zh_CN") {
+                if (auto* label = qobject_cast<QLabel*>(widget))
+                    CHECK(label->text() == control["text"].toString());
+                if (auto* button = qobject_cast<QPushButton*>(widget))
+                    CHECK(button->text() == control["text"].toString());
+            }
+        }
+        form.Field(0)->setText(" -15tail");
+        form.Field(1)->setText("2147483648");
+        form.accept();
+        CHECK(form.Values()[0] == -15 && form.Values()[1] == INT_MAX);
+        qt::EditorWindow owner(std::filesystem::absolute(argv[2]), true);
+        CHECK(owner.Session().ImportModel(root / "blink.pmx", reason));
+        CHECK(owner.SetLanguage(code));
+        QAction* action = nullptr;
+        for (auto* item : owner.findChildren<QAction*>())
+            if (item->property("mmdCommandId").toInt() == MDS_CMD_REGISTER_BLINKING)
+                action = item;
+        CHECK(action && action->isEnabled());
+        const auto revision = owner.Session().Revision();
+        for (bool accept : {false, true}) {
+            bool interacted = false;
+            QTimer::singleShot(0, &owner, [&] {
+                auto* dialog = dynamic_cast<qt::BlinkDialog*>(QApplication::activeModalWidget());
+                if (!dialog) {
+                    QApplication::closeAllWindows();
+                    return;
+                }
+                interacted = dialog->Field(0)->text().isEmpty() &&
+                             dialog->Field(1)->text().isEmpty() &&
+                             dialog->focusWidget() == dialog->Field(0);
+                QTest::keyClick(dialog->Field(0), Qt::Key_Tab);
+                interacted &= dialog->focusWidget() == dialog->Field(1);
+                dialog->Field(0)->setText("0tail");
+                dialog->Field(1)->setText("1.5");
+                if (accept)
+                    dialog->accept();
+                else
+                    dialog->reject();
+            });
+            action->trigger();
+            CHECK(interacted && owner.LastError().isEmpty());
+            CHECK((owner.Session().Revision() != revision) == accept);
+        }
+        CHECK(owner.Session().Document().timeline.lastRegisteredFrame == 13);
+        CHECK(owner.Session().Play(reason));
+        owner.Refresh();
+        CHECK(!action->isEnabled());
+        owner.Session().Pause();
+        CHECK(owner.Session().SelectModel(255, reason));
+        owner.Refresh();
+        CHECK(!action->isEnabled());
+        CHECK(owner.Session().ImportModel(root / "articulated.pmd", reason));
+        owner.Refresh();
+        CHECK(action->isEnabled() && !owner.Session().HasBlinkMorph());
+        const auto missingRevision = owner.Session().Revision();
+        action->trigger();
+        CHECK(owner.Session().Revision() == missingRevision && owner.LastError().isEmpty());
+        CHECK(!owner.isVisible());
+    }
     std::cout
         << "Numeric dialogs: binary geometry/labels, tab order, formatting, cancel and editor publication passed\n";
 }

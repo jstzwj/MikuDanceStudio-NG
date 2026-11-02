@@ -40,6 +40,7 @@
 #include "mikudancestudio/ported_funcs.hpp"
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/clipboard_layout.hpp"
+#include "mikudancestudio/morph_key_registration.hpp"
 
 namespace mikudancestudio {
 namespace {
@@ -221,64 +222,10 @@ void RegisterMorphKeyCurrent(mdl::ModelRecord* model, int morph, int frameArg) {
         model->morphs == nullptr)
         return;
 
-    mdl::MorphKey* const keys = model->morphKeys;
-    const std::uint32_t frame = static_cast<std::uint32_t>(frameArg);
-    const float value = model->morphs[morph].value;
-
-    const auto fill = [&](int index) {
-        keys[index].frame = frame;
-        keys[index].value = value;
-        keys[index].allocated = 1;
-        if (frame > model->maxFrame)
-            model->maxFrame = frame;
-    };
-    const auto allocate = [&]() -> int {
-        int index = static_cast<int>(model->morphCount);
-        while (index < static_cast<int>(mdl::kMorphKeyCapacity) && keys[index].frame != 0)
-            ++index;
-        if (index >= static_cast<int>(mdl::kMorphKeyCapacity)) {
-            OverflowBox(model, mdl::kMorphKeyCapacity);
-            return -1;
-        }
-        return index;
-    };
-
-    int current = morph;
-    if (keys[current].frame < frame) {
-        for (;;) {
-            const int next = static_cast<int>(keys[current].next);
-            if (next == 0)
-                break;
-            current = next;
-            if (keys[current].frame >= frame)
-                break;
-        }
-        if (keys[current].frame < frame) {
-            const int fresh = allocate();
-            if (fresh < 0)
-                return;
-            keys[current].next = static_cast<std::uint32_t>(fresh);
-            keys[fresh].previous = static_cast<std::uint32_t>(current);
-            fill(fresh);
-            return;
-        }
-    }
-
-    if (keys[current].frame == frame) {
-        keys[current].value = value;
-        keys[current].allocated = 1;
-        return;
-    }
-
-    const int fresh = allocate();
-    if (fresh < 0)
-        return;
-    const int previous = static_cast<int>(keys[current].previous);
-    keys[previous].next = static_cast<std::uint32_t>(fresh);
-    keys[fresh].previous = static_cast<std::uint32_t>(previous);
-    keys[current].previous = static_cast<std::uint32_t>(fresh);
-    keys[fresh].next = static_cast<std::uint32_t>(current);
-    fill(fresh);
+    if (!keyframe_edit::RegisterCurrentMorph(
+            model->morphCount, unsigned(morph), std::uint32_t(frameArg), model->morphs[morph].value,
+            model->maxFrame, [&](unsigned index) -> auto& { return model->morphKeys[index]; }))
+        OverflowBox(model, mdl::kMorphKeyCapacity);
 }
 
 // ---- VA 0x0049D880 -----------------------------------------

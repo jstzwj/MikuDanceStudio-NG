@@ -617,5 +617,16 @@
   "dialog.morph_purge.text.3": "リップのフレームを全て削除します\n表情フレームの変更は元に戻せません\n\nよろしいですか？",
   "dialog.numeric.frame_shift.title": "シフトするﾌﾚｰﾑ数",
   "dialog.numeric.frame_shift.control.1": "OK",
-  "dialog.numeric.frame_shift.control.2": "ｷｬﾝｾﾙ"
+  "dialog.numeric.frame_shift.control.2": "ｷｬﾝｾﾙ",
+  "dialog.numeric.blink.title": "まばたき登録",
+  "dialog.numeric.blink.control.0": "開始ﾌﾚｰﾑ",
+  "dialog.numeric.blink.control.1": "終了ﾌﾚｰﾑ",
+  "dialog.numeric.blink.control.4": "OK",
+  "dialog.numeric.blink.control.5": "ｷｬﾝｾﾙ",
+  "dialog.blink.missing": "このモデルの表情に“まばたき“がない為\n自動リップシンクはできません",
+  "dialog.blink.missing_title": "まばたきランダム登録",
+  "dialog.blink.report": "%1回のまばたきを追加しました",
+  "dialog.blink.report_title": "まばたき追加",
+  "dialog.blink.capacity": "登録ポイント数が20000個を超えました\nこれ以上の登録は行えません\n「ﾌﾚｰﾑ編集」の「不用ﾌﾚｰﾑ削除」を実行して下さい",
+  "dialog.blink.capacity_title": "ﾌﾚｰﾑ登録"
 }

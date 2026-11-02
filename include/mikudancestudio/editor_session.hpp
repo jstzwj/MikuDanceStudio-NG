@@ -93,6 +93,10 @@ public:
     bool ScaleMorphKeys(float scale, float add, std::string&);
     bool PurgeMorphKeys(unsigned panel, std::string&);
     bool ShiftMouthKeys(std::int32_t shift, std::string&);
+    bool RegisterBlinks(std::int32_t start, std::int32_t end, unsigned& count, std::string&,
+                        const std::function<unsigned()>& random15 = {},
+                        unsigned* failedKeys = nullptr);
+    bool HasBlinkMorph() const;
     bool ScaleCameraKeys(const std::array<float, 16>& scaleAndOffset, std::string&);
     bool ScaleBoneKeys(const std::array<float, 12>& scaleAndOffset, std::string&);
     bool OffsetRootBoneKeys(const std::array<float, 3>& offset, std::string&);
@@ -275,6 +279,8 @@ private:
     bool playbackAudioDisabled_ = false;
     bool playbackPhysicsOnOff_ = false;
     bool registrationPhysics_ = true;
+    std::uint8_t blinkPhase_ = 0;
+    std::uint32_t blinkRandomState_ = 1;
     unsigned coordinateSystem_ = 0, boneDragMode_ = 0;
     double cursorSeconds_ = 0;
     std::uint32_t playOrigin_ = 0;

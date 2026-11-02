@@ -23,6 +23,7 @@ NAMES += [('ground_shadow', 'en', 658), ('ground_shadow', 'ja', 624)]
 NAMES += [('center_bias', 'en', 651), ('center_bias', 'ja', 600)]
 NAMES += [('accessory_order', 'en', 659), ('accessory_order', 'ja', 627)]
 NAMES += [('frame_shift', 'en', 655), ('frame_shift', 'ja', 615)]
+NAMES += [('blink', 'en', 656), ('blink', 'ja', 617)]
 
 
 def source_dialogs():
@@ -39,6 +40,7 @@ def source_dialogs():
                    'center_bias': 'CENTER_POSITION_BIAS',
                    'accessory_order': 'ACCESSORY_ORDER',
                    'frame_shift': 'FRAME_SHIFT',
+                   'blink': 'REGISTER_BLINKING',
                    'calculation_order': 'MODEL_CALCULATE_ORDER'}.get(kind, kind.upper() + '_NUMERIC_INPUT')
         tag = f'MDS_DLG_{command}_{"EN" if language == "en" else "JP"}'
         block = source.split(tag + ' DIALOGEX ', 1)[1].split('\n  END', 1)[0]
@@ -154,6 +156,8 @@ def run(check):
           'degree': '\u89d2\u5ea6(\u00b0)', 'axis X': 'X\u8f74', 'axis Y': 'Y\u8f74', 'axis Z': 'Z\u8f74',
           'distance': '\u8ddd\u79bb', 'OK': '\u786e\u5b9a', 'cancel': '\u53d6\u6d88',
           'frame number to shift': '\u79fb\u52a8\u5e27\u6570',
+          'register blinking': '\u767b\u8bb0\u7728\u773c',
+          'frame from': '\u5f00\u59cb\u5e27', 'frame to': '\u7ed3\u675f\u5e27',
           'screen size': '\u5c4f\u5e55\u5c3a\u5bf8', 'width': '\u5bbd\u5ea6', 'height': '\u9ad8\u5ea6',
           'thickness of edge line': '\u63cf\u8fb9\u7c97\u7ec6', 'thickness': '\u7c97\u7ec6',
           '0                     1                    2': '0                     1                    2',
@@ -195,6 +199,24 @@ def run(check):
                             for key, value in labels.items()})
         catalog['dialog.numeric.physics_keys.on'] = {'en': 'ON (X mark)', 'ja': 'ON (X\u5370)', 'zh_CN': '\u5f00 (X\u6807\u8bb0)'}[language]
         catalog['dialog.numeric.physics_keys.off'] = '\u5173' if language == 'zh_CN' else 'OFF'
+        blink = {
+            'en': ("You cannot register blinking because this model has not facial motion of 'blink'.",
+                   'randomly register blinking', '%1 blinking is registerd', 'register blinking'),
+            'ja': ('\u3053\u306e\u30e2\u30c7\u30eb\u306e\u8868\u60c5\u306b\u201c\u307e\u3070\u305f\u304d\u201c\u304c\u306a\u3044\u70ba\n\u81ea\u52d5\u30ea\u30c3\u30d7\u30b7\u30f3\u30af\u306f\u3067\u304d\u307e\u305b\u3093',
+                   '\u307e\u3070\u305f\u304d\u30e9\u30f3\u30c0\u30e0\u767b\u9332',
+                   '%1\u56de\u306e\u307e\u3070\u305f\u304d\u3092\u8ffd\u52a0\u3057\u307e\u3057\u305f', '\u307e\u3070\u305f\u304d\u8ffd\u52a0'),
+            'zh_CN': ('\u6b64\u6a21\u578b\u6ca1\u6709\u201c\u307e\u3070\u305f\u304d\u201d\u8868\u60c5\uff0c\u65e0\u6cd5\u81ea\u52a8\u767b\u8bb0\u7728\u773c\u3002',
+                      '\u968f\u673a\u767b\u8bb0\u7728\u773c', '\u5df2\u6dfb\u52a0 %1 \u6b21\u7728\u773c', '\u6dfb\u52a0\u7728\u773c')
+        }[language]
+        catalog.update(zip(('dialog.blink.missing', 'dialog.blink.missing_title',
+                            'dialog.blink.report', 'dialog.blink.report_title'), blink))
+        catalog['dialog.blink.capacity'] = {
+            'en': "You cannot regist over 20000 point\nPlease execute 'delete unused frame'",
+            'ja': '\u767b\u9332\u30dd\u30a4\u30f3\u30c8\u6570\u304c20000\u500b\u3092\u8d85\u3048\u307e\u3057\u305f\n\u3053\u308c\u4ee5\u4e0a\u306e\u767b\u9332\u306f\u884c\u3048\u307e\u305b\u3093\n\u300c\uff8c\uff9a\uff70\uff91\u7de8\u96c6\u300d\u306e\u300c\u4e0d\u7528\uff8c\uff9a\uff70\uff91\u524a\u9664\u300d\u3092\u5b9f\u884c\u3057\u3066\u4e0b\u3055\u3044',
+            'zh_CN': '\u5173\u952e\u5e27\u6570\u91cf\u4e0d\u80fd\u8d85\u8fc7 20000\u3002\n\u8bf7\u6267\u884c\u201c\u5220\u9664\u65e0\u7528\u5e27\u201d\u3002'
+        }[language]
+        catalog['dialog.blink.capacity_title'] = {'en': 'register frame',
+            'ja': '\uff8c\uff9a\uff70\uff91\u767b\u9332', 'zh_CN': '\u767b\u8bb0\u5173\u952e\u5e27'}[language]
         files[path] = json.dumps(catalog, ensure_ascii=False, indent=2) + '\n'
     for path, content in files.items():
         if check:

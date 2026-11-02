@@ -108,6 +108,16 @@ public:
 private:
     std::int32_t value_ = 0;
 };
+class BlinkDialog final : public TemplateDialog {
+public:
+    BlinkDialog(const Language&, QWidget* parent = nullptr);
+    QLineEdit* Field(unsigned index) const { return Edit(618 + int(index)); }
+    const std::array<std::int32_t, 2>& Values() const { return values_; }
+    void accept() override;
+
+private:
+    std::array<std::int32_t, 2> values_{};
+};
 class CameraScaleDialog final : public TemplateDialog {
 public:
     CameraScaleDialog(const Language&, QWidget* parent = nullptr);

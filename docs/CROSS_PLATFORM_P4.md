@@ -2920,3 +2920,35 @@ unchanged revision/history on toggling. The implemented command count is now
 application rebuilt. The still-unimplemented English-name window must connect
 its lifetime to the tested override when that dialog is added; complete native
 input and C1 output acceptance remain open.
+
+## Native automatic blink registration (2026-11-03)
+
+Command 227 now registers the original four-key blink pattern through the shared
+session. It requires the exact Japanese blink Morph name, uses the original
+15-bit random divisor **32767**, and retains the phase between invocations.
+The original unsigned range comparison, preexisting marks, reused slots, partial
+capacity writes, per-key overflow notifications and scheduled-blink count are
+preserved. Empty/reversed ranges retain the original dirty-state behavior.
+PMD's base Morph remains protected. The shared registrar also serves the legacy
+frontend and keeps the native **20,000-record** pool and stale slot payload rules.
+Inputs outside the editable document's signed frame range are rejected explicitly;
+native behavior for those unrepresentable frames is not qualified.
+
+The Qt dialog uses original templates 656/617, initially empty fields and the
+original 20-byte ANSI integer parsing boundary. Its three-language regression
+covers focus, tab order, geometry, cancellation, registration and playback guards.
+The template catalog now covers **32 original dialogs**, and implemented menu
+commands number **80/103**. The native oracle executes the actual original menu
+dispatcher and registrar with deterministic entropy; **32 comparisons passed**,
+including both model formats, repeated commands, full/partially full pools,
+missing Morph and cancellation. Complete pool bytes, entropy consumption,
+notifications, counts, watermarks and dirty state are checked independently.
+
+All **36 local P4 tests passed in 126.50 seconds**. The legacy application built,
+and its existing key registrar regression passed. All local windows remained
+offscreen or never shown. The preceding mouth-shift and low-power batches also
+passed all three platform jobs in CI
+[41528142979](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41528142979)
+and [41530437314](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41530437314).
+Remaining C1 input, complete command coverage and independent full-scene output
+gates stay open.

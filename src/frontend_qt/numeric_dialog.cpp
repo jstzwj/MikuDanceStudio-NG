@@ -473,10 +473,10 @@ FrameShiftDialog::FrameShiftDialog(const Language& language, QWidget* parent)
     Field()->setFocus(Qt::OtherFocusReason);
     Field()->selectAll();
 }
-void FrameShiftDialog::accept() {
+static std::int32_t Integer20(const QString& value) {
     // Native GetWindowTextA has a 20-byte buffer, then MSVC atoi: decimal
     // prefix, zero for no digits, and saturation at the Windows signed range.
-    const auto text = Field()->text().toUtf8().left(19);
+    const auto text = value.toUtf8().left(19);
     const char* begin = text.constData();
     const char* end = begin + text.size();
     while (begin < end && (*begin == ' ' || (*begin >= '\t' && *begin <= '\r')))
@@ -494,8 +494,22 @@ void FrameShiftDialog::accept() {
         }
         magnitude = magnitude * 10 + digit;
     }
-    value_ = negative ? (magnitude == 2147483648u ? INT_MIN : -std::int32_t(magnitude))
-                      : std::int32_t(magnitude);
+    return negative ? (magnitude == 2147483648u ? INT_MIN : -std::int32_t(magnitude))
+                    : std::int32_t(magnitude);
+}
+void FrameShiftDialog::accept() {
+    value_ = Integer20(Field()->text());
+    QDialog::accept();
+}
+BlinkDialog::BlinkDialog(const Language& language, QWidget* parent)
+    : TemplateDialog(language.Code() == "en" ? ui::kNumericBlinkEn : ui::kNumericBlinkJa, language,
+                     parent) {
+    setObjectName("mmd.blink");
+    Field(0)->setFocus(Qt::OtherFocusReason);
+}
+void BlinkDialog::accept() {
+    for (unsigned i = 0; i < values_.size(); ++i)
+        values_[i] = Integer20(Field(i)->text());
     QDialog::accept();
 }
 MorphScaleDialog::MorphScaleDialog(const Language& language, QWidget* parent)

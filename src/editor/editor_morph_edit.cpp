@@ -1,8 +1,127 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/morph_key_purge.hpp"
 #include "mikudancestudio/pmm_key_selection.hpp"
+#include "mikudancestudio/blink_registration.hpp"
+#include "mikudancestudio/morph_key_registration.hpp"
+#include <cstring>
 
 namespace mikudancestudio::editor {
+namespace {
+bool BlinkName(const std::vector<char>& name) {
+    static constexpr char expected[]{char(0x82), char(0xdc), char(0x82), char(0xce),
+                                     char(0x82), char(0xbd), char(0x82), char(0xab)};
+    return name.size() == sizeof expected && std::equal(name.begin(), name.end(), expected);
+}
+}
+bool EditorSession::HasBlinkMorph() const {
+    for (const auto& model : Document().models)
+        if (model.slot == selection_.model)
+            return std::any_of(model.morphNames.begin(), model.morphNames.end(), BlinkName);
+    return false;
+}
+bool EditorSession::RegisterBlinks(std::int32_t start, std::int32_t end, unsigned& count,
+                                   std::string& reason, const std::function<unsigned()>& random15,
+                                   unsigned* failedKeys) {
+    if (playing_ || !HasBlinkMorph()) {
+        reason = "blink-registration-unavailable";
+        return false;
+    }
+    auto next = Current();
+    auto model = std::find_if(next.document.models.begin(), next.document.models.end(),
+                              [&](const auto& m) { return m.slot == selection_.model; });
+    const auto channel =
+        unsigned(std::find_if(model->morphNames.begin(), model->morphNames.end(), BlinkName) -
+                 model->morphNames.begin());
+    auto& track = model->morphKeys;
+    std::vector<std::vector<format::PmmMorphKey>> validated;
+    if (!format::PmmTrackChains(track, validated) ||
+        !format::SetPmmSelectedKeys(next.document, selection_.model, selection_.keys)) {
+        reason = "blink-track-invalid";
+        return false;
+    }
+    std::vector<format::PmmMorphKey> records(keyframe_edit::MorphKeyCapacity);
+    if (track.dense.size() > records.size()) {
+        reason = "blink-key-capacity";
+        return false;
+    }
+    std::copy(track.dense.begin(), track.dense.end(), records.begin());
+    for (const auto& key : track.sparse) {
+        if (unsigned(key.index) >= records.size()) {
+            reason = "blink-key-capacity";
+            return false;
+        }
+        records[unsigned(key.index)] = key.value;
+    }
+    for (const auto& [index, key] : track.unused) {
+        if (index >= records.size()) {
+            reason = "blink-key-capacity";
+            return false;
+        }
+        records[index] = key;
+    }
+    auto phase = blinkPhase_;
+    auto randomState = blinkRandomState_;
+    unsigned added = 0, failed = 0;
+    auto frame = std::uint32_t(start);
+    while (frame < std::uint32_t(end)) {
+        const auto random = random15 ? random15() : keyframe_edit::BlinkRandom15(randomState);
+        if (random > 32767u) {
+            reason = "blink-random-out-of-range";
+            return false;
+        }
+        if (!keyframe_edit::AdvanceBlink(frame, phase, random))
+            continue;
+        if (frame > 0x7fffffffU - 6) {
+            reason = "blink-frame-not-representable";
+            return false;
+        }
+        // Stage the complete operation before publishing the document.
+        for (unsigned i = 0; i < 4; ++i) {
+            format::PmmMorphKey key;
+            key.frame = frame + (i == 0 ? 0 : i == 1 ? 2 : i == 2 ? 3 : 6);
+            key.value = i == 1 || i == 2 ? 1.f : 0.f;
+            key.allocated = 1;
+            if (!keyframe_edit::RegisterCurrentMorph(
+                    unsigned(track.dense.size()), channel, key.frame, key.value,
+                    model->selection.maxFrame,
+                    [&](unsigned index) -> auto& { return records[index]; }))
+                ++failed;
+        }
+        model->morphPose[channel] = 0;
+        ++added;
+    }
+    std::copy_n(records.begin(), track.dense.size(), track.dense.begin());
+    track.sparse.clear();
+    track.unused.clear();
+    const float zero = 0;
+    for (unsigned i = unsigned(track.dense.size()); i < records.size(); ++i) {
+        const auto& key = records[i];
+        if (key.frame)
+            track.sparse.push_back({int(i), 0, key});
+        else if (key.previous || key.next || key.allocated ||
+                 std::memcmp(&key.value, &zero, sizeof zero))
+            track.unused.emplace(i, key);
+    }
+    next.document.timeline.lastRegisteredFrame =
+        std::max(next.document.timeline.lastRegisteredFrame, int(model->selection.maxFrame));
+    if (!format::ReadPmmSelectedKeys(next.document, selection_.model, next.selection.keys)) {
+        reason = "blink-selection-invalid";
+        return false;
+    }
+    HistoryBatch history;
+    for (const auto& value : next.document.models)
+        history.emplace(value.slot, CaptureHistory(value, HistoryKind::None, 0));
+    EndGesture();
+    next.document.timeline.editMode = Document().timeline.editMode;
+    if (!Commit(std::move(next), reason, history, false))
+        return false;
+    blinkPhase_ = phase;
+    blinkRandomState_ = randomState;
+    count = added;
+    if (failedKeys)
+        *failedKeys = failed;
+    return true;
+}
 bool EditorSession::PurgeMorphKeys(unsigned panel, std::string& reason) {
     return EditMorphKeys(panel, std::nullopt, reason);
 }

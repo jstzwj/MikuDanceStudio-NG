@@ -120,6 +120,7 @@ private:
     void GravitySettings();
     void MorphScale();
     void ShiftMouthFrames();
+    void RegisterBlinks();
     void CameraScale();
     void BoneScale();
     void PhysicsKeys();

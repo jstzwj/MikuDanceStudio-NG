@@ -87,6 +87,7 @@ bool ModelCommand(int command) {
     case MDS_CMD_CENTER_POSITION_BIAS:
     case MDS_CMD_DELETE_MOUTH_FRAMES:
     case MDS_CMD_SHIFT_MOUTH_FRAMES:
+    case MDS_CMD_REGISTER_BLINKING:
     case MDS_CMD_DELETE_EYE_FRAMES:
     case MDS_CMD_DELETE_EYEBROW_FRAMES:
         return true;
@@ -404,6 +405,10 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_SHIFT_MOUTH_FRAMES) {
         ShiftMouthFrames();
+        return;
+    }
+    if (command == MDS_CMD_REGISTER_BLINKING) {
+        RegisterBlinks();
         return;
     }
     if (command == MDS_CMD_MULTIPLY_CAMERA_FRAMES) {

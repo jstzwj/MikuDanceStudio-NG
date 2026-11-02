@@ -617,5 +617,16 @@
   "dialog.morph_purge.text.3": "Trying to delete all lip frame.\nYou cannot undo this oparation.\n\nAre you OK?",
   "dialog.numeric.frame_shift.title": "frame number to shift",
   "dialog.numeric.frame_shift.control.1": "OK",
-  "dialog.numeric.frame_shift.control.2": "cancel"
+  "dialog.numeric.frame_shift.control.2": "cancel",
+  "dialog.numeric.blink.title": "register blinking",
+  "dialog.numeric.blink.control.0": "frame from",
+  "dialog.numeric.blink.control.1": "frame to",
+  "dialog.numeric.blink.control.4": "OK",
+  "dialog.numeric.blink.control.5": "cancel",
+  "dialog.blink.missing": "You cannot register blinking because this model has not facial motion of 'blink'.",
+  "dialog.blink.missing_title": "randomly register blinking",
+  "dialog.blink.report": "%1 blinking is registerd",
+  "dialog.blink.report_title": "register blinking",
+  "dialog.blink.capacity": "You cannot regist over 20000 point\nPlease execute 'delete unused frame'",
+  "dialog.blink.capacity_title": "register frame"
 }

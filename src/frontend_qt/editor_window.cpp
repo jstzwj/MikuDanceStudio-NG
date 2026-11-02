@@ -1197,6 +1197,40 @@ void EditorWindow::ShiftMouthFrames() {
     Result(session_.ShiftMouthKeys(dialog.Value(), reason), reason);
     Refresh();
 }
+void EditorWindow::RegisterBlinks() {
+    const auto message = [&](const char* title, const QString& text) {
+        if (!testing_) {
+            QMessageBox report(QMessageBox::NoIcon, language_.Text(title), text, QMessageBox::Ok,
+                               this);
+            report.setWindowFlag(Qt::WindowStaysOnTopHint);
+            report.exec();
+        }
+    };
+    if (!session_.HasBlinkMorph()) {
+        message("dialog.blink.missing_title", language_.Text("dialog.blink.missing"));
+        return;
+    }
+    BlinkDialog dialog(language_, this);
+    dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    unsigned count = 0, failed = 0;
+    std::string reason;
+    const bool ok = Result(
+        session_.RegisterBlinks(dialog.Values()[0], dialog.Values()[1], count, reason, {}, &failed),
+        reason);
+    Refresh();
+    if (ok) {
+        if (!testing_)
+            for (unsigned i = 0; i < failed; ++i) {
+                QMessageBox overflow(
+                    QMessageBox::NoIcon, language_.Text("dialog.blink.capacity_title"),
+                    language_.Text("dialog.blink.capacity"), QMessageBox::Ok, this);
+                overflow.exec();
+            }
+        message("dialog.blink.report_title", language_.Text("dialog.blink.report").arg(count));
+    }
+}
 void EditorWindow::CameraScale() {
     CameraScaleDialog dialog(language_, this);
     dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);

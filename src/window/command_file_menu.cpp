@@ -110,6 +110,7 @@
 #include "mikudancestudio/dialog_resources.h"
 #include "mikudancestudio/menu_commands.h"
 #include "mikudancestudio/morph_key_purge.hpp"
+#include "mikudancestudio/blink_registration.hpp"
 #include <Windows.h>
 #include <commctrl.h>
 #include <commdlg.h>
@@ -1253,7 +1254,7 @@ void CmdFileMenu(MMDApp* app, HWND hwnd, std::uint16_t id, std::uint16_t notify)
     // table for the 9-byte "まばたき" name; without it an error MessageBox
     // is shown.  Otherwise the blink dialog (sub_40F1E0, tpl 0x290 EN /
     // 0x269 JP) supplies the frame range app+0xA08F8..0xA08FC; for each
-    // random step q = rand()*230/32768 a blink sequence of 4 keyframes
+    // random step q = rand()*230/32767 a blink sequence of 4 keyframes
     // (value 0/1/1/0 at frame, +2, +3, +6) is registered on the blink
     // morph via RegisterMorphKeyCurrent, using the app+0x9EB7F blink-phase byte.
     // ------------------------------------------------------------------
@@ -1293,21 +1294,11 @@ void CmdFileMenu(MMDApp* app, HWND hwnd, std::uint16_t id, std::uint16_t notify)
         if (r == IDCANCEL) { // IDCANCEL
             break;
         }
-        std::int32_t frame = app->BlinkStartFrame();
+        std::uint32_t frame = std::uint32_t(app->BlinkStartFrame());
         std::int32_t count = 0;
-        while (frame < app->BlinkEndFrame()) {
-            const std::int32_t q = (rand() * 230) / 32768; // 0xE6 / 2^15
-            const std::int8_t phase = static_cast<std::int8_t>(app->state.blinkPhase);
-            bool registerKeys = false;
-            if (q < 90 && phase <= 0) {
-                frame += 7;
-                app->state.blinkPhase = 3;
-                registerKeys = true;
-            } else if (q > 50) {
-                frame += q;
-                app->state.blinkPhase = static_cast<std::uint8_t>(phase - 1);
-                registerKeys = true;
-            }
+        while (frame < std::uint32_t(app->BlinkEndFrame())) {
+            const bool registerKeys =
+                keyframe_edit::AdvanceBlink(frame, app->state.blinkPhase, unsigned(rand()));
             if (registerKeys) {
                 model = ActiveModel(app);
                 model->morphs[blinkMorph].value = 0.0f;
@@ -1325,7 +1316,7 @@ void CmdFileMenu(MMDApp* app, HWND hwnd, std::uint16_t id, std::uint16_t notify)
             }
         }
         model = ActiveModel(app);
-        const std::int32_t frameCount = static_cast<std::int32_t>(model->maxFrame);
+        const std::uint32_t frameCount = model->maxFrame;
         if (app->state.lastRegisteredFrame < frameCount) {
             app->state.lastRegisteredFrame = frameCount;
         }

@@ -499,4 +499,24 @@ inline constexpr NumericControl kNumericFrameShiftJaControls[] = {
 };
 inline constexpr NumericTemplate kNumericFrameShiftJa = {
     615, 75, 45, 9, "MS PGothic", "dialog.numeric.frame_shift.title", kNumericFrameShiftJaControls, 3};
+inline constexpr NumericControl kNumericBlinkEnControls[] = {
+    {-1, 13, 5, 35, 10, NumericControlKind::Static, "dialog.numeric.blink.control.0"},
+    {-1, 58, 5, 35, 10, NumericControlKind::Static, "dialog.numeric.blink.control.1"},
+    {618, 10, 15, 36, 12, NumericControlKind::Edit, ""},
+    {619, 55, 15, 36, 12, NumericControlKind::Edit, ""},
+    {1, 16, 32, 30, 14, NumericControlKind::Button, "dialog.numeric.blink.control.4"},
+    {2, 55, 32, 30, 14, NumericControlKind::Button, "dialog.numeric.blink.control.5"},
+};
+inline constexpr NumericTemplate kNumericBlinkEn = {
+    656, 100, 50, 9, "Arial", "dialog.numeric.blink.title", kNumericBlinkEnControls, 6};
+inline constexpr NumericControl kNumericBlinkJaControls[] = {
+    {-1, 13, 5, 35, 10, NumericControlKind::Static, "dialog.numeric.blink.control.0"},
+    {-1, 58, 5, 35, 10, NumericControlKind::Static, "dialog.numeric.blink.control.1"},
+    {618, 10, 15, 36, 12, NumericControlKind::Edit, ""},
+    {619, 55, 15, 36, 12, NumericControlKind::Edit, ""},
+    {1, 16, 32, 30, 14, NumericControlKind::Button, "dialog.numeric.blink.control.4"},
+    {2, 55, 32, 30, 14, NumericControlKind::Button, "dialog.numeric.blink.control.5"},
+};
+inline constexpr NumericTemplate kNumericBlinkJa = {
+    617, 100, 50, 9, "MS PGothic", "dialog.numeric.blink.title", kNumericBlinkJaControls, 6};
 }
