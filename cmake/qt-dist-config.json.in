@@ -1,0 +1,12 @@
+{
+  "source": "@root@",
+  "system": "@CMAKE_SYSTEM_NAME@",
+  "arch": "@CMAKE_SYSTEM_PROCESSOR@",
+  "qt": "@Qt6_VERSION@",
+  "qmake": "@mds_qmake@",
+  "version": "@mds_product_version@",
+  "vulkan": @mds_dist_vulkan@,
+  "dxc": "@MDS_DXC@",
+  "dxc_runtime": "@MDS_DXC_RUNTIME_DIR@",
+  "moltenvk": "@MDS_MOLTENVK_LIBRARY@"
+}

@@ -4,7 +4,10 @@ This repository independently maintains the former `next` branch of
 [MikuDanceStudio](https://github.com/jstzwj/MikuDanceStudio), with its full commit
 history, on `main`. The cross-platform work has completed P0–P3; see the
 [porting plan](cross_platform_plan.md) and [P3 acceptance](docs/CROSS_PLATFORM_P3.md).
-The cross-platform editor and standalone MME frontend are planned for P4 and P5.
+The Qt editor is being implemented in P4; the standalone MME frontend follows in P5.
+Build the Qt editor's portable package with the `dist` target; see
+[distribution instructions](docs/DISTRIBUTION.md). The Portable editor workflow
+publishes Windows x64, Linux x64 and macOS arm64 development archives with Qt runtimes.
 The Windows application described below remains available during that work.
 
 本仓库独立维护原 MikuDanceStudio 的 `next` 分支，默认分支为 `main`，完整提交历史保留。

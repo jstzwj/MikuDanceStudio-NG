@@ -2,6 +2,8 @@
 build/
 build-*/
 out/
+dist/
+.cache/
 
 # Conan
 # Unmodified Bullet sources are vendored for clean CI builds.

@@ -10,6 +10,7 @@
 #include <QTimer>
 #include <QAction>
 #include <QPointer>
+#include <QTranslator>
 #include <map>
 namespace mikudancestudio::qt {
 class EdgeThicknessDialog;
@@ -43,6 +44,8 @@ protected:
 private:
     editor::EditorSession session_;
     Language language_;
+    QTranslator standardTranslation_;
+    void TranslateStandardDialogs();
     std::filesystem::path assets_;
     QWidget* canvas_ = nullptr;
     Timeline* timeline_ = nullptr;

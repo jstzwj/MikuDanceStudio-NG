@@ -1,9 +1,6 @@
-name: Windows release
+name: Legacy Windows release (manual)
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
@@ -12,7 +9,7 @@ on:
         type: string
       validation_only:
         description: Run both architecture regressions without packaging or publishing
-        default: false
+        default: true
         type: boolean
 
 permissions:

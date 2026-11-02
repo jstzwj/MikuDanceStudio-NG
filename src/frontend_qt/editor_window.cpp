@@ -30,6 +30,7 @@
 #include <QSettings>
 #include <QScopedValueRollback>
 #include <QProgressDialog>
+#include <QLibraryInfo>
 #include <cmath>
 #include <fstream>
 
@@ -253,6 +254,7 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     clock_.start();
     if (!testing_)
         timer_.start(16);
+    TranslateStandardDialogs();
 }
 void EditorWindow::Tick(double seconds) {
     if (!std::isfinite(seconds) || seconds < 0)
@@ -476,6 +478,7 @@ void EditorWindow::SetFullScreenViewport(bool enabled) {
 bool EditorWindow::SetLanguage(const QString& language) {
     if (!language_.Set(language))
         return false;
+    TranslateStandardDialogs();
     if (!testing_) {
         QSettings settings;
         settings.setValue("language", language);
@@ -484,6 +487,13 @@ bool EditorWindow::SetLanguage(const QString& language) {
     Texts();
     Refresh();
     return true;
+}
+void EditorWindow::TranslateStandardDialogs() {
+    QCoreApplication::removeTranslator(&standardTranslation_);
+    if (language_.Code() != "en" &&
+        standardTranslation_.load("qtbase_" + language_.Code(),
+                                  QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
+        QCoreApplication::installTranslator(&standardTranslation_);
 }
 void EditorWindow::Texts() {
     for (const auto& pair : controls_)

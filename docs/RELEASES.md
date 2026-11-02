@@ -11,6 +11,14 @@ Windows 数值版本的 `10.00` 为 `10.0.0.0`，显示文本仍为 `10.00`。
 
 ## Publish / 发布
 
+For **MikuDanceStudio-NG**, `portable-editor.yml` builds and tests the Qt editor
+on Windows x64, Linux x64 and macOS arm64. Branch builds upload development
+archives with Qt dependencies. A matching version tag creates a **draft** release
+only after all three packages pass their relocated, offscreen smoke tests.
+See [Qt distribution](DISTRIBUTION.md) for the `dist` target and runtime contents.
+The historical Windows DX9 release workflow below is now manual, with validation
+enabled by default; it no longer competes for NG version-tag releases.
+
 Commit the version and changes first, then push the matching tag:
 
 ```sh
@@ -18,18 +26,20 @@ git tag -a v10.00 -m "MikuDanceStudio 10.00"
 git push origin v10.00
 ```
 
-`.github/workflows/release.yml` checks that the tag exactly matches `VERSION`,
-builds and runs CTest for x86 and x64 on Windows, and publishes a GitHub Release only
-after both architectures pass. It uploads two ZIPs and their SHA-256 files. A failed
-build can be rerun for the same tag; publishing replaces its matching assets.
-Normal branch pushes do not publish releases. The built-in `GITHUB_TOKEN` is used;
-If a tag push does not start a run, use Actions → Windows release → Run workflow
-on `main` and enter the existing tag. This checks out that tag without moving it.
-no personal access token is needed. Repository/organization policy must permit
-the publish job's `contents: write` permission.
+The portable editor workflow checks that the tag exactly matches `VERSION`.
+All three platforms must pass before it creates a draft; publishing that draft is
+an explicit release step. Branch pushes upload development artifacts only. The
+built-in `GITHUB_TOKEN` is used; no personal access token is needed.
 
-推送标签后自动构建并发布两个架构；标签与 `VERSION` 不一致时立即失败。
-以后发布新版本：修改 `VERSION`、提交，再推送同名 `vxx.xx` 标签即可。
+??? `VERSION` ??????????? Qt ???????????????
+???????P4/C1 ????????????????????????
+
+## Legacy Windows release / ?? Windows ??
+
+The manual `.github/workflows/release.yml` retains the DX9 x86/x64 build and
+validation path. It defaults to `validation_only=true`. An explicitly requested
+legacy release can set that option to false and provide an existing version tag;
+this is separate from the NG Qt workflow above.
 
 For a regression-only run, enable `validation_only` and set `tag` to the branch or
 commit to test. This uses the same x86/x64 build and test steps, preserves the test
@@ -65,7 +75,7 @@ the separate native DX9 image comparisons.
 
 压缩包需完整解压，运行库未打包。CI 构建不依赖本机安装的 MMD 或任何模型。
 
-## Reproduce the release build
+## Reproduce the legacy release build
 
 The unmodified Bullet 2.75 `src` tree from `bullet-2.75.zip` is versioned under
 `recipes/bullet275/bullet-src`. `upstream.json` records the archive SHA-256 and

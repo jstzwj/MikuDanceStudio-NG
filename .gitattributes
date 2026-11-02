@@ -6,3 +6,6 @@ include/mikudancestudio/*.hpp text eol=lf
 src/**/*.cpp text eol=lf
 src/**/*.hpp text eol=lf
 src/**/*.inc text eol=lf
+
+# Preserve upstream license files byte for byte, including their whitespace.
+res/licenses/Qt/*.txt -text -whitespace

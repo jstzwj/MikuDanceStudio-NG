@@ -1,4 +1,4 @@
-"""Fetch the pinned official MoltenVK binary for the macOS P0 probe only."""
+"""Fetch the checksum-pinned official MoltenVK runtime and distribution licenses."""
 import argparse
 import hashlib
 from pathlib import Path
@@ -27,6 +27,13 @@ def main():
             raise RuntimeError("MoltenVK library is not a regular file")
         with tar.extractfile(member) as source:
             (args.output / "libMoltenVK.dylib").write_bytes(source.read())
+        notices = [item for item in tar.getmembers() if item.isfile()
+                   and Path(item.name).name.upper().startswith(('LICENSE', 'NOTICE'))]
+        if not notices:
+            raise RuntimeError('MoltenVK archive contains no license notices')
+        for index, item in enumerate(notices):
+            with tar.extractfile(item) as source:
+                (args.output / f'LICENSE-{index}.txt').write_bytes(source.read())
     print(f"MoltenVK {VERSION}: verified {SHA256}")
 
 

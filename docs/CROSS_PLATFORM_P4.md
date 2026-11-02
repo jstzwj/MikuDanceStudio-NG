@@ -2165,4 +2165,69 @@ with zero observed quaternion error.
 The rebuilt x64 session test passed (15.39 seconds), three-language offscreen
 numeric/menu tests passed (8.81 seconds), and the rebuilt Win32 session test
 passed (8.07 seconds). Qt and legacy Win32 applications both build successfully.
-Three-platform CI for this batch remains required. P4 remains in progress.
+All three editor jobs passed in
+[run 41362527783](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41362527783).
+P4 remains in progress.
+
+## Model draw and calculation order
+
+Menus 288/289 use original English/Japanese templates 805/804 and 811/810,
+with a Simplified Chinese catalog. Twenty-two dialog templates now have binary
+resource checks. Rows start unselected, skip Tab navigation, and move with their
+stable slot IDs. The zero-size default button 633 consumes Enter without applying;
+the visible OK button is 632. Original integral-row list height is reproduced.
+The legacy draw dialog's last-row Down boundary was one row too permissive and
+now matches original x64 57EDA (combo count minus two).
+
+The document and runtime accept only complete permutations of loaded model slots.
+Draw ranks start at one and calculation ranks at zero. New imports now initialize
+both correctly; unload compacts each independently before a reused slot is added.
+The Qt model/parent combos sort by draw rank, with localized model labels. Draw OK
+switches to camera mode; calculation OK retains the current mode. Both preserve
+dirty state, bone history, current live poses, resource identity and the existing
+physics world. Reordering does not advance or regenerate the CPU frame. The next
+evaluation consumes the new calculation order, and rendering reads draw ranks.
+
+`editor_model_order_oracle_test <original.exe>` invokes original **57D70/58490**
+using actual never-shown dialogs and controls, with only EndDialog and the model
+combo refresh tail replaced. **24 cases** cover both languages, both order kinds,
+cancel/accept, zero/one/three models, sparse slots through 254, labels, initial
+selection, Enter's empty action, move boundaries, exact resulting order bytes,
+dirty flag and scratch release. All pass. Camera-mode switching is covered by
+the portable/offscreen path and the prior independent mode tests, not that stub.
+
+The local x64 session regression passed (14.14 seconds), including invalid
+permutations, history retention, save/reopen, playback gating and slot reuse.
+The final targeted Qt numeric/menu regressions passed (11.81 seconds). The new
+distribution workflow additionally packages and verifies the production editor;
+its results and remaining platform validation are recorded separately below.
+The Win32 session regression also passed (17.78 seconds with concurrent builds),
+and the legacy Win32 application builds successfully.
+
+## Qt development distributions
+
+The new `dist` target follows the independent deployment and relocated-package
+verification pattern reviewed in Muffin. It uses Qt 6.8.3's deployment API, ships
+Qt shared libraries, plugins, standard translations and renderer compiler runtimes,
+and produces platform archives with SHA-256 and source revision metadata.
+Windows explicitly installs the toolchain's MSVC redistributables. Linux uses
+relative loader paths; the macOS bundle includes MoltenVK and an ad-hoc signature.
+No original executable or user model is packaged.
+
+The production editor's `--deployment-check` mode creates no visible window or
+audio output. The package regression relocates it to a path with spaces, clears
+SDK/environment search paths, opens generated PMM, switches three languages,
+checks Qt's standard dialog translations, compiles a shader and renders offscreen.
+The public fixture and image/report/log remain reproducible in CI.
+
+`portable-editor.yml` builds and checks Windows x64, Linux x64 and macOS arm64,
+then uploads archives only after the relocated-package check passes. Qt downloads,
+pinned renderer tools and compiler object caches are separated; CMake build trees
+are never cached. Version tags use the same jobs to prepare a draft release.
+The legacy Windows workflow is manual to avoid competing tag publishers.
+The local Windows package passed the clean-environment relocation check after
+MSVC runtime deployment was made explicit; English/Japanese/Chinese standard
+Cancel labels, bundled DXC, generated PMM and the 96x64 render passed. MoltenVK's
+pinned archive and license extraction were also verified. These are development
+packages, not P4/C1 acceptance. Cross-platform packaging results will be recorded
+after the new CI jobs complete.

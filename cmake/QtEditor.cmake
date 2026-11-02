@@ -62,6 +62,7 @@ function(mds_add_qt_editor)
     target_link_libraries(MikuDanceStudioNG PRIVATE mikudancestudio_frontend_qt)
     add_custom_command(TARGET MikuDanceStudioNG POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${root}/res/assets" "$<TARGET_FILE_DIR:MikuDanceStudioNG>/assets")
+    include("${root}/cmake/QtDistribution.cmake")
     if(BUILD_TESTING)
         if(UNIX AND NOT APPLE)
             add_subdirectory("${root}/cmake/qt-wayland-pointer-tests" "${CMAKE_CURRENT_BINARY_DIR}/wayland-pointer")

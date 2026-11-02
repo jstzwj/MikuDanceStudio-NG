@@ -3,19 +3,104 @@
 #include <QCommandLineParser>
 #include <QStyleFactory>
 #include <QDir>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QLibraryInfo>
+#include <QFile>
+#include <QMediaDevices>
+#include <QAudioDevice>
+#include "mikudancestudio/shader_compiler.hpp"
+#include <iostream>
+
+namespace {
+int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& report,
+                    const std::filesystem::path& assets, const QString& project) {
+    using namespace mikudancestudio;
+    if (project.isEmpty() || !window.Open(qt::Path(project))) {
+        std::cerr << "deployment PMM: " << window.LastError().toStdString() << '\n';
+        return 2;
+    }
+    QJsonArray languages;
+    QJsonArray cancelLabels;
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        if (!window.SetLanguage(language))
+            return 3;
+        languages.append(language);
+        cancelLabels.append(QCoreApplication::translate("QPlatformTheme", "Cancel"));
+    }
+    // Instantiate the multimedia backend without opening an audio output.
+    const auto audioDevices = QMediaDevices::audioOutputs();
+    rhi::BackendOptions options;
+    const auto backend = qEnvironmentVariable("MDS_GPU_BACKEND");
+    options.backend = backend == "d3d12"                            ? rhi::Backend::D3D12
+                      : backend == "d3d11"                          ? rhi::Backend::D3D11
+                      : rhi::BackendAvailable(rhi::Backend::Vulkan) ? rhi::Backend::Vulkan
+                                                                    : rhi::Backend::D3D11;
+    if (qEnvironmentVariable("MDS_GPU_DRIVER") == "software")
+        options.driver = rhi::BackendDriver::Software;
+    QImage image;
+    std::string reason;
+    if (!qt::RenderImage(window.Session().Runtime(), window.Session().Assets(), assets, options, 96,
+                         64, image, reason)) {
+        std::cerr << "deployment render: " << reason << '\n';
+        return 4;
+    }
+    if (rhi::BackendAvailable(rhi::Backend::Vulkan)) {
+        rhi::ShaderModule shader;
+        shader.stage = rhi::ShaderStage::Pixel;
+        shader.entry = "main";
+        shader.hlsl = "float4 main():SV_Target0{return float4(1,0,0,1);}";
+        rhi::SnapshotBytes spirv;
+        if (!rhi::DefaultSpirvCompiler()->Compile(shader, spirv, reason)) {
+            std::cerr << "deployment compiler: " << reason << '\n';
+            return 5;
+        }
+    }
+    if (window.isVisible() || image.isNull() || !image.save(report + ".png"))
+        return 6;
+    QJsonObject result{{"qt", qVersion()},
+                       {"languages", languages},
+                       {"standardCancelLabels", cancelLabels},
+                       {"plugins", QLibraryInfo::path(QLibraryInfo::PluginsPath)},
+                       {"libraries", QLibraryInfo::path(QLibraryInfo::LibrariesPath)},
+                       {"translations", QLibraryInfo::path(QLibraryInfo::TranslationsPath)},
+                       {"assets", qt::Path(assets)},
+                       {"visible", false},
+                       {"audioDevices", int(audioDevices.size())},
+                       {"width", image.width()},
+                       {"height", image.height()},
+                       {"vulkan", rhi::BackendAvailable(rhi::Backend::Vulkan)}};
+    QFile output(report);
+    if (!output.open(QIODevice::WriteOnly) || output.write(QJsonDocument(result).toJson()) < 0)
+        return 7;
+    std::cout << "Relocated editor: PMM, languages, multimedia and offscreen render passed\n";
+    return 0;
+}
+}
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
     QCoreApplication::setOrganizationName("MikuDanceStudio");
     QCoreApplication::setApplicationName("MikuDanceStudio-NG");
+    QCoreApplication::setApplicationVersion(MDS_PRODUCT_VERSION);
     app.setStyle(QStyleFactory::create("Fusion"));
     QCommandLineParser parser;
     parser.addHelpOption();
+    parser.addVersionOption();
     parser.addPositionalArgument("project", "PMM project to open");
     parser.addOption({"language", "UI language: en, ja, zh_CN", "language"});
     parser.addOption({"assets", "Builtin asset directory", "directory",
-                      QCoreApplication::applicationDirPath() + "/assets"});
+                      QDir(QCoreApplication::applicationDirPath() + "/../Resources/assets").exists()
+                          ? QCoreApplication::applicationDirPath() + "/../Resources/assets"
+                          : QCoreApplication::applicationDirPath() + "/assets"});
+    parser.addOption(
+        {"deployment-check", "Check the installed editor without showing windows", "report"});
     parser.process(app);
-    mikudancestudio::qt::EditorWindow window(mikudancestudio::qt::Path(parser.value("assets")));
+    const auto assets = mikudancestudio::qt::Path(parser.value("assets"));
+    mikudancestudio::qt::EditorWindow window(assets, parser.isSet("deployment-check"));
+    if (parser.isSet("deployment-check"))
+        return DeploymentCheck(window, parser.value("deployment-check"), assets,
+                               parser.positionalArguments().value(0));
     if (parser.isSet("language"))
         window.SetLanguage(parser.value("language"));
     if (!parser.positionalArguments().empty())
