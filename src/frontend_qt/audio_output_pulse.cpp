@@ -79,9 +79,13 @@ public:
                 pa_buffer_attr attributes{target * 2, target, 0,
                                           std::uint32_t(format.bytesForDuration(5000)),
                                           std::uint32_t(-1)};
+                // The interpolator can extrapolate before the cold sink has
+                // supplied its first latency measurement, then freeze for the
+                // entire correction. Poll the server's actual sample position
+                // on the native mainloop instead of publishing that estimate.
                 const auto flags =
                     pa_stream_flags_t(PA_STREAM_START_CORKED | PA_STREAM_AUTO_TIMING_UPDATE |
-                                      PA_STREAM_INTERPOLATE_TIMING | PA_STREAM_ADJUST_LATENCY);
+                                      PA_STREAM_ADJUST_LATENCY);
                 // prebuf=0 prevents a finite tail from waiting for samples that
                 // do not exist after an underrun. Drain is still real playback;
                 // no padding samples or elapsed-time replacement clock is used.
@@ -90,6 +94,11 @@ public:
                     Fail();
                 Wait([&] { return pa_stream_get_state(stream_) == PA_STREAM_READY; });
                 if (error_.empty()) {
+                    timeval now;
+                    pa_gettimeofday(&now);
+                    timing_ = api->time_new(api, &now, &RefreshTiming, this);
+                    if (!timing_)
+                        Fail();
                     Write(pa_stream_writable_size(stream_));
                     operationDone_ = false;
                     auto* operation = pa_stream_cork(stream_, 0, &OperationDone, this);
@@ -119,6 +128,9 @@ public:
             if (deadline_)
                 pa_threaded_mainloop_get_api(loop_)->time_free(deadline_);
             deadline_ = nullptr;
+            if (timing_)
+                pa_threaded_mainloop_get_api(loop_)->time_free(timing_);
+            timing_ = nullptr;
             if (drain_) {
                 pa_operation_cancel(drain_);
                 pa_operation_unref(drain_);
@@ -185,6 +197,11 @@ public:
                << " source=" << cursor_ - start_ << '/' << pcm_.size() - start_
                << " processed-us=" << ProcessedLocked() << " duration-us=" << duration_
                << " drained=" << drained_ << " error=" << nativeError_;
+        if (stream_)
+            if (const auto* timing = pa_stream_get_timing_info(stream_))
+                result << " read=" << timing->read_index << " write=" << timing->write_index
+                       << " sink-us=" << timing->sink_usec << " playing=" << timing->playing
+                       << " configured-sink-us=" << timing->configured_sink_usec;
         return result.str();
     }
 
@@ -278,11 +295,27 @@ private:
         self.error_ = "audio-output-start-timeout";
         pa_threaded_mainloop_signal(self.loop_, 0);
     }
+    static void RefreshTiming(pa_mainloop_api* api, pa_time_event* event, const timeval*,
+                              void* data) {
+        auto& self = *static_cast<PulseAudioOutput*>(data);
+        if (self.stream_ && pa_stream_get_state(self.stream_) == PA_STREAM_READY) {
+            auto* operation = pa_stream_update_timing_info(self.stream_, nullptr, nullptr);
+            if (operation)
+                pa_operation_unref(operation);
+            else
+                self.Fail();
+        }
+        timeval next;
+        pa_gettimeofday(&next);
+        pa_timeval_add(&next, 10000);
+        api->time_restart(event, &next);
+    }
     pa_threaded_mainloop* loop_ = nullptr;
     pa_context* context_ = nullptr;
     pa_stream* stream_ = nullptr;
     pa_operation* drain_ = nullptr;
     pa_time_event* deadline_ = nullptr;
+    pa_time_event* timing_ = nullptr;
     bool loopStarted_ = false, operationDone_ = false, drained_ = false;
     QByteArray pcm_;
     QAudioFormat format_;
