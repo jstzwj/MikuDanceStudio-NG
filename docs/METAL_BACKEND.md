@@ -68,12 +68,16 @@ DXC and SPIRV-Cross notices, with MoltenVK required only when Vulkan is enabled.
 CI also builds a Metal-only package and runs its relocated production executable
 without SDK search paths. Native offscreen acceptance on revision `84c1098`:
 [41421014257](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41421014257).
-Qt and deployment acceptance on revision `93799c7`:
-[41427342227](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41427342227).
+Final Qt and deployment acceptance on revision `27ae850`:
+[41430923652](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41430923652).
 Windows passed its 31 P4 tests and hidden DX11/DX12 lifecycle checks; Linux passed
 35 P4 tests and isolated X11/Wayland presentation. macOS 15 passed 30 P4 tests,
 native Metal lifecycle and exact drawable checks at normal/2x scale, cross-backend
 menu switching, and both dual-backend and Metal-only relocated packages.
+The same checks passed on macOS 26 in
+[41430845275](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41430845275).
+Each Apple package passed three consecutive normal process exits after the
+logging-lifetime correction described below; debugger runs do not count as passes.
 The runner reports an Apple paravirtual device; physical GPU performance, Intel
 Mac coverage, signing/notarization and complete P4/C1 editor parity remain separate
 acceptance work.
