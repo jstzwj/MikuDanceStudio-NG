@@ -21,6 +21,7 @@ public:
         }
         sink_ = std::make_unique<QAudioSink>(device, format);
         format_ = format;
+        duration_ = format.durationForBytes(pcm.size() - offset);
         // Leave enough queued data for the platform's timer scheduling quantum.
         // The platform may round this up; the clock uses its actual padding.
         sink_->setBufferSize(format.bytesForDuration(100000));
@@ -42,12 +43,23 @@ public:
         sink_.reset();
         source_.reset();
         processed_ = 0;
+        duration_ = 0;
     }
     void Volume(float volume) {
         if (sink_)
             sink_->setVolume(volume);
     }
-    bool Running() const { return sink_ && sink_->state() == QAudio::ActiveState; }
+    bool Running() const {
+        if (!sink_)
+            return false;
+        if (sink_->state() == QAudio::ActiveState)
+            return true;
+        // PulseAudio can enter Idle when the server has consumed the source
+        // while its processed clock still accounts for device latency. Keep
+        // that clock through the tail; EOF is not the source's read cursor.
+        return sink_->state() == QAudio::IdleState && source_ && source_->atEnd() &&
+               Error().empty() && ProcessedMicroseconds() < duration_;
+    }
     std::string Error() const {
         // Idle at the end of a finite source is normal. Underrun while source
         // data remains and device/IO errors must not silently switch clocks.
@@ -78,6 +90,7 @@ private:
     QAudioFormat format_;
     std::unique_ptr<QBuffer> source_;
     mutable qint64 processed_ = 0;
+    qint64 duration_ = 0;
 };
 class NativeAudioOutput final : public AudioOutput {
 public:

@@ -2458,6 +2458,24 @@ smoke passed: **250 ms progress**, **5 ms stop**, startup **425 ms**, maximum
 steady lag **23.487 ms**; deterministic audio also passed. Linux/CoreAudio reruns
 of the dedicated-thread implementation remain pending.
 
+At `68359a5`, the macOS job in [41490908973](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41490908973)
+passed its full **120-second** native silent check: maximum lag **13.114 ms**,
+lead **4.197 ms**, startup **438 ms**, stop **97 ms**, 309 ms clock progress
+while the UI was blocked and exact EOF. Its editor wall offset fell to 11.723 ms.
+Local Windows also passed 120 seconds with **49.153 ms** lag, **6 ms** stop and
+exact EOF. The versioned reports identify the virtual/RDP endpoints explicitly.
+
+Linux passed the steady clock with **22.071 ms** lag / **68.041 ms** lead and
+zero-ms stop, but failed EOF: the last reported position was 80 ms short. Qt's
+PulseAudio implementation enters Idle when the server underflows while its
+processed clock still subtracts device latency. The adapter now retains that
+clock during the remaining tail, instead of handing playback to the UI timer
+on the first Idle observation. It reads the final position after checking
+completion. It neither substitutes elapsed time nor fabricates a processed
+position at EOF. The existing strict native EOF test remains the regression;
+Linux acceptance is pending its rerun. Local Windows deterministic audio and
+the updated three-second silent native check passed, with **4 ms** stop.
+
 ## Outline color and live PMD state (2026-11-03)
 
 Command 286 now opens the color picker in all three languages. It preserves the

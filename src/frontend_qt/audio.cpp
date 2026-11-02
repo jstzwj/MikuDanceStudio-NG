@@ -77,8 +77,11 @@ double AudioTransport::Position() const {
 std::optional<double> AudioTransport::ClockPosition() {
     if (!clockActive_)
         return {};
+    // Query completion first: the adapter may observe the final processed
+    // sample while deciding that its device-latency tail has finished.
+    const bool running = Running();
     const auto position = Position();
-    if (!Running())
+    if (!running)
         clockActive_ = false;
     return position;
 }
