@@ -15,6 +15,7 @@ public:
     virtual bool Running() const = 0;
     virtual qint64 ProcessedMicroseconds() const = 0;
     virtual std::string Error() const { return {}; }
+    virtual std::string Diagnostic() const { return {}; }
 };
 std::unique_ptr<AudioOutput> CreateAudioOutput();
 }

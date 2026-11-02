@@ -70,6 +70,9 @@ bool AudioTransport::Running() const {
 std::string AudioTransport::Error() const {
     return output_ ? output_->Error() : std::string{};
 }
+std::string AudioTransport::Diagnostic() const {
+    return output_ ? output_->Diagnostic() : std::string{};
+}
 double AudioTransport::Position() const {
     const auto duration = wave_.sampleRate ? double(wave_.SampleFrames()) / wave_.sampleRate : 0;
     return std::min(duration, start_ + (output_ ? output_->ProcessedMicroseconds() / 1000000. : 0));

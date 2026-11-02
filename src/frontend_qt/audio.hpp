@@ -19,6 +19,7 @@ public:
     std::optional<double> ClockPosition();
     bool Running() const;
     std::string Error() const;
+    std::string Diagnostic() const;
     const std::filesystem::path& Path() const { return path_; }
 
 private:

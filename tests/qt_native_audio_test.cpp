@@ -225,6 +225,9 @@ int main(int argc, char** argv) {
         QThread::msleep(5);
     }
     report["endPositionSeconds"] = last;
+    report["ended"] = ended;
+    report["endMilliseconds"] = double(elapsed.elapsed());
+    report["endDevice"] = QString::fromStdString(transport.Diagnostic());
     if (!ended || std::abs(last - duration) > .02)
         return finish(1, "Native EOF did not hand off the final processed WAV position");
     transport.Stop();

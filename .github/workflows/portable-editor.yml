@@ -116,7 +116,7 @@ jobs:
             out/p4/MikuDanceStudio-NG-*.sha256
           if-no-files-found: error
       - uses: actions/cache/save@v4
-        if: github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
+        if: always() && !cancelled() && github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
         with:
           path: .cache/sccache
           key: editor-objects-windows2022-x64-qt683-${{ github.sha }}
@@ -128,7 +128,7 @@ jobs:
             out/p4/p4.xml
             out/p4/distribution-check.*
             out/p4/editor-frame-performance.json
-            out/p4/native-audio.json
+            out/p4/native-audio*.json
             out/p4/Testing/Temporary/
   linux:
     if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'linux'
@@ -199,6 +199,7 @@ jobs:
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=mds_acceptance rate=48000 channels=2
           pactl set-default-sink mds_acceptance
+          python tests/test_native_audio.py --test out/p4/qt_native_audio_test --seconds 3 --report out/p4/native-audio-smoke.json
           python tests/test_native_audio.py --test out/p4/qt_native_audio_test --report out/p4/native-audio.json
       - name: Deploy and validate relocated package
         shell: bash
@@ -214,7 +215,7 @@ jobs:
             out/p4/MikuDanceStudio-NG-*.sha256
           if-no-files-found: error
       - uses: actions/cache/save@v4
-        if: github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
+        if: always() && !cancelled() && github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
         with:
           path: .cache/ccache
           key: editor-objects-ubuntu2204-${{ runner.arch }}-qt683-v1-${{ github.sha }}
@@ -226,7 +227,7 @@ jobs:
             out/p4/p4.xml
             out/p4/distribution-check.*
             out/p4/editor-frame-performance.json
-            out/p4/native-audio.json
+            out/p4/native-audio*.json
             out/p4/Testing/Temporary/
   macos:
     if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'macos'
@@ -346,7 +347,7 @@ jobs:
             out/p4/distribution-check.*
             out/p4/metal-only-distribution.*
             out/p4/editor-frame-performance.json
-            out/p4/native-audio.json
+            out/p4/native-audio*.json
             out/p4/Testing/Temporary/
   release:
     if: startsWith(github.ref, 'refs/tags/v')

@@ -5,6 +5,7 @@
 #include <QBuffer>
 #include <QThread>
 #include <algorithm>
+#include <sstream>
 namespace mikudancestudio::qt {
 namespace {
 class NativeAudioEngine final {
@@ -84,6 +85,18 @@ public:
         processed_ = std::max(processed_, processed);
         return processed_;
     }
+    std::string Diagnostic() const {
+        if (!sink_)
+            return "no-sink";
+        std::ostringstream result;
+        result << "state=" << int(sink_->state()) << " error=" << int(sink_->error())
+               << " source=" << (source_ ? source_->pos() : -1) << '/'
+               << (source_ ? source_->size() : -1) << " duration-us=" << duration_
+               << " processed-us=" << processed_ << " raw-processed-us=" << sink_->processedUSecs()
+               << " elapsed-us=" << sink_->elapsedUSecs() << " buffer=" << sink_->bufferSize()
+               << " free=" << sink_->bytesFree();
+        return result.str();
+    }
 
 private:
     std::unique_ptr<QAudioSink> sink_;
@@ -145,6 +158,11 @@ public:
     qint64 ProcessedMicroseconds() const override {
         qint64 result = 0;
         Invoke([&] { result = engine_.ProcessedMicroseconds(); });
+        return result;
+    }
+    std::string Diagnostic() const override {
+        std::string result;
+        Invoke([&] { result = engine_.Diagnostic(); });
         return result;
     }
 
