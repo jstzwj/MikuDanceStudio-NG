@@ -9,6 +9,9 @@ inline bool MaterialHistoryScene(mikudancestudio::editor::EditorSession& session
                [](auto& d, auto&) {
                    d.view.groundGrid = d.view.groundShadow = 0;
                    d.selfShadowMode = 1;
+                   // A paused Qt viewport must select a tool mode to enter
+                   // the stock effect path; bone select/box use fixed lighting.
+                   d.timeline.editMode = 2;
                    d.physics.accessoryRenderOrder = 0;
                    // The accessory changes the stock effect's spadd after the
                    // model, without contributing pixels to the camera image.
