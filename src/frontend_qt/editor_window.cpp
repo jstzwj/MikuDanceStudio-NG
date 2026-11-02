@@ -1122,6 +1122,15 @@ void EditorWindow::EdgeThickness() {
         break;
     }
 }
+void EditorWindow::CenterBias() {
+    CenterBiasDialog dialog(language_, this);
+    dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    std::string reason;
+    Result(session_.OffsetRootBoneKeys(dialog.Values(), reason), reason);
+    Refresh();
+}
 void EditorWindow::GroundShadowColor() {
     if (groundShadowDialog_)
         return;

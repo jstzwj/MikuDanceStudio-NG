@@ -110,6 +110,7 @@ private:
     void ScreenSize();
     void EdgeThickness();
     void GroundShadowColor();
+    void CenterBias();
     void GravitySettings();
     void MorphScale();
     void CameraScale();

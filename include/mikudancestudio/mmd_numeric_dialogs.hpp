@@ -427,4 +427,28 @@ inline constexpr NumericControl kNumericGroundShadowJaControls[] = {
 };
 inline constexpr NumericTemplate kNumericGroundShadowJa = {
     624, 135, 40, 9, "MS PGothic", "dialog.numeric.ground_shadow.title", kNumericGroundShadowJaControls, 4};
+inline constexpr NumericControl kNumericCenterBiasEnControls[] = {
+    {-1, 9, 8, 134, 43, NumericControlKind::Static, "dialog.numeric.center_bias.control.0"},
+    {-1, 9, 22, 134, 43, NumericControlKind::Static, "dialog.numeric.center_bias.control.1"},
+    {-1, 9, 38, 134, 43, NumericControlKind::Static, "dialog.numeric.center_bias.control.2"},
+    {601, 16, 5, 45, 12, NumericControlKind::Edit, ""},
+    {602, 16, 20, 45, 12, NumericControlKind::Edit, ""},
+    {603, 16, 35, 45, 12, NumericControlKind::Edit, ""},
+    {1, 6, 55, 30, 14, NumericControlKind::Button, "dialog.numeric.center_bias.control.6"},
+    {2, 40, 55, 30, 14, NumericControlKind::Button, "dialog.numeric.center_bias.control.7"},
+};
+inline constexpr NumericTemplate kNumericCenterBiasEn = {
+    651, 75, 75, 9, "Arial", "dialog.numeric.center_bias.title", kNumericCenterBiasEnControls, 8};
+inline constexpr NumericControl kNumericCenterBiasJaControls[] = {
+    {-1, 9, 8, 134, 43, NumericControlKind::Static, "dialog.numeric.center_bias.control.0"},
+    {-1, 9, 22, 134, 43, NumericControlKind::Static, "dialog.numeric.center_bias.control.1"},
+    {-1, 9, 38, 134, 43, NumericControlKind::Static, "dialog.numeric.center_bias.control.2"},
+    {601, 16, 5, 45, 12, NumericControlKind::Edit, ""},
+    {602, 16, 20, 45, 12, NumericControlKind::Edit, ""},
+    {603, 16, 35, 45, 12, NumericControlKind::Edit, ""},
+    {1, 6, 55, 30, 14, NumericControlKind::Button, "dialog.numeric.center_bias.control.6"},
+    {2, 40, 55, 30, 14, NumericControlKind::Button, "dialog.numeric.center_bias.control.7"},
+};
+inline constexpr NumericTemplate kNumericCenterBiasJa = {
+    600, 75, 75, 9, "MS PGothic", "dialog.numeric.center_bias.title", kNumericCenterBiasJaControls, 8};
 }

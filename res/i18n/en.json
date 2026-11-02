@@ -592,5 +592,11 @@
   "dialog.numeric.calculation_order.control.5": "cancel",
   "dialog.numeric.ground_shadow.title": "ground shadow color",
   "dialog.numeric.ground_shadow.control.0": "brightness",
-  "dialog.numeric.ground_shadow.control.3": "0                     1                    2"
+  "dialog.numeric.ground_shadow.control.3": "0                     1                    2",
+  "dialog.numeric.center_bias.title": "apply center position bias",
+  "dialog.numeric.center_bias.control.0": "X:",
+  "dialog.numeric.center_bias.control.1": "Y:",
+  "dialog.numeric.center_bias.control.2": "Z:",
+  "dialog.numeric.center_bias.control.6": "OK",
+  "dialog.numeric.center_bias.control.7": "cancel"
 }

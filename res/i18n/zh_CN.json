@@ -592,5 +592,11 @@
   "dialog.numeric.calculation_order.control.5": "取消",
   "dialog.numeric.ground_shadow.title": "地面阴影颜色",
   "dialog.numeric.ground_shadow.control.0": "亮度",
-  "dialog.numeric.ground_shadow.control.3": "0                     1                    2"
+  "dialog.numeric.ground_shadow.control.3": "0                     1                    2",
+  "dialog.numeric.center_bias.title": "中心位置偏移",
+  "dialog.numeric.center_bias.control.0": "X:",
+  "dialog.numeric.center_bias.control.1": "Y:",
+  "dialog.numeric.center_bias.control.2": "Z:",
+  "dialog.numeric.center_bias.control.6": "确定",
+  "dialog.numeric.center_bias.control.7": "取消"
 }

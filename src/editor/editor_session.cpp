@@ -1128,9 +1128,66 @@ bool EditorSession::ScaleCameraKeys(const std::array<float, 16>& values, std::st
     return Commit(std::move(next), reason, history, false);
 }
 bool EditorSession::ScaleBoneKeys(const std::array<float, 12>& values, std::string& reason) {
-    if (playing_ || selection_.model == 255 ||
-        !std::all_of(values.begin(), values.end(), [](float v) { return std::isfinite(v); })) {
+    if (!std::all_of(values.begin(), values.end(), [](float v) { return std::isfinite(v); })) {
         reason = "bone-key-scale-unavailable";
+        return false;
+    }
+    return TransformSelectedBoneKeys(
+        [&](unsigned, auto& key) {
+            keyframe_edit::ScaleBoneKey(key, values);
+            return true;
+        },
+        reason);
+}
+bool EditorSession::OffsetRootBoneKeys(const std::array<float, 3>& offset, std::string& reason) {
+    const auto resource = runtime_->Resource(selection_.model);
+    if (!resource ||
+        !std::all_of(offset.begin(), offset.end(), [](float v) { return std::isfinite(v); })) {
+        reason = "root-bone-offset-unavailable";
+        return false;
+    }
+    const auto& models = Document().models;
+    const auto source = std::find_if(models.begin(), models.end(), [&](const auto& model) {
+        return model.slot == selection_.model;
+    });
+    if (source == models.end()) {
+        reason = "root-bone-offset-selection-expired";
+        return false;
+    }
+    std::vector<bool> root(source->boneKeys.dense.size());
+    for (unsigned i = 0; i < root.size(); ++i) {
+        int documentIndex;
+        if (!runtime_->DocumentBoneIndex(selection_.model, int(i), documentIndex, reason))
+            return false;
+        root[i] = resource->Document().bones[std::size_t(documentIndex)].fields.parent == -1;
+    }
+    std::map<unsigned, unsigned> previous;
+    for (const auto& key : source->boneKeys.sparse)
+        previous.emplace(unsigned(key.index), key.value.previous);
+    for (const auto& [index, key] : source->boneKeys.unused)
+        previous.emplace(index, key.previous);
+    return TransformSelectedBoneKeys(
+        [&](unsigned index, auto& key) {
+            // Native selection is per physical record, including detached records
+            // and retained free slots. Resolve the bone through predecessor links.
+            auto bone = index;
+            for (std::size_t depth = 0; bone >= root.size(); ++depth) {
+                const auto found = previous.find(bone);
+                if (depth >= previous.size() || found == previous.end())
+                    return false;
+                bone = found->second;
+            }
+            if (root[bone])
+                for (unsigned axis = 0; axis < 3; ++axis)
+                    key.position[axis] = offset[axis] + key.position[axis];
+            return true;
+        },
+        reason);
+}
+bool EditorSession::TransformSelectedBoneKeys(
+    const std::function<bool(unsigned, PmmBoneKey&)>& transform, std::string& reason) {
+    if (playing_ || selection_.model == 255) {
+        reason = "bone-key-transform-unavailable";
         return false;
     }
     auto next = Current();
@@ -1148,7 +1205,8 @@ bool EditorSession::ScaleBoneKeys(const std::array<float, 12>& values, std::stri
             return true;
         entry.keyRecords.emplace(index, key);
         entry.selectedKeyRecords.insert(index);
-        keyframe_edit::ScaleBoneKey(key, values);
+        if (!transform(index, key))
+            return false;
         return std::all_of(key.position.begin(), key.position.end(),
                            [](float v) { return std::isfinite(v); }) &&
                std::all_of(key.rotation.begin(), key.rotation.end(),

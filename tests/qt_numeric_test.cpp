@@ -479,6 +479,88 @@ int main(int argc, char** argv) {
     }
     for (const char* code : {"en", "ja", "zh_CN"}) {
         CHECK(language.Set(code));
+        qt::CenterBiasDialog dialog(language);
+        const auto expected =
+            reference[QString("center_bias.") + (language.Code() == "en" ? "en" : "ja")].toObject();
+        CHECK(dialog.Template().id == expected["id"].toInt());
+        const auto rect = expected["rect"].toArray();
+        const int unitY = language.Code() == "en" ? 15 : 12;
+        CHECK(dialog.size() ==
+              QSize((rect[2].toInt() * 7 + 2) / 4, (rect[3].toInt() * unitY + 4) / 8));
+        if (language.Code() != "zh_CN")
+            CHECK(dialog.windowTitle() == expected["title"].toString());
+        const auto controls = expected["controls"].toArray();
+        for (int i = 0; i < controls.size(); ++i) {
+            auto* widget = dialog.findChild<QWidget*>(QString("numeric.control.%1").arg(i));
+            CHECK(widget);
+            const auto control = controls[i].toObject();
+            const auto r = control["rect"].toArray();
+            CHECK(widget->geometry() ==
+                  QRect((r[0].toInt() * 7 + 2) / 4, (r[1].toInt() * unitY + 4) / 8,
+                        (r[2].toInt() * 7 + 2) / 4, (r[3].toInt() * unitY + 4) / 8));
+            CHECK(widget->property("mmdControlId").toInt() == control["id"].toInt());
+            if (language.Code() != "zh_CN") {
+                if (auto* label = qobject_cast<QLabel*>(widget))
+                    CHECK(label->text() == control["text"].toString());
+                if (auto* button = qobject_cast<QPushButton*>(widget))
+                    CHECK(button->text() == control["text"].toString());
+            }
+        }
+        CHECK(dialog.focusWidget() == dialog.Field(0) && dialog.Field(0)->selectedText() == "0.0");
+        CHECK(dialog.Field(0)->nextInFocusChain() == dialog.Field(1) &&
+              dialog.Field(1)->nextInFocusChain() == dialog.Field(2));
+        dialog.Field(0)->setText("1.23456789012345678e9");
+        dialog.Field(1)->setText("-.25suffix");
+        dialog.Field(2)->setText("nonsense");
+        dialog.reject();
+        CHECK(dialog.Values() == (std::array<float, 3>{}));
+        dialog.accept();
+        CHECK(dialog.result() == QDialog::Accepted && dialog.Values()[0] == 1.2345679f &&
+              dialog.Values()[1] == -.25f && dialog.Values()[2] == 0);
+        qt::EditorWindow owner(std::filesystem::absolute(argv[2]), true);
+        CHECK(owner.SetLanguage(code));
+        CHECK(BoneScaleFixture(owner.Session(), root, "facial.pmd", {0, 0, 0, 1}, reason));
+        owner.Refresh();
+        QAction* action = nullptr;
+        for (auto* candidate : owner.findChildren<QAction*>())
+            if (candidate->property("mmdCommandId").toInt() == MDS_CMD_CENTER_POSITION_BIAS)
+                action = candidate;
+        CHECK(action && action->isEnabled());
+        const auto revision = owner.Session().Revision();
+        const auto frames = owner.Session().Runtime().Counters().frames;
+        bool visited = false;
+        for (bool accept : {false, true}) {
+            QTimer::singleShot(0, &owner, [&] {
+                auto* form = dynamic_cast<qt::CenterBiasDialog*>(QApplication::activeModalWidget());
+                if (!form) {
+                    QApplication::closeAllWindows();
+                    return;
+                }
+                visited = true;
+                form->Field(0)->setText("1.25");
+                form->Field(1)->setText("-2.75");
+                if (accept)
+                    form->accept();
+                else
+                    form->reject();
+            });
+            action->trigger();
+            CHECK(visited && (owner.Session().Revision() != revision) == accept);
+        }
+        CHECK(owner.Session().Document().models[0].boneKeys.dense[0].position[0] == 2.5f &&
+              owner.Session().Document().models[0].boneKeys.dense[0].position[1] == -5.25f);
+        CHECK(owner.Session().Runtime().Counters().frames == frames && owner.Session().CanUndo());
+        CHECK(owner.Session().Undo(reason) && owner.Session().Redo(reason));
+        CHECK(owner.Session().Play(reason));
+        owner.Refresh();
+        CHECK(!action->isEnabled());
+        owner.Session().Pause();
+        CHECK(owner.Session().SelectModel(255, reason));
+        owner.Refresh();
+        CHECK(!action->isEnabled() && !owner.isVisible());
+    }
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(language.Set(code));
         qt::GroundShadowDialog dialog(language, .57f);
         const auto expected =
             reference[QString("ground_shadow.") + (language.Code() == "en" ? "en" : "ja")]

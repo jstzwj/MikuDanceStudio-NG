@@ -2381,3 +2381,34 @@ English/Japanese/Chinese geometry, seven-byte input, slider publication, pending
 text, playback, preserved history/counters, save/reopen/New, invalid numeric input
 and prepared-frame reuse/invalidation. The Qt production application builds.
 The menu now implements **66/103** original commands; P4/C1 remains in progress.
+
+## Selected root-bone position bias (2026-11-03)
+
+Command 219 now uses original modal templates 651/600 in all three languages.
+Twenty-six numeric templates are checked against binary resources. Fields start
+at `0.0`, select X initially, follow original tab order and read nineteen-byte
+floating-point prefixes. Cancel, playback and camera-mode gates are preserved.
+
+The session resolves each marked record's bone through its predecessor links
+and adds offsets only when that bone's actual model parent is -1. Detached
+records and marked retained free slots participate, while nonroot and unmarked
+records retain their bytes. Addition executes even for zero offsets, preserving
+native signed-zero behavior. Selected-record snapshot, live-pose capture, active
+model evaluation and partial Undo/Redo are shared with bone-key scale; no CPU
+frame advances, resource rebuilds, global tracks or foreign model poses change.
+Invalid ancestry/nonfinite output rejects the entire edit before publication.
+
+The original bone-scale oracle now also invokes the complete native command
+dispatcher **3F550**, its original modal conversion and **CEBD0/CEF90/CFB80**:
+**32 offset cases** compare every one of the 600000 bone records across both
+languages, PMD/PMX, each axis, mixed/large/zero offsets, empty selection,
+cancellation and two Undo/Redo cycles. Window/control calls are recorders and
+paint/evaluation tails are replaced; no real window or device is created.
+All comparisons are exact. Its existing **64 bone-scale cases** still pass,
+with zero observed quaternion error after the shared helper refactor.
+
+The x64 session regression passed in **11.80 seconds**; offscreen Qt numeric/menu
+checks passed in **13.24 seconds**, including actual modal dispatch, geometry,
+languages, cancellation, history, CPU counters, saving/reopening and gates.
+The production editor builds. **67/103** original menu commands are implemented;
+this is progress toward C1, not complete P4 acceptance.

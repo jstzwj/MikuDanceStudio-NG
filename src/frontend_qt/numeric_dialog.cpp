@@ -285,6 +285,26 @@ void ScreenSizeDialog::accept() {
     value_ = QSize(values[0], values[1]);
     QDialog::accept();
 }
+CenterBiasDialog::CenterBiasDialog(const Language& language, QWidget* parent)
+    : TemplateDialog(language.Code() == "en" ? ui::kNumericCenterBiasEn : ui::kNumericCenterBiasJa,
+                     language, parent) {
+    setObjectName("mmd.centerBias");
+    for (unsigned axis = 0; axis < 3; ++axis)
+        Prefill(601 + int(axis), "0.0");
+    Field(0)->setFocus(Qt::OtherFocusReason);
+    Field(0)->selectAll();
+}
+void CenterBiasDialog::accept() {
+    auto values = values_;
+    for (unsigned axis = 0; axis < 3; ++axis)
+        if (!FloatPrefix(Field(axis)->text(), 19, values[axis])) {
+            Field(axis)->setFocus(Qt::OtherFocusReason);
+            Field(axis)->selectAll();
+            return;
+        }
+    values_ = values;
+    QDialog::accept();
+}
 EdgeThicknessDialog::EdgeThicknessDialog(const Language& language, float value, QWidget* parent)
     : TemplateDialog(language.Code() == "en" ? ui::kNumericEdgeEn : ui::kNumericEdgeJa, language,
                      parent) {

@@ -59,6 +59,16 @@ public:
 private:
     QSize value_, maximum_;
 };
+class CenterBiasDialog final : public TemplateDialog {
+public:
+    CenterBiasDialog(const Language&, QWidget* parent = nullptr);
+    QLineEdit* Field(unsigned axis) const { return Edit(601 + int(axis)); }
+    const std::array<float, 3>& Values() const { return values_; }
+    void accept() override;
+
+private:
+    std::array<float, 3> values_{};
+};
 class EdgeThicknessDialog final : public TemplateDialog {
 public:
     EdgeThicknessDialog(const Language&, float value, QWidget* parent = nullptr);

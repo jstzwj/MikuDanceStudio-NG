@@ -20,6 +20,7 @@ NAMES = [('bone', 'en', 663), ('bone', 'ja', 648),
          ('draw_order', 'en', 805), ('draw_order', 'ja', 804),
          ('calculation_order', 'en', 811), ('calculation_order', 'ja', 810)]
 NAMES += [('ground_shadow', 'en', 658), ('ground_shadow', 'ja', 624)]
+NAMES += [('center_bias', 'en', 651), ('center_bias', 'ja', 600)]
 
 
 def source_dialogs():
@@ -33,6 +34,7 @@ def source_dialogs():
                    'physics_keys': 'PHYSICS_FRAME_CONVERSION',
                    'draw_order': 'MODEL_DRAW_ORDER',
                    'ground_shadow': 'GROUND_SHADOW_COLOR',
+                   'center_bias': 'CENTER_POSITION_BIAS',
                    'calculation_order': 'MODEL_CALCULATE_ORDER'}.get(kind, kind.upper() + '_NUMERIC_INPUT')
         tag = f'MDS_DLG_{command}_{"EN" if language == "en" else "JP"}'
         block = source.split(tag + ' DIALOGEX ', 1)[1].split('\n  END', 1)[0]
@@ -169,7 +171,9 @@ def run(check):
           'drawing order': '\u7ed8\u5236\u987a\u5e8f', 'calculate order': '\u8ba1\u7b97\u987a\u5e8f',
           'up': '\u4e0a', 'down': '\u4e0b',
           'ground shadow color': '\u5730\u9762\u9634\u5f71\u989c\u8272',
-          'brightness': '\u4eae\u5ea6'}
+          'brightness': '\u4eae\u5ea6',
+          'apply center position bias': '\u4e2d\u5fc3\u4f4d\u7f6e\u504f\u79fb',
+          'X:': 'X:', 'Y:': 'Y:', 'Z:': 'Z:'}
     for language in ('en', 'ja', 'zh_CN'):
         path = ROOT / 'res/i18n' / (language + '.json')
         catalog = json.loads(path.read_text(encoding='utf-8'))

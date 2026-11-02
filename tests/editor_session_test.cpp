@@ -199,6 +199,34 @@ int main(int argc, char** argv) {
         bone.Pause();
         CHECK(bone.SelectModel(255, reason) && !bone.ScaleBoneKeys(values, reason));
     }
+    for (const char* file : {"facial.pmd", "articulated.pmx"}) {
+        EditorSession bone;
+        CHECK(BoneScaleFixture(bone, root, file, {0, 0, 0, 1}, reason));
+        const auto before = bone.Document().models[0].boneKeys;
+        const auto* runtime = &bone.Runtime();
+        const auto frames = runtime->Counters().frames;
+        CHECK(bone.OffsetRootBoneKeys({1.25f, -2.75f, .5f}, reason));
+        const auto changed = bone.Document().models[0].boneKeys;
+        CHECK(changed.dense[0].position[0] == 2.5f && changed.dense[0].position[1] == -5.25f);
+        CHECK(changed.unused.at(99999).position[0] == 4.25f &&
+              changed.unused.at(99998).position == before.unused.at(99998).position);
+        CHECK(changed.sparse[1].value.position == before.sparse[1].value.position &&
+              changed.sparse[2].value.position == before.sparse[2].value.position);
+        CHECK(&bone.Runtime() == runtime && runtime->Counters().frames == frames);
+        CHECK(bone.Undo(reason) &&
+              bone.Document().models[0].boneKeys.dense[0].position == before.dense[0].position);
+        CHECK(bone.Redo(reason) &&
+              bone.Document().models[0].boneKeys.dense[0].position == changed.dense[0].position);
+        CHECK(bone.Save(root / "root-offset.pmm", Write, reason) &&
+              bone.Open(root / "root-offset.pmm", reason));
+        CHECK(bone.Document().models[0].boneKeys.dense[0].position == changed.dense[0].position);
+        const auto revision = bone.Revision();
+        CHECK(!bone.OffsetRootBoneKeys({std::numeric_limits<float>::infinity(), 0, 0}, reason) &&
+              bone.Revision() == revision);
+        CHECK(bone.Play(reason) && !bone.OffsetRootBoneKeys({1, 2, 3}, reason));
+        bone.Pause();
+        CHECK(bone.SelectModel(255, reason) && !bone.OffsetRootBoneKeys({1, 2, 3}, reason));
+    }
     for (bool selected : {false, true}) {
         EditorSession bone;
         CHECK(BoneScaleFixture(bone, root, "facial.pmd", {0, 0, 0, 1}, reason));

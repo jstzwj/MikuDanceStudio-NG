@@ -92,6 +92,7 @@ public:
     bool ScaleMorphKeys(float scale, float add, std::string&);
     bool ScaleCameraKeys(const std::array<float, 16>& scaleAndOffset, std::string&);
     bool ScaleBoneKeys(const std::array<float, 12>& scaleAndOffset, std::string&);
+    bool OffsetRootBoneKeys(const std::array<float, 3>& offset, std::string&);
     bool SetSelectedKeyPhysics(bool enabled, std::string&);
     bool ResetRotation(std::string&);
     void ResetPhysicsBodies();
@@ -263,6 +264,8 @@ private:
     void PushHistory(std::uint8_t, HistoryEntry);
     HistoryBatch FrameHistory() const;
     bool ApplyHistory(bool redo, std::string&);
+    bool TransformSelectedBoneKeys(const std::function<bool(unsigned, format::PmmBoneKey&)>&,
+                                   std::string&);
     bool RegisterMorphChannels(std::uint8_t, const std::vector<std::uint32_t>&, bool seekModel,
                                std::string&);
     bool ChangeFrameLine(Track, bool insert, std::string&, bool fromMenu);

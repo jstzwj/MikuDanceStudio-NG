@@ -381,7 +381,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 66);
+    CHECK(implemented == 67);
     CHECK(window.FrameLimit() == 60 && command(MDS_CMD_FPS_60)->isChecked());
     const auto timer = window.findChild<QChronoTimer*>("editor.frameTimer");
     CHECK(timer && !timer->isActive());

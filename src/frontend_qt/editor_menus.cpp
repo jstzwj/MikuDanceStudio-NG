@@ -84,6 +84,7 @@ bool ModelCommand(int command) {
     case MDS_CMD_MULTIPLY_MORPH_FRAMES:
     case MDS_CMD_MULTIPLY_BONE_FRAMES:
     case MDS_CMD_TOGGLE_FRAME_PHYSICS:
+    case MDS_CMD_CENTER_POSITION_BIAS:
         return true;
     default:
         return false;
@@ -324,6 +325,10 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_GROUND_SHADOW_COLOR) {
         GroundShadowColor();
+        return;
+    }
+    if (command == MDS_CMD_CENTER_POSITION_BIAS) {
+        CenterBias();
         return;
     }
     if (command == MDS_CMD_DELETE_UNUSED_FRAMES) {
