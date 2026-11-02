@@ -53,8 +53,16 @@ struct SdefOps {
 bool ModelEvaluation::Initialize(std::string& reason) {
     bones_ = resource_->skeleton_;
     chains_ = resource_->chains_;
-    vertices_ = resource_->document_.vertices;
+    vertices_.clear();
     const auto& model = resource_->document_;
+    const auto vertex = [&](std::int32_t index) -> format::PmxVertexData& {
+        // A bone/material-only frame skins immutable base geometry directly.
+        // Restore private vertex storage lazily for the first vertex/UV morph;
+        // capacity remains reusable when morph weights later return to zero.
+        if (vertices_.empty())
+            vertices_ = model.vertices;
+        return vertices_[index];
+    };
     boneMorphs_.assign(bones_.size(), {});
     additive_.assign(model.materials.size(), {});
     multiplicative_.assign(model.materials.size(), Multipliers());
@@ -62,7 +70,7 @@ bool ModelEvaluation::Initialize(std::string& reason) {
         const unsigned type = morph.header.type;
         for (const auto& offset : morph.offsets) {
             if (type == 1)
-                cpu_deform::AccumulateVertexMorph(vertices_[offset.index].position, offset.values,
+                cpu_deform::AccumulateVertexMorph(vertex(offset.index).position, offset.values,
                                                   weight, reference);
             else if (type == 2) {
                 cpu_deform::BoneMorphEntry entry;
@@ -71,13 +79,13 @@ bool ModelEvaluation::Initialize(std::string& reason) {
                 std::copy_n(offset.values + 3, 4, entry.rotation);
                 cpu_deform::AccumBoneEntry(boneMorphs_.data(), entry, weight, reference);
             } else if (type >= 3 && type <= 7) {
-                auto& vertex = vertices_[offset.index];
+                auto& morphed = vertex(offset.index);
                 if (type == 3)
                     for (int c = 0; c < 2; ++c)
-                        vertex.uv[c] += offset.values[c] * weight * reference;
+                        morphed.uv[c] += offset.values[c] * weight * reference;
                 else
                     for (int c = 0; c < 4; ++c)
-                        vertex.additionalUv[c][type - 4] += offset.values[c] * weight * reference;
+                        morphed.additionalUv[c][type - 4] += offset.values[c] * weight * reference;
             } else if (type == 8) {
                 cpu_deform::MaterialEntry entry;
                 entry.operation = offset.operation;
@@ -271,9 +279,10 @@ bool ModelEvaluation::Finish(std::string& reason) {
         return false;
     }
     constexpr cpu_math::Matrix zero{};
-    snapshot_.vertices.resize(vertices_.size());
-    for (std::size_t n = 0; n < vertices_.size(); ++n) {
-        const auto& v = vertices_[n];
+    const auto& vertices = vertices_.empty() ? resource_->document_.vertices : vertices_;
+    snapshot_.vertices.resize(vertices.size());
+    for (std::size_t n = 0; n < vertices.size(); ++n) {
+        const auto& v = vertices[n];
         // Finish writes unpublished storage directly. Preparing a different
         // resource clears the slots; inactive additional UVs stay initialized
         // to zero instead of clearing/copying a 96-byte temporary per vertex.

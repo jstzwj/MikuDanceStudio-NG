@@ -90,7 +90,7 @@ This closes that command's integration gap, not the complete clipboard/input gat
 | Three-platform open/edit/play/save/reopen/export | Initial generated workflow passed; complete C1 workflow coverage pending |
 | MMD v9.32 independent geometry, behavior and output comparison | Pending |
 | Input, IME, DPI, font metrics and lifecycle acceptance | Native surface lifecycle passed on all platforms; full input/IME/DPI/font acceptance pending |
-| CPU frame-production performance | Offscreen preparation benchmark passed on three platforms; local Sour Miku optimized; combined GPU/frame budget pending |
+| CPU frame-production performance | Local Sour Miku complete offscreen CPU/GPU budget passed on DX11/DX12/Vulkan; latest generated three-platform qualification pending; physical presentation latency is separate |
 
 All local UI testing uses Qt `offscreen` or windows that are never shown. Actual
 window presentation/interaction uses isolated runners. Language changes must not
@@ -2601,3 +2601,29 @@ comparisons, publication failure atomicity, cross-resource UV reuse and strict
 GPU repeat checks. The generated GPU profile passed in 4.14 seconds. Sour Miku
 navigation p95 was 10.14 / 14.34 / 10.84 ms on DX11 / DX12 / Vulkan respectively;
 animation and bone-edit reports still fail the existing local frame budget.
+
+Built-in atlas publication is now sealed before fingerprinting, so frame copies
+share immutable HUD/helper pixels. Copy-on-write mutation tests preserve the
+original atlas and cache/reset behavior. CPU evaluation now copies base vertices
+only when an active vertex/UV morph needs private storage; bone/material-only
+frames skin the immutable base directly. The existing 120-frame reuse regression
+alternates zero/nonzero vertex, UV and material morph weights and compares fresh
+evaluations, including replacement with a smaller UV layout.
+
+All **33 local P4 tests passed in 91.29 seconds**, followed by five targeted
+asset/geometry/runtime tests. Sour Miku (139,692 vertices, TITAN Xp, 640x480,
+503 submissions/backend, no timed image readbacks) now passes every unchanged
+local p95 33.333334 ms / maximum 100 ms case:
+
+| Complete-frame p95, ms | DX11 | DX12 | Vulkan |
+|---|---:|---:|---:|
+| Static | 1.33 | 1.89 | 4.04 |
+| Navigation | 2.80 | 3.96 | 7.31 |
+| Animation | 19.49 | 22.11 | 27.81 |
+| Paused physics | 18.29 | 21.36 | 23.10 |
+| Bone edit | 30.77 | 22.11 | 25.68 |
+
+The largest individual sample was 36.41 ms. Retained-frame immutability, strict
+repeated final color and unload/resize submission passed on all three backends.
+This qualifies the named local offscreen profile; it does not measure physical
+display latency or imply that all original commands/C1 behavior are accepted.

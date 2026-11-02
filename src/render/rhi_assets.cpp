@@ -64,6 +64,10 @@ bool LoadAtlas(const AssetSource& source, AssetId id, AtlasAsset& atlas) {
     if (!source.Read(id, bytes) || bytes.empty() || bytes.size() > 16 * 1024 * 1024 ||
         !DecodePngRgba(bytes.data(), bytes.size(), atlas.image))
         return false;
+    // Built-in atlases are shared immutable inputs to every scene frame.
+    // Seal before fingerprinting/copying so replay validation and submission
+    // do not clone all atlas pixels on each frame. Mutations still detach.
+    atlas.image.pixels.Seal();
     atlas.revision = ImageRevision(atlas.image);
     return true;
 }

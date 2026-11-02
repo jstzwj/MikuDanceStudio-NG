@@ -60,7 +60,8 @@ int main(int argc, char** argv) {
         fontAtlas.image.width != 512 || fontAtlas.image.height != 512 ||
         fileAtlas.image.pixels != embeddedAtlas.image.pixels ||
         fileAtlas.revision != embeddedAtlas.revision ||
-        fileAtlas.revision == 0) return 4;
+        fileAtlas.revision == 0 || !fileAtlas.image.pixels.Sealed() ||
+        !embeddedAtlas.image.pixels.Sealed() || !fontAtlas.image.pixels.Sealed()) return 4;
     const CallbackAssetSource missing([](AssetId,
             std::vector<std::uint8_t>& output) {
         output = {1, 2, 3};
@@ -85,7 +86,12 @@ int main(int argc, char** argv) {
         !device->BindTexture(0, first) ||
         !device->EndFrame() || !device->Present()) return 6;
     auto updatedAtlas = fileAtlas;
+    const auto* originalPixels = std::as_const(fileAtlas.image.pixels).data();
+    if (std::as_const(updatedAtlas.image.pixels).data() != originalPixels) return 7;
     updatedAtlas.image.pixels[0] ^= 1;
+    if (std::as_const(updatedAtlas.image.pixels).data() == originalPixels ||
+        std::as_const(fileAtlas.image.pixels).data() != originalPixels ||
+        fileAtlas.image.pixels != embeddedAtlas.image.pixels) return 7;
     ++updatedAtlas.revision;
     const auto changed = cache.Get(AssetId::HudSprites, updatedAtlas);
     if (!changed || (changed.index == first.index &&
