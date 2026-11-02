@@ -135,6 +135,20 @@ public:
 protected:
     void ButtonClicked(int id) override;
 };
+class AccessoryOrderDialog final : public TemplateDialog {
+public:
+    AccessoryOrderDialog(const Language&, const std::vector<std::pair<std::uint8_t, QString>>& rows,
+                         int split, QWidget* parent = nullptr);
+    QListWidget* Rows() const { return List(628); }
+    QLineEdit* Name() const { return Edit(629); }
+    QLineEdit* Split() const { return Edit(635); }
+    std::vector<std::pair<std::uint8_t, std::string>> Order() const;
+    int SplitOrder() const;
+
+protected:
+    void ButtonClicked(int id) override;
+    bool eventFilter(QObject*, QEvent*) override;
+};
 class GravityDialog final : public TemplateDialog {
 public:
     GravityDialog(const Language&, const format::PmmEvaluatedGravity&, QWidget* parent = nullptr);

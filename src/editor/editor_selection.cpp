@@ -1,4 +1,5 @@
 #include "mikudancestudio/editor_session.hpp"
+#include "mikudancestudio/text_encoding.hpp"
 namespace mikudancestudio::editor {
 namespace {
 bool ModelTrack(Track t) {
@@ -111,6 +112,39 @@ bool EditorSession::SetModelOrder(format::ModelOrderKind kind,
         return false;
     }
     EndGesture();
+    revision_ = nextRevision_++;
+    if (clean)
+        savedRevision_ = revision_;
+    reason.clear();
+    return true;
+}
+bool EditorSession::SetAccessoryOrder(
+    const std::vector<std::pair<std::uint8_t, std::string>>& names, int split,
+    std::string& reason) {
+    std::vector<format::PmmAccessoryOrderEntry> rows;
+    for (const auto& [slot, name] : names) {
+        const auto& accessories = Document().accessories;
+        const auto found = std::find_if(accessories.begin(), accessories.end(),
+                                        [&](const auto& item) { return item.slot == slot; });
+        std::string encoded;
+        if (found == accessories.end() || !text::EncodeCp932(name, encoded) ||
+            encoded.size() >= found->name.size() || encoded.find('\0') != std::string::npos) {
+            reason = "accessory-order-invalid-name-or-slot";
+            return false;
+        }
+        // Native strcpy_s replaces the prefix and NUL, retaining trailing bytes.
+        auto bytes = found->name;
+        std::copy(encoded.begin(), encoded.end(), bytes.begin());
+        bytes[encoded.size()] = 0;
+        rows.push_back({slot, bytes});
+    }
+    if (playing_ || !runtime_->SetAccessoryOrder(rows, split)) {
+        reason = "accessory-order-unavailable-or-invalid";
+        return false;
+    }
+    EndGesture();
+    selection_.accessory = rows.front().slot;
+    const bool clean = !Dirty();
     revision_ = nextRevision_++;
     if (clean)
         savedRevision_ = revision_;

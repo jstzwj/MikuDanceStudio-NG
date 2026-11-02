@@ -699,6 +699,10 @@ bool SceneRuntime::SetGroundShadowColor(float value) {
 bool SceneRuntime::SetSelfShadowEnabled(bool enabled) {
     return impl_ && impl_->session && impl_->session->SetSelfShadowEnabled(enabled);
 }
+bool SceneRuntime::SetAccessoryOrder(const std::vector<format::PmmAccessoryOrderEntry>& rows,
+                                     int split) {
+    return impl_ && impl_->session && impl_->session->SetAccessoryOrder(rows, split);
+}
 bool SceneRuntime::SetOutlineColor(const std::array<std::uint8_t, 3>& rgb) {
     if (!impl_ || !impl_->session)
         return false;

@@ -4,6 +4,7 @@
 #include "mikudancestudio/pmm_scene_world.hpp"
 #include "mikudancestudio/pmm_key_selection.hpp"
 #include "mikudancestudio/pmm_model_order.hpp"
+#include "mikudancestudio/pmm_accessory_order.hpp"
 #include <functional>
 #include <cmath>
 #include <optional>
@@ -126,6 +127,9 @@ public:
             return false;
         scene_.selfShadowEnabled = std::uint8_t(enabled);
         return true;
+    }
+    bool SetAccessoryOrder(const std::vector<PmmAccessoryOrderEntry>& rows, int split) {
+        return loaded_ && SetPmmAccessoryOrder(scene_, rows, split);
     }
     bool SetOutlineColor(const std::array<std::uint8_t, 3>& rgb,
                          const std::vector<std::uint8_t>& pmdSlots) {

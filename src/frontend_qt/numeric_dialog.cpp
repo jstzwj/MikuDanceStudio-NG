@@ -11,6 +11,7 @@
 #include <QWheelEvent>
 #include <QStyledItemDelegate>
 #include <charconv>
+#include <climits>
 #include <cmath>
 namespace mikudancestudio::qt {
 namespace {
@@ -216,6 +217,90 @@ void TemplateDialog::Prefill(int id, const QString& text) {
     const auto length = ui::NumericPrefillLength(
         std::string_view(bytes.constData(), std::size_t(bytes.size())), english_, field->width());
     field->setText(text.left(qsizetype(length)));
+}
+AccessoryOrderDialog::AccessoryOrderDialog(
+    const Language& language, const std::vector<std::pair<std::uint8_t, QString>>& rows, int split,
+    QWidget* parent)
+    : TemplateDialog(language.Code() == "en" ? ui::kNumericAccessoryOrderEn
+                                             : ui::kNumericAccessoryOrderJa,
+                     language, parent) {
+    setObjectName("mmd.accessoryOrder");
+    for (const auto& [slot, label] : rows) {
+        auto* item = new QListWidgetItem(label, Rows());
+        item->setData(Qt::UserRole, slot);
+    }
+    connect(Rows(), &QListWidget::currentRowChanged, this, [this](int row) {
+        if (row >= 0)
+            Name()->setText(Rows()->item(row)->text());
+    });
+    connect(Split(), &QLineEdit::textChanged, this, [this] {
+        const auto count = Rows()->count();
+        const int value = SplitOrder();
+        if (value <= 0 || value > count) {
+            const QSignalBlocker blocked(Split());
+            Split()->setText(QString::number(std::clamp(value, 0, count)));
+            Split()->selectAll();
+        }
+        // LB_SETCURSEL from EN_CHANGE does not send LBN_SELCHANGE: the
+        // pending rename edit retains its text while the split selects a row.
+        const QSignalBlocker blockedRows(Rows());
+        Rows()->setCurrentRow(value >= count ? -1 : std::max(0, value));
+    });
+    Split()->setText(QString::number(split));
+    Rows()->setCurrentRow(-1);
+    Name()->clear();
+    Name()->installEventFilter(this);
+    Split()->installEventFilter(this);
+    Name()->setFocus();
+}
+int AccessoryOrderDialog::SplitOrder() const {
+    static const QRegularExpression prefix(QStringLiteral("^\\s*[+-]?[0-9]+"));
+    const auto match = prefix.match(Split()->text().left(255));
+    if (!match.hasMatch())
+        return 0;
+    bool valid;
+    const auto result = match.captured().trimmed().toLongLong(&valid);
+    if (!valid)
+        return match.captured().trimmed().startsWith('-') ? INT_MIN : INT_MAX;
+    return int(std::clamp(result, qlonglong(INT_MIN), qlonglong(INT_MAX)));
+}
+std::vector<std::pair<std::uint8_t, std::string>> AccessoryOrderDialog::Order() const {
+    std::vector<std::pair<std::uint8_t, std::string>> result;
+    for (int i = 0; i < Rows()->count(); ++i) {
+        const auto* item = Rows()->item(i);
+        result.emplace_back(std::uint8_t(item->data(Qt::UserRole).toUInt()),
+                            item->text().toUtf8().toStdString());
+    }
+    return result;
+}
+void AccessoryOrderDialog::ButtonClicked(int id) {
+    if (id == 632)
+        accept();
+    else if (id == 2)
+        reject();
+    else if (id == 630 || id == 631) {
+        const int row = Rows()->currentRow(), next = row + (id == 630 ? -1 : 1);
+        if (row >= 0 && next >= 0 && next < Rows()->count()) {
+            const QSignalBlocker blockedRows(Rows());
+            auto* item = Rows()->takeItem(row);
+            Rows()->insertItem(next, item);
+            Rows()->setCurrentRow(next);
+        }
+    } else if (id == 633 && !Split()->hasFocus() && !Name()->text().isEmpty()) {
+        if (auto* item = Rows()->currentItem())
+            item->setText(Name()->text());
+    }
+}
+bool AccessoryOrderDialog::eventFilter(QObject* object, QEvent* event) {
+    if (event->type() == QEvent::KeyPress) {
+        auto* key = static_cast<QKeyEvent*>(event);
+        if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter) {
+            if (object == Name())
+                ButtonClicked(633);
+            return true;
+        }
+    }
+    return TemplateDialog::eventFilter(object, event);
 }
 NumericDialog::NumericDialog(bool camera, const Language& language,
                              const std::array<float, 7>& values, QWidget* parent)

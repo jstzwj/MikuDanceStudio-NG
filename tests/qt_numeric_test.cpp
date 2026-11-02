@@ -1361,6 +1361,113 @@ int main(int argc, char** argv) {
             owner.Refresh();
             CHECK(!action->isEnabled() && !owner.isVisible());
         }
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(language.Set(code));
+        qt::AccessoryOrderDialog form(language, {{7, "first"}, {42, "second"}, {254, "third"}}, 0);
+        const auto expected =
+            reference[QString("accessory_order.") + (language.Code() == "en" ? "en" : "ja")]
+                .toObject();
+        CHECK(form.Template().id == expected["id"].toInt());
+        const auto controls = expected["controls"].toArray();
+        const int baseY = language.Code() == "en" ? 15 : 12;
+        for (int i = 0; i < controls.size(); ++i) {
+            const auto control = controls[i].toObject();
+            const auto rect = control["rect"].toArray();
+            auto* widget = form.findChild<QWidget*>(QString("numeric.control.%1").arg(i));
+            const int height = (rect[3].toInt() * baseY + 4) / 8;
+            CHECK(widget &&
+                  widget->geometry() ==
+                      QRect((rect[0].toInt() * 7 + 2) / 4, (rect[1].toInt() * baseY + 4) / 8,
+                            (rect[2].toInt() * 7 + 2) / 4,
+                            control["kind"] == "Listbox" ? ((height - 4) / baseY) * baseY + 4
+                                                         : height));
+        }
+        const auto button = [&](qt::AccessoryOrderDialog& dialog, int id) {
+            for (auto* item : dialog.findChildren<QPushButton*>())
+                if (item->property("mmdControlId").toInt() == id)
+                    return item;
+            return static_cast<QPushButton*>(nullptr);
+        };
+        CHECK(form.Rows()->currentRow() == -1 && form.Name()->text().isEmpty());
+        for (const char* text : {"-1", "999", "1x", "  +1suffix", "abc", "0"}) {
+            form.Split()->setText(text);
+            const bool one = text[0] == '1' || text[0] == ' ';
+            const int value = text[0] == '9' ? 3 : one ? 1 : 0;
+            CHECK(form.SplitOrder() == value &&
+                  form.Rows()->currentRow() == (value < 3 ? value : -1));
+            CHECK(form.Name()->text().isEmpty());
+            if (!one)
+                CHECK(form.Split()->text() == QString::number(value));
+        }
+        form.Rows()->setCurrentRow(2);
+        CHECK(form.Name()->text() == "third");
+        form.Name()->setText("renamed");
+        QKeyEvent enter(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
+        QCoreApplication::sendEvent(form.Name(), &enter);
+        CHECK(form.Rows()->item(2)->text() == "renamed" && !form.result());
+        form.Name()->setText("pending");
+        button(form, 630)->click();
+        CHECK(form.Order()[1].first == 254 && form.Order()[1].second == "renamed");
+        CHECK(form.Name()->text() == "pending");
+        button(form, 632)->click();
+        CHECK(form.result() == QDialog::Accepted);
+
+        qt::EditorWindow owner(std::filesystem::absolute(argv[2]), true);
+        CHECK(owner.SetLanguage(code));
+        if (std::string(code) == "ja")
+            CHECK(owner.Session().ImportModel(root / "triangle.pmx", reason));
+        for (const char* file : {"bound-varied.x", "sphere-mul.x", "sphere-add.x"})
+            CHECK(owner.Session().ImportAccessory(root / file, reason));
+        CHECK(owner.Save(root / "accessory-dialog.pmm"));
+        QAction* action = nullptr;
+        for (auto* item : owner.findChildren<QAction*>())
+            if (item->property("mmdCommandId").toInt() == MDS_CMD_ACCESSORY_SETTINGS)
+                action = item;
+        CHECK(action && action->isEnabled());
+        const auto revision = owner.Session().Revision();
+        const auto frames = owner.Session().Runtime().Counters().frames;
+        const auto* runtime = &owner.Session().Runtime();
+        for (bool accept : {false, true}) {
+            bool interacted = false;
+            QTimer::singleShot(0, &owner, [&] {
+                auto* dialog =
+                    dynamic_cast<qt::AccessoryOrderDialog*>(QApplication::activeModalWidget());
+                if (!dialog) {
+                    QApplication::closeAllWindows();
+                    return;
+                }
+                interacted = dialog->Order()[2].first == 2;
+                dialog->Rows()->setCurrentRow(2);
+                dialog->Name()->setText("renamed");
+                QCoreApplication::sendEvent(dialog->Name(), &enter);
+                button(*dialog, 630)->click();
+                dialog->Split()->setText("1suffix");
+                if (accept)
+                    dialog->accept();
+                else
+                    dialog->reject();
+            });
+            action->trigger();
+            CHECK(interacted && owner.LastError().isEmpty() && !owner.Session().Dirty());
+            CHECK((owner.Session().Revision() != revision) == accept);
+        }
+        const auto rows = format::PmmAccessoryOrder(owner.Session().Document());
+        CHECK(rows[0].slot == 0 && rows[1].slot == 2 && rows[2].slot == 1 &&
+              std::string(rows[1].name.data()) == "renamed");
+        auto* combo = qobject_cast<QComboBox*>(owner.Control(panel::kAccessoryCombo));
+        CHECK(combo->itemData(1).toInt() == 2 && combo->itemText(1) == "renamed");
+        CHECK(owner.Session().Document().physics.accessoryRenderOrder == 1 &&
+              owner.Session().Selected().accessory == 0);
+        auto* scope = qobject_cast<QComboBox*>(owner.Control(panel::kRegisterScopeCombo));
+        CHECK(scope && scope->count() == 7 && scope->currentIndex() == 0);
+        CHECK(scope->itemText(5) == "renamed");
+        CHECK(&owner.Session().Runtime() == runtime && runtime->Counters().frames == frames);
+        CHECK(owner.Save(root / "accessory-dialog.pmm") &&
+              owner.Open(root / "accessory-dialog.pmm"));
+        CHECK(owner.Session().Play(reason));
+        owner.Refresh();
+        CHECK(!action->isEnabled() && !owner.isVisible());
+    }
     std::cout
         << "Numeric dialogs: binary geometry/labels, tab order, formatting, cancel and editor publication passed\n";
 }

@@ -189,6 +189,8 @@ public:
     bool SelectBones(const std::vector<std::uint32_t>&, int active, std::string&);
     bool SelectModel(std::uint8_t, std::string&);
     bool SetModelOrder(format::ModelOrderKind, const std::vector<std::uint8_t>&, std::string&);
+    bool SetAccessoryOrder(const std::vector<std::pair<std::uint8_t, std::string>>& names,
+                           int split, std::string&);
     bool SelectAllBones(bool unregisteredOnly, std::string&);
     bool SelectPhysicsBones(std::string&);
     bool SelectPhysicsOnKeys(std::string&);

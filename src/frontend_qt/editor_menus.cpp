@@ -124,6 +124,7 @@ bool Implemented(int command) {
     case MDS_CMD_GROUND_SHADOW_COLOR:
     case MDS_CMD_EDGE_COLOR:
     case MDS_CMD_TOGGLE_SELF_SHADOW:
+    case MDS_CMD_ACCESSORY_SETTINGS:
         return true;
     default:
         return false;
@@ -229,6 +230,8 @@ void EditorWindow::RefreshMenus() {
             enabled &= model && !session_.Playing();
         if (command == MDS_CMD_EDGE_THICKNESS)
             enabled &= model;
+        if (command == MDS_CMD_ACCESSORY_SETTINGS)
+            enabled &= !session_.Playing() && !doc.accessories.empty();
         if (command == MDS_CMD_RESET_BONE_CAMERA_ROTATION)
             enabled &= !session_.Playing();
         if (command == MDS_CMD_TOGGLE_SEPARATE_WINDOW)
@@ -336,6 +339,10 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_EDGE_COLOR) {
         OutlineColor();
+        return;
+    }
+    if (command == MDS_CMD_ACCESSORY_SETTINGS) {
+        AccessoryOrder();
         return;
     }
     if (command == MDS_CMD_DELETE_UNUSED_FRAMES) {

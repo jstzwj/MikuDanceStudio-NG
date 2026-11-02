@@ -21,6 +21,7 @@ NAMES = [('bone', 'en', 663), ('bone', 'ja', 648),
          ('calculation_order', 'en', 811), ('calculation_order', 'ja', 810)]
 NAMES += [('ground_shadow', 'en', 658), ('ground_shadow', 'ja', 624)]
 NAMES += [('center_bias', 'en', 651), ('center_bias', 'ja', 600)]
+NAMES += [('accessory_order', 'en', 659), ('accessory_order', 'ja', 627)]
 
 
 def source_dialogs():
@@ -35,6 +36,7 @@ def source_dialogs():
                    'draw_order': 'MODEL_DRAW_ORDER',
                    'ground_shadow': 'GROUND_SHADOW_COLOR',
                    'center_bias': 'CENTER_POSITION_BIAS',
+                   'accessory_order': 'ACCESSORY_ORDER',
                    'calculation_order': 'MODEL_CALCULATE_ORDER'}.get(kind, kind.upper() + '_NUMERIC_INPUT')
         tag = f'MDS_DLG_{command}_{"EN" if language == "en" else "JP"}'
         block = source.split(tag + ' DIALOGEX ', 1)[1].split('\n  END', 1)[0]
@@ -173,6 +175,10 @@ def run(check):
           'ground shadow color': '\u5730\u9762\u9634\u5f71\u989c\u8272',
           'brightness': '\u4eae\u5ea6',
           'apply center position bias': '\u4e2d\u5fc3\u4f4d\u7f6e\u504f\u79fb',
+          'accessory': '\u9644\u4ef6\u8bbe\u7f6e',
+          "name(press 'Enter')": '\u540d\u79f0(\u6309Enter\u786e\u5b9a)',
+          'over': '\u7b2c', 'th': '\u4e2a\u4e4b\u540e',
+          'accessory described after models': '\u7684\u9644\u4ef6\u5728\u6a21\u578b\u4e4b\u540e\u7ed8\u5236',
           'X:': 'X:', 'Y:': 'Y:', 'Z:': 'Z:'}
     for language in ('en', 'ja', 'zh_CN'):
         path = ROOT / 'res/i18n' / (language + '.json')

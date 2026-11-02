@@ -765,7 +765,7 @@ void EditorWindow::Refresh() {
     RefreshMenus();
     auto* accessories = qobject_cast<QComboBox*>(Control(kAccessoryCombo));
     SyncComboItems(accessories, [&](auto add) {
-        for (const auto& a : doc.accessories) {
+        for (const auto& a : format::PmmAccessoryOrder(doc)) {
             std::vector<char> name(a.name.begin(), std::find(a.name.begin(), a.name.end(), 0));
             add(Name(name), a.slot);
         }
@@ -1226,6 +1226,24 @@ void EditorWindow::ModelOrder(bool calculation) {
     Result(session_.SetModelOrder(kind, dialog.Order(), reason), reason);
     Refresh();
 }
+void EditorWindow::AccessoryOrder() {
+    std::vector<std::pair<std::uint8_t, QString>> rows;
+    for (const auto& row : format::PmmAccessoryOrder(session_.Document()))
+        rows.emplace_back(row.slot,
+                          Name({row.name.begin(), std::find(row.name.begin(), row.name.end(), 0)}));
+    AccessoryOrderDialog dialog(language_, rows, session_.Document().physics.accessoryRenderOrder,
+                                this);
+    dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    std::string reason;
+    if (!Result(session_.SetAccessoryOrder(dialog.Order(), dialog.SplitOrder(), reason), reason))
+        return;
+    accessoryScopeModel_ = session_.Selected().model;
+    accessoryScopeResource_ = session_.Runtime().Resource(accessoryScopeModel_);
+    scopeSelections_[session_.Selected().model] = 0;
+    Refresh();
+}
 void EditorWindow::GravitySettings() {
     if (gravityDialog_)
         return;
@@ -1605,6 +1623,10 @@ void EditorWindow::Combo(int id, int index) {
         return;
     }
     if (id == kMainComboModel) {
+        if (!accessoryScopeResource_.expired()) {
+            scopeSelections_[accessoryScopeModel_] = 3;
+            accessoryScopeResource_.reset();
+        }
         std::string reason;
         if (Result(session_.SelectModel(std::uint8_t(c->itemData(index).toUInt()), reason), reason))
             edgeResource_.reset(); // Native combo activation refills even the same model.

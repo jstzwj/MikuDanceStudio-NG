@@ -1,4 +1,5 @@
 #include "editor_key_edit_native.hpp"
+#include "mikudancestudio/accessory_layout.hpp"
 
 namespace {
 unsigned ended;
@@ -20,6 +21,119 @@ HWND Combo(HWND parent, int id) {
     return CreateWindowExA(0, "COMBOBOX", "", WS_CHILD | CBS_DROPDOWNLIST, 0, 0, 100, 100, parent,
                            reinterpret_cast<HMENU>(std::uintptr_t(id)), GetModuleHandleW(nullptr),
                            nullptr);
+}
+unsigned Accessories(OriginalPhysicsModule& original, HMODULE resources) {
+    const unsigned char ret = 0xc3;
+    Patch timeline(original.Function<void*>(0x5f7f0), &ret, 1);
+    Patch readouts(original.Function<void*>(0x20ce0), &ret, 1);
+    Patch panel(original.Function<void*>(0x5e510), &ret, 1);
+    unsigned cases = 0;
+    for (bool english : {false, true})
+        for (bool cancel : {false, true})
+            for (unsigned count : {1u, 3u}) {
+                std::vector<unsigned char> app(0xa3000);
+                auto* pointer = app.data();
+                Patch global(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+                Window owner;
+                Check(owner.handle && !IsWindowVisible(owner.handle), "hidden accessory owner");
+                std::memcpy(app.data() + 0xa16c8, &owner.handle, sizeof owner.handle);
+                app[0xa1b90] = english;
+                HWND combo = Combo(owner.handle, 471);
+                Check(combo && Combo(owner.handle, 434), "accessory combo owners");
+                std::vector<std::unique_ptr<mdl::AccessoryRecord>> objects;
+                format::PmmSceneDocument document;
+                const std::uint8_t slots[]{7, 42, 254};
+                for (unsigned i = 0; i < count; ++i) {
+                    auto object = std::make_unique<mdl::AccessoryRecord>();
+                    object->order = std::uint8_t(i);
+                    std::snprintf(object->name, 100, "accessory %u", i);
+                    object->rowSelected = i == 1;
+                    auto* address = object.get();
+                    std::memcpy(app.data() + 0x9e840 + slots[i] * 8, &address, sizeof address);
+                    SendMessageA(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(object->name));
+                    format::PmmSceneAccessory item;
+                    item.slot = slots[i];
+                    item.order = std::uint8_t(i);
+                    std::copy_n(object->name, 100, item.name.begin());
+                    document.accessories.push_back(item);
+                    objects.push_back(std::move(object));
+                }
+                const auto proc = original.Function<DLGPROC>(0x572c0);
+                HWND dialog = CreateDialogParamA(resources, MAKEINTRESOURCEA(english ? 659 : 627),
+                                                 owner.handle, proc, 0);
+                Check(dialog && !IsWindowVisible(dialog), "hidden native accessory dialog");
+                HWND list = GetDlgItem(dialog, 628), name = GetDlgItem(dialog, 629);
+                HWND split = GetDlgItem(dialog, 635);
+                Check(SendMessageA(list, LB_GETCOUNT, 0, 0) == count &&
+                          SendMessageA(list, LB_GETCURSEL, 0, 0) == -1,
+                      "native accessory initialization");
+                for (const char* text : {"-1", "999", "1x", "  +1suffix", "abc", "0"}) {
+                    SetWindowTextA(split, text);
+                    char actual[100]{};
+                    GetWindowTextA(split, actual, 100);
+                    const bool one = text[0] == '1' || text[0] == ' ';
+                    const int value = text[0] == '9' ? int(count) : one ? 1 : 0;
+                    Check(SendMessageA(list, LB_GETCURSEL, 0, 0) ==
+                              (unsigned(value) < count ? value : -1),
+                          "native split selection and prefix conversion");
+                    if (!one)
+                        Check(std::string(actual) == std::to_string(value),
+                              "native split clamp text");
+                }
+                auto rows = format::PmmAccessoryOrder(document);
+                SendMessageA(list, LB_SETCURSEL, count - 1, 0);
+                SendMessageA(dialog, WM_COMMAND, MAKEWPARAM(628, LBN_SELCHANGE),
+                             reinterpret_cast<LPARAM>(list));
+                char selected[100]{};
+                GetWindowTextA(name, selected, 100);
+                Check(std::string(selected) == rows.back().name.data(), "native selected name");
+                SetWindowTextA(name, "renamed");
+                SendMessageA(dialog, WM_COMMAND, 633, 0);
+                std::copy_n("renamed", 8, rows.back().name.begin());
+                SetWindowTextA(name, "pending");
+                if (count > 1) {
+                    SendMessageA(dialog, WM_COMMAND, 630, 0);
+                    std::swap(rows[count - 1], rows[count - 2]);
+                }
+                GetWindowTextA(name, selected, 100);
+                Check(std::string(selected) == "pending", "native move retains pending rename");
+                SetWindowTextA(split, "1suffix");
+                ended = 0;
+                SendMessageA(dialog, WM_COMMAND, cancel ? 2 : 632, 0);
+                Check(ended == 1 && endResult == (cancel ? 2 : 1), "accessory modal result");
+                if (!cancel) {
+                    Check(format::SetPmmAccessoryOrder(document, rows, 1),
+                          "portable accessory order");
+                    Check(app[0x9f03c] == rows.front().slot &&
+                              *reinterpret_cast<int*>(app.data() + 0xa1b50) == 1,
+                          "native selected accessory and split");
+                    HWND scope = GetDlgItem(owner.handle, 434);
+                    Check(SendMessageA(scope, CB_GETCOUNT, 0, 0) == count + 4 &&
+                              SendMessageA(scope, CB_GETCURSEL, 0, 0) == 0,
+                          "native accessory order resets the scope combo");
+                    for (unsigned row = 0; row < count; ++row) {
+                        char label[100]{};
+                        SendMessageA(scope, CB_GETLBTEXT, row + 4, reinterpret_cast<LPARAM>(label));
+                        Check(std::string(label) == rows[row].name.data(),
+                              "native global accessory scope labels");
+                    }
+                }
+                for (unsigned i = 0; i < count; ++i) {
+                    const auto& expected = document.accessories[i];
+                    Check(objects[i]->order == expected.order &&
+                              !std::memcmp(objects[i]->name, expected.name.data(), 100),
+                          "native accessory names/order bytes");
+                    Check(bool(objects[i]->rowSelected) ==
+                              (cancel ? i == 1 : slots[i] == rows.front().slot),
+                          "native accessory registration row");
+                }
+                Check(app[0xa1b31] == 0 &&
+                          *reinterpret_cast<void**>(app.data() + 0xa1b48) == nullptr,
+                      "accessory dirty flag and scratch destruction");
+                DestroyWindow(dialog);
+                ++cases;
+            }
+    return cases;
 }
 }
 int wmain(int argc, wchar_t** argv) try {
@@ -132,6 +246,9 @@ int wmain(int argc, wchar_t** argv) try {
                     DestroyWindow(dialog);
                     ++cases;
                 }
+    std::printf(
+        "Original accessory order: %u hidden dialogs, rename, split, selection and cancel\n",
+        Accessories(original, resources));
     FreeLibrary(resources);
     std::printf(
         "Original model order: %u hidden dialog cases, exact slots/labels/order bytes/cancel/boundaries\n",

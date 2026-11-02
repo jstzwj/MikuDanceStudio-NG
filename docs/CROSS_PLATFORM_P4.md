@@ -85,7 +85,7 @@ This closes that command's integration gap, not the complete clipboard/input gat
 | Shared editing and serialization | First local regression passed; full command/compatibility coverage pending |
 | Qt original layout and multilingual interface | Initial three-platform command/language regression passed; full original parity pending |
 | C1 scene rendering | Model outlines, texture morphs and screen history passed on three platforms; accessory self-shadow passed local DX9 comparisons on DX11/DX12/Vulkan; full C1 comparison pending |
-| WAV and synchronization | Deterministic transport and dedicated-thread Windows/CoreAudio silent output passed 120s clock/seek/EOF checks; Linux steady clock passed, EOF-tail fix awaiting rerun; physical speaker latency is unmeasured |
+| WAV and synchronization | Deterministic transport and dedicated-thread Windows/CoreAudio silent output passed 120s clock/seek/EOF checks; Linux steady clock passed, EOF handoff still fails and short-stream prebuffering is being corrected; physical speaker latency is unmeasured |
 | Fixed-step image sequence export and cancellation | Generated 30fps sequence, strict repeat and cancellation passed on three platforms |
 | Three-platform open/edit/play/save/reopen/export | Initial generated workflow passed; complete C1 workflow coverage pending |
 | MMD v9.32 independent geometry, behavior and output comparison | Pending |
@@ -2526,3 +2526,28 @@ bytes. Offscreen rendering covers all three modes, byte-exact disable/restore
 and the existing color/repeat checks. Shared/Qt regressions cover key transitions,
 playback, keyboard repeat, languages, history, persistence and New. The menu now
 implements **69/103** commands; remaining C1 gates stay open.
+
+## Accessory order, names and model draw split
+
+Command 249 now uses the original English 659 / Japanese 627 accessory dialog
+geometry, labels and Enter behavior, with Simplified Chinese translations. The
+shared session validates the complete slot permutation, CP932 names and split
+before publishing. It preserves the runtime, simulation counters, model history
+and clean/dirty state. Accessory order, names and the model draw split survive
+PMM save/reopen; subsequent model undo/redo retains them. The existing shared
+frame producer consumes that split to draw the chosen accessories before models.
+
+The original hidden dialog procedure **572C0**, order builder **896E0** and
+apply routine **89760** passed **8 additional independent cases**: both original
+languages, one/three accessories and accept/cancel. Comparison includes all 100
+name bytes, order, selected slot, registration row, split, scratch destruction
+and the unchanged dirty flag. Native numeric prefix conversion and clamp text,
+list selection, pending rename across moves, and rebuilt global scope labels
+are checked. As in the original, the command is available in model mode too;
+its global scope labels retain model-index dispatch until model-combo activation
+restores the regular labels. Existing 24 model-order oracle cases still pass.
+
+Local Qt offscreen numeric/menu and shared-session regressions passed, including
+all three languages, actual modal accept/cancel, CP932 roundtrip, retained model
+history and playback gating. The menu implements **70/103** original commands.
+This closes this dialog's integration gap; the remaining P4/C1 gates stay open.

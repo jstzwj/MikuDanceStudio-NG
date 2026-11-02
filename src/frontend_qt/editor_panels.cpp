@@ -30,22 +30,34 @@ void EditorWindow::RefreshScopes() {
         add(language_.Text(id), {scope, {}});
     };
     const auto model = session_.Selected().model;
-    if (model == 255) {
+    const auto globalItems = [&](bool channels) {
         const std::pair<Track, const char*> names[]{{Track::Camera, "camera"},
                                                     {Track::Light, "light"},
                                                     {Track::Shadow, "shadow"},
                                                     {Track::Gravity, "gravity"}};
+        const auto append = [&](const QString& label, KeyScope scope) {
+            if (channels)
+                add(label, scope);
+            else
+                items.emplace_back(label, QVariant{});
+        };
         for (const auto& name : names)
-            add(language_.Text(name.second), {KeyScopeKind::Track, {name.first, 255, 0, 0}});
+            append(language_.Text(name.second), {KeyScopeKind::Track, {name.first, 255, 0, 0}});
         std::vector<const format::PmmSceneAccessory*> ordered;
         for (const auto& a : session_.Document().accessories)
             ordered.push_back(&a);
         std::stable_sort(ordered.begin(), ordered.end(),
                          [](auto* a, auto* b) { return a->order < b->order; });
         for (const auto* a : ordered)
-            add(Label({a->name.begin(), std::find(a->name.begin(), a->name.end(), 0)}),
-                {KeyScopeKind::Track, {Track::Accessory, a->slot, 0, 0}});
-    } else if (const auto resource = session_.Runtime().Resource(model)) {
+            append(Label({a->name.begin(), std::find(a->name.begin(), a->name.end(), 0)}),
+                   {KeyScopeKind::Track, {Track::Accessory, a->slot, 0, 0}});
+    };
+    if (model != accessoryScopeModel_ ||
+        session_.Runtime().Resource(model) != accessoryScopeResource_.lock())
+        accessoryScopeResource_.reset();
+    if (model == 255)
+        globalItems(true);
+    else if (const auto resource = session_.Runtime().Resource(model)) {
         if (scopeResources_[model].lock() != resource) {
             scopeSelections_[model] = 3;
             scopeResources_[model] = resource;
@@ -81,6 +93,13 @@ void EditorWindow::RefreshScopes() {
             if (group.role == 3)
                 for (const auto& child : group.entries)
                     entry(false, child.index);
+    }
+    // Native 572C0 rebuilds this combo with global labels even in model mode.
+    // Range dispatch still interprets its index in the active model's scopes;
+    // activating the model combo restores the regular labels and selection.
+    if (!accessoryScopeResource_.expired()) {
+        items.clear();
+        globalItems(false);
     }
     SyncComboItems(combo, [&](auto append) {
         for (const auto& item : items)

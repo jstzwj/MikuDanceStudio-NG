@@ -598,5 +598,15 @@
   "dialog.numeric.center_bias.control.1": "Y:",
   "dialog.numeric.center_bias.control.2": "Z:",
   "dialog.numeric.center_bias.control.6": "OK",
-  "dialog.numeric.center_bias.control.7": "cancel"
+  "dialog.numeric.center_bias.control.7": "cancel",
+  "dialog.numeric.accessory_order.title": "accessory",
+  "dialog.numeric.accessory_order.control.1": "name(press 'Enter')",
+  "dialog.numeric.accessory_order.control.3": "drawing order",
+  "dialog.numeric.accessory_order.control.4": "up",
+  "dialog.numeric.accessory_order.control.5": "down",
+  "dialog.numeric.accessory_order.control.7": "over",
+  "dialog.numeric.accessory_order.control.8": "th",
+  "dialog.numeric.accessory_order.control.9": "accessory described after models",
+  "dialog.numeric.accessory_order.control.10": "OK",
+  "dialog.numeric.accessory_order.control.11": "cancel"
 }

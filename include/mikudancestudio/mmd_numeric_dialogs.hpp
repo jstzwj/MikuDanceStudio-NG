@@ -451,4 +451,38 @@ inline constexpr NumericControl kNumericCenterBiasJaControls[] = {
 };
 inline constexpr NumericTemplate kNumericCenterBiasJa = {
     600, 75, 75, 9, "MS PGothic", "dialog.numeric.center_bias.title", kNumericCenterBiasJaControls, 8};
+inline constexpr NumericControl kNumericAccessoryOrderEnControls[] = {
+    {628, 3, 3, 95, 140, NumericControlKind::Listbox, ""},
+    {650, 110, 4, 80, 12, NumericControlKind::Static, "dialog.numeric.accessory_order.control.1"},
+    {629, 106, 15, 65, 12, NumericControlKind::Edit, ""},
+    {-1, 117, 35, 80, 12, NumericControlKind::Static, "dialog.numeric.accessory_order.control.3"},
+    {630, 115, 50, 18, 15, NumericControlKind::Button, "dialog.numeric.accessory_order.control.4"},
+    {631, 145, 50, 18, 15, NumericControlKind::Button, "dialog.numeric.accessory_order.control.5"},
+    {635, 120, 78, 25, 12, NumericControlKind::Edit, ""},
+    {-1, 102, 82, 15, 12, NumericControlKind::Static, "dialog.numeric.accessory_order.control.7"},
+    {-1, 150, 82, 80, 12, NumericControlKind::Static, "dialog.numeric.accessory_order.control.8"},
+    {-1, 102, 90, 80, 16, NumericControlKind::Static, "dialog.numeric.accessory_order.control.9"},
+    {632, 105, 117, 30, 14, NumericControlKind::Button, "dialog.numeric.accessory_order.control.10"},
+    {2, 140, 117, 30, 14, NumericControlKind::Button, "dialog.numeric.accessory_order.control.11"},
+    {633, 0, 0, 0, 0, NumericControlKind::Button, ""},
+};
+inline constexpr NumericTemplate kNumericAccessoryOrderEn = {
+    659, 175, 145, 9, "Arial", "dialog.numeric.accessory_order.title", kNumericAccessoryOrderEnControls, 13};
+inline constexpr NumericControl kNumericAccessoryOrderJaControls[] = {
+    {628, 3, 3, 95, 140, NumericControlKind::Listbox, ""},
+    {650, 110, 4, 80, 12, NumericControlKind::Static, "dialog.numeric.accessory_order.control.1"},
+    {629, 106, 15, 65, 12, NumericControlKind::Edit, ""},
+    {-1, 120, 35, 80, 12, NumericControlKind::Static, "dialog.numeric.accessory_order.control.3"},
+    {630, 115, 50, 15, 15, NumericControlKind::Button, "dialog.numeric.accessory_order.control.4"},
+    {631, 145, 50, 15, 15, NumericControlKind::Button, "dialog.numeric.accessory_order.control.5"},
+    {635, 105, 78, 25, 12, NumericControlKind::Edit, ""},
+    {-1, 130, 80, 80, 12, NumericControlKind::Static, "dialog.numeric.accessory_order.control.7"},
+    {-1, 105, 92, 80, 12, NumericControlKind::Static, "dialog.numeric.accessory_order.control.8"},
+    {-1, 105, 104, 80, 12, NumericControlKind::Static, "dialog.numeric.accessory_order.control.9"},
+    {632, 105, 117, 30, 14, NumericControlKind::Button, "dialog.numeric.accessory_order.control.10"},
+    {2, 140, 117, 30, 14, NumericControlKind::Button, "dialog.numeric.accessory_order.control.11"},
+    {633, 0, 0, 0, 0, NumericControlKind::Button, ""},
+};
+inline constexpr NumericTemplate kNumericAccessoryOrderJa = {
+    627, 175, 145, 9, "MS PGothic", "dialog.numeric.accessory_order.title", kNumericAccessoryOrderJaControls, 13};
 }

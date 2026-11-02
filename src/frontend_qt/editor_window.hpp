@@ -86,6 +86,8 @@ private:
     int frameNormalization_ = 100;
     std::map<std::uint8_t, int> scopeSelections_;
     std::map<std::uint8_t, std::weak_ptr<const runtime::ModelResource>> scopeResources_;
+    std::uint8_t accessoryScopeModel_ = 255;
+    std::weak_ptr<const runtime::ModelResource> accessoryScopeResource_;
     std::vector<editor::KeyScope> scopes_;
     QString lastError_;
     AudioTransport audio_;
@@ -118,6 +120,7 @@ private:
     void BoneScale();
     void PhysicsKeys();
     void ModelOrder(bool calculation);
+    void AccessoryOrder();
     QString ModelLabel(std::uint8_t) const;
     bool Result(bool, const std::string&);
     bool ConfirmUnsaved();

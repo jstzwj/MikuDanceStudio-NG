@@ -228,6 +228,50 @@ int main(int argc, char** argv) {
         CHECK(shadow.New(reason) && !shadow.Document().selfShadowEnabled &&
               shadow.Document().selfShadowMode == 1);
     }
+    {
+        EditorSession order;
+        CHECK(order.ImportModel(root / "triangle.pmx", reason));
+        CHECK(order.SetBone(0, 0, {1, 2, 3}, {0, 0, 0, 1}, reason) && order.Undo(reason));
+        for (const char* file : {"bound-varied.x", "sphere-mul.x", "sphere-add.x"})
+            CHECK(order.ImportAccessory(root / file, reason));
+        CHECK(order.SelectModel(255, reason));
+        CHECK(order.Save(root / "accessory-order.pmm", Write, reason));
+        const auto* runtime = &order.Runtime();
+        const auto frames = runtime->Counters().frames, updates = runtime->Counters().editorUpdates;
+        const auto undo = order.CanUndo(), redo = order.CanRedo();
+        CHECK(order.SetAccessoryOrder({{2, "third"}, {0, "first"}, {1, "second"}}, 1, reason));
+        CHECK(!order.Dirty() && order.Selected().accessory == 2 &&
+              order.Document().selectedAccessorySlot == 2 &&
+              order.Document().physics.accessoryRenderOrder == 1);
+        CHECK(&order.Runtime() == runtime && runtime->Counters().frames == frames &&
+              runtime->Counters().editorUpdates == updates && order.CanUndo() == undo &&
+              order.CanRedo() == redo);
+        auto rows = format::PmmAccessoryOrder(order.Document());
+        CHECK(rows[0].slot == 2 && rows[1].slot == 0 && rows[2].slot == 1 &&
+              std::string(rows[0].name.data()) == "third");
+        const auto revision = order.Revision();
+        CHECK(!order.SetAccessoryOrder({{2, "x"}, {0, "x"}, {2, "x"}}, 1, reason));
+        CHECK(!order.SetAccessoryOrder({{2, "x"}, {0, "x"}, {1, "x"}}, 4, reason));
+        CHECK(
+            !order.SetAccessoryOrder({{2, std::string(100, 'x')}, {0, "x"}, {1, "x"}}, 1, reason));
+        CHECK(order.Revision() == revision);
+        CHECK(order.SelectModel(0, reason) && order.CanRedo() && order.Redo(reason));
+        CHECK(format::PmmAccessoryOrder(order.Document())[0].slot == 2 &&
+              order.Document().physics.accessoryRenderOrder == 1);
+        CHECK(order.Undo(reason) && order.SelectModel(255, reason));
+        CHECK(order.SetAccessoryOrder({{2, "third"}, {0, "first"}, {1, "\xe3\x83\x9f\xe3\x82\xaf"}},
+                                      1, reason));
+        CHECK(order.Save(root / "accessory-order.pmm", Write, reason));
+        CHECK(order.Open(root / "accessory-order.pmm", reason));
+        rows = format::PmmAccessoryOrder(order.Document());
+        CHECK(rows[0].slot == 2 && rows[1].slot == 0 && rows[2].slot == 1 &&
+              std::string(rows[0].name.data()) == "third" &&
+              std::string(rows[2].name.data()) == "\x83\x7e\x83\x4e" &&
+              order.Document().physics.accessoryRenderOrder == 1);
+        CHECK(order.Play(reason) &&
+              !order.SetAccessoryOrder({{2, "x"}, {0, "x"}, {1, "x"}}, 1, reason));
+        order.Pause();
+    }
     for (const char* file : {"facial.pmd", "articulated.pmx"}) {
         EditorSession bone;
         CHECK(BoneScaleFixture(bone, root, file, {0, 0, 0, 1}, reason));

@@ -598,5 +598,15 @@
   "dialog.numeric.center_bias.control.1": "Y:",
   "dialog.numeric.center_bias.control.2": "Z:",
   "dialog.numeric.center_bias.control.6": "确定",
-  "dialog.numeric.center_bias.control.7": "取消"
+  "dialog.numeric.center_bias.control.7": "取消",
+  "dialog.numeric.accessory_order.title": "附件设置",
+  "dialog.numeric.accessory_order.control.1": "名称(按Enter确定)",
+  "dialog.numeric.accessory_order.control.3": "绘制顺序",
+  "dialog.numeric.accessory_order.control.4": "上",
+  "dialog.numeric.accessory_order.control.5": "下",
+  "dialog.numeric.accessory_order.control.7": "第",
+  "dialog.numeric.accessory_order.control.8": "个之后",
+  "dialog.numeric.accessory_order.control.9": "的附件在模型之后绘制",
+  "dialog.numeric.accessory_order.control.10": "确定",
+  "dialog.numeric.accessory_order.control.11": "取消"
 }
