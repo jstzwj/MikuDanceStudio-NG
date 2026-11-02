@@ -2438,3 +2438,22 @@ The explicit native test now requires stop within 100 ms. Local Windows silent
 smoke passed with **3 ms stop**, steady lag **9.034 ms** and unchanged EOF/editor
 clock checks; the deterministic transport regression also passed. Updated native
 three-platform checks, including the Linux diagnostic, remain pending.
+
+The Linux trace at `408dd9c` identified a more specific startup pattern: Qt first
+extrapolated about 70 ms, held position during roughly 1.6 seconds of cold-server
+prebuffering, then advanced at wall rate with a fixed offset. Startup acceptance
+now requires 200 ms of continuous-rate progress within the existing two-second
+budget, instead of accepting the first extrapolated samples. It records both
+first progress and startup clock latency; the subsequent 120-second 100 ms
+drift requirement is unchanged. A later CoreAudio run also exposed a post-start
+underrun, so a single passing virtual-device run does not establish stability.
+
+Qt's PulseAudio/CoreAudio pull refill timers formerly ran on the UI event loop.
+Native output now owns a dedicated Qt thread and an independent QBuffer cursor
+sharing immutable PCM storage. Device creation, refill, clocks and destruction
+stay on that thread; editor work cannot starve refill. Pause/seek flushes its
+queue before replacing the source. The native test deliberately blocks the UI
+for 250 ms and requires clock progress while it is blocked. Local Windows silent
+smoke passed: **250 ms progress**, **5 ms stop**, startup **425 ms**, maximum
+steady lag **23.487 ms**; deterministic audio also passed. Linux/CoreAudio reruns
+of the dedicated-thread implementation remain pending.

@@ -107,18 +107,33 @@ int main(int argc, char** argv) {
         return finish(1, reason);
     report["initializationMilliseconds"] = double(elapsed.elapsed());
     double baseline = .25;
+    double firstProgress = -1;
+    std::vector<std::pair<double, double>> startup;
     while (elapsed.elapsed() <= 2000) {
         app.processEvents();
         const auto position = transport.ClockPosition();
         if (!position || !transport.Error().empty())
             return finish(1, "Native clock stopped during startup: " + transport.Error());
-        if (*position >= .27) {
+        const auto wall = elapsed.nsecsElapsed() / 1e9;
+        if (firstProgress < 0 && *position >= .27)
+            firstProgress = wall;
+        startup.emplace_back(wall, *position);
+        while (startup.size() > 1 && wall - startup[1].first >= .2)
+            startup.erase(startup.begin());
+        // Qt PulseAudio can extrapolate a few samples before the cold server's
+        // prebuffer starts, then stall. Require 200 ms of continuous-rate clock
+        // progress within the same two-second startup budget, not just one tick.
+        const auto interval = wall - startup.front().first;
+        const auto progress = *position - startup.front().second;
+        if (firstProgress >= 0 && interval >= .2 && std::abs(progress - interval) <= .02) {
             baseline = *position;
             break;
         }
         QThread::msleep(5);
     }
     report["startupMilliseconds"] = double(elapsed.elapsed());
+    report["firstProgressMilliseconds"] = firstProgress * 1000;
+    report["startupClockLatencySeconds"] = elapsed.nsecsElapsed() / 1e9 - (baseline - .25);
     if (baseline == .25 || elapsed.elapsed() > 2000)
         return finish(1, "Native output did not start processing within two seconds");
     // A successful start can still be prebuffering (notably a cold PulseAudio
@@ -128,8 +143,19 @@ int main(int argc, char** argv) {
     QJsonArray clockTrace;
     double nextTrace = 0;
     bool clockBudgetFailed = false;
+    bool uiStallChecked = false;
     int advancing = 0;
     while (elapsed.elapsed() < seconds * 1000) {
+        if (!uiStallChecked && elapsed.elapsed() >= 1000) {
+            const auto before = transport.Position();
+            // A slow viewport/edit must not starve the native PCM refill timer.
+            QThread::msleep(250); // Deliberately do not pump the UI event loop.
+            const auto advanced = transport.Position() - before;
+            report["blockedUiClockAdvanceSeconds"] = advanced;
+            if (advanced < .2 || advanced > .35)
+                return finish(1, "UI work starved the native audio output thread");
+            uiStallChecked = true;
+        }
         app.processEvents();
         const auto position = transport.ClockPosition();
         if (!transport.Error().empty())

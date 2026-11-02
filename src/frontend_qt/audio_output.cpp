@@ -2,27 +2,30 @@
 #include <QAudioSink>
 #include <QAudioDevice>
 #include <QMediaDevices>
+#include <QBuffer>
+#include <QThread>
 #include <algorithm>
 namespace mikudancestudio::qt {
 namespace {
-class NativeAudioOutput final : public AudioOutput {
+class NativeAudioEngine final {
 public:
-    bool Start(const QAudioFormat& format, QIODevice& source, float volume,
-               std::string& reason) override {
+    bool Start(const QAudioDevice& device, const QAudioFormat& format, const QByteArray& pcm,
+               qint64 offset, float volume, std::string& reason) {
         Stop();
-        const auto device = QMediaDevices::defaultAudioOutput();
-        if (device.isNull() || !device.isFormatSupported(format)) {
-            reason = "audio-output-format-unavailable";
+        source_ = std::make_unique<QBuffer>();
+        source_->setData(pcm); // Implicit sharing: retain PCM without copying it.
+        if (!source_->open(QIODevice::ReadOnly) || !source_->seek(offset)) {
+            reason = "audio-output-source-unavailable";
+            Stop();
             return false;
         }
         sink_ = std::make_unique<QAudioSink>(device, format);
         format_ = format;
-        source_ = &source;
         // Leave enough queued data for the platform's timer scheduling quantum.
         // The platform may round this up; the clock uses its actual padding.
         sink_->setBufferSize(format.bytesForDuration(100000));
         sink_->setVolume(volume);
-        sink_->start(&source);
+        sink_->start(source_.get());
         if (sink_->error() != QAudio::NoError) {
             reason = "audio-output-start-failed";
             Stop();
@@ -31,21 +34,21 @@ public:
         reason.clear();
         return true;
     }
-    void Stop() override {
+    void Stop() {
         if (sink_)
             // Pause/seek discard queued audio. PulseAudio stop() drains it and
             // can block the UI; reset() flushes it before destroying the sink.
             sink_->reset();
         sink_.reset();
-        source_ = nullptr;
+        source_.reset();
         processed_ = 0;
     }
-    void Volume(float volume) override {
+    void Volume(float volume) {
         if (sink_)
             sink_->setVolume(volume);
     }
-    bool Running() const override { return sink_ && sink_->state() == QAudio::ActiveState; }
-    std::string Error() const override {
+    bool Running() const { return sink_ && sink_->state() == QAudio::ActiveState; }
+    std::string Error() const {
         // Idle at the end of a finite source is normal. Underrun while source
         // data remains and device/IO errors must not silently switch clocks.
         if (!sink_ || sink_->error() == QAudio::NoError ||
@@ -53,7 +56,7 @@ public:
             return {};
         return "audio-output-device-failed";
     }
-    qint64 ProcessedMicroseconds() const override {
+    qint64 ProcessedMicroseconds() const {
         if (!sink_)
             return 0;
         auto processed = sink_->processedUSecs();
@@ -73,8 +76,73 @@ public:
 private:
     std::unique_ptr<QAudioSink> sink_;
     QAudioFormat format_;
-    QIODevice* source_ = nullptr;
+    std::unique_ptr<QBuffer> source_;
     mutable qint64 processed_ = 0;
+};
+class NativeAudioOutput final : public AudioOutput {
+public:
+    NativeAudioOutput() : context_(new QObject) {
+        context_->moveToThread(&thread_);
+        QObject::connect(&thread_, &QThread::finished, context_, &QObject::deleteLater);
+        thread_.setObjectName("MMD audio output");
+        thread_.start();
+    }
+    ~NativeAudioOutput() override {
+        Stop();
+        thread_.quit();
+        thread_.wait();
+    }
+    bool Start(const QAudioFormat& format, QIODevice& source, float volume,
+               std::string& reason) override {
+        const auto device = QMediaDevices::defaultAudioOutput();
+        if (device.isNull() || !device.isFormatSupported(format)) {
+            reason = "audio-output-format-unavailable";
+            return false;
+        }
+        // Transport supplies immutable decoded PCM in a QBuffer. Give the
+        // audio thread its own shared-data cursor; never read a UI-owned device
+        // across threads or depend on the editor/render event loop to refill it.
+        const auto* buffer = qobject_cast<QBuffer*>(&source);
+        if (!buffer) {
+            reason = "audio-output-source-unavailable";
+            return false;
+        }
+        const auto pcm = buffer->data();
+        const auto offset = source.pos();
+        bool result = false;
+        Invoke([&] { result = engine_.Start(device, format, pcm, offset, volume, reason); });
+        return result;
+    }
+    void Stop() override {
+        Invoke([&] { engine_.Stop(); });
+    }
+    void Volume(float volume) override {
+        Invoke([&] { engine_.Volume(volume); });
+    }
+    bool Running() const override {
+        bool result = false;
+        Invoke([&] { result = engine_.Running(); });
+        return result;
+    }
+    std::string Error() const override {
+        std::string result;
+        Invoke([&] { result = engine_.Error(); });
+        return result;
+    }
+    qint64 ProcessedMicroseconds() const override {
+        qint64 result = 0;
+        Invoke([&] { result = engine_.ProcessedMicroseconds(); });
+        return result;
+    }
+
+private:
+    template <class F> void Invoke(F&& function) const {
+        QMetaObject::invokeMethod(context_, std::forward<F>(function),
+                                  Qt::BlockingQueuedConnection);
+    }
+    QThread thread_;
+    QObject* context_;
+    NativeAudioEngine engine_;
 };
 }
 std::unique_ptr<AudioOutput> CreateAudioOutput() {
