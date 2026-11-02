@@ -158,7 +158,9 @@ int main(int argc, char** argv) {
             uiStallChecked = true;
         }
         app.processEvents();
+        const auto readStart = elapsed.nsecsElapsed() / 1e9;
         const auto position = transport.ClockPosition();
+        const auto readEnd = elapsed.nsecsElapsed() / 1e9;
         if (!transport.Error().empty())
             return finish(1, transport.Error());
         const auto wall = elapsed.nsecsElapsed() / 1e9;
@@ -170,9 +172,10 @@ int main(int argc, char** argv) {
         const auto lag = wall - (*position - baseline);
         maximumLag = std::max(maximumLag, lag);
         maximumLead = std::max(maximumLead, -lag);
-        if (wall >= nextTrace) {
+        if (wall >= nextTrace || lag > .1 || lag < -.1) {
             clockTrace.append(QJsonObject{
-                {"wallSeconds", wall}, {"positionSeconds", *position}, {"lagSeconds", lag}});
+                {"wallSeconds", wall}, {"positionSeconds", *position}, {"lagSeconds", lag},
+                {"readStartSeconds", readStart}, {"readEndSeconds", readEnd}});
             nextTrace = wall + (wall < 6 ? .05 : 1);
         }
         report["wallSeconds"] = wall;
@@ -180,8 +183,10 @@ int main(int argc, char** argv) {
         report["maximumLagSeconds"] = maximumLag;
         report["maximumLeadSeconds"] = maximumLead;
         clockBudgetFailed |= lag > .1 || lag < -.1;
-        if (clockBudgetFailed)
+        if (clockBudgetFailed) {
             report["clockTrace"] = clockTrace;
+            report["failedDevice"] = QString::fromStdString(transport.Diagnostic());
+        }
         // Keep a short trace after a failed sample to distinguish cold-start
         // prebuffering from continuing device-clock drift. The failure remains.
         if (clockBudgetFailed && wall >= 6)
