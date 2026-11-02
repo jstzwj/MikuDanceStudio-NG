@@ -1,12 +1,16 @@
 #include "allocation_counter.hpp"
 #include "editor_window.hpp"
+#include "mikudancestudio/rhi_scene_renderer.hpp"
 #include <QApplication>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <chrono>
 #include <cmath>
 #include <fstream>
 #include <iostream>
 #include <iomanip>
 #include <stdexcept>
+#include <string_view>
 using namespace mikudancestudio;
 using Clock = std::chrono::steady_clock;
 std::string reason;
@@ -19,7 +23,7 @@ double Ms(Clock::time_point a, Clock::time_point b) {
     return std::chrono::duration<double, std::milli>(b - a).count();
 }
 struct Sample {
-    double update, prepare, scene, overlay, total;
+    double update, prepare, scene, overlay, replay, completion, total;
     std::size_t allocations, bytes;
 };
 template <class F> double Percentile(const std::vector<Sample>& samples, F field, double p) {
@@ -31,11 +35,50 @@ template <class F> double Percentile(const std::vector<Sample>& samples, F field
 }
 int main(int argc, char** argv) try {
     QApplication app(argc, argv);
-    CHECK(argc == 4);
+    CHECK(argc == 4 || (argc == 5 && std::string_view(argv[4]) == "--gpu"));
+    CHECK(QGuiApplication::platformName() == "offscreen");
+    const bool measureGpu = argc == 5;
     const auto input = qt::Path(QString::fromLocal8Bit(argv[1]));
     qt::EditorWindow window(std::filesystem::absolute(argv[2]), true);
     auto& session = window.Session();
     auto* viewport = window.RenderWindow();
+    auto options = viewport->Options();
+    const auto backend = qEnvironmentVariable("MDS_GPU_BACKEND");
+    if (backend == "d3d11")
+        options.backend = rhi::Backend::D3D11;
+    else if (backend == "d3d12")
+        options.backend = rhi::Backend::D3D12;
+    else if (backend == "vulkan")
+        options.backend = rhi::Backend::Vulkan;
+    else if (backend == "metal")
+        options.backend = rhi::Backend::Metal;
+    else
+        CHECK(backend.isEmpty());
+    rhi::OffscreenBackendDevice gpu;
+    std::unique_ptr<rhi::SceneRenderer> renderer;
+    rhi::PreparedModelFrame prepared;
+    const auto render = [&]() -> std::pair<double, double> {
+        if (!renderer)
+            return {};
+        const auto start = Clock::now();
+        auto frame = viewport->PreparedFrame();
+        CHECK(rhi::ApplyMaterialSampling(frame, options.materialSampling));
+        auto result = renderer->Prepare(1, frame, prepared);
+        reason = result.reason;
+        CHECK(result);
+        const auto ready = Clock::now();
+        rhi::CompletionToken completion;
+        result = renderer->Submit(prepared, completion);
+        reason = result.reason;
+        CHECK(result && gpu.device->WaitCompletion(completion, 5000) && renderer->Collect());
+        return {Ms(start, ready), Ms(ready, Clock::now())};
+    };
+    if (measureGpu) {
+        gpu = rhi::CreateOffscreenBackendDevice(640, 480, options);
+        reason = gpu.reason;
+        CHECK(gpu);
+        renderer = std::make_unique<rhi::SceneRenderer>(*gpu.device);
+    }
     viewport->SetFrameProfiling(true);
     CHECK(session.ImportModel(input, reason));
     CHECK(session.SetBone(0, 0, {0, 0, 0}, {0, 0, 0, 1}, reason));
@@ -57,12 +100,15 @@ int main(int argc, char** argv) try {
     CHECK(viewport->PrepareFrame(640, 480, reason));
     const auto coldMs = Ms(coldStart, Clock::now());
     CHECK(rhi::ValidateRenderFrame(viewport->PreparedFrame()));
+    CHECK(session.Document().view.captureMode == 0);
+    render();
     const auto retained = viewport->PreparedFrame();
     std::vector<rhi::SnapshotBytes> retainedBytes;
     for (const auto& resource : retained.resources)
         retainedBytes.emplace_back(resource.bytes.begin(), resource.bytes.end());
     // Budgets are fixed before sampling. CI is a shared virtual-machine profile;
-    // these bound CPU stalls, not physical GPU or 60fps release qualification.
+    // GPU mode includes submission/completion in the same frame budget. It
+    // does not measure presentation, physical-display latency or release GPUs.
     const bool ci = qEnvironmentVariableIsSet("CI");
     const double p95Budget = ci ? 100 : 33.333334, maxBudget = ci ? 500 : 100;
     std::ofstream report(std::filesystem::u8path(argv[3]));
@@ -71,7 +117,12 @@ int main(int argc, char** argv) try {
     report << std::setprecision(8) << "{\"schema\":1,\"profile\":\"" << (ci ? "ci" : "local")
            << "\",\"vertices\":" << session.Runtime().Snapshot(0)->vertices.size()
            << ",\"cold_prepare_ms\":" << coldMs << ",\"p95_budget_ms\":" << p95Budget
-           << ",\"max_budget_ms\":" << maxBudget << ",\"cases\":[";
+           << ",\"max_budget_ms\":" << maxBudget
+           << ",\"gpu_completion_in_total\":" << (measureGpu ? "true" : "false")
+           << ",\"backend\":" << int(options.backend) << ",\"adapter\":";
+    const auto adapter = QJsonDocument(QJsonArray{QString::fromStdString(gpu.adapter)})
+                             .toJson(QJsonDocument::Compact);
+    report << adapter.mid(1, adapter.size() - 2).constData() << ",\"cases\":[";
     bool withinBudget = true;
     for (unsigned mode = 0; mode < 5; ++mode) {
         const char* name = mode == 0   ? "static"
@@ -102,6 +153,7 @@ int main(int argc, char** argv) try {
         for (unsigned i = 0; i < 10; ++i) {
             step();
             CHECK(viewport->PrepareFrame(640, 480, reason));
+            render();
         }
         std::vector<Sample> samples;
         samples.reserve(90);
@@ -116,11 +168,14 @@ int main(int argc, char** argv) try {
             step();
             const auto update = Clock::now();
             CHECK(viewport->PrepareFrame(640, 480, reason));
+            const auto preparedAt = Clock::now();
+            const auto [replay, completion] = render();
             const auto end = Clock::now();
             allocation_counter::End();
-            samples.push_back({Ms(start, update), Ms(update, end), viewport->CpuTimings().scene,
-                               viewport->CpuTimings().overlay, Ms(start, end),
-                               allocation_counter::count, allocation_counter::bytes});
+            samples.push_back({Ms(start, update), Ms(update, preparedAt),
+                               viewport->CpuTimings().scene, viewport->CpuTimings().overlay, replay,
+                               completion, Ms(start, end), allocation_counter::count,
+                               allocation_counter::bytes});
         }
         CHECK(session.Runtime().Counters().frames - updates == (mode == 2 || mode == 3 ? 90 : 0));
         CHECK(session.Runtime().Counters().editorUpdates - editorUpdates == (mode == 4 ? 90 : 0));
@@ -129,7 +184,7 @@ int main(int argc, char** argv) try {
         CHECK(viewport->FrameBuilds() - builds == (mode ? 90 : 0));
         CHECK(session.Playing() == (mode == 2));
         CHECK(viewport->Submissions() == 0 && !window.isVisible());
-        if (!mode)
+        if (!mode && !measureGpu)
             for (const auto& sample : samples)
                 CHECK(sample.allocations == 0 && sample.bytes == 0);
         CHECK(rhi::ValidateRenderFrame(viewport->PreparedFrame()));
@@ -149,6 +204,12 @@ int main(int argc, char** argv) try {
                << ",\"overlay_p95_ms\":"
                << Percentile(
                       samples, [](const auto& s) { return s.overlay; }, .95)
+               << ",\"replay_p95_ms\":"
+               << Percentile(
+                      samples, [](const auto& s) { return s.replay; }, .95)
+               << ",\"submit_and_completion_p95_ms\":"
+               << Percentile(
+                      samples, [](const auto& s) { return s.completion; }, .95)
                << ",\"total_p95_ms\":" << p95 << ",\"total_max_ms\":" << maximum
                << ",\"cpp_allocations_p95\":"
                << Percentile(
@@ -163,11 +224,27 @@ int main(int argc, char** argv) try {
     for (std::size_t i = 0; i < retained.resources.size(); ++i)
         CHECK(retained.resources[i].bytes == retainedBytes[i]);
     session.Pause();
+    if (renderer) {
+        // Explicit readback is outside all timed frames. Verify repeated final
+        // color is byte-identical; normal submissions above never read images.
+        rhi::AttachmentReadback first, second;
+        CHECK(renderer->ReadTarget(1, viewport->PreparedFrame().finalColor, first));
+        render();
+        CHECK(renderer->ReadTarget(1, viewport->PreparedFrame().finalColor, second));
+        CHECK(first.description.width == 640 && first.description.height == 480 &&
+              first.bytes.size() == 640 * 480 * 4 && first.bytes == second.bytes);
+    }
     CHECK(session.UnloadModel(0, reason));
     CHECK(viewport->PrepareFrame(641, 479, reason));
     CHECK(rhi::ValidateRenderFrame(viewport->PreparedFrame()));
     CHECK(viewport->Submissions() == 0);
-    report << "],\"retained_frame_immutable\":true,\"gpu_submissions\":0}\n";
+    render();
+    const auto submissions = renderer ? renderer->Stats().submissions : 0;
+    CHECK(!measureGpu || submissions == 503);
+    if (renderer)
+        CHECK(renderer->Unload(1) && renderer->Collect());
+    report << "],\"retained_frame_immutable\":true,\"gpu_submissions\":" << submissions
+           << ",\"timed_image_readbacks\":0}\n";
     CHECK(report.good());
     CHECK(withinBudget);
     return 0;

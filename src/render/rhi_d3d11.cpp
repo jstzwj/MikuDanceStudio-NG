@@ -2,7 +2,7 @@
 #define NOMINMAX
 #include <Windows.h>
 #include <d3d11.h>
-#include <dxgi.h>
+#include <dxgi1_2.h>
 #include <d3dcompiler.h>
 #include <wrl/client.h>
 #include "mikudancestudio/rhi_d3d11.hpp"
@@ -557,6 +557,28 @@ public:
         return CompletionState::Complete;
     }
     bool WaitCompletion(CompletionToken token, std::uint32_t timeout) override {
+        const auto initial = PollCompletion(token);
+        if (initial != CompletionState::Pending || !timeout)
+            return initial == CompletionState::Complete;
+        // A one-millisecond Sleep can occupy a full Windows timer quantum.
+        // Wait on the native queue event instead; do not change system-wide
+        // timer resolution or spin the editor thread while the GPU runs.
+        ComPtr<IDXGIDevice2> queue;
+        if (SUCCEEDED(native.As(&queue))) {
+            const HANDLE event = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+            if (event) {
+                const auto queued = queue->EnqueueSetEvent(event);
+                DWORD waited = WAIT_FAILED;
+                if (SUCCEEDED(queued)) {
+                    context->Flush();
+                    waited = WaitForSingleObject(event, timeout);
+                }
+                CloseHandle(event);
+                if (SUCCEEDED(queued))
+                    return waited == WAIT_OBJECT_0 &&
+                           PollCompletion(token) == CompletionState::Complete;
+            }
+        }
         const auto deadline = GetTickCount64() + timeout;
         do {
             const auto state = PollCompletion(token);

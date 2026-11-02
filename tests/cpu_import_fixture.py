@@ -58,7 +58,7 @@ def pmd(texture='checker.bmp', alpha=1, bones=None, bone_types=None, bone_parent
     return b
 
 
-def pmx(material_flags=0x11, tint_morphs=False, display_groups=False, extra_uv=0, subtexture=False, base=True, tail_offset=False, copies=1, outline=False):
+def pmx(material_flags=0x11, tint_morphs=False, display_groups=False, extra_uv=0, subtexture=False, base=True, tail_offset=False, copies=1, outline=False, tile_copies=False):
     assert 1 <= copies <= 21845
     b = Bytes(b'PMX '); b.f(2); b.u8(8)
     b.extend(bytes((0, extra_uv, 2, 1, 1, 1, 1, 1)))
@@ -67,6 +67,16 @@ def pmx(material_flags=0x11, tint_morphs=False, display_groups=False, extra_uv=0
     for n in range(3 * copies):
         index = n % 3
         p = POSITIONS[index]
+        if tile_copies:
+            # Keep the same vertex workload while covering a bounded area.
+            # Thousands of coincident full-screen triangles measure pathological
+            # overdraw rather than a representative editor GPU frame.
+            from math import isqrt
+            columns = isqrt(copies - 1) + 1
+            rows = (copies + columns - 1) // columns
+            tile = n // 3
+            p = ((p[0] + 10 + 20 * (tile % columns)) / columns - 10,
+                 (p[1] + 8 + 18 * (tile // columns)) / rows - 8, p[2])
         b.f(*p)
         if outline:
             length = (p[0] ** 2 + p[1] ** 2) ** .5

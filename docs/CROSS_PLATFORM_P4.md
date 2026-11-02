@@ -2569,3 +2569,23 @@ x64's D latch is at app+44. Existing 18 shadow-switch, nine FPS and all auxiliar
 command/hidden-control cases still pass. Local Qt audio/menu regressions passed.
 The menu implements **71/103** commands. This is not native audio qualification
 or complete P4 acceptance.
+
+## Complete offscreen frame cost, including GPU completion
+
+The performance harness now has a separate GPU profile. It prepares the actual
+Qt viewport frame and overlays, submits the shared scene renderer, waits for
+completion and collects resources inside each sample. The generated fixture
+tiles its 8,190 vertices rather than stacking thousands of coincident triangles.
+Five modes retain the existing budgets: local p95 33.333334 ms / maximum 100 ms;
+shared CI p95 100 ms / maximum 500 ms. There are 503 submissions, no timed image
+readbacks, a byte-exact repeated final-color check, retained-frame immutability
+and an unload/resize submission. Presentation latency remains a separate gate.
+
+DX11 completion now waits on a native DXGI queue event instead of sleeping for
+a Windows timer quantum. Ten local offscreen GPU/render/dynamic-buffer tests
+passed. The generated WARP GPU profile passed in 4.89 seconds. Sour Miku on
+TITAN Xp improved from 16.38 ms to 3.76 ms p95 for static DX11 frames and from
+31.56 ms to 17.15 ms for navigation. Its animation, paused-physics and bone-edit
+cases still exceed the local budget on one or more backends; all three hardware
+reports correctly fail the unchanged gate. CPU update and geometry publication
+remain optimization work. These results do not close the P4 performance gate.

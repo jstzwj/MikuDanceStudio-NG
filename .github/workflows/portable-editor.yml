@@ -127,7 +127,7 @@ jobs:
           path: |
             out/p4/p4.xml
             out/p4/distribution-check.*
-            out/p4/editor-frame-performance.json
+            out/p4/editor-frame-performance*.json
             out/p4/native-audio*.json
             out/p4/Testing/Temporary/
   linux:
@@ -228,7 +228,7 @@ jobs:
           path: |
             out/p4/p4.xml
             out/p4/distribution-check.*
-            out/p4/editor-frame-performance.json
+            out/p4/editor-frame-performance*.json
             out/p4/native-audio*.json
             out/p4/Testing/Temporary/
   macos:
@@ -348,7 +348,7 @@ jobs:
             out/p4/p4.xml
             out/p4/distribution-check.*
             out/p4/metal-only-distribution.*
-            out/p4/editor-frame-performance.json
+            out/p4/editor-frame-performance*.json
             out/p4/native-audio*.json
             out/p4/Testing/Temporary/
   release:
