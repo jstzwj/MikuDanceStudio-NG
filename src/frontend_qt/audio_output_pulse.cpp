@@ -3,6 +3,7 @@
 #include <QBuffer>
 #include <QMediaDevices>
 #include <pulse/pulseaudio.h>
+#include <pulse/rtclock.h>
 #include <pulse/timeval.h>
 #include <algorithm>
 #include <array>
@@ -163,6 +164,9 @@ public:
         loopStarted_ = false;
         pcm_.clear();
         processed_ = duration_ = cursor_ = start_ = 0;
+        tail_ = false;
+        tailPosition_ = 0;
+        tailTime_ = 0;
         error_.clear();
         nativeError_.clear();
         drained_ = operationDone_ = uncorked_ = false;
@@ -177,7 +181,10 @@ public:
         if (!loop_)
             return false;
         Lock locked(loop_);
-        return error_.empty() && stream_ && (!drained_ || ProcessedLocked() < duration_);
+        if (!error_.empty() || !stream_)
+            return false;
+        const auto position = ProcessedLocked();
+        return cursor_ < pcm_.size() || position < duration_;
     }
     qint64 ProcessedMicroseconds() const override {
         if (!loop_)
@@ -199,7 +206,7 @@ public:
         result << "pulse state=" << (stream_ ? int(pa_stream_get_state(stream_)) : -1)
                << " source=" << cursor_ - start_ << '/' << pcm_.size() - start_
                << " processed-us=" << ProcessedLocked() << " duration-us=" << duration_
-               << " drained=" << drained_ << " error=" << nativeError_;
+               << " drained=" << drained_ << " native-tail=" << tail_ << " error=" << nativeError_;
         if (stream_)
             if (const auto* timing = pa_stream_get_timing_info(stream_))
                 result << " read=" << timing->read_index << " write=" << timing->write_index
@@ -227,6 +234,34 @@ private:
         pa_usec_t played;
         if (stream_ && pa_stream_get_time(stream_, &played) >= 0)
             processed_ = std::max(processed_, std::min(duration_, qint64(played)));
+        if (!stream_ || pa_stream_get_state(stream_) != PA_STREAM_READY)
+            return processed_;
+        if (pa_stream_is_suspended(stream_) != 0) {
+            tail_ = false;
+            return processed_;
+        }
+        const auto* timing = pa_stream_get_timing_info(stream_);
+        if (!tail_ && timing && !timing->read_index_corrupt && !timing->write_index_corrupt &&
+            !timing->playing && cursor_ == pcm_.size() &&
+            timing->read_index >= pcm_.size() - start_ &&
+            timing->write_index == pcm_.size() - start_) {
+            // Once the server has consumed the final sample its read index
+            // stops advancing. Later sink latency includes unrelated silence;
+            // repeatedly subtracting it freezes get_time before the real tail.
+            // Anchor that last native sample index and measured device queue
+            // once, then let only that queue finish on Pulse's monotonic clock.
+            // A drain acknowledgement can be delayed by the sink's rewind
+            // history and is not the played-sample timestamp.
+            const auto end = format_.durationForBytes(timing->write_index);
+            tailPosition_ =
+                end - qint64(timing->sink_usec) + qint64(pa_timeval_age(&timing->timestamp));
+            tailTime_ = pa_rtclock_now();
+            tail_ = true;
+        }
+        if (tail_)
+            processed_ = std::max(processed_,
+                                  std::clamp(tailPosition_ + qint64(pa_rtclock_now() - tailTime_),
+                                             qint64(0), duration_));
         return processed_;
     }
     void Write(std::size_t requested) {
@@ -327,6 +362,9 @@ private:
     QAudioFormat format_;
     qint64 start_ = 0, cursor_ = 0, duration_ = 0;
     mutable qint64 processed_ = 0;
+    mutable bool tail_ = false;
+    mutable qint64 tailPosition_ = 0;
+    mutable pa_usec_t tailTime_ = 0;
     float volume_ = 1;
     std::string error_, nativeError_;
 };

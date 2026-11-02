@@ -197,7 +197,10 @@ jobs:
         run: |
           sudo apt-get install -y pulseaudio pulseaudio-utils
           pulseaudio --start --exit-idle-time=-1
-          pactl load-module module-null-sink sink_name=mds_acceptance rate=48000 channels=2
+          # Bound this explicit virtual-device profile to a 50 ms maximum
+          # queue. The module's default rewind history starts at two seconds,
+          # independently of the stream's requested 100 ms buffer.
+          pactl load-module module-null-sink sink_name=mds_acceptance rate=48000 channels=2 norewinds=1
           pactl set-default-sink mds_acceptance
           smoke_status=0
           python tests/test_native_audio.py --test out/p4/qt_native_audio_test --seconds 3 --report out/p4/native-audio-smoke.json || smoke_status=$?
