@@ -2893,3 +2893,30 @@ passed in 128.81 seconds**, followed by the strengthened exact-value regression
 in 11.61 seconds. The legacy application also built successfully. Tests used
 offscreen or never-shown windows; no local desktop interaction occurred.
 This closes the mouth-shift command, not the remaining C1 input/output gates.
+
+## Native low-power idle frame gate (2026-11-03)
+
+Command 299 and checkbox 552 now share the same live setting in Qt, independent
+of WAV gain and document history. Input wakes the scene at state 1; two settling
+frames advance through 2 and 3, then state 0 skips paused physics, scene rendering
+and presentation. Playback always restarts the gate. Paint/update/timer events do
+not wake it. Panel, timeline, interpolation, viewport, IME, resize and focus input
+are connected; commands and explicit document refresh also wake the frame loop.
+The setting survives language changes and detached-window rebuilding and is
+stored in application settings, outside PMM and undo history.
+
+The legacy frame driver and Qt use one gate kernel. The original executable's
+actual gate instructions passed **432 exact full-application checkpoints**, with
+raw states 0/1/2/3/7/UINT_MAX, noncanonical enable/play bytes and the original
+English-name-dialog override. Only an unrelated stack spill is omitted from the
+isolated native wrapper. The full original dispatcher passed **48 command cases**
+for menu/checkbox, raw flag, menu authority, playback and floating-window owner;
+checkbox message routing and all application bytes were checked.
+
+Three-language Qt tests confirm zero idle updates after settling, no paint
+self-wake, input wake, uninterrupted playback, resumed continuous updates and
+unchanged revision/history on toggling. The implemented command count is now
+**79/103**. All **35 local P4 tests passed in 122.69 seconds**, and the legacy
+application rebuilt. The still-unimplemented English-name window must connect
+its lifetime to the tested override when that dialog is added; complete native
+input and C1 output acceptance remain open.

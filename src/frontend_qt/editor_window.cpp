@@ -1,4 +1,5 @@
 #include "editor_window.hpp"
+#include "mikudancestudio/idle_render_gate.hpp"
 #include "combo_items.hpp"
 #include "export.hpp"
 #include "numeric_dialog.hpp"
@@ -170,8 +171,10 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     canvas_->installEventFilter(this);
     setCentralWidget(canvas_);
     timeline_ = new Timeline(session_, language_, assets_, canvas_);
+    timeline_->installEventFilter(this);
     timeline_->changed = [this] { Refresh(); };
     interpolation_ = new Interpolation(session_, canvas_);
+    interpolation_->installEventFilter(this);
     interpolation_->changed = [this](bool ok, const std::string& reason) {
         Result(ok, reason);
         Refresh();
@@ -238,6 +241,7 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     CreateViewport(options);
     if (!testing_) {
         QSettings settings;
+        lowPower_ = settings.value("editor/lowPower", false).toBool();
         language_.Set(settings.value("language", language_.Code()).toString());
         separateGeometry_ = settings.value("viewport/separateGeometry").toByteArray();
         separateSize_ = settings.value("viewport/separateSize", separateSize_).toSize();
@@ -266,6 +270,9 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
 }
 void EditorWindow::Tick(double seconds) {
     if (!std::isfinite(seconds) || seconds < 0)
+        return;
+    AdvanceIdleRenderGate(idleRenderState_, session_.Playing(), lowPower_, false);
+    if (!idleRenderState_)
         return;
     if (session_.Playing()) {
         const auto audioError = audio_.Error();
@@ -309,6 +316,7 @@ EditorWindow::~EditorWindow() {
     delete gravityDialog_.data();
     if (!testing_) {
         QSettings settings;
+        settings.setValue("editor/lowPower", lowPower_);
         settings.setValue("viewport/separate", separate_ != nullptr || restoreSeparate_);
         settings.setValue("viewport/alwaysOnTop", separateOnTop_);
         settings.setValue("viewport/separateGeometry",
@@ -633,6 +641,7 @@ void EditorWindow::RefreshFrameTimer() {
         timer_.setInterval(interval);
 }
 void EditorWindow::Refresh() {
+    idleRenderState_ = 1;
     refreshing_ = true;
     RefreshFrameTimer();
     if (!session_.Playing())
@@ -1296,6 +1305,7 @@ void EditorWindow::GravitySettings() {
         gravityDialog_->show();
 }
 void EditorWindow::Dispatch(int id) {
+    idleRenderState_ = 1;
     if (PanelCommand(id)) {
         Refresh();
         return;
@@ -1304,6 +1314,9 @@ void EditorWindow::Dispatch(int id) {
     bool ok = true;
     const auto current = unsigned(session_.Document().timeline.currentFrame);
     switch (id) {
+    case kFrameVolumeCheckbox:
+        MenuCommand(MDS_CMD_TOGGLE_LOW_POWER);
+        return;
     case kPhysicsCheckbox:
         session_.SetRegistrationPhysics(static_cast<QAbstractButton*>(Control(id))->isChecked());
         break;
@@ -1660,6 +1673,29 @@ void EditorWindow::FinishSidebarDrag() {
     canvas_->setCursor(sidebarCursor_);
 }
 bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
+    // Timer/paint/update events must not wake a sleeping scene themselves.
+    switch (event->type()) {
+    case QEvent::KeyPress:
+    case QEvent::KeyRelease:
+    case QEvent::MouseButtonPress:
+    case QEvent::MouseButtonRelease:
+    case QEvent::MouseButtonDblClick:
+    case QEvent::MouseMove:
+    case QEvent::Wheel:
+    case QEvent::InputMethod:
+    case QEvent::FocusIn:
+    case QEvent::FocusOut:
+    case QEvent::WindowActivate:
+    case QEvent::WindowDeactivate:
+    case QEvent::Resize:
+    case QEvent::Expose:
+    case QEvent::Show:
+    case QEvent::Hide:
+        idleRenderState_ = 1;
+        break;
+    default:
+        break;
+    }
     if (separate_ && object == separate_) {
         if (event->type() == QEvent::Close) {
             static_cast<QCloseEvent*>(event)->ignore();

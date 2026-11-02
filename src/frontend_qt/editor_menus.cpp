@@ -133,6 +133,7 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_MODEL_TRANSPARENCY:
     case MDS_CMD_TOGGLE_MODEL_NON_DISPLAY:
     case MDS_CMD_TOGGLE_PLAYBACK_PHYSICS_ON_OFF:
+    case MDS_CMD_TOGGLE_LOW_POWER:
         return true;
     default:
         return false;
@@ -278,6 +279,7 @@ void EditorWindow::RefreshMenus() {
     check(MDS_CMD_TOGGLE_GROUND_SHADOW, doc.view.groundShadow);
     check(MDS_CMD_TOGGLE_SELF_SHADOW, doc.selfShadowEnabled != 0);
     check(MDS_CMD_TOGGLE_WAVE_DISABLED, session_.PlaybackAudioDisabled());
+    check(MDS_CMD_TOGGLE_LOW_POWER, lowPower_);
     check(MDS_CMD_TOGGLE_PLAYBACK_PHYSICS_ON_OFF, session_.PlaybackPhysicsOnOff());
     check(MDS_CMD_TOGGLE_MODEL_TRANSPARENCY, session_.DisplayOptions().transparentModels);
     check(MDS_CMD_TOGGLE_MODEL_NON_DISPLAY, session_.DisplayOptions().hideModels);
@@ -298,6 +300,7 @@ void EditorWindow::MenuCommand(int command) {
     const auto found = menuActions_.find(command);
     if (found == menuActions_.end() || !found->second->isEnabled())
         return;
+    idleRenderState_ = 1;
     if (const auto* name = FileCommand(command)) {
         FileAction(name);
         return;
@@ -315,6 +318,13 @@ void EditorWindow::MenuCommand(int command) {
         // Native 297 only changes the startup/loop gate. Current PCM playback
         // continues; the switch does not mute, stop or seek the active device.
         session_.SetPlaybackAudioDisabled(!session_.PlaybackAudioDisabled());
+        RefreshMenus();
+        return;
+    }
+    if (command == MDS_CMD_TOGGLE_LOW_POWER) {
+        lowPower_ = !lowPower_;
+        idleRenderState_ = 1;
+        static_cast<QAbstractButton*>(Control(panel::kFrameVolumeCheckbox))->setChecked(lowPower_);
         RefreshMenus();
         return;
     }

@@ -16,6 +16,7 @@
 #include "mikudancestudio/gravity_edit.hpp"
 #include "mikudancestudio/camera_key_math.hpp"
 #include "mikudancestudio/cpu_model_state.hpp"
+#include "mikudancestudio/idle_render_gate.hpp"
 #include <cstdio>
 #include <climits>
 #include <cstdlib>
@@ -387,6 +388,112 @@ unsigned PlaybackPhysicsSwitchCommands(OriginalPhysicsModule& original) {
                           "native playback physics switch changes only next-start policy");
                     ++count;
                 }
+    return count;
+}
+HWND lowPowerOwner;
+unsigned lowPowerMessages;
+HWND WINAPI LowPowerChild(HWND owner, int id) {
+    Check(owner == lowPowerOwner && id == panel::kFrameVolumeCheckbox,
+          "native low-power checkbox owner");
+    return reinterpret_cast<HWND>(552);
+}
+LRESULT WINAPI LowPowerMessage(HWND window, UINT message, WPARAM value, LPARAM extra) {
+    Check(window == reinterpret_cast<HWND>(552) && message == BM_SETCHECK &&
+              value == !shadowMenuChecked && !extra,
+          "native low-power checkbox state");
+    ++lowPowerMessages;
+    return 0;
+}
+unsigned LowPowerCommands(OriginalPhysicsModule& original) {
+    switchMenuCommand = MDS_CMD_TOGGLE_LOW_POWER;
+    void* menu = reinterpret_cast<void*>(&ShadowMenu);
+    void* state = reinterpret_cast<void*>(&ShadowMenuState);
+    void* check = reinterpret_cast<void*>(&ShadowMenuCheck);
+    void* child = reinterpret_cast<void*>(&LowPowerChild);
+    void* message = reinterpret_cast<void*>(&LowPowerMessage);
+    Patch a(original.Function<void*>(0x1286a0), &menu, sizeof menu);
+    Patch b(original.Function<void*>(0x128660), &state, sizeof state);
+    Patch c(original.Function<void*>(0x1287a0), &check, sizeof check);
+    Patch d(original.Function<void*>(0x128658), &child, sizeof child);
+    Patch e(original.Function<void*>(0x1287b8), &message, sizeof message);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    unsigned count = 0;
+    for (unsigned raw : {0u, 1u, 7u})
+        for (bool checked : {false, true})
+            for (bool playing : {false, true})
+                for (bool floating : {false, true})
+                    for (bool button : {false, true}) {
+                        std::memset(app.get(), 0, sizeof(*app));
+                        app->frameVolumeControlEnabled = std::uint8_t(raw);
+                        app->playbackActive = playing;
+                        app->floatingWindow = floating ? reinterpret_cast<HWND>(42) : nullptr;
+                        app->sceneModified = 0x7d;
+                        app->physicsResetPending = 1;
+                        app->messageSeen = 7;
+                        auto expected = std::make_unique<MMDAppState>(*app);
+                        expected->frameVolumeControlEnabled = !checked;
+                        lowPowerOwner = app->floatingWindow;
+                        shadowMenuChecked = checked;
+                        shadowMenuWrites = lowPowerMessages = 0;
+                        original.Function<void (*)(HWND, WPARAM)>(0x3f550)(
+                            nullptr, button ? panel::kFrameVolumeCheckbox : switchMenuCommand);
+                        Check(shadowMenuWrites == 1 && lowPowerMessages == unsigned(!button) &&
+                                  !std::memcmp(app.get(), expected.get(), sizeof(*app)),
+                              "native low-power menu authority and complete application state");
+                        ++count;
+                    }
+    return count;
+}
+unsigned LowPowerFrameGate(OriginalPhysicsModule& original) {
+    // Execute the original gate instructions, preserving its three nonvolatile
+    // registers. Only the unrelated frame-driver stack spill is omitted.
+    const unsigned char spill[]{0x48, 0x89, 0x8d, 0xe0, 0, 0, 0};
+    Check(!std::memcmp(original.Function<void*>(0x27568), spill, sizeof spill),
+          "native render-gate spill identity");
+    const unsigned char nops[]{0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90};
+    const unsigned char done[]{0x41, 0x5f, 0x41, 0x5e, 0x41, 0x5c, 0xc3};
+    Patch skip(original.Function<void*>(0x27568), nops, sizeof nops);
+    Patch tail(original.Function<void*>(0x275e5), done, sizeof done);
+    std::vector<unsigned char> code{0x41, 0x54, 0x41, 0x56, 0x41, 0x57, 0x48, 0xb8};
+    const auto entry = reinterpret_cast<std::uintptr_t>(original.Function<void*>(0x2755e));
+    for (unsigned shift = 0; shift < 64; shift += 8)
+        code.push_back(std::uint8_t(entry >> shift));
+    code.insert(code.end(), {0xff, 0xe0});
+    void* memory = VirtualAlloc(nullptr, code.size(), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    Check(memory != nullptr, "render-gate wrapper allocation");
+    std::memcpy(memory, code.data(), code.size());
+    DWORD protection;
+    Check(VirtualProtect(memory, code.size(), PAGE_EXECUTE_READ, &protection),
+          "render-gate wrapper executable");
+    FlushInstructionCache(GetCurrentProcess(), memory, code.size());
+    const auto execute = reinterpret_cast<void (*)(MMDAppState*)>(memory);
+    auto app = std::make_unique<MMDAppState>();
+    unsigned count = 0;
+    for (unsigned state : {0u, 1u, 2u, 3u, 7u, UINT_MAX})
+        for (unsigned playing : {0u, 1u, 7u})
+            for (unsigned low : {0u, 1u, 7u})
+                for (bool dialog : {false, true}) {
+                    std::memset(app.get(), 0, sizeof(*app));
+                    app->messageSeen = state;
+                    app->playbackActive = std::uint8_t(playing);
+                    app->frameVolumeControlEnabled = std::uint8_t(low);
+                    auto* bytes = reinterpret_cast<unsigned char*>(app.get());
+                    bytes[0xa1b98] = dialog;
+                    app->sceneModified = 0x7d;
+                    app->physicsResetPending = 1;
+                    auto expected = std::make_unique<MMDAppState>(*app);
+                    for (int step = 0; step < 4; ++step) {
+                        AdvanceIdleRenderGate(expected->messageSeen, playing != 0, low != 0,
+                                              dialog);
+                        execute(app.get());
+                        Check(!std::memcmp(app.get(), expected.get(), sizeof(*app)),
+                              "native render gate state and complete application bytes");
+                        ++count;
+                    }
+                }
+    VirtualFree(memory, 0, MEM_RELEASE);
     return count;
 }
 unsigned ModelRenderFlags(OriginalPhysicsModule& original, const std::filesystem::path& root) {
@@ -1583,11 +1690,18 @@ int wmain(int argc, wchar_t** argv) try {
           "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
     if (argc == 4) {
+        if (std::wcscmp(argv[3], L"--low-power") == 0) {
+            std::printf("%u original low-power commands and %u render-gate checkpoints passed\n",
+                        LowPowerCommands(original), LowPowerFrameGate(original));
+            return 0;
+        }
         Check(std::wcscmp(argv[3], L"--mouth-shift") == 0, "unknown oracle filter");
         std::printf("%u original mouth shifts passed\n",
                     MorphPurgeCommands(original, argv[2], true));
         return 0;
     }
+    std::printf("%u original low-power commands and %u render-gate checkpoints passed\n",
+                LowPowerCommands(original), LowPowerFrameGate(original));
     std::printf("%u original model rendering toggles: complete model/application bytes\n",
                 ModelRenderFlags(original, argv[2]));
     std::printf(

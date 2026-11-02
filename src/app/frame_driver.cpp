@@ -53,6 +53,7 @@
 #include "pump_input.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
 #include "mikudancestudio/panel_controls.hpp"
+#include "mikudancestudio/idle_render_gate.hpp"
 #include "frame_state_dump.hpp"
 
 namespace mikudancestudio {
@@ -63,20 +64,9 @@ void AdvanceFrameRenderGate(MMDApp* app) {
     // 0x46B0B1..0x46B11D: transient render/present state machine.
     // The three gates independently restart the cycle before its 1->2->3->0
     // transition; the normal main-window path therefore enters rendering at 2.
-    auto& state = app->state.messageSeen;
-    if (app->PlaybackActive() != 0)
-        state = 1;
-    if (app->state.frameVolumeControlEnabled == 0)
-        state = 1;
-    if (app->EnglishNameDialog() != nullptr)
-        state = 1;
-
-    if (state == 1)
-        state = 2;
-    else if (state == 2)
-        state = 3;
-    else if (state == 3)
-        state = 0;
+    AdvanceIdleRenderGate(app->state.messageSeen, app->PlaybackActive() != 0,
+                          app->state.frameVolumeControlEnabled != 0,
+                          app->EnglishNameDialog() != nullptr);
 }
 
 #ifdef MIKUDANCESTUDIO_DIAG

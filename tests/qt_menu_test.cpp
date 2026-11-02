@@ -9,6 +9,9 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QKeyEvent>
+#include <QInputMethodEvent>
+#include <QPaintEvent>
+#include <QResizeEvent>
 #include <QMenuBar>
 #include <QPointer>
 #include <QStyleFactory>
@@ -400,7 +403,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 78);
+    CHECK(implemented == 79);
     for (const char* language : {"en", "ja", "zh_CN"})
         for (int id : {MDS_CMD_DELETE_MOUTH_FRAMES, MDS_CMD_DELETE_EYE_FRAMES,
                        MDS_CMD_DELETE_EYEBROW_FRAMES}) {
@@ -583,6 +586,86 @@ int main(int argc, char** argv) {
         CHECK(!command(MDS_CMD_PASTE_AT_DIFFERENT_FRAME)->isEnabled());
     }
     CHECK(window.LastError().isEmpty());
+    {
+        qt::EditorWindow owner(std::filesystem::absolute(argv[2]), true);
+        auto& editor = owner.Session();
+        CHECK(editor.ImportModel(root / "articulated.pmd", reason));
+        owner.Refresh();
+        const auto lowPowerMenu = [&]() -> QAction* {
+            for (auto* action : owner.findChildren<QAction*>())
+                if (action->property("mmdCommandId").toInt() == MDS_CMD_TOGGLE_LOW_POWER)
+                    return action;
+            return nullptr;
+        };
+        auto* checkbox = static_cast<QAbstractButton*>(owner.Control(panel::kFrameVolumeCheckbox));
+        CHECK(!owner.LowPower() && !checkbox->isChecked() && !lowPowerMenu()->isChecked());
+        const auto frames = [&] { return editor.Runtime().Counters().frames; };
+        auto initial = frames();
+        for (int i = 0; i < 4; ++i)
+            owner.Tick(.016);
+        CHECK(frames() == initial + 4);
+        for (const char* language : {"en", "ja", "zh_CN"}) {
+            CHECK(owner.SetLanguage(language));
+            const auto revision = editor.Revision();
+            const auto dirty = editor.Dirty(), undo = editor.CanUndo(), redo = editor.CanRedo();
+            initial = frames();
+            lowPowerMenu()->trigger();
+            CHECK(owner.LowPower() && checkbox->isChecked() && lowPowerMenu()->isChecked());
+            CHECK(editor.Revision() == revision && frames() == initial && editor.Dirty() == dirty &&
+                  editor.CanUndo() == undo && editor.CanRedo() == redo);
+            owner.Tick(.016);
+            owner.Tick(.016);
+            CHECK(frames() == initial + 2);
+            for (int i = 0; i < 30; ++i)
+                owner.Tick(.016);
+            CHECK(frames() == initial + 2);
+            // Self-generated paints and timer events must leave the scene asleep.
+            QPaintEvent paint(QRect(0, 0, 10, 10));
+            QCoreApplication::sendEvent(owner.centralWidget(), &paint);
+            QEvent update(QEvent::UpdateRequest);
+            QCoreApplication::sendEvent(owner.centralWidget(), &update);
+            owner.Tick(.016);
+            CHECK(frames() == initial + 2);
+            // Panel edits, timeline, interpolation and native viewport inputs wake it.
+            for (QObject* target : {static_cast<QObject*>(owner.Control(panel::kGotoFrameEdit)),
+                                    static_cast<QObject*>(owner.TimelineWidget()),
+                                    static_cast<QObject*>(owner.InterpolationWidget()),
+                                    static_cast<QObject*>(owner.RenderWindow())}) {
+                const auto before = frames();
+                QKeyEvent release(QEvent::KeyRelease, Qt::Key_unknown, Qt::NoModifier);
+                QCoreApplication::sendEvent(target, &release);
+                for (int i = 0; i < 5; ++i)
+                    owner.Tick(.016);
+                CHECK(frames() == before + 2);
+            }
+            QInputMethodEvent ime;
+            QCoreApplication::sendEvent(owner.Control(panel::kGotoFrameEdit), &ime);
+            initial = frames();
+            owner.Tick(.016);
+            owner.Tick(.016);
+            owner.Tick(.016);
+            CHECK(frames() == initial + 2);
+            CHECK(editor.Play(reason));
+            initial = frames();
+            for (int i = 0; i < 4; ++i)
+                owner.Tick(.016);
+            CHECK(editor.Playing() && frames() == initial + 4 && owner.LowPower());
+            editor.Pause();
+            owner.Refresh();
+            initial = frames();
+            for (int i = 0; i < 5; ++i)
+                owner.Tick(.016);
+            CHECK(frames() == initial + 2);
+            checkbox->click();
+            CHECK(!owner.LowPower() && !checkbox->isChecked() && !lowPowerMenu()->isChecked());
+            initial = frames();
+            for (int i = 0; i < 5; ++i)
+                owner.Tick(.016);
+            CHECK(frames() == initial + 5);
+        }
+        CHECK(owner.LastError().isEmpty() && !owner.isVisible() &&
+              owner.RenderWindow()->Submissions() == 0);
+    }
     CHECK(!window.isVisible() && window.RenderWindow()->Submissions() == 0);
     std::cout
         << "Original binary menu tree/labels, translations, lifecycle and command state passed\n";

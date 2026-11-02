@@ -29,6 +29,7 @@ public:
     QWidget* SeparateWindow() const { return separate_; }
     bool FullScreenViewport() const { return fullScreen_; }
     float FrameLimit() const { return session_.Document().view.fpsLimit; }
+    bool LowPower() const { return lowPower_; }
     bool SetLanguage(const QString&);
     QString CurrentLanguage() const { return language_.Code(); }
     bool Open(const std::filesystem::path&);
@@ -77,6 +78,8 @@ private:
     QChronoTimer timer_;
     QElapsedTimer clock_;
     bool testing_ = false, refreshing_ = false;
+    bool lowPower_ = false;
+    std::uint32_t idleRenderState_ = 1;
     bool windowTransition_ = false;
     int side_ = 250;
     int sidebarClientWidth_ = 0, sidebarStoredWidth_ = 250;

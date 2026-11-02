@@ -140,6 +140,7 @@ void EditorWindow::RefreshPanels() {
     check(kCameraRefModelCheckbox, d.timeline.cameraReferenceMode == 1);
     check(kCameraRefBoneCheckbox, d.timeline.cameraReferenceMode == 2);
     slider(kFrameVolumeSlider, 0, 100, 100 - frameNormalization_);
+    check(kFrameVolumeCheckbox, lowPower_);
     const bool model = session_.Selected().model != 255;
     Control(kMainComboModel)->setEnabled(!session_.Playing());
     Control(kModelEditToggle)->setEnabled(!session_.Playing());
