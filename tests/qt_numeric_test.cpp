@@ -1,5 +1,7 @@
 #include "numeric_dialog.hpp"
 #include "editor_window.hpp"
+#include "viewport.hpp"
+#include "mikudancestudio/mmd_dialog_edit_metrics.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
 #include "mikudancestudio/editor_numeric.hpp"
 #include "mikudancestudio/editor_rotation.hpp"
@@ -474,6 +476,139 @@ int main(int argc, char** argv) {
         CHECK(owner.close());
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         CHECK(live.isNull() && editor.Document().models[1].edgeScale == 2.5f);
+    }
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(language.Set(code));
+        qt::GroundShadowDialog dialog(language, .57f);
+        const auto expected =
+            reference[QString("ground_shadow.") + (language.Code() == "en" ? "en" : "ja")]
+                .toObject();
+        CHECK(dialog.Template().id == expected["id"].toInt());
+        const auto rect = expected["rect"].toArray();
+        const int unitY = language.Code() == "en" ? 15 : 12;
+        CHECK(dialog.size() ==
+              QSize((rect[2].toInt() * 7 + 2) / 4, (rect[3].toInt() * unitY + 4) / 8));
+        if (language.Code() != "zh_CN")
+            CHECK(dialog.windowTitle() == expected["title"].toString());
+        const auto controls = expected["controls"].toArray();
+        for (int i = 0; i < controls.size(); ++i) {
+            auto* widget = dialog.findChild<QWidget*>(QString("numeric.control.%1").arg(i));
+            CHECK(widget);
+            const auto control = controls[i].toObject();
+            const auto r = control["rect"].toArray();
+            CHECK(widget->geometry() ==
+                  QRect((r[0].toInt() * 7 + 2) / 4, (r[1].toInt() * unitY + 4) / 8,
+                        (r[2].toInt() * 7 + 2) / 4, (r[3].toInt() * unitY + 4) / 8));
+            CHECK(widget->property("mmdControlId").toInt() == control["id"].toInt());
+            if (auto* label = qobject_cast<QLabel*>(widget)) {
+                if (language.Code() != "zh_CN")
+                    CHECK(label->text() == control["text"].toString());
+            } else
+                CHECK(widget == (control["id"].toInt() == 626
+                                     ? static_cast<QWidget*>(dialog.Field())
+                                     : static_cast<QWidget*>(dialog.Trackbar())));
+        }
+        const auto prefill = [&](float value) {
+            const auto formatted = QString::asprintf("%3.2f", double(value));
+            const auto bytes = formatted.toLatin1();
+            return formatted.left(qsizetype(ui::NumericPrefillLength(
+                std::string_view(bytes.constData(), std::size_t(bytes.size())),
+                language.Code() == "en", dialog.Field()->width())));
+        };
+        CHECK(dialog.Field()->text() == prefill(.57f) && dialog.Trackbar()->value() == 57);
+        CHECK(dialog.Trackbar()->minimum() == 0 && dialog.Trackbar()->maximum() == 200 &&
+              dialog.Trackbar()->tickInterval() == 100 &&
+              dialog.Trackbar()->tickPosition() == QSlider::TicksBelow);
+        unsigned edits = 0;
+        float value = .57f;
+        dialog.changed = [&](float next) {
+            ++edits;
+            value = next;
+        };
+        dialog.show(); // Guarded offscreen QPA, never a desktop window.
+        QCoreApplication::processEvents();
+        dialog.Field()->setText("1.75");
+        dialog.Trackbar()->setFocus();
+        QCoreApplication::processEvents();
+        CHECK(edits == 0);
+        struct Input {
+            const char* text;
+            float value;
+        };
+        for (const auto& input :
+             {Input{"1.23456789", 1.23456f}, Input{"-0.25", -.25f}, Input{"2.50", 2.5f},
+              Input{"nonsense", 0}, Input{"0.57", .57f}, Input{"2e30", 2e30f}, Input{"1,25", 1}}) {
+            dialog.Field()->setText(input.text);
+            const auto before = edits;
+            QTest::keyClick(dialog.Field(), Qt::Key_Return);
+            CHECK(edits == before + 1 && value == input.value && dialog.Trackbar()->value() == 57);
+            CHECK(dialog.Field()->text() == input.text && dialog.isVisible());
+        }
+        for (int position = 0; position <= 200; ++position) {
+            dialog.Trackbar()->setValue(position);
+            CHECK(value == float(position) / 100.f && dialog.Field()->text() == prefill(value));
+        }
+        dialog.Field()->setText("pending");
+        const auto before = edits;
+        dialog.close();
+        CHECK(edits == before && value == 2.f);
+        qt::EditorWindow owner(std::filesystem::absolute(argv[2]), true);
+        auto& editor = owner.Session();
+        CHECK(owner.SetLanguage(code) && editor.ImportModel(root / "pose.pmd", reason));
+        CHECK(editor.SetBone(0, 0, {1, 2, 3}, {0, 0, 0, 1}, reason));
+        CHECK(editor.Undo(reason) && editor.CanRedo());
+        CHECK(owner.Save(root / "ground-shadow.pmm"));
+        owner.Refresh();
+        QAction* action = nullptr;
+        for (auto* candidate : owner.findChildren<QAction*>())
+            if (candidate->property("mmdCommandId").toInt() == MDS_CMD_GROUND_SHADOW_COLOR)
+                action = candidate;
+        CHECK(action && action->isEnabled());
+        action->trigger();
+        QPointer<qt::GroundShadowDialog> live;
+        for (auto* child : owner.findChildren<QDialog*>())
+            if (auto* ground = dynamic_cast<qt::GroundShadowDialog*>(child))
+                live = ground;
+        CHECK(live && !live->isVisible());
+        auto* viewport = owner.RenderWindow();
+        CHECK(viewport->PrepareFrame(128, 96, reason));
+        const auto builds = viewport->FrameBuilds();
+        const auto revision = editor.Revision(), updates = editor.Runtime().Counters().frames;
+        const auto* runtime = &editor.Runtime();
+        live->Trackbar()->setValue(57);
+        CHECK(editor.Document().physics.projectedShadowAmbient == .57f && !editor.Dirty());
+        CHECK(editor.Revision() == revision && runtime->Counters().frames == updates &&
+              !editor.CanUndo() && editor.CanRedo());
+        CHECK(viewport->PrepareFrame(128, 96, reason) && viewport->FrameBuilds() == builds + 1);
+        CHECK(viewport->PrepareFrame(128, 96, reason) && viewport->FrameBuilds() == builds + 1);
+        CHECK(editor.Redo(reason) && editor.Document().physics.projectedShadowAmbient == .57f);
+        CHECK(editor.Undo(reason) && editor.Document().physics.projectedShadowAmbient == .57f);
+        CHECK(!editor.SetGroundShadowColor(std::numeric_limits<float>::infinity()));
+        CHECK(editor.Document().physics.projectedShadowAmbient == .57f);
+        CHECK(owner.Save(root / "ground-shadow.pmm"));
+        live->Field()->setText("1.75pending");
+        action->trigger();
+        CHECK(live->Field()->text() == "1.75pending");
+        CHECK(editor.SetGroundShadowColor(-.25f));
+        CHECK(owner.Open(root / "ground-shadow.pmm"));
+        CHECK(editor.Document().physics.projectedShadowAmbient == .57f && live &&
+              live->Field()->text() == "1.75pending" && live->Trackbar()->value() == 57);
+        CHECK(editor.Play(reason));
+        owner.Refresh();
+        const auto epoch = editor.PlaybackEpoch(), frames = editor.Runtime().Counters().frames;
+        QTest::keyClick(live->Field(), Qt::Key_Return);
+        CHECK(editor.Playing() && editor.PlaybackEpoch() == epoch &&
+              editor.Runtime().Counters().frames == frames &&
+              editor.Document().physics.projectedShadowAmbient == 1.75f && !editor.Dirty());
+        editor.Pause();
+        CHECK(editor.New(reason));
+        owner.Refresh();
+        CHECK(editor.Document().physics.projectedShadowAmbient == 1.75f && live &&
+              live->Field()->text() == "1.75pending" && live->Trackbar()->value() == 57);
+        CHECK(!owner.isVisible() && !live->isVisible());
+        live->close();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        CHECK(live.isNull() && editor.Document().physics.projectedShadowAmbient == 1.75f);
     }
     for (const char* code : {"en", "ja", "zh_CN"}) {
         CHECK(language.Set(code));

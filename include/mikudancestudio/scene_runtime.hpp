@@ -49,6 +49,7 @@ public:
     void SetPanelExpanded(unsigned option, bool expanded);
     void SetSidebarWidth(int width);
     bool SetFrameLimit(unsigned limit);
+    bool SetGroundShadowColor(float value);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
     void ClearPoseEditMarkers();
     bool SelectPhysicsOnKeys(std::uint8_t, const std::vector<std::uint8_t>& physical);

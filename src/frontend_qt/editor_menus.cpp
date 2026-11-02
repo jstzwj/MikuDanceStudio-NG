@@ -120,6 +120,7 @@ bool Implemented(int command) {
     case MDS_CMD_FPS_UNLIMITED:
     case MDS_CMD_FPS_30:
     case MDS_CMD_FPS_60:
+    case MDS_CMD_GROUND_SHADOW_COLOR:
         return true;
     default:
         return false;
@@ -319,6 +320,10 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_EDGE_THICKNESS) {
         EdgeThickness();
+        return;
+    }
+    if (command == MDS_CMD_GROUND_SHADOW_COLOR) {
+        GroundShadowColor();
         return;
     }
     if (command == MDS_CMD_DELETE_UNUSED_FRAMES) {

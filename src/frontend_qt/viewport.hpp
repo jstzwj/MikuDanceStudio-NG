@@ -62,6 +62,7 @@ private:
     unsigned cachedCoordinateSystem_ = 0;
     int toolOperation_ = 0, cachedToolOperation_ = -1;
     bool cachedPlaying_ = false;
+    float cachedGroundShadowColor_ = 0;
     int ActiveBone() const;
     int ToolAt(QPoint);
     bool frameCached_ = false;

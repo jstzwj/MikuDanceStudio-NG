@@ -589,5 +589,8 @@
   "dialog.numeric.calculation_order.control.2": "上",
   "dialog.numeric.calculation_order.control.3": "下",
   "dialog.numeric.calculation_order.control.4": "确定",
-  "dialog.numeric.calculation_order.control.5": "取消"
+  "dialog.numeric.calculation_order.control.5": "取消",
+  "dialog.numeric.ground_shadow.title": "地面阴影颜色",
+  "dialog.numeric.ground_shadow.control.0": "亮度",
+  "dialog.numeric.ground_shadow.control.3": "0                     1                    2"
 }

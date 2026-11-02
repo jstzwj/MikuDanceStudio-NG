@@ -150,6 +150,7 @@ public:
     void SetPanelExpanded(unsigned option, bool expanded);
     void SetSidebarWidth(int width);
     bool SetFrameLimit(unsigned limit);
+    bool SetGroundShadowColor(float value);
     void SetPhysicsFloor(bool enabled);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
     void SetEditMode(std::int32_t mode);

@@ -115,6 +115,12 @@ public:
         scene_.view.fpsLimit = float(limit);
         return true;
     }
+    bool SetGroundShadowColor(float value) {
+        if (!loaded_ || !std::isfinite(value))
+            return false;
+        scene_.physics.projectedShadowAmbient = value;
+        return true;
+    }
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded) {
         for (auto& model : scene_.models)
             if (model.slot == slot && group < model.selection.groupFlags.size())

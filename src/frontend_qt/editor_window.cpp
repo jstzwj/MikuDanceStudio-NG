@@ -301,6 +301,7 @@ EditorWindow::~EditorWindow() {
     timer_.stop();
     audio_.Stop();
     delete edgeDialog_.data();
+    delete groundShadowDialog_.data();
     delete gravityDialog_.data();
     if (!testing_) {
         QSettings settings;
@@ -1120,6 +1121,20 @@ void EditorWindow::EdgeThickness() {
             edgeDialog_->show();
         break;
     }
+}
+void EditorWindow::GroundShadowColor() {
+    if (groundShadowDialog_)
+        return;
+    groundShadowDialog_ =
+        new GroundShadowDialog(language_, session_.Document().physics.projectedShadowAmbient, this);
+    groundShadowDialog_->setAttribute(Qt::WA_DeleteOnClose);
+    groundShadowDialog_->setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    groundShadowDialog_->changed = [this](float value) {
+        if (session_.SetGroundShadowColor(value))
+            UpdateFrame();
+    };
+    if (!testing_)
+        groundShadowDialog_->show();
 }
 void EditorWindow::MorphScale() {
     MorphScaleDialog dialog(language_, this);

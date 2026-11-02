@@ -355,6 +355,9 @@ void EditorSession::SetSidebarWidth(int width) {
 bool EditorSession::SetFrameLimit(unsigned limit) {
     return runtime_ && runtime_->SetFrameLimit(limit);
 }
+bool EditorSession::SetGroundShadowColor(float value) {
+    return runtime_ && runtime_->SetGroundShadowColor(value);
+}
 void EditorSession::SetPhysicsFloor(bool enabled) {
     runtime_->SetPhysicsFloor(enabled);
 }
@@ -445,6 +448,10 @@ bool EditorSession::New(std::string& reason) {
     EndGesture();
     State next;
     next.document = NewPmmScene();
+    // Native ResetAppState leaves the modeless ground-shadow color and its
+    // current value intact. A newly constructed editor uses the PMM default.
+    if (runtime_)
+        next.document.physics.projectedShadowAmbient = Document().physics.projectedShadowAmbient;
     std::unique_ptr<runtime::SceneRuntime> runtime;
     if (!Prepare(next, runtime, reason))
         return false;

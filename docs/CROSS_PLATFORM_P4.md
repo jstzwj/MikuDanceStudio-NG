@@ -2355,3 +2355,29 @@ measurement and the unchanged 100 ms drift bound. The earlier CoreAudio result
 had already passed its stream clock/EOF, but is retained as a failed overall
 acceptance because the editor test had not passed. Linux/CoreAudio must pass
 the refined test before their native qualification is closed.
+
+## Modeless ground-shadow color (2026-11-03)
+
+Original command 248 now uses templates 658/624 in all three languages. The
+generator verifies twenty-four binary templates. Geometry, labels, the 0..200
+trackbar and text insertion clipping follow the original resources and measured
+font advances. Enter reads seven bytes and updates the color without moving the
+slider or rewriting text: the original sends its position message to missing
+control 458. Slider values use native single-precision division by 100. Focus
+loss and closing discard pending text. New retains the color and modeless window;
+opening a PMM restores its color without overwriting pending dialog text.
+
+Color changes preserve dirty state, history, physics and CPU frame counters.
+Save persists the scalar, Undo/Redo retain it, and the viewport invalidates its
+prepared-frame cache immediately despite the unchanged document revision. The
+optional original numeric oracle executes actual procedures 56A20/56D30 with
+control-call recorders: **211 initialization/text/slider/close cases** compare
+the complete private application state. Its never-shown original EDIT controls
+also passed **954** width/prefill/slider checkpoints across ten templates. These
+are independent command/control checks, not a full original event-loop comparison.
+
+The Qt numeric and menu regressions passed locally in **14.20 seconds**, covering
+English/Japanese/Chinese geometry, seven-byte input, slider publication, pending
+text, playback, preserved history/counters, save/reopen/New, invalid numeric input
+and prepared-frame reuse/invalidation. The Qt production application builds.
+The menu now implements **66/103** original commands; P4/C1 remains in progress.

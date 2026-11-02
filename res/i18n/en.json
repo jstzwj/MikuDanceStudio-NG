@@ -589,5 +589,8 @@
   "dialog.numeric.calculation_order.control.2": "up",
   "dialog.numeric.calculation_order.control.3": "down",
   "dialog.numeric.calculation_order.control.4": "OK",
-  "dialog.numeric.calculation_order.control.5": "cancel"
+  "dialog.numeric.calculation_order.control.5": "cancel",
+  "dialog.numeric.ground_shadow.title": "ground shadow color",
+  "dialog.numeric.ground_shadow.control.0": "brightness",
+  "dialog.numeric.ground_shadow.control.3": "0                     1                    2"
 }

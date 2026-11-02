@@ -65,7 +65,7 @@ void EditWidthOracle(const wchar_t* path) {
         LoadLibraryExW(path, nullptr, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
     Check(resources != nullptr, "load original numeric resources");
     unsigned checkpoints = 0;
-    for (int id : {662, 645, 663, 648, 664, 649, 653, 607}) {
+    for (int id : {662, 645, 663, 648, 664, 649, 653, 607, 658, 624}) {
         HRSRC resource = FindResourceW(resources, MAKEINTRESOURCEW(id), MAKEINTRESOURCEW(5));
         Check(resource != nullptr, "find original dialog resource");
         const auto* bytes =
@@ -76,8 +76,9 @@ void EditWidthOracle(const wchar_t* path) {
         HWND dialog = CreateDialogParamA(resources, MAKEINTRESOURCEA(id), nullptr, HiddenDialog, 0);
         Check(dialog && !IsWindowVisible(dialog), "create hidden original dialog");
         const bool edge = id == 662 || id == 645, screen = id == 653 || id == 607;
-        const bool english = id == 662 || id == 663 || id == 664 || id == 653;
-        HWND edit = GetDlgItem(dialog, edge ? 646 : screen ? 621 : 637);
+        const bool ground = id == 658 || id == 624;
+        const bool english = id == 662 || id == 663 || id == 664 || id == 653 || id == 658;
+        HWND edit = GetDlgItem(dialog, edge ? 646 : screen ? 621 : ground ? 626 : 637);
         RECT rectangle;
         Check(edit && GetWindowRect(edit, &rectangle), "original edit geometry");
         for (const char* text :
@@ -93,7 +94,7 @@ void EditWidthOracle(const wchar_t* path) {
                   "original EDIT prefill clipping");
             ++checkpoints;
         }
-        for (int position = 0; edge && position <= 200; ++position) {
+        for (int position = 0; (edge || ground) && position <= 200; ++position) {
             char text[64], actual[64]{};
             std::snprintf(text, sizeof text, "%3.2f", double(float(position) / 100.f));
             SendMessageA(edit, EM_SETSEL, 0, -1);
@@ -286,6 +287,101 @@ void EdgeOracle(OriginalPhysicsModule& original) {
     Check(edgeDestroyed && !stored, "original camera-combo refresh destroys edge dialog");
     std::puts("Original edge host: two model refreshes and camera-mode destruction; no windows");
 }
+unsigned missingGroundSliderCalls = 0;
+HWND WINAPI GroundControl(HWND, int id) {
+    Check(id == 625 || id == 626 || id == 458, "original ground shadow control identity");
+    return id == 458 ? nullptr : reinterpret_cast<HWND>(std::uintptr_t(id));
+}
+LRESULT WINAPI GroundMessage(HWND control, UINT message, WPARAM, LPARAM value) {
+    if (!control) {
+        Check(message == 0x405, "original ground shadow missing slider message");
+        ++missingGroundSliderCalls;
+    } else if (control == GroundControl(nullptr, 625)) {
+        if (message == 0x400)
+            return edgeSlider;
+        if (message == 0x405)
+            edgeSlider = std::clamp(int(value), 0, 200);
+        else
+            Check(message == 0x407 || message == 0x408 || message == 0x414,
+                  "original ground shadow trackbar message");
+    } else if (message == 0xc2)
+        edgeText = reinterpret_cast<const char*>(value);
+    else
+        Check(message == 0xb1, "original ground shadow edit message");
+    return 0;
+}
+void GroundOracle(OriginalPhysicsModule& original) {
+    std::vector<std::unique_ptr<Patch>> patches;
+    const auto patch = [&](unsigned offset, auto replacement) {
+        auto* pointer = reinterpret_cast<void*>(replacement);
+        patches.push_back(
+            std::make_unique<Patch>(original.Function<void*>(offset), &pointer, sizeof pointer));
+    };
+    patch(0x1445f8, app.data());
+    patch(0x128658, &GroundControl);
+    patch(0x1287b8, &GroundMessage);
+    patch(0x128690, &EdgeRead);
+    patch(0x1286c8, &EdgeLength);
+    patch(0x128748, &EdgeGetProc);
+    patch(0x128638, &EdgeSetProc);
+    patch(0x128620, &EdgeForward);
+    patch(0x128720, &EdgeDestroy);
+    const auto dialog = original.Function<DLGPROC>(0x56a20);
+    const auto edit = original.Function<WNDPROC>(0x56d30);
+    std::fill(app.begin(), app.end(), 0);
+    const auto window = reinterpret_cast<HWND>(std::uintptr_t(100));
+    std::memcpy(app.data() + 0xa1b38, &window, sizeof window);
+    const std::array<float, 4> initial{.57f, .57f, .57f, .57f};
+    std::memcpy(app.data() + 0xa1d88, initial.data(), sizeof initial);
+    dialog(window, WM_INITDIALOG, 0, 0);
+    Check(edgeText == "0.57" && edgeSlider == 57, "original ground shadow initialization");
+    edgeText = "1.75";
+    forwarded = 0;
+    const auto unchanged = app;
+    edit(GroundControl(window, 626), WM_KILLFOCUS, 0, 0);
+    edit(GroundControl(window, 626), WM_CHAR, VK_RETURN, 0);
+    Check(forwarded == 2 && app == unchanged, "original noncommitting ground shadow messages");
+    struct Input {
+        const char* text;
+        float value;
+    };
+    for (const auto& input :
+         {Input{"1.23456789", 1.23456f}, Input{"-0.25", -.25f}, Input{"2.50", 2.5f},
+          Input{"nonsense", 0}, Input{"0.57", .57f}, Input{"2e30", 2e30f}, Input{"1,25", 1}}) {
+        auto expected = app;
+        const std::array<float, 4> rgba{input.value, input.value, input.value, input.value};
+        std::memcpy(expected.data() + 0xa1d88, rgba.data(), sizeof rgba);
+        const auto before = missingGroundSliderCalls;
+        edgeText = input.text;
+        edit(GroundControl(window, 626), WM_KEYDOWN, VK_RETURN, 0);
+        Check(app == expected && edgeText == input.text && edgeSlider == 57 &&
+                  missingGroundSliderCalls == before + 1,
+              "original ground shadow Enter updates only color, preserving text and slider");
+    }
+    for (int position = 0; position <= 200; ++position) {
+        app[0xa1e18] = 0;
+        auto expected = app;
+        const float value = float(position) / 100.f;
+        const std::array<float, 4> rgba{value, value, value, value};
+        std::memcpy(expected.data() + 0xa1d88, rgba.data(), sizeof rgba);
+        const unsigned seen = 1;
+        std::memcpy(expected.data() + 0xa1e18, &seen, sizeof seen);
+        edgeSlider = position;
+        dialog(window, WM_HSCROLL, 0, 0);
+        char formatted[64];
+        std::snprintf(formatted, sizeof formatted, "%3.2f", double(value));
+        Check(app == expected && edgeText == formatted,
+              "original ground shadow slider changes only color and redraw flag");
+    }
+    edgeDestroyed = false;
+    edgeText = "pending";
+    auto expected = app;
+    std::memset(expected.data() + 0xa1b38, 0, sizeof window);
+    dialog(window, WM_COMMAND, IDCANCEL, 0);
+    Check(edgeDestroyed && app == expected, "original ground shadow close discards pending text");
+    std::puts(
+        "Original ground shadow dialog: 211 init/text/slider/close cases; full state comparisons, no windows");
+}
 }
 int wmain(int argc, wchar_t** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
@@ -373,6 +469,7 @@ int wmain(int argc, wchar_t** argv) try {
     VirtualFree(memory, 0, MEM_RELEASE);
     Check(hash == 0xa78d309a17788cb1ull, "original camera numeric corpus hash");
     EdgeOracle(original);
+    GroundOracle(original);
     EditWidthOracle(argv[1]);
     std::printf(
         "Original camera numeric command: 256 exact input/output cases, hash %016llx; no windows or GPU\n",

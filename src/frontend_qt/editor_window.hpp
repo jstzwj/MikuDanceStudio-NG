@@ -14,6 +14,7 @@
 #include <map>
 namespace mikudancestudio::qt {
 class EdgeThicknessDialog;
+class GroundShadowDialog;
 class GravityDialog;
 class EditorWindow final : public QMainWindow {
 public:
@@ -55,6 +56,7 @@ private:
     QWidget* viewportContainer_ = nullptr;
     QWidget* separate_ = nullptr;
     QPointer<EdgeThicknessDialog> edgeDialog_;
+    QPointer<GroundShadowDialog> groundShadowDialog_;
     QPointer<GravityDialog> gravityDialog_;
     std::uint64_t gravityEpoch_ = 0;
     std::uint8_t edgeModel_ = 255;
@@ -107,6 +109,7 @@ private:
     void Numeric();
     void ScreenSize();
     void EdgeThickness();
+    void GroundShadowColor();
     void GravitySettings();
     void MorphScale();
     void CameraScale();

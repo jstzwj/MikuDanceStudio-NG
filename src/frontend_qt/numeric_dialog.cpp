@@ -317,6 +317,38 @@ void EdgeThicknessDialog::Reset(float value) {
     Prefill(646, QString::asprintf("%3.2f", double(value)));
     Trackbar()->setValue(EdgePosition(value));
 }
+GroundShadowDialog::GroundShadowDialog(const Language& language, float value, QWidget* parent)
+    : TemplateDialog(language.Code() == "en" ? ui::kNumericGroundShadowEn
+                                             : ui::kNumericGroundShadowJa,
+                     language, parent) {
+    setObjectName("mmd.groundShadow");
+    Trackbar()->setRange(0, 200);
+    Trackbar()->setTickInterval(100);
+    Trackbar()->setTickPosition(QSlider::TicksBelow);
+    Reset(value);
+    connect(Field(), &QLineEdit::returnPressed, this, [this] {
+        float value;
+        if (!FloatPrefix(Field()->text(), 7, value)) {
+            Field()->selectAll();
+            return;
+        }
+        if (changed)
+            changed(value);
+        // Original Enter sends TBM_SETPOS to nonexistent control 458. The
+        // actual trackbar 625 retains its old position and text is unchanged.
+    });
+    connect(Trackbar(), &QSlider::valueChanged, this, [this](int position) {
+        const float value = float(position) / 100.f;
+        if (changed)
+            changed(value);
+        Prefill(626, QString::asprintf("%3.2f", double(value)));
+    });
+}
+void GroundShadowDialog::Reset(float value) {
+    const QSignalBlocker blocked(Trackbar());
+    Prefill(626, QString::asprintf("%3.2f", double(value)));
+    Trackbar()->setValue(EdgePosition(value));
+}
 namespace {
 QString GravityText(const format::PmmEvaluatedGravity& value, unsigned channel) {
     return channel == 4

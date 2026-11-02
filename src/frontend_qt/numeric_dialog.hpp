@@ -69,6 +69,15 @@ public:
     void accept() override {}
     std::function<void(float)> changed;
 };
+class GroundShadowDialog final : public TemplateDialog {
+public:
+    GroundShadowDialog(const Language&, float value, QWidget* parent = nullptr);
+    QLineEdit* Field() const { return Edit(626); }
+    QSlider* Trackbar() const { return Slider(625); }
+    void Reset(float value);
+    void accept() override {}
+    std::function<void(float)> changed;
+};
 class MorphScaleDialog final : public TemplateDialog {
 public:
     MorphScaleDialog(const Language&, QWidget* parent = nullptr);

@@ -589,5 +589,8 @@
   "dialog.numeric.calculation_order.control.2": "上",
   "dialog.numeric.calculation_order.control.3": "下",
   "dialog.numeric.calculation_order.control.4": "OK",
-  "dialog.numeric.calculation_order.control.5": "ｷｬﾝｾﾙ"
+  "dialog.numeric.calculation_order.control.5": "ｷｬﾝｾﾙ",
+  "dialog.numeric.ground_shadow.title": "地面影色設定",
+  "dialog.numeric.ground_shadow.control.0": "明るさ",
+  "dialog.numeric.ground_shadow.control.3": "0                     1                    2"
 }

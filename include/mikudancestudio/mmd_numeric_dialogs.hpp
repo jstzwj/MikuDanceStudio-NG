@@ -411,4 +411,20 @@ inline constexpr NumericControl kNumericCalculationOrderJaControls[] = {
 };
 inline constexpr NumericTemplate kNumericCalculationOrderJa = {
     810, 175, 145, 9, "MS PGothic", "dialog.numeric.calculation_order.title", kNumericCalculationOrderJaControls, 7};
+inline constexpr NumericControl kNumericGroundShadowEnControls[] = {
+    {-1, 3, 3, 40, 12, NumericControlKind::Static, "dialog.numeric.ground_shadow.control.0"},
+    {626, 112, 15, 18, 12, NumericControlKind::Edit, ""},
+    {625, 0, 15, 110, 13, NumericControlKind::Slider, ""},
+    {-1, 3, 30, 120, 12, NumericControlKind::Static, "dialog.numeric.ground_shadow.control.3"},
+};
+inline constexpr NumericTemplate kNumericGroundShadowEn = {
+    658, 135, 40, 9, "Arial", "dialog.numeric.ground_shadow.title", kNumericGroundShadowEnControls, 4};
+inline constexpr NumericControl kNumericGroundShadowJaControls[] = {
+    {-1, 3, 3, 40, 12, NumericControlKind::Static, "dialog.numeric.ground_shadow.control.0"},
+    {626, 112, 15, 15, 12, NumericControlKind::Edit, ""},
+    {625, 0, 15, 110, 13, NumericControlKind::Slider, ""},
+    {-1, 3, 30, 120, 12, NumericControlKind::Static, "dialog.numeric.ground_shadow.control.3"},
+};
+inline constexpr NumericTemplate kNumericGroundShadowJa = {
+    624, 135, 40, 9, "MS PGothic", "dialog.numeric.ground_shadow.title", kNumericGroundShadowJaControls, 4};
 }
