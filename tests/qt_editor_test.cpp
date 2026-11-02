@@ -23,6 +23,8 @@
 #include <QPointer>
 #include <QCloseEvent>
 #include <QMenuBar>
+#include <QFileDialog>
+#include <QTimer>
 #include <iostream>
 using namespace mikudancestudio;
 std::string reason;
@@ -197,6 +199,56 @@ int main(int argc, char** argv) {
             CHECK(!reset->isEnabled() && !all->isEnabled());
             CHECK(!expressions.isVisible());
         }
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        qt::EditorWindow folders(std::filesystem::absolute(argv[2]), true);
+        CHECK(folders.SetLanguage(language));
+        auto* remember = [&]() -> QAction* {
+            for (auto* action : folders.findChildren<QAction*>())
+                if (action->property("mmdCommandId").toInt() == MDS_CMD_TOGGLE_PREVIOUS_FOLDER)
+                    return action;
+            return nullptr;
+        }();
+        CHECK(remember && remember->isChecked() && remember->isEnabled());
+        const auto initialRevision = folders.Session().Revision();
+        const auto chooser = [&](int button, qt::FileKind kind, const QString& expected,
+                                 bool accept) {
+            bool observed = false, valid = false;
+            QTimer::singleShot(0, &folders, [&] {
+                auto* dialog = folders.findChild<QFileDialog*>("editor.fileDialog");
+                observed = dialog != nullptr;
+                if (!dialog)
+                    return;
+                valid = dialog->property("mmdInitialDirectory").toString() == expected &&
+                        dialog->property("mmdFileKind").toInt() == int(kind) &&
+                        dialog->fileMode() == QFileDialog::ExistingFile;
+                if (accept) {
+                    dialog->selectFile(qt::Path(root / "facial.pmd"));
+                    QMetaObject::invokeMethod(dialog, "accept", Qt::DirectConnection);
+                } else
+                    dialog->reject();
+            });
+            static_cast<QAbstractButton*>(folders.Control(button))->click();
+            return observed && valid;
+        };
+        const auto modelDefault =
+            QDir(QCoreApplication::applicationDirPath()).filePath("UserFile/Model");
+        CHECK(chooser(panel::kLoadModelButton, qt::FileKind::Model, modelDefault, true));
+        CHECK(folders.Session().Document().models.size() == 1);
+        const auto rememberedRoot = QDir::fromNativeSeparators(qt::Path(root));
+        CHECK(chooser(panel::kLoadModelButton, qt::FileKind::Model, rememberedRoot, false));
+        CHECK(chooser(panel::kLoadAccessoryButton, qt::FileKind::Accessory,
+                      QDir(QCoreApplication::applicationDirPath()).filePath("UserFile/Accessory"),
+                      false));
+        const auto revision = folders.Session().Revision();
+        remember->trigger();
+        CHECK(!remember->isChecked() && folders.Session().Revision() == revision);
+        CHECK(chooser(panel::kLoadModelButton, qt::FileKind::Model, modelDefault, false));
+        remember->trigger();
+        CHECK(remember->isChecked());
+        CHECK(chooser(panel::kLoadModelButton, qt::FileKind::Model, rememberedRoot, false));
+        CHECK(folders.Session().Revision() == revision && revision > initialRevision);
+        CHECK(!folders.isVisible());
+    }
     qt::EditorWindow window(std::filesystem::absolute(argv[2]), true);
     CHECK(QFontMetrics(window.font()).inFont(QChar('A')));
     CHECK(QFontMetrics(window.font()).inFont(QChar('0')));

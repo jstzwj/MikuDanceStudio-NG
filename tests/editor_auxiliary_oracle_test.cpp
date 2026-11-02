@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include <commctrl.h>
+#include <commdlg.h>
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/global_key_layout.hpp"
 #include "mikudancestudio/accessory_layout.hpp"
@@ -329,6 +330,106 @@ unsigned ShadowSwitchCommands(OriginalPhysicsModule& original) {
                 ++count;
             }
     return count;
+}
+std::wstring capturedDirectory;
+unsigned fileDialogCalls;
+BOOL WINAPI CancelFileDialog(OPENFILENAMEW* options) {
+    ++fileDialogCalls;
+    capturedDirectory = options->lpstrInitialDir ? options->lpstrInitialDir : L"";
+    return FALSE;
+}
+BOOL WINAPI IgnoreCurrentDirectory(LPCWSTR) {
+    return TRUE;
+}
+unsigned unexpectedFileUi;
+int WINAPI RejectFileMessageA(HWND, LPCSTR text, LPCSTR, UINT) {
+    ++unexpectedFileUi;
+    std::fprintf(stderr, "unexpected file message: %s\n", text);
+    return IDCANCEL;
+}
+int WINAPI RejectFileMessageW(HWND, LPCWSTR text, LPCWSTR, UINT) {
+    ++unexpectedFileUi;
+    std::fwprintf(stderr, L"unexpected file message: %ls\n", text);
+    return IDCANCEL;
+}
+INT_PTR WINAPI RejectFileDialog(HINSTANCE, LPCSTR, HWND, DLGPROC, LPARAM) {
+    ++unexpectedFileUi;
+    return IDCANCEL;
+}
+unsigned FileFolderCommands(OriginalPhysicsModule& original) {
+    switchMenuCommand = MDS_CMD_TOGGLE_PREVIOUS_FOLDER;
+    auto menu = &ShadowMenu;
+    auto state = &ShadowMenuState;
+    auto check = &ShadowMenuCheck;
+    auto open = &CancelFileDialog;
+    auto directory = &IgnoreCurrentDirectory;
+    auto messageA = &RejectFileMessageA;
+    auto messageW = &RejectFileMessageW;
+    auto dialog = &RejectFileDialog;
+    Patch a(original.Function<void*>(0x1286a0), &menu, sizeof menu);
+    Patch b(original.Function<void*>(0x128660), &state, sizeof state);
+    Patch c(original.Function<void*>(0x1287a0), &check, sizeof check);
+    Patch d(original.Function<void*>(0x128090), &open, sizeof open);
+    Patch e(original.Function<void*>(0x128098), &open, sizeof open);
+    Patch f(original.Function<void*>(0x128278), &directory, sizeof directory);
+    Patch g(original.Function<void*>(0x128618), &messageA, sizeof messageA);
+    Patch h(original.Function<void*>(0x128708), &messageW, sizeof messageW);
+    Patch i(original.Function<void*>(0x128600), &dialog, sizeof dialog);
+    unexpectedFileUi = 0;
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    unsigned cases = 0;
+    for (bool checked : {false, true})
+        for (bool playing : {false, true}) {
+            std::memset(app.get(), 0, sizeof(*app));
+            app->playbackActive = playing;
+            app->sceneModified = 0x7d;
+            app->physicsResetPending = 1;
+            auto before = std::make_unique<MMDAppState>(*app);
+            shadowMenuChecked = checked;
+            shadowMenuWrites = 0;
+            original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, switchMenuCommand);
+            Check(shadowMenuWrites == 1 && !std::memcmp(app.get(), before.get(), sizeof(*app)),
+                  "original folder toggle changes only menu state");
+            ++cases;
+        }
+    for (int command : {MDS_CMD_OPEN_PROJECT, MDS_CMD_LOAD_POSE, MDS_CMD_LOAD_MOTION,
+                        MDS_CMD_LOAD_WAVE, MDS_CMD_LOAD_BACKGROUND_IMAGE})
+        for (bool checked : {false, true}) {
+            std::memset(app.get(), 0, sizeof(*app));
+            app->englishUI = 1;
+            // Pin the original x64 DirectSound availability byte independently
+            // of the retired field layout; no audio device is created here.
+            reinterpret_cast<unsigned char*>(app.get())[0x2d8] = 1;
+            wcscpy_s(app->dirUser, L"C:\\history\\project");
+            wcscpy_s(app->dirPose, L"C:\\history\\pose");
+            wcscpy_s(app->dirMotion, L"C:\\history\\motion");
+            wcscpy_s(app->dirWave, L"C:\\history\\wave");
+            wcscpy_s(app->dirBg, L"C:\\history\\background");
+            const auto category = command == MDS_CMD_OPEN_PROJECT  ? L"project"
+                                  : command == MDS_CMD_LOAD_POSE   ? L"pose"
+                                  : command == MDS_CMD_LOAD_MOTION ? L"motion"
+                                  : command == MDS_CMD_LOAD_WAVE   ? L"wave"
+                                                                   : L"background";
+            const auto fallback = command == MDS_CMD_OPEN_PROJECT  ? L"UserFile"
+                                  : command == MDS_CMD_LOAD_POSE   ? L"UserFile\\Pose"
+                                  : command == MDS_CMD_LOAD_MOTION ? L"UserFile\\Motion"
+                                  : command == MDS_CMD_LOAD_WAVE   ? L"UserFile\\Wave"
+                                                                   : L"UserFile\\BackGround";
+            shadowMenuChecked = checked;
+            capturedDirectory.clear();
+            fileDialogCalls = 0;
+            original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, command);
+            const auto expected = checked ? std::wstring(L"C:\\history\\") + category : fallback;
+            if (capturedDirectory != expected)
+                std::fwprintf(stderr, L"folder command=%d actual='%ls' expected='%ls'\n", command,
+                              capturedDirectory.c_str(), expected.c_str());
+            Check(!unexpectedFileUi && fileDialogCalls == 1 && capturedDirectory == expected,
+                  "original file dialog initial directory");
+            ++cases;
+        }
+    return cases;
 }
 unsigned AudioDisableCommands(OriginalPhysicsModule& original) {
     void* menu = reinterpret_cast<void*>(&ShadowMenu);
@@ -1936,6 +2037,11 @@ int wmain(int argc, wchar_t** argv) try {
           "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
     if (argc == 4) {
+        if (std::wcscmp(argv[3], L"--file-folders") == 0) {
+            std::printf("%u original file folder comparisons passed\n",
+                        FileFolderCommands(original));
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--morph-capacity") == 0) {
             std::printf("%u original Morph capacity comparisons passed\n",
                         MorphCapacity(original, argv[2]));
@@ -1977,6 +2083,7 @@ int wmain(int argc, wchar_t** argv) try {
         ModelDisplayCommands(original));
     std::printf("%u original FPS commands: exact rate and unchanged application state\n",
                 FrameRateCommands(original));
+    std::printf("%u original file folder comparisons passed\n", FileFolderCommands(original));
     unsigned count = 0;
     for (const char* file : {"articulated.pmd", "articulated.pmx", "facial.pmd"}) {
         EditorSession session;

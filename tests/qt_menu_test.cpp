@@ -41,6 +41,27 @@ int main(int argc, char** argv) {
     CHECK(file.open(QIODevice::ReadOnly));
     const auto reference = QJsonDocument::fromJson(file.readAll()).object();
     const auto root = std::filesystem::absolute(argv[1]);
+    qt::FileDialogHistory history;
+    const auto base = qt::Path(root);
+    for (unsigned i = 0; i < unsigned(qt::FileKind::Count); ++i) {
+        const auto kind = qt::FileKind(i);
+        const auto path = QDir(base).filePath(QString("folder-%1/file.dat").arg(i));
+        const auto initial = history.Initial(kind, base);
+        history.Confirm(kind, {});
+        CHECK(history.Initial(kind, base) == initial);
+        history.Confirm(kind, path);
+        CHECK(history.Initial(kind, base) == QFileInfo(path).absolutePath());
+        history.enabled = false;
+        history.Confirm(kind, QDir(base).filePath("ignored/file.dat"));
+        CHECK(history.Initial(kind, base) == initial);
+        history.enabled = true;
+        CHECK(history.Initial(kind, base) == QFileInfo(path).absolutePath());
+    }
+    qt::FileDialogHistory restored;
+    restored.Restore(history.Save());
+    CHECK(restored.Save() == history.Save());
+    restored.Restore({"malformed"});
+    CHECK(restored.Save() == history.Save());
     qt::EditorWindow window(std::filesystem::absolute(argv[2]), true);
     auto& session = window.Session();
     auto* autoCurve = static_cast<QAbstractButton*>(window.Control(panel::kPhysicsFrameCheckbox));
@@ -403,7 +424,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 80);
+    CHECK(implemented == 81);
     for (const char* language : {"en", "ja", "zh_CN"})
         for (int id : {MDS_CMD_DELETE_MOUTH_FRAMES, MDS_CMD_DELETE_EYE_FRAMES,
                        MDS_CMD_DELETE_EYEBROW_FRAMES}) {

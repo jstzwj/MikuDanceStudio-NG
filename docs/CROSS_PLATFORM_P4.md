@@ -3014,3 +3014,25 @@ also cover partial writes, retained redo, save/reopen and invalid-channel atomic
 After correcting a fixture's stale links, all **three affected tests passed in
 29.05 seconds**; the other **35 P4 tests** had already passed in the full run.
 Qt tests exercised all three languages without showing desktop windows.
+
+## Per-category file dialog folders (2026-11-03)
+
+Command 301 now controls folder history for project, model, accessory, motion,
+pose, WAV and background file choosers. The switch defaults on, as in the
+original startup. Confirmation stores the folder before loading the selected
+file; cancellation and confirmation with the switch disabled preserve history.
+Disabling the switch uses the original `UserFile` category defaults; reenabling
+restores prior folders. Settings persist outside PMM and undo history.
+
+The original dispatcher passed **14 independent checks**: both toggle states
+while stopped/playing, and both initial-directory policies for project, pose,
+motion, WAV and background dialogs. File choosers and unexpected native modal
+UI are intercepted; no chooser or message window appears on the desktop. Pure
+Qt tests cover all seven categories and settings serialization. Three-language
+offscreen interaction covers confirmation, cancellation, separate categories,
+disable/reenable and unchanged document revisions. Implemented menu commands
+now number **81/103**. All **36 local P4 tests passed in 145.78 seconds**.
+
+The previous Morph-capacity batch passed all three platform jobs in CI
+[41537940779](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41537940779).
+The remaining C1 command, combined scene and native input/DPI gates stay open.

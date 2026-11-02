@@ -242,6 +242,8 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     if (!testing_) {
         QSettings settings;
         lowPower_ = settings.value("editor/lowPower", false).toBool();
+        fileHistory_.enabled = settings.value("files/rememberFolders", true).toBool();
+        fileHistory_.Restore(settings.value("files/directories").toStringList());
         language_.Set(settings.value("language", language_.Code()).toString());
         separateGeometry_ = settings.value("viewport/separateGeometry").toByteArray();
         separateSize_ = settings.value("viewport/separateSize", separateSize_).toSize();
@@ -317,6 +319,8 @@ EditorWindow::~EditorWindow() {
     if (!testing_) {
         QSettings settings;
         settings.setValue("editor/lowPower", lowPower_);
+        settings.setValue("files/rememberFolders", fileHistory_.enabled);
+        settings.setValue("files/directories", fileHistory_.Save());
         settings.setValue("viewport/separate", separate_ != nullptr || restoreSeparate_);
         settings.setValue("viewport/alwaysOnTop", separateOnTop_);
         settings.setValue("viewport/separateGeometry",
@@ -861,6 +865,26 @@ void EditorWindow::closeEvent(QCloseEvent* e) {
     } else
         e->ignore();
 }
+QString EditorWindow::ChooseFile(FileKind kind, bool save, const QString& title,
+                                 const QString& filter, const QString& suggestedName,
+                                 bool confirmOverwrite) {
+    const auto initial = fileHistory_.Initial(kind, QCoreApplication::applicationDirPath());
+    QFileDialog dialog(separate_ ? separate_ : this, title, initial, filter);
+    dialog.setObjectName("editor.fileDialog");
+    dialog.setProperty("mmdInitialDirectory", initial);
+    dialog.setProperty("mmdFileKind", int(kind));
+    dialog.setAcceptMode(save ? QFileDialog::AcceptSave : QFileDialog::AcceptOpen);
+    dialog.setFileMode(save ? QFileDialog::AnyFile : QFileDialog::ExistingFile);
+    dialog.setOption(QFileDialog::DontConfirmOverwrite, !confirmOverwrite);
+    dialog.setOption(QFileDialog::DontUseNativeDialog, testing_);
+    if (!suggestedName.isEmpty())
+        dialog.selectFile(suggestedName);
+    if (dialog.exec() != QDialog::Accepted || dialog.selectedFiles().isEmpty())
+        return {};
+    const auto path = dialog.selectedFiles().front();
+    fileHistory_.Confirm(kind, path);
+    return path;
+}
 void EditorWindow::FileAction(const QString& id) {
     if (id == "view.screen_size") {
         ScreenSize();
@@ -868,8 +892,8 @@ void EditorWindow::FileAction(const QString& id) {
     }
     if (id == "background.load") {
         const auto path =
-            QFileDialog::getOpenFileName(this, language_.Text("background.load_title"), {},
-                                         language_.Text("background.image_filter"));
+            ChooseFile(FileKind::Background, false, language_.Text("background.load_title"),
+                       language_.Text("background.image_filter"));
         if (path.isEmpty())
             return;
         std::string r;
@@ -922,7 +946,7 @@ void EditorWindow::FileAction(const QString& id) {
     if (id == "file.open") {
         if (!ConfirmUnsaved())
             return;
-        auto p = QFileDialog::getOpenFileName(this, language_.Text(id), {}, "MMD Project (*.pmm)");
+        auto p = ChooseFile(FileKind::Project, false, language_.Text(id), "MMD Project (*.pmm)");
         if (!p.isEmpty())
             Open(Path(p));
         return;
@@ -931,13 +955,13 @@ void EditorWindow::FileAction(const QString& id) {
         auto p = session_.Path();
         if (p.empty() || id == "file.save_as")
             p = Path(
-                QFileDialog::getSaveFileName(this, language_.Text(id), {}, "MMD Project (*.pmm)"));
+                ChooseFile(FileKind::Project, true, language_.Text(id), "MMD Project (*.pmm)"));
         if (!p.empty())
             Save(p);
         return;
     }
     if (id == "file.wave") {
-        const auto path = QFileDialog::getOpenFileName(this, language_.Text(id), {}, "WAV (*.wav)");
+        const auto path = ChooseFile(FileKind::Wave, false, language_.Text(id), "WAV (*.wav)");
         if (path.isEmpty())
             return;
         std::string r;
@@ -946,8 +970,8 @@ void EditorWindow::FileAction(const QString& id) {
         return;
     }
     if (id == "file.sequence") {
-        const auto path = QFileDialog::getSaveFileName(this, language_.Text(id), "frames", {},
-                                                       nullptr, QFileDialog::DontConfirmOverwrite);
+        const auto path =
+            ChooseFile(FileKind::Project, true, language_.Text(id), {}, "frames", false);
         if (path.isEmpty())
             return;
         session_.Pause();
@@ -980,7 +1004,7 @@ void EditorWindow::FileAction(const QString& id) {
         return;
     }
     if (id == "file.image") {
-        auto path = QFileDialog::getSaveFileName(this, language_.Text(id), {}, "PNG (*.png)");
+        auto path = ChooseFile(FileKind::Project, true, language_.Text(id), "PNG (*.png)");
         if (path.isEmpty())
             return;
         QImage image;
@@ -1000,8 +1024,8 @@ void EditorWindow::FileAction(const QString& id) {
     if (pose || motion) {
         const bool save = id.endsWith("save");
         const auto filter = pose ? "MMD Pose (*.vpd)" : "MMD Motion (*.vmd)";
-        const auto path = save ? QFileDialog::getSaveFileName(this, language_.Text(id), {}, filter)
-                               : QFileDialog::getOpenFileName(this, language_.Text(id), {}, filter);
+        const auto path =
+            ChooseFile(pose ? FileKind::Pose : FileKind::Motion, save, language_.Text(id), filter);
         if (path.isEmpty())
             return;
         std::string r;
@@ -1419,9 +1443,10 @@ void EditorWindow::Dispatch(int id) {
         break;
     case kLoadModelButton:
     case kLoadAccessoryButton: {
-        const auto p = QFileDialog::getOpenFileName(
-            this, language_.Text("control.437"), {},
-            id == kLoadModelButton ? "MMD Model (*.pmd *.pmx)" : "Accessory (*.x)");
+        const auto p =
+            ChooseFile(id == kLoadModelButton ? FileKind::Model : FileKind::Accessory, false,
+                       language_.Text("control.437"),
+                       id == kLoadModelButton ? "MMD Model (*.pmd *.pmx)" : "Accessory (*.x)");
         if (p.isEmpty())
             return;
         ok = id == kLoadModelButton ? session_.ImportModel(Path(p), r)

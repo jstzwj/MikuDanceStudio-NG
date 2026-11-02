@@ -3,6 +3,7 @@
 #include "interpolation.hpp"
 #include "viewport.hpp"
 #include "audio.hpp"
+#include "file_dialog_history.hpp"
 #include "mikudancestudio/mmd_editor_layout.hpp"
 #include <QMainWindow>
 #include <QByteArray>
@@ -79,6 +80,7 @@ private:
     QElapsedTimer clock_;
     bool testing_ = false, refreshing_ = false;
     bool lowPower_ = false;
+    FileDialogHistory fileHistory_;
     std::uint32_t idleRenderState_ = 1;
     bool windowTransition_ = false;
     int side_ = 250;
@@ -111,6 +113,8 @@ private:
     bool PanelSlider(int, int);
     bool PanelCombo(int, int);
     void FileAction(const QString&);
+    QString ChooseFile(FileKind, bool save, const QString& title, const QString& filter,
+                       const QString& suggestedName = {}, bool confirmOverwrite = true);
     void Numeric();
     void ScreenSize();
     void EdgeThickness();
