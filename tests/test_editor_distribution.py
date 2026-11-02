@@ -44,6 +44,8 @@ def main():
         if system == 'Windows':
             env['MDS_GPU_BACKEND'] = 'd3d11'
             env['MDS_GPU_DRIVER'] = 'software'
+        elif system == 'Darwin':
+            env['MTL_DEBUG_LAYER'] = '1'
         elif system == 'Linux':
             env['MDS_GPU_DRIVER'] = 'software'
         report = root / 'deployment.json'

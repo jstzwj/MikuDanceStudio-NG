@@ -5,6 +5,12 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        description: Platform to validate (all by default)
+        default: all
+        options: [all, windows, linux, macos]
 concurrency:
   group: editor-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -12,6 +18,7 @@ permissions:
   contents: read
 jobs:
   windows:
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'windows'
     runs-on: windows-2022
     env:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
@@ -116,6 +123,7 @@ jobs:
             out/p4/editor-frame-performance.json
             out/p4/Testing/Temporary/
   linux:
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'linux'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -205,6 +213,7 @@ jobs:
             out/p4/editor-frame-performance.json
             out/p4/Testing/Temporary/
   macos:
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'macos'
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -273,10 +282,14 @@ jobs:
           cmake -S cmake/portable-editor -B out/p4 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DMDS_MOLTENVK_LIBRARY="$PWD/out/moltenvk/libMoltenVK.dylib" -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/bin/dxc"
           cmake --build out/p4 --target background_filter_test background_placement_test portable_uv_render_test qt_audio_test qt_bone_drag_test qt_editor_test qt_channel_binding_test qt_numeric_test qt_menu_test qt_editor_performance_test qt_editor_render_test qt_presentation_test qt_metal_present_test editor_overlay_test editor_layout_test editor_mode_test editor_bone_drag_test editor_playback_test editor_auto_interpolation_test editor_registration_test editor_physics_continuity_test editor_clipboard_test editor_frame_line_test editor_navigation_test editor_view_test editor_selection_test editor_history_test editor_pose_test editor_session_test model_runtime_reuse_test pmm_edit_test wave_format_test MikuDanceStudioNG --parallel 3
           ctest --test-dir out/p4 -L p4 --output-on-failure --output-junit p4.xml
-          MDS_QT_ISOLATED_DISPLAY=1 python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test --assets res/assets
+          MDS_QT_ISOLATED_DISPLAY=1 MDS_GPU_BACKEND=metal python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test --assets res/assets
           MDS_QT_ISOLATED_DISPLAY=1 out/p4/qt_metal_present_test
           MDS_QT_ISOLATED_DISPLAY=1 QT_SCALE_FACTOR=2 out/p4/qt_metal_present_test
           MDS_QT_ISOLATED_DISPLAY=1 QT_SCALE_FACTOR=2 MDS_GPU_BACKEND=metal python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test --assets res/assets
+          # MoltenVK currently trips an MTLDebugDevice lifetime assertion. Keep
+          # native Metal API validation above; run the existing Vulkan checks
+          # and cross-backend menu transaction in their own process below.
+          MTL_DEBUG_LAYER=0 MDS_QT_ISOLATED_DISPLAY=1 MDS_QT_TEST_BACKEND_SWITCH=1 python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test --assets res/assets
       - name: Deploy and validate relocated package
         shell: bash
         run: |
@@ -300,7 +313,7 @@ jobs:
           python tests/test_editor_distribution.py --dist out/p4/dist --report out/p4/metal-only-distribution.json
           test ! -f out/p4/dist/MikuDanceStudioNG.app/Contents/Frameworks/libMoltenVK.dylib
       - uses: actions/cache/save@v4
-        if: github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
+        if: always() && github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
         with:
           path: .cache/ccache
           key: editor-objects-macos15-${{ runner.arch }}-qt683-v1-${{ github.sha }}

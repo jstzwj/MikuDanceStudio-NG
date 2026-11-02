@@ -35,7 +35,7 @@ C1 可先交付，已完成的 C2 效果可以随版本启用；完整 Ray 不�
 | 平台／架构 | 角色 | 渲染路线 | 发布前需固定的条件 |
 |---|---|---|---|
 | Windows x64 | 主要产品与兼容对照平台 | DX11／DX12／Vulkan；保留 DX9 兼容路径 | 最低系统版本、驱动和运行库 |
-| macOS arm64 | 首批 macOS 产品平台 | 首先验证 Vulkan 到 Metal 的实现；必要时增加原生 Metal 后端 | 最低 macOS、Vulkan 实现、所需 Metal／GPU 能力 |
+| macOS arm64 | 首批 macOS 产品平台 | 原生 Metal；可选 Vulkan／MoltenVK 用于对照 | macOS 13+，实体 GPU 性能与发行资格继续按 P7 验证 |
 | Linux x86_64 | 首批 Linux 产品平台 | Vulkan；覆盖 Wayland 与 X11 | 发行版／glibc 基线、最低驱动和桌面环境 |
 | Windows x86 | 保留现有兼容与重建验证 | 现有 Windows 路径 | 不要求新跨平台 UI 同时支持 x86 |
 | macOS Intel、Linux arm64 | 后续扩展候选 | 按设备能力验证 | 单独建立构建、运行和发布证据后承诺支持 |
@@ -81,7 +81,7 @@ flowchart TD
     Frame --> RHI[RHI 与资源生命周期]
     RHI --> DX[Windows DX11 / DX12]
     RHI --> VK[Vulkan 与平台 Surface]
-    RHI --> Metal[候选原生 Metal 后端]
+    RHI --> Metal[原生 Metal 与 CAMetalLayer]
     Adapter --> DX9[Windows DX9 对照与兼容路径]
 ```
 
@@ -148,7 +148,7 @@ Windows 原版 ACP 加载限制留在兼容适配器和对应测试中。跨平�
 
 ### 4.4 RHI、呈现与 macOS 验证
 
-窗口系统通过平台 Surface 提供者交付所需实例扩展与 Surface 创建能力，RHI 持有交换链和 GPU 生命周期。明确 Vulkan 实例、窗口、Surface 和交换链的所有权及销毁顺序。
+窗口系统通过通用 `WindowSurfaceSource` 提供原生窗口／显示连接、所有权租约和生命周期回调，物理像素尺寸由 `SwapchainDesc` 提供。RHI 持有交换链和 GPU 生命周期；Vulkan 的实例扩展与 Surface 创建留在该后端，Metal 使用同一租约中的 `CAMetalLayer`。设备必须在原生资源销毁后才释放窗口租约。
 
 需要补齐：
 
@@ -159,7 +159,7 @@ Windows 原版 ACP 加载限制留在兼容适配器和对应测试中。跨平�
 - 复用现有资源完成状态回收、动态缓冲和共享帧描述；常规呈现不经过 GPU→CPU→GPU 回读上传。
 - 保留可移植三线性默认档位，原生各向异性单独报告；统一最终颜色目标、色彩空间、Alpha、上下方向及屏幕纹理时序。
 
-当前后端要求 Vulkan 1.3 和若干特性。macOS 应先做离屏能力实测，再决定保持当前要求、通过等价实现满足契约或增加原生 Metal 后端；不能静默删去效果所需能力。
+Vulkan 后端要求 Vulkan 1.3 和若干特性。macOS 已增加原生 Metal 后端，共用 HLSL／效果描述，通过 DXC SPIR-V 和固定版本 SPIRV-Cross 生成 MSL；不依赖 MoltenVK，不静默删去效果所需能力。原生离屏验收包括材质、自阴影、16 槽绑定、MRT／HDR、mip、严格复制、动态缓冲与 PMD／PMX／PMM，见 [Metal 后端记录](docs/METAL_BACKEND.md)。Qt 呈现与发布沿用相同资源契约，并单独验收真实 drawable 像素、Retina、窗口重建和后端切换。
 
 macOS 的路线需形成独立选型记录：最低系统版本、Intel 支持范围、Vulkan 到 Metal 的具体实现、实际特性、性能、同步和发行方式。当前上游对 MoltenVK 与 Apple Silicon 方案的推荐已有变化；KosmicKrisp 的官方说明要求 Apple Silicon 和 macOS 26 及以上，因此不能直接作为所有 Mac 的通用默认值。版本与结论以选型时的实际 SDK／驱动验证为准，参考文档列于末尾。
 

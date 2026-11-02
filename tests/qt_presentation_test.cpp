@@ -309,6 +309,8 @@ int main(int argc, char** argv) {
 #ifdef __APPLE__
         // Exercise the production menu transaction on the same live session.
         for (auto selected : {rhi::Backend::Metal, rhi::Backend::Vulkan, backend}) {
+            if (selected != backend && qEnvironmentVariable("MDS_QT_TEST_BACKEND_SWITCH") != "1")
+                continue;
             if (!rhi::BackendAvailable(selected))
                 continue;
             QPointer<qt::Viewport> former = editor.RenderWindow();

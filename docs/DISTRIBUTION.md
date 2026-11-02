@@ -6,7 +6,8 @@ progress; a successful package build does not imply complete MMD parity.
 The deployment follows Muffin's separate `dist` target and relocated smoke-test
 pattern, using Qt's deployment API for this project's Qt 6.8.3 baseline.
 Windows includes Qt DLLs, MSVC runtime and platform/multimedia/image plugins.
-macOS uses an `.app` with Qt frameworks, plugins and MoltenVK. Linux includes Qt
+macOS uses an `.app` with Qt frameworks and plugins; native Metal is its default
+renderer. A build that also enables Vulkan includes MoltenVK. Linux includes Qt
 and non-system dependencies; the host supplies glibc, display/audio services and
 the Vulkan loader/driver. The Linux baseline is Ubuntu 22.04 x64; macOS is 13+
 arm64. Packages are development artifacts, unsigned on Windows and ad-hoc signed
@@ -30,11 +31,15 @@ Configure with `Qt6_ROOT` or `CMAKE_PREFIX_PATH` pointing to the desired SDK.
 Install `requirements-build.txt` with pip, then run `python tools/setup_qt.py`
 to install the pinned SDK used by CI. Linux also requires
 the X11/Wayland development packages listed in `portable-editor.yml`, plus
-`patchelf` for deployment. Vulkan builds require DXC and Vulkan headers.
+`patchelf` for deployment. Vulkan builds require DXC and Vulkan headers. Native
+Metal builds use DXC and the pinned static SPIRV-Cross MSL compiler; they do not
+require Vulkan headers or MoltenVK. Set `MIKUDANCESTUDIO_RHI_VULKAN=OFF` for a
+Metal-only macOS editor/package; Metal defaults on in the portable editor profile.
 Use `tools/fetch_dxc.py --output out/dxc` and configure `MDS_DXC` to its executable;
 `MDS_DXC_RUNTIME_DIR` can override the runtime distribution location. On macOS,
-use the pinned DXC source build in CI and set `MDS_MOLTENVK_LIBRARY` to the output
-of `tools/fetch_moltenvk_probe.py`. Runtime compiler libraries and their licenses
+use the pinned DXC source build in CI. When also enabling Vulkan, set
+`MDS_MOLTENVK_LIBRARY` to the output of `tools/fetch_moltenvk_probe.py`.
+Runtime compiler libraries and their licenses
 are included; the build machine's SDK paths are unnecessary at runtime.
 
 CI publishes archives as workflow artifacts after build, regression and package
@@ -45,7 +50,12 @@ trees and runner/compiler profiles are never restored as caches.
 
 Windows CI checks DX11/DX12 WARP presentation and bundles Vulkan, but does not
 claim Vulkan device execution on runners without a Vulkan driver. Linux and
-macOS execute the Vulkan path; every Vulkan package also checks its shipped DXC.
+macOS execute the Vulkan path. macOS additionally tests native Metal offscreen
+and Qt presentation at normal/2x scale, actual drawable pixels, window recreation
+and switching between Metal/Vulkan. Packages with either backend check their
+shipped DXC. The macOS job also builds and relocates a Metal-only package with
+no MoltenVK library. Hosted Apple paravirtual GPU evidence does not establish
+performance or release qualification on physical Intel/Apple Silicon devices.
 
 Qt's standard dialog translations are bundled in addition to the editor's
 embedded English, Japanese and Simplified Chinese catalogs. Runtime licenses
