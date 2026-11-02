@@ -171,6 +171,7 @@ public:
     const SceneDisplayOptions& DisplayOptions() const { return display_; }
     void SetTransparentModels(bool);
     void SetHiddenModels(bool);
+    void SetMipmaps(bool);
     bool SetOutlineColor(const std::array<std::uint8_t, 3>& rgb);
     // Invalidate visual changes which preserve the document's dirty revision.
     std::uint64_t AppearanceRevision() const { return appearanceRevision_; }

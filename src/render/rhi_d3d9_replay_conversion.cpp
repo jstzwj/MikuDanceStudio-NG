@@ -271,16 +271,17 @@ ModelReplayResult AppendD3D9ReplaySnapshot(ModelReplayStream& stream, const D3D9
         const auto min = ss(stage, D3DSAMP_MINFILTER), mag = ss(stage, D3DSAMP_MAGFILTER),
                    mip = ss(stage, D3DSAMP_MIPFILTER), u = ss(stage, D3DSAMP_ADDRESSU),
                    v = ss(stage, D3DSAMP_ADDRESSV);
-        if (min < 1 || min > 3 || mag < 1 || mag > 3 || mip < 1 || mip > 3 || (u != 1 && u != 3) ||
+        if (min < 1 || min > 3 || mag < 1 || mag > 3 || mip > 3 || (u != 1 && u != 3) ||
             (v != 1 && v != 3) || ss(stage, D3DSAMP_MIPMAPLODBIAS) ||
             ss(stage, D3DSAMP_MAXMIPLEVEL))
             return fail("unsupported_sampler");
         s.samplers[stage] = {static_cast<SamplerFilter>(min - 1),
                              static_cast<SamplerFilter>(mag - 1),
-                             static_cast<SamplerFilter>(mip - 1),
+                             mip ? static_cast<SamplerFilter>(mip - 1) : SamplerFilter::Point,
                              u == 1 ? SamplerAddress::Wrap : SamplerAddress::Clamp,
                              v == 1 ? SamplerAddress::Wrap : SamplerAddress::Clamp,
-                             ss(stage, D3DSAMP_MAXANISOTROPY)};
+                             ss(stage, D3DSAMP_MAXANISOTROPY),
+                             mip != D3DTEXF_NONE};
         s.srgbSample[stage] = ss(stage, D3DSAMP_SRGBTEXTURE) != 0;
         if (t.lod || (t.format != D3DFMT_A8R8G8B8 && t.format != D3DFMT_X8R8G8B8) || !t.levels ||
             t.levels > 15 || !t.width || !t.height || t.width > 16384 || t.height > 16384)

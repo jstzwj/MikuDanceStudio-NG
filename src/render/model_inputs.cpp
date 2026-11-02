@@ -277,17 +277,16 @@ bool BuildModelInputs(const ModelFrameInputs& f, const ModelMaterialInputs& m,
         s.textureTransforms[stage] =
             s.layout.stages[stage].coordinates == rhi::MaterialCoordinates::MeshUv1 ? Identity()
                                                                                     : half;
-    // Mip filtering NONE is equivalent only for a proved single-level input.
-    // The host currently rejects that policy rather than relabelling a state.
-    if (!p.anisotropic)
-        return false;
+    const auto filter =
+        p.anisotropic ? rhi::SamplerFilter::Anisotropic : rhi::SamplerFilter::Linear;
     for (unsigned stage = 0; stage < 3; ++stage)
-        s.samplers[stage] = {rhi::SamplerFilter::Anisotropic,
-                             rhi::SamplerFilter::Anisotropic,
-                             rhi::SamplerFilter::Anisotropic,
+        s.samplers[stage] = {filter,
+                             filter,
+                             p.anisotropic ? filter : rhi::SamplerFilter::Point,
                              stage == 0 ? rhi::SamplerAddress::Clamp : rhi::SamplerAddress::Wrap,
                              stage == 0 ? rhi::SamplerAddress::Clamp : rhi::SamplerAddress::Wrap,
-                             p.maxAnisotropy};
+                             p.anisotropic ? p.maxAnisotropy : 1,
+                             p.anisotropic};
     s.alphaTest = p.alphaTest;
     s.alphaCompare =
         p.alphaTest ? rhi::DepthComparison::GreaterEqual : rhi::DepthComparison::Always;

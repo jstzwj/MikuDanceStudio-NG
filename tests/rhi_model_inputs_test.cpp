@@ -58,7 +58,12 @@ int main() {
     CHECK(changed.shader.layout.stages[1].coordinates==rhi::MaterialCoordinates::MeshUv1);
     frame.world[0]=0;CHECK(!render::BuildModelInputs(frame,material,{},changed));frame.world[0]=1;
     frame.scene.camera.fov=180;CHECK(!render::BuildModelInputs(frame,material,{},changed));frame.scene.camera.fov=60;
-    render::ModelPassSettings unsupported;unsupported.anisotropic=false;CHECK(!render::BuildModelInputs(frame,material,unsupported,changed));
+    render::ModelPassSettings baseOnly;
+    baseOnly.anisotropic = false;
+    CHECK(render::BuildModelInputs(frame, material, baseOnly, changed));
+    for (const auto& sampler : changed.shader.samplers)
+        CHECK(!sampler.mipmaps && sampler.min == rhi::SamplerFilter::Linear &&
+              sampler.mag == rhi::SamplerFilter::Linear && sampler.maxAnisotropy == 1);
     // Consume a generated input with owned CPU geometry + a texture, through
     // the same renderer used by native backends. Resource/cache recovery is
     // exercised with this producer in rhi_backend_scene_test.

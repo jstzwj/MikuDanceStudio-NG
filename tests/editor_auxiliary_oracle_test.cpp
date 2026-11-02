@@ -20,6 +20,7 @@
 #include "mikudancestudio/cpu_model_state.hpp"
 #include "mikudancestudio/idle_render_gate.hpp"
 #include "mikudancestudio/blink_registration.hpp"
+#include "d3d9_device_fixture.hpp"
 #include <cstdio>
 #include <climits>
 #include <cstdlib>
@@ -429,6 +430,85 @@ unsigned FileFolderCommands(OriginalPhysicsModule& original) {
                   "original file dialog initial directory");
             ++cases;
         }
+    return cases;
+}
+struct NativeSamplerDevice : SnapshotDeviceFixture {
+    std::map<std::pair<unsigned, D3DSAMPLERSTATETYPE>, DWORD> samplers;
+    NativeSamplerDevice() : SnapshotDeviceFixture(nullptr) {}
+    HRESULT STDMETHODCALLTYPE SetSamplerState(DWORD stage, D3DSAMPLERSTATETYPE state,
+                                              DWORD value) override {
+        samplers[{stage, state}] = value;
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE SetRenderState(D3DRENDERSTATETYPE, DWORD) override { return S_OK; }
+    HRESULT STDMETHODCALLTYPE SetSoftwareVertexProcessing(BOOL) override { return S_OK; }
+    HRESULT STDMETHODCALLTYPE LightEnable(DWORD, BOOL) override { return S_OK; }
+    HRESULT STDMETHODCALLTYPE SetTextureStageState(DWORD, D3DTEXTURESTAGESTATETYPE,
+                                                   DWORD) override {
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE SetTransform(D3DTRANSFORMSTATETYPE, const D3DMATRIX*) override {
+        return S_OK;
+    }
+    HRESULT STDMETHODCALLTYPE GetDeviceCaps(D3DCAPS9* caps) override {
+        *caps = {};
+        return S_OK;
+    }
+};
+unsigned MipmapCommands(OriginalPhysicsModule& original) {
+    switchMenuCommand = MDS_CMD_TOGGLE_MIPMAP;
+    auto menu = &ShadowMenu;
+    auto state = &ShadowMenuState;
+    auto check = &ShadowMenuCheck;
+    Patch a(original.Function<void*>(0x1286a0), &menu, sizeof menu);
+    Patch b(original.Function<void*>(0x128660), &state, sizeof state);
+    Patch c(original.Function<void*>(0x1287a0), &check, sizeof check);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    NativeSamplerDevice device;
+    std::vector<unsigned char> renderer(0x3ab00);
+    auto* rendererPointer = renderer.data();
+    auto* devicePointer = static_cast<IDirect3DDevice9*>(&device);
+    unsigned cases = 0;
+    for (bool checked : {false, true})
+        for (unsigned raw : {0u, 1u, 7u})
+            for (bool playing : {false, true})
+                for (DWORD anisotropy : {1u, 16u}) {
+                    std::memset(app.get(), 0, sizeof(*app));
+                    std::fill(renderer.begin(), renderer.end(), 0);
+                    std::memcpy(renderer.data() + 0x3a9c0, &devicePointer, sizeof devicePointer);
+                    std::memcpy(renderer.data() + 0x3a9b0, &anisotropy, sizeof anisotropy);
+                    renderer[0x3aa84] = static_cast<unsigned char>(raw);
+                    std::memcpy(reinterpret_cast<unsigned char*>(app.get()) + 0xa16e0,
+                                &rendererPointer, sizeof rendererPointer);
+                    app->playbackActive = playing;
+                    app->sceneModified = 0x7d;
+                    const auto before = std::make_unique<MMDAppState>(*app);
+                    shadowMenuChecked = checked;
+                    shadowMenuWrites = 0;
+                    device.samplers.clear();
+                    original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr,
+                                                                       MDS_CMD_TOGGLE_MIPMAP);
+                    Check(shadowMenuWrites == 1 && renderer[0x3aa84] == !checked &&
+                              !std::memcmp(app.get(), before.get(), sizeof(*app)),
+                          "native mip switch changes only menu and renderer policy");
+                    const auto sampler = [&](unsigned stage, D3DSAMPLERSTATETYPE kind) {
+                        return device.samplers.at({stage, kind});
+                    };
+                    Check(sampler(0, D3DSAMP_MINFILTER) ==
+                                  (checked ? D3DTEXF_LINEAR : D3DTEXF_ANISOTROPIC) &&
+                              sampler(0, D3DSAMP_MAGFILTER) ==
+                                  (checked ? D3DTEXF_LINEAR : D3DTEXF_ANISOTROPIC),
+                          "original base sampler min/mag policy");
+                    for (unsigned stage = 0; stage < 3; ++stage)
+                        Check(sampler(stage, D3DSAMP_MIPFILTER) ==
+                                      (checked ? D3DTEXF_NONE : D3DTEXF_ANISOTROPIC) &&
+                                  sampler(stage, D3DSAMP_MAXANISOTROPY) ==
+                                      (checked ? 1u : anisotropy),
+                              "original mip and anisotropy policy");
+                    ++cases;
+                }
     return cases;
 }
 unsigned AudioDisableCommands(OriginalPhysicsModule& original) {
@@ -2037,6 +2117,11 @@ int wmain(int argc, wchar_t** argv) try {
           "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
     if (argc == 4) {
+        if (std::wcscmp(argv[3], L"--mipmap") == 0) {
+            std::printf("%u original mipmap command comparisons passed\n",
+                        MipmapCommands(original));
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--file-folders") == 0) {
             std::printf("%u original file folder comparisons passed\n",
                         FileFolderCommands(original));
@@ -2084,6 +2169,7 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf("%u original FPS commands: exact rate and unchanged application state\n",
                 FrameRateCommands(original));
     std::printf("%u original file folder comparisons passed\n", FileFolderCommands(original));
+    std::printf("%u original mipmap command comparisons passed\n", MipmapCommands(original));
     unsigned count = 0;
     for (const char* file : {"articulated.pmd", "articulated.pmx", "facial.pmd"}) {
         EditorSession session;

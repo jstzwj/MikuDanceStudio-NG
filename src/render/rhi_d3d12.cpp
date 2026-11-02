@@ -246,7 +246,7 @@ public:
             s.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
             s.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
             s.MaxAnisotropy = a.maxAnisotropy;
-            s.MaxLOD = D3D12_FLOAT32_MAX;
+            s.MaxLOD = a.mipmaps ? D3D12_FLOAT32_MAX : 0;
             samplerSet[i] = s;
             views.ptr += viewStride;
             samplers.ptr += samplerStride;
@@ -1728,7 +1728,7 @@ bool D3D12Device::SetModelPipeline(const ModelPipeline& p) {
         d.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
         d.MaxAnisotropy = std::clamp(a.maxAnisotropy, 1u, 16u);
         d.ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
-        d.MaxLOD = D3D12_FLOAT32_MAX;
+        d.MaxLOD = a.mipmaps ? D3D12_FLOAT32_MAX : 0;
         samplerDescriptions[i] = d;
     }
     auto* vs = p.vertexLayout == VertexLayout::PositionColor ? colorVertex.Get()
@@ -1839,7 +1839,7 @@ bool D3D12Device::SetFixedPipeline(FixedPipelineState f) {
     s.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
     s.MaxAnisotropy = 1;
     s.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-    s.MaxLOD = D3D12_FLOAT32_MAX;
+    s.MaxLOD = f.sampler.mipmaps ? D3D12_FLOAT32_MAX : 0;
     samplerDescriptions.fill(s);
     const float dims[] = {float(targetWidth), float(targetHeight), 0, 0};
     const auto constant = Constants(dims, sizeof(dims));

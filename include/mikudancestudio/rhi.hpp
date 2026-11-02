@@ -274,6 +274,9 @@ struct SamplerDesc {
     SamplerAddress u = SamplerAddress::Wrap;
     SamplerAddress v = SamplerAddress::Wrap;
     std::uint32_t maxAnisotropy = 1;
+    // False clamps every implicit or explicit LOD to the uploaded base level.
+    // The mip filter remains defined so disabling mips never changes min/mag.
+    bool mipmaps = true;
 };
 struct Capabilities {
     bool shaders = false;

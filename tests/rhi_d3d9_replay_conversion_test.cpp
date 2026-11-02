@@ -995,6 +995,19 @@ int main(int argc,char** argv) {
     }
     ModelReplayStream stream;stream.target.width=stream.target.height=64;stream.events.push_back({1,ModelReplayOp::Clear});
     auto c=Fixture();CHECK(AppendD3D9ReplaySnapshot(stream,c));
+    {
+        auto baseOnly = c;
+        for (auto& sampler : baseOnly.samplerStates)
+            if (sampler.key == D3DSAMP_MIPFILTER)
+                sampler.value = D3DTEXF_NONE;
+        ModelReplayStream input;
+        input.target = stream.target;
+        input.events.push_back({1, ModelReplayOp::Clear});
+        CHECK(AppendD3D9ReplaySnapshot(input, baseOnly));
+        const auto& sampler = input.events.back().draw.pipeline.shader.samplers[0];
+        CHECK(!sampler.mipmaps && sampler.min == SamplerFilter::Point &&
+              sampler.mag == SamplerFilter::Point);
+    }
     {auto accessory=c;accessory.accessoryMaterial=true;ModelReplayStream input;input.target=stream.target;
         input.events.push_back({1,ModelReplayOp::Clear});CHECK(AppendD3D9ReplaySnapshot(input,accessory));
         CHECK(input.events.back().draw.pipeline.shader.layout.stages[0].role==MaterialTextureRole::Base);

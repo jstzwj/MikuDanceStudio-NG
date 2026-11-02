@@ -395,6 +395,12 @@ void EditorSession::SetHiddenModels(bool value) {
         ++appearanceRevision_;
     }
 }
+void EditorSession::SetMipmaps(bool value) {
+    if (display_.mipmaps != value) {
+        display_.mipmaps = value;
+        ++appearanceRevision_;
+    }
+}
 void EditorSession::SetPhysicsFloor(bool enabled) {
     runtime_->SetPhysicsFloor(enabled);
 }

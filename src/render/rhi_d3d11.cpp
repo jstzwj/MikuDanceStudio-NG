@@ -147,7 +147,7 @@ public:
                                                         : D3D11_TEXTURE_ADDRESS_CLAMP;
             desc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
             desc.MaxAnisotropy = a.maxAnisotropy;
-            desc.MaxLOD = D3D11_FLOAT32_MAX;
+            desc.MaxLOD = a.mipmaps ? D3D11_FLOAT32_MAX : 0;
             const std::string key(reinterpret_cast<const char*>(&desc), sizeof(desc));
             auto i = samplerCache.find(key);
             if (i == samplerCache.end()) {
@@ -870,7 +870,7 @@ public:
         s.AddressV = p.sampler.v == SamplerAddress::Clamp ? D3D11_TEXTURE_ADDRESS_CLAMP
                                                           : D3D11_TEXTURE_ADDRESS_WRAP;
         s.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-        s.MaxLOD = D3D11_FLOAT32_MAX;
+        s.MaxLOD = p.sampler.mipmaps ? D3D11_FLOAT32_MAX : 0;
         s.ComparisonFunc = D3D11_COMPARISON_NEVER;
         s.MaxAnisotropy = 1;
         D3D11_BLEND_DESC b{};
@@ -1329,7 +1329,7 @@ bool D3D11Device::SetModelPipeline(const ModelPipeline& p) {
                                                        : D3D11_TEXTURE_ADDRESS_CLAMP;
         d.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
         d.MaxAnisotropy = sampler.maxAnisotropy;
-        d.MaxLOD = D3D11_FLOAT32_MAX;
+        d.MaxLOD = sampler.mipmaps ? D3D11_FLOAT32_MAX : 0;
         const std::string key(reinterpret_cast<const char*>(&d), sizeof(d));
         auto found = samplerCache.find(key);
         if (found == samplerCache.end()) {

@@ -259,8 +259,9 @@ public:
                 device_->SetSamplerState(0, D3DSAMP_MINFILTER, Filter(pipeline.sampler.min))) &&
             SUCCEEDED(
                 device_->SetSamplerState(0, D3DSAMP_MAGFILTER, Filter(pipeline.sampler.mag))) &&
-            SUCCEEDED(
-                device_->SetSamplerState(0, D3DSAMP_MIPFILTER, Filter(pipeline.sampler.mip))) &&
+            SUCCEEDED(device_->SetSamplerState(
+                0, D3DSAMP_MIPFILTER,
+                pipeline.sampler.mipmaps ? Filter(pipeline.sampler.mip) : D3DTEXF_NONE)) &&
             SUCCEEDED(device_->SetSamplerState(0, D3DSAMP_ADDRESSU, Address(pipeline.sampler.u))) &&
             SUCCEEDED(device_->SetSamplerState(0, D3DSAMP_ADDRESSV, Address(pipeline.sampler.v))) &&
             SUCCEEDED(device_->SetSamplerState(0, D3DSAMP_MAXANISOTROPY,
@@ -563,8 +564,9 @@ public:
                                                             static_cast<DWORD>(sampler.min) + 1},
                       std::pair<D3DSAMPLERSTATETYPE, DWORD>{D3DSAMP_MAGFILTER,
                                                             static_cast<DWORD>(sampler.mag) + 1},
-                      std::pair<D3DSAMPLERSTATETYPE, DWORD>{D3DSAMP_MIPFILTER,
-                                                            static_cast<DWORD>(sampler.mip) + 1},
+                      std::pair<D3DSAMPLERSTATETYPE, DWORD>{
+                          D3DSAMP_MIPFILTER,
+                          sampler.mipmaps ? static_cast<DWORD>(sampler.mip) + 1 : D3DTEXF_NONE},
                       std::pair<D3DSAMPLERSTATETYPE, DWORD>{
                           D3DSAMP_ADDRESSU, sampler.u == SamplerAddress::Wrap ? 1u : 3u},
                       std::pair<D3DSAMPLERSTATETYPE, DWORD>{

@@ -242,6 +242,7 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     if (!testing_) {
         QSettings settings;
         lowPower_ = settings.value("editor/lowPower", false).toBool();
+        session_.SetMipmaps(settings.value("renderer/mipmaps", true).toBool());
         fileHistory_.enabled = settings.value("files/rememberFolders", true).toBool();
         fileHistory_.Restore(settings.value("files/directories").toStringList());
         language_.Set(settings.value("language", language_.Code()).toString());
@@ -319,6 +320,7 @@ EditorWindow::~EditorWindow() {
     if (!testing_) {
         QSettings settings;
         settings.setValue("editor/lowPower", lowPower_);
+        settings.setValue("renderer/mipmaps", session_.DisplayOptions().mipmaps);
         settings.setValue("files/rememberFolders", fileHistory_.enabled);
         settings.setValue("files/directories", fileHistory_.Save());
         settings.setValue("viewport/separate", separate_ != nullptr || restoreSeparate_);

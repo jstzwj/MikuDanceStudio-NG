@@ -1193,6 +1193,14 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         return Fail(reason, "scene_screen_history");
     if (!ApplyMaterialSampling(result, MaterialSamplingPolicy::PortableTrilinear))
         return Fail(reason, "scene_sampling_policy");
+    if (!settings.display.mipmaps)
+        for (auto& pass : result.passes)
+            for (auto& draw : pass.draws)
+                for (auto& sampler : draw.pipeline.shader.samplers) {
+                    sampler.min = sampler.mag = sampler.mip = rhi::SamplerFilter::Linear;
+                    sampler.maxAnisotropy = 1;
+                    sampler.mipmaps = false;
+                }
     const auto valid = ValidateRenderFrame(result);
     if (!valid)
         return Fail(reason, valid.reason);

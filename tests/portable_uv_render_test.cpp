@@ -86,6 +86,31 @@ int main(int argc, char** argv) try {
                     return submit(1, frame);
                 };
                 const auto original = draw();
+                if (extra == 1 && !dual && !mode) {
+                    const auto revision = session.Revision();
+                    const auto updates = session.Runtime().Counters().frames;
+                    session.SetMipmaps(false);
+                    settings.display = session.DisplayOptions();
+                    draw();
+                    for (const auto& pass : frame.passes)
+                        for (const auto& command : pass.draws)
+                            for (unsigned stage = 0; stage < 3; ++stage)
+                                if (command.pipeline.shader.layout.stages[stage].role !=
+                                    MaterialTextureRole::None) {
+                                    const auto& sampler = command.pipeline.shader.samplers[stage];
+                                    Require(!sampler.mipmaps &&
+                                                sampler.min == SamplerFilter::Linear &&
+                                                sampler.mag == SamplerFilter::Linear &&
+                                                sampler.maxAnisotropy == 1,
+                                            "editor base LOD policy");
+                                }
+                    session.SetMipmaps(true);
+                    settings.display = session.DisplayOptions();
+                    Require(draw() == original, "mip toggle restores exact image");
+                    Require(session.Revision() == revision &&
+                                session.Runtime().Counters().frames == updates,
+                            "mip toggle must not edit or evaluate scene");
+                }
                 const auto originalGeometry = saved;
                 if (!mode) {
                     auto transformed = frame;

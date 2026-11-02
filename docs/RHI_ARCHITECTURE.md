@@ -1,5 +1,15 @@
 # Rendering hardware interface: incremental migration
 
+Base-level sampling (2026-11-03): `SamplerDesc::mipmaps=false` clamps implicit
+and explicit sampling LOD to zero independently of min/mag, mip contents,
+addressing and Alpha. DX11/DX12 use MaxLOD=0, Vulkan uses maxLod=0, Metal uses
+NotMipmapped plus lodMaxClamp=0, and DX9 uses MIPFILTER_NONE. Sampler cache keys
+include this policy. The live editor mip switch reaches viewport and sequence
+export through SceneDisplayOptions; enabling retains portable trilinear and
+disabling uses native bilinear base-level sampling. It changes neither PMM nor
+undo history. The DX9 CPU material producer and replay conversion preserve the
+disabled state instead of rejecting it or converting NONE into point mip choice.
+
 Native Metal (2026-11-02): the portable Qt editor defaults to Metal on macOS.
 The Apple-only adapter shares material/effect descriptions and HLSL with the
 other backends, translating validated SPIR-V to MSL. It implements device and

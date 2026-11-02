@@ -3036,3 +3036,39 @@ now number **81/103**. All **36 local P4 tests passed in 145.78 seconds**.
 The previous Morph-capacity batch passed all three platform jobs in CI
 [41537940779](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41537940779).
 The remaining C1 command, combined scene and native input/DPI gates stay open.
+
+## Native mip switch and base-level sampling (2026-11-03)
+
+Command 298 now switches the live viewport and image export between the approved
+portable trilinear profile and bilinear sampling of level zero. The enabled
+profile retains its separately documented difference from native anisotropy.
+The switch persists in application settings, outside PMM/history; playback does
+not disable it. Appearance revision invalidates cached frames without advancing
+animation or changing edited data. Menu coverage is **82/103**.
+
+The hash-verified original dispatcher and actual renderer-state initializer
+passed **24 checks** covering menu authority, stale raw policy bytes, playback,
+anisotropy limits and complete application bytes. The original disabled policy
+is MIPFILTER_NONE, not nearest mip selection. A test device intercepts state
+writes; no GPU/audio device or native window is created by this oracle.
+
+The new GPU gate compares disabled mip sampling on a full, explicitly colored
+chain with a physically single-level texture. It requires exact final bytes,
+including Alpha, and a visibly different enabled result. Each profile covers
+**32 cases**: point/linear, wrap/clamp, built-in/shadow/generic implicit/generic
+explicit LOD, odd width and fresh devices. Repeated submissions and switching
+back to either policy also compare exactly. DX11 and DX12 hardware/WARP and
+Vulkan hardware passed locally; Metal and Linux software execution are required
+by their platform CI profiles. Portable scene tests also verify the editor policy
+and exact image restoration without additional CPU evaluation.
+
+All **41 local P4 tests passed in 163.67 seconds**, including those five GPU
+profiles, and the complete original auxiliary-command oracle passed. The
+additional short-path Qt run passed after fixing the folder test to compare
+directory identity: Windows CI uses an 8.3 alias which the chooser expands.
+The preceding folder batch passed Linux/macOS but exposed that Windows fixture
+failure; it is not recorded as a three-platform pass. Independent combined scene,
+complete command and native input/DPI acceptance continue.
+
+The legacy Win32 application also rebuilt successfully. Its owned DX9 replay
+conversion regression passed with a new MIPFILTER_NONE preservation check.

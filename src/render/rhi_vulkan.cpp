@@ -2568,7 +2568,7 @@ bool VulkanDevice::SetModelPipeline(const ModelPipeline& p) {
 VkSampler VulkanDevice::Sampler(const SamplerDesc& d) {
     std::ostringstream key;
     for (auto v : {unsigned(d.min), unsigned(d.mag), unsigned(d.mip), unsigned(d.u), unsigned(d.v),
-                   d.maxAnisotropy})
+                   d.maxAnisotropy, unsigned(d.mipmaps)})
         key << v << ',';
     auto found = samplers.find(key.str());
     if (found != samplers.end())
@@ -2585,7 +2585,7 @@ VkSampler VulkanDevice::Sampler(const SamplerDesc& d) {
     s.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     s.anisotropyEnable = d.min == SamplerFilter::Anisotropic || d.mag == SamplerFilter::Anisotropic;
     s.maxAnisotropy = float(d.maxAnisotropy);
-    s.maxLod = VK_LOD_CLAMP_NONE;
+    s.maxLod = d.mipmaps ? VK_LOD_CLAMP_NONE : 0;
     VkSampler out;
     if (!Check(vkCreateSampler(native, &s, nullptr, &out)))
         return VK_NULL_HANDLE;

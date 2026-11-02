@@ -130,6 +130,25 @@ int main(int argc, char** argv) {
             }
         }
     CHECK(window.SetLanguage("en"));
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        CHECK(window.SetLanguage(language));
+        const auto revision = session.Revision(), appearance = session.AppearanceRevision();
+        const auto undo = session.CanUndo(), redo = session.CanRedo();
+        auto* mipmaps = command(MDS_CMD_TOGGLE_MIPMAP);
+        CHECK(mipmaps->isEnabled() && mipmaps->isChecked());
+        mipmaps->trigger();
+        CHECK(!mipmaps->isChecked() && !session.DisplayOptions().mipmaps);
+        CHECK(session.AppearanceRevision() == appearance + 1);
+        CHECK(session.Play(reason));
+        window.Refresh();
+        CHECK(command(MDS_CMD_TOGGLE_MIPMAP)->isEnabled());
+        command(MDS_CMD_TOGGLE_MIPMAP)->trigger();
+        CHECK(session.Playing() && session.DisplayOptions().mipmaps);
+        session.Pause();
+        CHECK(session.Revision() == revision && session.CanUndo() == undo &&
+              session.CanRedo() == redo);
+    }
+    CHECK(window.SetLanguage("en"));
     command(MDS_CMD_TOGGLE_UI_LANGUAGE)->trigger();
     CHECK(window.CurrentLanguage() == "ja");
     command(MDS_CMD_TOGGLE_UI_LANGUAGE)->trigger();
@@ -424,7 +443,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 81);
+    CHECK(implemented == 82);
     for (const char* language : {"en", "ja", "zh_CN"})
         for (int id : {MDS_CMD_DELETE_MOUTH_FRAMES, MDS_CMD_DELETE_EYE_FRAMES,
                        MDS_CMD_DELETE_EYEBROW_FRAMES}) {

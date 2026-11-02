@@ -1035,7 +1035,7 @@ public:
         @autoreleasepool {
             std::ostringstream k;
             for (auto v : {unsigned(d.min), unsigned(d.mag), unsigned(d.mip), unsigned(d.u),
-                           unsigned(d.v), d.maxAnisotropy})
+                           unsigned(d.v), d.maxAnisotropy, unsigned(d.mipmaps)})
                 k << v << ',';
             auto found = samplers.find(k.str());
             if (found != samplers.end())
@@ -1045,8 +1045,11 @@ public:
                                                         : MTLSamplerMinMagFilterLinear;
             s.magFilter = d.mag == SamplerFilter::Point ? MTLSamplerMinMagFilterNearest
                                                         : MTLSamplerMinMagFilterLinear;
-            s.mipFilter = d.mip == SamplerFilter::Point ? MTLSamplerMipFilterNearest
-                                                        : MTLSamplerMipFilterLinear;
+            s.mipFilter = !d.mipmaps                         ? MTLSamplerMipFilterNotMipmapped
+                          : d.mip == SamplerFilter::Point ? MTLSamplerMipFilterNearest
+                                                         : MTLSamplerMipFilterLinear;
+            if (!d.mipmaps)
+                s.lodMaxClamp = 0;
             s.sAddressMode = d.u == SamplerAddress::Wrap ? MTLSamplerAddressModeRepeat
                                                          : MTLSamplerAddressModeClampToEdge;
             s.tAddressMode = d.v == SamplerAddress::Wrap ? MTLSamplerAddressModeRepeat

@@ -381,15 +381,17 @@ bool CaptureShaderInputs(IDirect3DDevice9* device, const render::MaterialBatch& 
             FAILED(device->GetSamplerState(stage, D3DSAMP_MAXANISOTROPY, &aniso)) ||
             FAILED(device->GetSamplerState(stage, D3DSAMP_SRGBTEXTURE, &srgb)))
             return false;
-        if (min < 1 || min > 3 || mag < 1 || mag > 3 || mip < 1 || mip > 3 || (u != 1 && u != 3) ||
+        if (min < 1 || min > 3 || mag < 1 || mag > 3 || mip > 3 || (u != 1 && u != 3) ||
             (v != 1 && v != 3))
             return false;
         inputs.samplers[stage] = {static_cast<rhi::SamplerFilter>(min - 1),
                                   static_cast<rhi::SamplerFilter>(mag - 1),
-                                  static_cast<rhi::SamplerFilter>(mip - 1),
+                                  mip ? static_cast<rhi::SamplerFilter>(mip - 1)
+                                      : rhi::SamplerFilter::Point,
                                   u == 1 ? rhi::SamplerAddress::Wrap : rhi::SamplerAddress::Clamp,
                                   v == 1 ? rhi::SamplerAddress::Wrap : rhi::SamplerAddress::Clamp,
-                                  aniso};
+                                  aniso,
+                                  mip != D3DTEXF_NONE};
         inputs.srgbSample[stage] = srgb != 0;
     }
     return rhi::ValidateMaterialShaderInputs(inputs);
@@ -667,10 +669,11 @@ bool AdapterDraw(IDirect3DDevice9* device, const std::vector<std::uint8_t>& vert
                         compare("textureTransform", s.textureTransforms[i],
                                 actual.textureTransforms[i]);
                         const auto sampler = [](const rhi::SamplerDesc& v) {
-                            return std::array<unsigned, 6>{
+                            return std::array<unsigned, 7>{
                                 static_cast<unsigned>(v.min), static_cast<unsigned>(v.mag),
                                 static_cast<unsigned>(v.mip), static_cast<unsigned>(v.u),
-                                static_cast<unsigned>(v.v),   v.maxAnisotropy};
+                                static_cast<unsigned>(v.v),   v.maxAnisotropy,
+                                unsigned(v.mipmaps)};
                         };
                         compare("sampler", sampler(s.samplers[i]), sampler(actual.samplers[i]));
                         compare("srgbSample", std::array<unsigned, 1>{s.srgbSample[i]},

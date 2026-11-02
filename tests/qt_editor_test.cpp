@@ -218,9 +218,20 @@ int main(int argc, char** argv) {
                 observed = dialog != nullptr;
                 if (!dialog)
                     return;
-                valid = dialog->property("mmdInitialDirectory").toString() == expected &&
-                        dialog->property("mmdFileKind").toInt() == int(kind) &&
+                const auto actual = dialog->property("mmdInitialDirectory").toString();
+                std::error_code pathError;
+                // Qt canonicalFilePath does not expand Windows 8.3 aliases.
+                const bool sameDirectory =
+                    actual == expected ||
+                    (std::filesystem::equivalent(qt::Path(actual), qt::Path(expected), pathError) &&
+                     !pathError);
+                valid = sameDirectory && dialog->property("mmdFileKind").toInt() == int(kind) &&
                         dialog->fileMode() == QFileDialog::ExistingFile;
+                if (!valid)
+                    std::fprintf(
+                        stderr, "chooser initial='%s' expected='%s' kind=%d\n",
+                        dialog->property("mmdInitialDirectory").toString().toUtf8().constData(),
+                        expected.toUtf8().constData(), int(kind));
                 if (accept) {
                     dialog->selectFile(qt::Path(root / "facial.pmd"));
                     QMetaObject::invokeMethod(dialog, "accept", Qt::DirectConnection);
