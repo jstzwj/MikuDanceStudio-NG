@@ -2,7 +2,7 @@
 #include "mikudancestudio/morph_key_purge.hpp"
 #include "mikudancestudio/pmm_key_selection.hpp"
 #include "mikudancestudio/blink_registration.hpp"
-#include "mikudancestudio/morph_key_registration.hpp"
+#include "mikudancestudio/pmm_morph_registration.hpp"
 #include <cstring>
 
 namespace mikudancestudio::editor {
@@ -33,31 +33,11 @@ bool EditorSession::RegisterBlinks(std::int32_t start, std::int32_t end, unsigne
         unsigned(std::find_if(model->morphNames.begin(), model->morphNames.end(), BlinkName) -
                  model->morphNames.begin());
     auto& track = model->morphKeys;
-    std::vector<std::vector<format::PmmMorphKey>> validated;
-    if (!format::PmmTrackChains(track, validated) ||
-        !format::SetPmmSelectedKeys(next.document, selection_.model, selection_.keys)) {
+    format::PmmMorphRegistration pool;
+    if (!format::SetPmmSelectedKeys(next.document, selection_.model, selection_.keys) ||
+        !pool.Load(track)) {
         reason = "blink-track-invalid";
         return false;
-    }
-    std::vector<format::PmmMorphKey> records(keyframe_edit::MorphKeyCapacity);
-    if (track.dense.size() > records.size()) {
-        reason = "blink-key-capacity";
-        return false;
-    }
-    std::copy(track.dense.begin(), track.dense.end(), records.begin());
-    for (const auto& key : track.sparse) {
-        if (unsigned(key.index) >= records.size()) {
-            reason = "blink-key-capacity";
-            return false;
-        }
-        records[unsigned(key.index)] = key.value;
-    }
-    for (const auto& [index, key] : track.unused) {
-        if (index >= records.size()) {
-            reason = "blink-key-capacity";
-            return false;
-        }
-        records[index] = key;
     }
     auto phase = blinkPhase_;
     auto randomState = blinkRandomState_;
@@ -81,27 +61,14 @@ bool EditorSession::RegisterBlinks(std::int32_t start, std::int32_t end, unsigne
             key.frame = frame + (i == 0 ? 0 : i == 1 ? 2 : i == 2 ? 3 : 6);
             key.value = i == 1 || i == 2 ? 1.f : 0.f;
             key.allocated = 1;
-            if (!keyframe_edit::RegisterCurrentMorph(
-                    unsigned(track.dense.size()), channel, key.frame, key.value,
-                    model->selection.maxFrame,
-                    [&](unsigned index) -> auto& { return records[index]; }))
+            if (!pool.Register(unsigned(track.dense.size()), channel, key.frame, key.value,
+                               model->selection.maxFrame))
                 ++failed;
         }
         model->morphPose[channel] = 0;
         ++added;
     }
-    std::copy_n(records.begin(), track.dense.size(), track.dense.begin());
-    track.sparse.clear();
-    track.unused.clear();
-    const float zero = 0;
-    for (unsigned i = unsigned(track.dense.size()); i < records.size(); ++i) {
-        const auto& key = records[i];
-        if (key.frame)
-            track.sparse.push_back({int(i), 0, key});
-        else if (key.previous || key.next || key.allocated ||
-                 std::memcmp(&key.value, &zero, sizeof zero))
-            track.unused.emplace(i, key);
-    }
+    pool.Store(track);
     next.document.timeline.lastRegisteredFrame =
         std::max(next.document.timeline.lastRegisteredFrame, int(model->selection.maxFrame));
     if (!format::ReadPmmSelectedKeys(next.document, selection_.model, next.selection.keys)) {

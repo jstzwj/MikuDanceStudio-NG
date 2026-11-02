@@ -94,9 +94,23 @@ struct NativeAuxiliary {
             displays[i].ikStates = ik[i].data();
         }
         for (unsigned i = 0; i < source.morphKeys.dense.size(); ++i) {
+            morphs[i].frame = source.morphKeys.dense[i].frame;
+            morphs[i].previous = source.morphKeys.dense[i].previous;
+            morphs[i].next = source.morphKeys.dense[i].next;
             morphs[i].value = source.morphKeys.dense[i].value;
             morphs[i].allocated = source.morphKeys.dense[i].allocated;
         }
+        const auto copyMorph = [&](unsigned index, const auto& key) {
+            morphs[index].frame = key.frame;
+            morphs[index].previous = key.previous;
+            morphs[index].next = key.next;
+            morphs[index].value = key.value;
+            morphs[index].allocated = key.allocated;
+        };
+        for (const auto& key : source.morphKeys.sparse)
+            copyMorph(unsigned(key.index), key.value);
+        for (const auto& [index, key] : source.morphKeys.unused)
+            copyMorph(index, key);
         const auto& display = source.displayKeys.dense[0];
         displays[0].visible = display.visible;
         displays[0].allocated = display.allocated;
@@ -131,10 +145,13 @@ struct NativeAuxiliary {
             expectedMorphs[i] = source.morphKeys.dense[i];
         for (const auto& key : source.morphKeys.sparse)
             expectedMorphs[unsigned(key.index)] = key.value;
+        for (const auto& [index, key] : source.morphKeys.unused)
+            expectedMorphs[index] = key;
         for (unsigned i = 0; i < morphs.size(); ++i) {
             const auto& actual = morphs[i];
             const auto found = expectedMorphs.find(i);
-            Check((i < poses.size() || actual.frame != 0) == (found != expectedMorphs.end()),
+            Check((i < poses.size() || actual.frame != 0) ==
+                      (found != expectedMorphs.end() && (i < poses.size() || found->second.frame)),
                   "native morph slot differs");
             if (found == expectedMorphs.end())
                 continue;
@@ -1585,6 +1602,56 @@ unsigned BlinkCommands(OriginalPhysicsModule& original, const std::filesystem::p
     blinkAccept = true;
     return cases;
 }
+unsigned MorphCapacity(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    auto message = &BlinkReport;
+    Patch prompt(original.Function<void*>(0x128618), &message, sizeof message);
+    unsigned cases = 0;
+    for (const char* file : {"facial.pmd", "tint-morph.pmx"})
+        for (unsigned free : {0u, 1u, 2u})
+            for (unsigned frame : {0u, 10u, 1005u, 22000u})
+                for (bool all : {false, true}) {
+                    EditorSession portable;
+                    std::string reason;
+                    Check(portable.ImportModel(root / file, reason), reason.c_str());
+                    Check(portable.Edit(
+                              "morph capacity",
+                              [&](auto& d, auto&) {
+                                  FillBlinkCapacity(d, free);
+                                  d.timeline.currentFrame = int(frame);
+                                  for (auto& value : d.models[0].morphPose)
+                                      value = .625f;
+                                  return true;
+                              },
+                              reason),
+                          reason.c_str());
+                    const auto before = portable.Document().models[0];
+                    const bool pmx = portable.Runtime().Resource(0)->SourceKind() == ModelKind::Pmx;
+                    NativeAuxiliary native(before, pmx);
+                    native.model->physicsFlags = 1;
+                    native.model->maxFrame = before.selection.maxFrame;
+                    for (auto& key : native.morphs)
+                        key.allocated = 0;
+                    for (auto& key : native.displays)
+                        key.allocated = 0;
+                    for (unsigned channel = 0; channel < native.poses.size(); ++channel)
+                        native.poses[channel].value = before.morphPose[channel];
+                    blinkOverflow = 0;
+                    const unsigned first = pmx ? 0 : 1;
+                    const unsigned end = all ? unsigned(native.poses.size()) : first + 1;
+                    for (unsigned channel = first; channel < end; ++channel)
+                        original.Function<void (*)(mdl::ModelRecord*, int, int)>(0xca9c0)(
+                            native.model.get(), int(channel), int(frame));
+                    unsigned failed = UINT_MAX;
+                    Check(all ? portable.RegisterAllMorphs(0, reason, &failed)
+                              : portable.RegisterMorph(0, first, reason, &failed),
+                          reason.c_str());
+                    Check(failed == blinkOverflow, "native regular Morph overflow count");
+                    native.Compare(portable.Document().models[0]);
+                    Check(portable.Dirty(), "full Morph registration still marks modified");
+                    ++cases;
+                }
+    return cases;
+}
 unsigned CameraScaleCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
     const unsigned char ret = 0xc3;
     Patch seek(original.Function<void*>(0x59c30), &ret, 1);
@@ -1869,6 +1936,11 @@ int wmain(int argc, wchar_t** argv) try {
           "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
     if (argc == 4) {
+        if (std::wcscmp(argv[3], L"--morph-capacity") == 0) {
+            std::printf("%u original Morph capacity comparisons passed\n",
+                        MorphCapacity(original, argv[2]));
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--blink") == 0) {
             std::printf("%u original blink command comparisons passed\n",
                         BlinkCommands(original, argv[2]));
@@ -1887,6 +1959,8 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf("%u original low-power commands and %u render-gate checkpoints passed\n",
                 LowPowerCommands(original), LowPowerFrameGate(original));
     std::printf("%u original blink command comparisons passed\n", BlinkCommands(original, argv[2]));
+    std::printf("%u original Morph capacity comparisons passed\n",
+                MorphCapacity(original, argv[2]));
     std::printf("%u original model rendering toggles: complete model/application bytes\n",
                 ModelRenderFlags(original, argv[2]));
     std::printf(

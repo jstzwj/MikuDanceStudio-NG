@@ -1,6 +1,7 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "mikudancestudio/pmm_key_deletion.hpp"
 #include "mikudancestudio/pmm_bone_registration.hpp"
+#include "mikudancestudio/pmm_morph_registration.hpp"
 #include "mikudancestudio/pmm_bone_clipboard.hpp"
 #include "mikudancestudio/scene_resources.hpp"
 #include "mikudancestudio/text_encoding.hpp"
@@ -975,22 +976,24 @@ bool EditorSession::SetAccessory(std::uint8_t slot, const PmmAccessoryState& pos
         reason);
 }
 bool EditorSession::RegisterMorph(std::uint8_t slot, std::optional<std::uint32_t> channel,
-                                  std::string& reason) {
+                                  std::string& reason, unsigned* failedKeys) {
     return RegisterMorphChannels(
         slot, channel ? std::vector<std::uint32_t>{*channel} : std::vector<std::uint32_t>{}, false,
-        reason);
+        reason, failedKeys);
 }
-bool EditorSession::RegisterAllMorphs(std::uint8_t slot, std::string& reason) {
+bool EditorSession::RegisterAllMorphs(std::uint8_t slot, std::string& reason,
+                                      unsigned* failedKeys) {
     std::vector<std::uint32_t> channels;
     for (const auto& model : Document().models)
         if (model.slot == slot)
             for (std::uint32_t i = 0; i < model.morphPose.size(); ++i)
                 channels.push_back(i);
-    return RegisterMorphChannels(slot, channels, true, reason);
+    return RegisterMorphChannels(slot, channels, true, reason, failedKeys);
 }
 bool EditorSession::RegisterMorphChannels(std::uint8_t slot,
                                           const std::vector<std::uint32_t>& channels,
-                                          bool seekModel, std::string& reason) {
+                                          bool seekModel, std::string& reason,
+                                          unsigned* failedKeys) {
     EndGesture();
     auto next = Current();
     auto* model = Model(next.document, slot);
@@ -1006,6 +1009,12 @@ bool EditorSession::RegisterMorphChannels(std::uint8_t slot,
             return false;
         }
     ClearModelKeyMarks(*model, next.selection);
+    PmmMorphRegistration pool;
+    if (!pool.Load(model->morphKeys)) {
+        reason = "morph-registration-pool-invalid";
+        return false;
+    }
+    unsigned failed = 0;
     // Button commands ignore PMD's base Morph. Raw track insertion remains
     // available to import/paste, which use a different native registrar.
     for (auto channel : channels) {
@@ -1014,17 +1023,14 @@ bool EditorSession::RegisterMorphChannels(std::uint8_t slot,
             return false;
         if (resource->SourceKind() == ModelKind::Pmd && resourceMorph == 0)
             continue;
-        PmmMorphKey key;
-        key.frame = frame;
-        key.value = model->morphPose[channel];
-        key.allocated = 1;
-        if (!RegisterPmmKey(model->morphKeys, channel, key)) {
-            reason = "morph-registration-failed";
-            return false;
+        if (!pool.Register(unsigned(model->morphKeys.dense.size()), channel, frame,
+                           model->morphPose[channel], model->selection.maxFrame)) {
+            ++failed;
+            continue;
         }
-        model->selection.maxFrame = std::max(model->selection.maxFrame, frame);
         next.selection.keys.insert({Track::Morph, slot, channel, frame});
     }
+    pool.Store(model->morphKeys);
     if (!seekModel || !model->morphPose.empty())
         next.document.timeline.lastRegisteredFrame =
             std::max(next.document.timeline.lastRegisteredFrame, int(model->selection.maxFrame));
@@ -1045,7 +1051,11 @@ bool EditorSession::RegisterMorphChannels(std::uint8_t slot,
     }
     HistoryBatch history;
     history.emplace(slot, CaptureHistory(*model, HistoryKind::None, frame));
-    return Commit(std::move(next), reason, history, false);
+    if (!Commit(std::move(next), reason, history, false))
+        return false;
+    if (failedKeys)
+        *failedKeys = failed;
+    return true;
 }
 bool EditorSession::ResetMorphs(std::uint8_t slot, std::string& reason) {
     EndGesture();

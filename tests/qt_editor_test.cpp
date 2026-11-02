@@ -1,4 +1,5 @@
 #include "editor_window.hpp"
+#include "editor_blink_fixture.hpp"
 #include "mikudancestudio/panel_controls.hpp"
 #include "mikudancestudio/editor_rotation.hpp"
 #include "mikudancestudio/menu_commands.h"
@@ -161,6 +162,32 @@ int main(int argc, char** argv) {
             reset->trigger();
             CHECK(session.CanRedo());
             CHECK(runtime == &session.Runtime() && frames == runtime->Counters().frames);
+            if (channels > (pmd ? 1u : 0u)) {
+                CHECK(session.Edit(
+                    "Qt Morph capacity",
+                    [](auto& d, auto&) {
+                        FillBlinkCapacity(d, 1);
+                        d.timeline.currentFrame = 22000;
+                        return true;
+                    },
+                    reason));
+                expressions.Refresh();
+                all->trigger();
+                CHECK(expressions.LastError().isEmpty());
+                CHECK(session.Document().models[0].morphKeys.dense.size() +
+                          session.Document().models[0].morphKeys.sparse.size() ==
+                      20000);
+                CHECK(session.Document().models[0].selection.maxFrame == 22000);
+                CHECK(session.Seek(22001, reason));
+                expressions.Refresh();
+                for (unsigned lane = 0; lane < 4; ++lane)
+                    if (static_cast<QComboBox*>(expressions.Control(combos[lane]))->count()) {
+                        static_cast<QAbstractButton*>(expressions.Control(buttons[lane]))->click();
+                        break;
+                    }
+                CHECK(expressions.LastError().isEmpty() &&
+                      session.Document().models[0].selection.maxFrame == 22000);
+            }
             CHECK(session.Play(reason));
             expressions.Refresh();
             CHECK(!reset->isEnabled() && !all->isEnabled());

@@ -8,6 +8,8 @@ inline void FillBlinkCapacity(mikudancestudio::format::PmmSceneDocument& documen
     const auto roots = unsigned(track.dense.size());
     const unsigned channel = roots == 2 ? 1 : 0;
     const unsigned end = 20000 - free;
+    for (auto& key : track.dense)
+        key.previous = key.next = 0;
     track.dense[channel].next = roots;
     track.sparse.clear();
     track.unused.clear();

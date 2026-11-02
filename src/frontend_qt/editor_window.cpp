@@ -1221,15 +1221,17 @@ void EditorWindow::RegisterBlinks() {
         reason);
     Refresh();
     if (ok) {
-        if (!testing_)
-            for (unsigned i = 0; i < failed; ++i) {
-                QMessageBox overflow(
-                    QMessageBox::NoIcon, language_.Text("dialog.blink.capacity_title"),
-                    language_.Text("dialog.blink.capacity"), QMessageBox::Ok, this);
-                overflow.exec();
-            }
+        MorphOverflow(failed);
         message("dialog.blink.report_title", language_.Text("dialog.blink.report").arg(count));
     }
+}
+void EditorWindow::MorphOverflow(unsigned failedKeys) {
+    if (!testing_)
+        for (unsigned i = 0; i < failedKeys; ++i) {
+            QMessageBox overflow(QMessageBox::NoIcon, language_.Text("dialog.blink.capacity_title"),
+                                 language_.Text("dialog.blink.capacity"), QMessageBox::Ok, this);
+            overflow.exec();
+        }
 }
 void EditorWindow::CameraScale() {
     CameraScaleDialog dialog(language_, this);
@@ -1494,6 +1496,7 @@ void EditorWindow::Dispatch(int id) {
     case kRegisterMorphButton1:
     case kRegisterMorphButton2:
     case kRegisterMorphButton3: {
+        unsigned failed = 0;
         const int registers[]{kRegisterMorphButton0, kRegisterMorphButton1, kRegisterMorphButton2,
                               kRegisterMorphButton3};
         const int index =
@@ -1502,7 +1505,10 @@ void EditorWindow::Dispatch(int id) {
         auto* c = static_cast<QComboBox*>(Control(combos[index]));
         ok = session_.RegisterMorph(
             session_.Selected().model,
-            c->count() ? std::optional<std::uint32_t>{c->currentData().toUInt()} : std::nullopt, r);
+            c->count() ? std::optional<std::uint32_t>{c->currentData().toUInt()} : std::nullopt, r,
+            &failed);
+        if (ok)
+            MorphOverflow(failed);
         break;
     }
     case kCopyBonePoseButton:

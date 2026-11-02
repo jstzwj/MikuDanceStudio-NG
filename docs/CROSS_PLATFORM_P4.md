@@ -2995,3 +2995,22 @@ There is no Present, visible window, focus change or desktop input. Required
 raster coverage is asserted for every original color/shadow output. Existing
 comparison thresholds remain unchanged. Combined grid/accessory/background
 scenes, input/IME/DPI/font metrics and the other C1 exit gates remain open.
+
+## Ordinary Morph registration capacity (2026-11-03)
+
+The four panel buttons and all-Morph command now use the same 20,000-slot native
+registrar as automatic blinking. Exact-frame overwrite remains possible in a full
+pool; new writes retain successful earlier channels when a later channel reaches
+capacity. Each failed key produces the original localized, icon-free notification.
+Selection clearing, modified state, maximum-frame updates and bone history retain
+their native behavior. Reused free payloads and sparse/unused slots survive through
+one shared document adapter; import/clipboard registrars remain separate paths.
+
+An additional **48 independent original registrar comparisons passed**, covering
+both model kinds, 0/1/2 free slots, frame zero, interior overwrite and append, and
+single/all-channel commands. Complete pools, watermarks and overflow counts match.
+The complete auxiliary command oracle passed after the change. The public tests
+also cover partial writes, retained redo, save/reopen and invalid-channel atomicity.
+After correcting a fixture's stale links, all **three affected tests passed in
+29.05 seconds**; the other **35 P4 tests** had already passed in the full run.
+Qt tests exercised all three languages without showing desktop windows.

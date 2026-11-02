@@ -492,10 +492,14 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_REGISTER_ALL_MORPH_FRAMES || command == MDS_CMD_RESET_MORPHS) {
         std::string reason;
-        Result(command == MDS_CMD_REGISTER_ALL_MORPH_FRAMES
-                   ? session_.RegisterAllMorphs(session_.Selected().model, reason)
-                   : session_.ResetMorphs(session_.Selected().model, reason),
-               reason);
+        unsigned failed = 0;
+        const bool ok =
+            Result(command == MDS_CMD_REGISTER_ALL_MORPH_FRAMES
+                       ? session_.RegisterAllMorphs(session_.Selected().model, reason, &failed)
+                       : session_.ResetMorphs(session_.Selected().model, reason),
+                   reason);
+        if (ok)
+            MorphOverflow(failed);
         Refresh();
         if (command == MDS_CMD_RESET_MORPHS)
             for (int id :

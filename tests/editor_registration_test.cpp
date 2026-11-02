@@ -1,6 +1,7 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "bone_registration_fixture.hpp"
 #include "editor_morph_purge_fixture.hpp"
+#include "editor_blink_fixture.hpp"
 #include <fstream>
 #include <iostream>
 using namespace mikudancestudio;
@@ -355,6 +356,49 @@ int main(int argc, char** argv) {
         CHECK(expressions.Open(root / "expressions.pmm", reason));
         CHECK(expressions.Document().models[0].morphKeys.sparse.size() == count - first);
     }
+    for (const char* file : {"facial.pmd", "tint-morph.pmx"})
+        for (unsigned free : {0u, 1u, 2u})
+            for (bool all : {false, true}) {
+                EditorSession full;
+                CHECK(full.ImportModel(root / file, reason));
+                CHECK(full.Edit(
+                    "regular Morph capacity",
+                    [&](auto& d, auto&) {
+                        FillBlinkCapacity(d, free);
+                        d.timeline.currentFrame = 22000;
+                        for (auto& weight : d.models[0].morphPose)
+                            weight = .625f;
+                        return true;
+                    },
+                    reason));
+                CHECK(full.SetBone(0, 0, {2, 3, 4}, {0, 0, 0, 1}, reason));
+                CHECK(full.Undo(reason) && full.CanRedo());
+                const bool pmd = full.Runtime().Resource(0)->SourceKind() == ModelKind::Pmd;
+                const unsigned first = pmd ? 1u : 0u;
+                const auto count = unsigned(full.Document().models[0].morphPose.size()) - first;
+                const auto maximum = full.Document().models[0].selection.maxFrame;
+                const auto updates = full.Runtime().Counters().frames;
+                unsigned failed = 77;
+                CHECK(all ? full.RegisterAllMorphs(0, reason, &failed)
+                          : full.RegisterMorph(0, first, reason, &failed));
+                const unsigned wanted = all ? count : 1;
+                const unsigned added = std::min(free, wanted);
+                CHECK(failed == wanted - added && full.CanRedo() && full.Dirty());
+                const auto& model = full.Document().models[0];
+                CHECK(model.morphKeys.dense.size() + model.morphKeys.sparse.size() ==
+                      20000 - free + added);
+                CHECK(model.selection.maxFrame == (added ? 22000u : maximum));
+                CHECK(full.Runtime().Counters().frames == updates);
+                const auto savedSize = model.morphKeys.sparse.size();
+                CHECK(full.Save(root / "morph-capacity.pmm", writer, reason));
+                EditorSession reopened;
+                CHECK(reopened.Open(root / "morph-capacity.pmm", reason));
+                CHECK(reopened.Document().models[0].morphKeys.sparse.size() == savedSize);
+                const auto revision = full.Revision();
+                failed = 77;
+                CHECK(!full.RegisterMorph(0, 9999, reason, &failed) && failed == 77 &&
+                      full.Revision() == revision);
+            }
     EditorSession reorderedMorph;
     CHECK(reorderedMorph.ImportModel(root / "facial.pmd", reason));
     CHECK(reorderedMorph.Edit(

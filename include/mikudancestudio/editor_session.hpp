@@ -87,8 +87,9 @@ public:
     bool SetBone(std::uint8_t, std::uint32_t, const std::array<float, 3>&,
                  const std::array<float, 4>&, std::string&);
     bool SetMorph(std::uint8_t, std::uint32_t, float, std::string&);
-    bool RegisterMorph(std::uint8_t, std::optional<std::uint32_t>, std::string&);
-    bool RegisterAllMorphs(std::uint8_t, std::string&);
+    bool RegisterMorph(std::uint8_t, std::optional<std::uint32_t>, std::string&,
+                       unsigned* failedKeys = nullptr);
+    bool RegisterAllMorphs(std::uint8_t, std::string&, unsigned* failedKeys = nullptr);
     bool ResetMorphs(std::uint8_t, std::string&);
     bool ScaleMorphKeys(float scale, float add, std::string&);
     bool PurgeMorphKeys(unsigned panel, std::string&);
@@ -297,7 +298,7 @@ private:
     bool TransformSelectedBoneKeys(const std::function<bool(unsigned, format::PmmBoneKey&)>&,
                                    std::string&);
     bool RegisterMorphChannels(std::uint8_t, const std::vector<std::uint32_t>&, bool seekModel,
-                               std::string&);
+                               std::string&, unsigned* failedKeys);
     bool ChangeFrameLine(Track, bool insert, std::string&, bool fromMenu);
     bool PasteFrames(std::uint32_t frame, bool mirror, bool selectedTrack, std::string&);
     static HistoryEntry CaptureHistory(const format::PmmSceneModel&, HistoryKind,

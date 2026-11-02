@@ -121,6 +121,7 @@ private:
     void MorphScale();
     void ShiftMouthFrames();
     void RegisterBlinks();
+    void MorphOverflow(unsigned failedKeys);
     void CameraScale();
     void BoneScale();
     void PhysicsKeys();
