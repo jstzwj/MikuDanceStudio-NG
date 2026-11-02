@@ -978,7 +978,8 @@ void EditorWindow::FileAction(const QString& id) {
         std::string r;
         const auto& settings = session_.Document().envelope.settings;
         if (Result(RenderImage(session_.Runtime(), session_.Assets(), assets_, viewport_->Options(),
-                               settings.renderWidth, settings.renderHeight, image, r),
+                               settings.renderWidth, settings.renderHeight, image, r,
+                               session_.DisplayOptions()),
                    r)) {
             QSaveFile file(path);
             if (!file.open(QIODevice::WriteOnly) || !image.save(&file, "PNG") || !file.commit())
@@ -1786,6 +1787,17 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
             !(key->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
             if (!key->isAutoRepeat())
                 MenuCommand(MDS_CMD_TOGGLE_SELF_SHADOW);
+            return true;
+        }
+        if (key->key() == Qt::Key_V) {
+            if (!key->isAutoRepeat()) {
+                if ((key->modifiers() & Qt::ControlModifier) && !session_.Playing())
+                    Dispatch(kPasteButton);
+                else
+                    MenuCommand(key->modifiers() & Qt::ShiftModifier
+                                    ? MDS_CMD_TOGGLE_MODEL_NON_DISPLAY
+                                    : MDS_CMD_TOGGLE_MODEL_TRANSPARENCY);
+            }
             return true;
         }
         if (key->key() == Qt::Key_L && !key->isAutoRepeat() &&

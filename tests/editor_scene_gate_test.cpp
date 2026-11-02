@@ -174,6 +174,34 @@ int main(int argc, char** argv) try {
                 if (mode && !toon)
                     Require(frame.passes[0].draws.empty(), "disabled model cast a shadow");
                 Require(bool(rhi::ValidateRenderFrame(frame)), "model flag frame validation");
+                for (bool transparent : {false, true})
+                    for (bool hidden : {false, true}) {
+                        settings.display.transparentModels = transparent;
+                        settings.display.hideModels = hidden;
+                        rhi::RenderFrame changed;
+                        Require(producer.Build(session.Runtime(), settings, changed, reason),
+                                reason);
+                        const auto& draws = changed.passes[mode ? 1 : 0].draws;
+                        const bool secondFace = additive && !effect && (backface || transparent);
+                        const auto wanted =
+                            mode && hidden ? 0u : 1u + secondFace + (!additive && !transparent);
+                        Require(draws.size() == wanted, "model display draw gates");
+                        if (mode)
+                            Require(changed.passes[0].draws.size() == frame.passes[0].draws.size(),
+                                    "display switch changed shadow casters");
+                        if (!draws.empty()) {
+                            const auto& p = draws[0].pipeline;
+                            if (effect)
+                                Require(p.shadow.transparent == transparent,
+                                        "effect transparency parameter");
+                            else if (transparent)
+                                Require(p.shader.diffuse[3] == .5f,
+                                        "fixed transparency replacement alpha");
+                        }
+                        Require(bool(rhi::ValidateRenderFrame(changed)),
+                                "display frame validation");
+                    }
+                settings.display = {};
             }
     }
     std::printf(

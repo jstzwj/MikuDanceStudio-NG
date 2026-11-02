@@ -381,7 +381,52 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 71);
+    CHECK(implemented == 73);
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        CHECK(session.New(reason) && session.ImportModel(root / "outline.pmd", reason));
+        session.SetHiddenModels(false);
+        CHECK(window.SetLanguage(language));
+        const auto revision = session.Revision(), frames = session.Runtime().Counters().frames;
+        const auto undo = session.CanUndo(), redo = session.CanRedo();
+        auto* transparency = command(MDS_CMD_TOGGLE_MODEL_TRANSPARENCY);
+        auto* hidden = command(MDS_CMD_TOGGLE_MODEL_NON_DISPLAY);
+        CHECK(transparency->isEnabled() && hidden->isEnabled());
+        transparency->trigger();
+        CHECK(transparency->isChecked() && session.DisplayOptions().Transparent(0));
+        QKeyEvent toggle(QEvent::KeyPress, Qt::Key_V, Qt::NoModifier);
+        QCoreApplication::sendEvent(window.centralWidget(), &toggle);
+        CHECK(!transparency->isChecked());
+        QKeyEvent hide(QEvent::KeyPress, Qt::Key_V, Qt::ShiftModifier);
+        QCoreApplication::sendEvent(window.centralWidget(), &hide);
+        CHECK(hidden->isChecked() && session.DisplayOptions().hideModels);
+        QKeyEvent repeat(QEvent::KeyPress, Qt::Key_V, Qt::ShiftModifier, "V", true);
+        QCoreApplication::sendEvent(window.centralWidget(), &repeat);
+        CHECK(hidden->isChecked());
+        QKeyEvent paste(QEvent::KeyPress, Qt::Key_V, Qt::ControlModifier | Qt::ShiftModifier);
+        QCoreApplication::sendEvent(window.centralWidget(), &paste);
+        CHECK(hidden->isChecked() && !transparency->isChecked());
+        CHECK(session.Revision() == revision && session.Runtime().Counters().frames == frames &&
+              session.CanUndo() == undo && session.CanRedo() == redo);
+        CHECK(session.Play(reason));
+        window.Refresh();
+        // The original Ctrl+V paste gate falls through to display toggles in playback.
+        QKeyEvent playingV(QEvent::KeyPress, Qt::Key_V, Qt::ControlModifier);
+        QCoreApplication::sendEvent(window.centralWidget(), &playingV);
+        CHECK(session.Playing() && transparency->isChecked());
+        QCoreApplication::sendEvent(window.centralWidget(), &paste);
+        CHECK(session.Playing() && !hidden->isChecked());
+        session.Pause();
+        CHECK(window.Save(root / "model-display.pmm"));
+        CHECK(window.Open(root / "model-display.pmm"));
+        CHECK(session.DisplayOptions().transparentModels &&
+              !session.DisplayOptions().Transparent(0));
+        CHECK(session.ImportModel(root / "outline.pmd", reason));
+        CHECK(session.DisplayOptions().Transparent(1));
+        session.SetHiddenModels(true);
+        CHECK(session.New(reason));
+        CHECK(!session.DisplayOptions().transparentModels && session.DisplayOptions().hideModels);
+        session.SetHiddenModels(false);
+    }
     for (const char* language : {"en", "ja", "zh_CN"}) {
         CHECK(session.New(reason) && window.SetLanguage(language));
         CHECK(session.SetSelfShadowEnabled(true));

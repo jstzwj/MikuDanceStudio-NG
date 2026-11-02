@@ -95,5 +95,5 @@ private:
 // Export uses its own scene/renderer. It never reads the editor swapchain.
 bool RenderImage(const runtime::SceneRuntime&, const editor::EditorAssets&,
                  const std::filesystem::path& builtins, const rhi::BackendOptions&, unsigned width,
-                 unsigned height, QImage&, std::string&);
+                 unsigned height, QImage&, std::string&, const SceneDisplayOptions& = {});
 }

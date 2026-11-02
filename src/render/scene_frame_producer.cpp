@@ -839,6 +839,8 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 packet.indexCount = unsigned(count);
                 auto material = Inputs(
                     pose.material, model.resource->SourceKind() == format::ModelKind::Pmd, saved);
+                if (settings.display.Transparent(slot) && (!mode || !modelShadow))
+                    material.diffuse[3] = .5f;
                 if (!BuildModelInputs(frame, material, {}, packet.pipeline))
                     return Fail(reason, "model_pipeline");
                 packet.pipeline.vertexLayout = model.geometry->Snapshot().main.vertexLayout;
@@ -846,6 +848,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                     InstallShadow(packet.pipeline, shadow, material, saved.toonColor,
                                   material.pmd || (pose.material.flags & 8));
                     auto& s = packet.pipeline.shadow;
+                    s.transparent = settings.display.transparentModels;
                     s.textureMultiply = pose.textureTint;
                     s.textureAdd = pose.textureAdd;
                     s.sphereMultiply = pose.sphereTint;
@@ -910,7 +913,10 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
             draws.reserve(packets.size() * 2);
             for (std::size_t n = 0; n < packets.size(); ++n) {
                 auto draw = main.draws[materialStart + n];
-                const auto alpha = snapshot->materials[packets[n].material].material.diffuse[3];
+                const auto alpha =
+                    settings.display.Transparent(slot)
+                        ? .5f
+                        : snapshot->materials[packets[n].material].material.diffuse[3];
                 if (alpha < 1.f) {
                     draw.pipeline.raster.cull = BatchCull::Clockwise;
                     draws.push_back(draw);
@@ -922,6 +928,10 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
             main.draws.insert(main.draws.end(), std::make_move_iterator(draws.begin()),
                               std::make_move_iterator(draws.end()));
         }
+        // The native effect frame suppresses model bodies and outlines, even
+        // for a per-model fixed-function fallback; shadow maps still execute.
+        if (mode && settings.display.hideModels)
+            main.draws.resize(materialStart);
         unsigned edgeFirst = 0;
         for (const auto& pose : snapshot->materials) {
             const auto& material = pose.material;
@@ -935,7 +945,8 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                                  (pmd || ((material.flags & 2) && material.edgeColor[3] > 0))
                            : viewportEffects && !additive && scale > 0 &&
                                  (pmd ? material.flags != 0 : (material.flags & 16) != 0);
-                if (!count || !enabled)
+                if (!count || !enabled || settings.display.Transparent(slot) ||
+                    (!ground && mode && settings.display.hideModels))
                     continue;
                 ModelReplayStream edgeStream;
                 edgeStream.target = history;

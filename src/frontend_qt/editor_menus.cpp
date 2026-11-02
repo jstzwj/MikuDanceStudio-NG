@@ -126,6 +126,8 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_SELF_SHADOW:
     case MDS_CMD_ACCESSORY_SETTINGS:
     case MDS_CMD_TOGGLE_WAVE_DISABLED:
+    case MDS_CMD_TOGGLE_MODEL_TRANSPARENCY:
+    case MDS_CMD_TOGGLE_MODEL_NON_DISPLAY:
         return true;
     default:
         return false;
@@ -271,6 +273,8 @@ void EditorWindow::RefreshMenus() {
     check(MDS_CMD_TOGGLE_GROUND_SHADOW, doc.view.groundShadow);
     check(MDS_CMD_TOGGLE_SELF_SHADOW, doc.selfShadowEnabled != 0);
     check(MDS_CMD_TOGGLE_WAVE_DISABLED, session_.PlaybackAudioDisabled());
+    check(MDS_CMD_TOGGLE_MODEL_TRANSPARENCY, session_.DisplayOptions().transparentModels);
+    check(MDS_CMD_TOGGLE_MODEL_NON_DISPLAY, session_.DisplayOptions().hideModels);
     check(MDS_CMD_TOGGLE_GROUND_SHADOW_TRANSPARENCY, doc.physics.projectedShadowBlend);
     check(MDS_CMD_TOGGLE_PHYSICS_FLOOR, doc.appearance.floorVisible);
     check(MDS_CMD_TOGGLE_SEPARATE_WINDOW, separate_ != nullptr);
@@ -306,6 +310,16 @@ void EditorWindow::MenuCommand(int command) {
         // continues; the switch does not mute, stop or seek the active device.
         session_.SetPlaybackAudioDisabled(!session_.PlaybackAudioDisabled());
         RefreshMenus();
+        return;
+    }
+    if (command == MDS_CMD_TOGGLE_MODEL_TRANSPARENCY ||
+        command == MDS_CMD_TOGGLE_MODEL_NON_DISPLAY) {
+        if (command == MDS_CMD_TOGGLE_MODEL_TRANSPARENCY)
+            session_.SetTransparentModels(!session_.DisplayOptions().transparentModels);
+        else
+            session_.SetHiddenModels(!session_.DisplayOptions().hideModels);
+        RefreshMenus();
+        UpdateFrame();
         return;
     }
     if (command == MDS_CMD_PASTE_AT_DIFFERENT_FRAME) {

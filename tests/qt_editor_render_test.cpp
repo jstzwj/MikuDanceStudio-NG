@@ -442,6 +442,7 @@ int main(int argc, char** argv) {
             ++sceneId;
             const auto readFlags = [&](QImage& image) {
                 rhi::RenderFrame frame;
+                flagSettings.display = flags.DisplayOptions();
                 if (!flagProducer.Build(flags.Runtime(), flagSettings, frame, reason))
                     return false;
                 rhi::PreparedModelFrame prepared;
@@ -486,6 +487,16 @@ int main(int argc, char** argv) {
                 CHECK(flags.ToggleModelRenderFlag(true));
                 CHECK(readFlags(shadowOff) && shadowOff == fixed);
                 CHECK(flags.ToggleModelRenderFlag(true));
+                QImage transparent, hidden;
+                flags.SetTransparentModels(true);
+                CHECK(readFlags(transparent) && transparent != normal);
+                flags.SetTransparentModels(false);
+                CHECK(readFlags(restored) && restored == normal);
+                flags.SetHiddenModels(true);
+                CHECK(readFlags(hidden));
+                CHECK(mode ? hidden != normal : hidden == normal);
+                flags.SetHiddenModels(false);
+                CHECK(readFlags(restored) && restored == normal);
                 CHECK(flags.Revision() == revision && flags.Runtime().Counters().frames == frames);
             }
         }

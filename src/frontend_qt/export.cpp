@@ -62,6 +62,7 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
     render::SceneRenderSettings settings;
     settings.width = width;
     settings.height = height;
+    settings.display = editor.DisplayOptions();
     rhi::SceneRenderer renderer(*backend.device);
     rhi::PreparedModelFrame prepared;
     rhi::CompletionToken token;

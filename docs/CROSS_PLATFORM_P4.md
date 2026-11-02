@@ -85,7 +85,7 @@ This closes that command's integration gap, not the complete clipboard/input gat
 | Shared editing and serialization | First local regression passed; full command/compatibility coverage pending |
 | Qt original layout and multilingual interface | Initial three-platform command/language regression passed; full original parity pending |
 | C1 scene rendering | Model outlines, texture morphs and screen history passed on three platforms; accessory self-shadow passed local DX9 comparisons on DX11/DX12/Vulkan; full C1 comparison pending |
-| WAV and synchronization | Deterministic transport and Windows/CoreAudio/PulseAudio silent output passed 120s clock/seek/EOF checks on their recorded device profiles; Linux uses an explicit 50 ms virtual queue; physical speaker latency and the default two-second cold null-sink profile are unqualified |
+| WAV and synchronization | Windows/PulseAudio qualified silent profiles passed; CoreAudio previously passed but a later run exceeded the 100 ms clock bound and remains under investigation; Linux uses an explicit 50 ms virtual queue; physical speaker latency and the default two-second cold null-sink profile are unqualified |
 | Fixed-step image sequence export and cancellation | Generated 30fps sequence, strict repeat and cancellation passed on three platforms |
 | Three-platform open/edit/play/save/reopen/export | Initial generated workflow passed; complete C1 workflow coverage pending |
 | MMD v9.32 independent geometry, behavior and output comparison | Pending |
@@ -2709,3 +2709,42 @@ Vulkan instead of silently retaining Windows' default when that name is requeste
 The existing hidden DX9 shader reference passed all **39 scene/history cases**.
 These are command, frame-contract and shader checks, not full original-editor
 scene/input parity or P4 completion.
+
+## Model transparency and non-display controls (2026-11-03)
+
+Commands 214/283 and the original V/Shift+V/Ctrl+V priority are connected in all
+three Qt languages. Playback keeps these controls usable; Ctrl+V pastes only
+while paused and falls through to the display switches during playback. The
+commands preserve dirty state, bone history, simulation counters and live poses.
+The menu implementation count is now **73/103**; this is not complete C1 parity.
+
+Fixed materials replace their diffuse Alpha with **0.5**; effect materials use
+the original global transparency parameter and retain their material culling.
+Transparent model instances omit outlines and projected shadows. Shadow-map
+casters remain governed by the original material/model flags. Non-display hides
+model bodies and outlines only in the effect frame, including its per-model
+fixed-material fallback; fixed frames and shadow casters remain unaffected.
+Viewports, still images and sequence export consume the same live display state.
+
+The global and per-model transparency values are separate: successful PMM loads
+initialize model `displayState` to zero while retaining the global parameter;
+ordinary model imports inherit it. New clears transparency and retains the
+non-display switch. A fixed-size table preserves these distinctions without
+allocating in cached static frames. An initial map implementation failed the
+existing zero-allocation gate and was replaced; that gate was not weakened.
+
+The original full dispatcher passed **24 exact display-command cases** with
+raw 0/1/7 flags, paused/playing, empty and sparse model slots (0/4/254), comparing
+complete application/model bytes. Public tests cover 96 display/material/frame
+combinations, language changes, shortcuts, load/import/New, pixel changes and
+exact restoration. The final local **34 P4 tests passed in 101.84 seconds**;
+DX12 and hardware Vulkan offscreen render/export checks also passed. The local
+Vulkan software-device request reported unavailable, so that driver profile is
+not claimed. No local test displayed a window.
+
+In CI, run 41508681840 passed Windows and Linux but its CoreAudio clock exceeded
+the unchanged 100 ms steady bound once (**111.462 ms** at about 29.8 s). Commit
+0289d58 retains the failing sample, read-time brackets and native device state
+for diagnosis. Run 41510696016 passed Windows/Linux; its macOS job was cancelled
+without starting because the hosted arm64 runner could not acquire capacity.
+Neither event supplies a new macOS audio or complete P4 acceptance.

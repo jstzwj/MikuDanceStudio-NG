@@ -1,4 +1,5 @@
 #pragma once
+#include "scene_display_options.hpp"
 #include "scene_runtime.hpp"
 #include "pmm_edit.hpp"
 #include "rhi_image.hpp"
@@ -157,6 +158,9 @@ public:
     bool SetSelfShadowEnabled(bool enabled);
     // Native model panel flags are live PMM state, without dirty/history/evaluation.
     bool ToggleModelRenderFlag(bool shadow);
+    const SceneDisplayOptions& DisplayOptions() const { return display_; }
+    void SetTransparentModels(bool);
+    void SetHiddenModels(bool);
     bool SetOutlineColor(const std::array<std::uint8_t, 3>& rgb);
     // Invalidate visual changes which preserve the document's dirty revision.
     std::uint64_t AppearanceRevision() const { return appearanceRevision_; }
@@ -214,6 +218,7 @@ private:
     bool DeleteKeys(State next, const std::set<KeyAddress>&, std::string&, bool markedModelRecords);
     std::uint64_t gravityEpoch_ = 0;
     std::uint64_t appearanceRevision_ = 0;
+    SceneDisplayOptions display_;
     std::unique_ptr<runtime::SceneRuntime> runtime_;
     enum class HistoryKind {
         None,

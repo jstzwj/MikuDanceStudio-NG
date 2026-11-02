@@ -380,6 +380,20 @@ bool EditorSession::SetOutlineColor(const std::array<std::uint8_t, 3>& rgb) {
     ++appearanceRevision_;
     return true;
 }
+void EditorSession::SetTransparentModels(bool value) {
+    if (display_.transparentModels != value ||
+        std::any_of(display_.opaqueModels.begin(), display_.opaqueModels.end(), [](bool v) { return v; })) {
+        display_.transparentModels = value;
+        display_.opaqueModels.fill(false);
+        ++appearanceRevision_;
+    }
+}
+void EditorSession::SetHiddenModels(bool value) {
+    if (display_.hideModels != value) {
+        display_.hideModels = value;
+        ++appearanceRevision_;
+    }
+}
 void EditorSession::SetPhysicsFloor(bool enabled) {
     runtime_->SetPhysicsFloor(enabled);
 }
@@ -490,6 +504,8 @@ bool EditorSession::New(std::string& reason) {
     playing_ = false;
     coordinateSystem_ = 0;
     cursorSeconds_ = 0;
+    // ResetAppState clears transparency but preserves the non-display switch.
+    SetTransparentModels(false);
     revision_ = savedRevision_ = nextRevision_++;
     ++gravityEpoch_;
     reason.clear();
@@ -680,6 +696,9 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     runtime_ = std::move(runtime);
     state_ = std::move(next);
     path_ = absolute;
+    display_.opaqueModels.fill(false);
+    for (const auto& model : Document().models)
+        display_.opaqueModels[model.slot] = true;
     selection_ = {};
     coordinateSystem_ = 0;
     selection_.model = Document().models.empty() || Document().envelope.settings.options[0]
@@ -772,7 +791,10 @@ bool EditorSession::ImportModel(const std::filesystem::path& path, std::string& 
             reason = "key-selection-invalid-tracks";
             return false;
         }
-        return Commit(std::move(next), reason);
+        if (!Commit(std::move(next), reason))
+            return false;
+        display_.opaqueModels[slot] = false;
+        return true;
     } catch (const std::exception& e) {
         reason = e.what();
         return false;

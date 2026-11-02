@@ -3,6 +3,7 @@
 #include "rhi_frame_passes.hpp"
 #include "render_self_shadow.hpp"
 #include "bone_selection.hpp"
+#include "scene_display_options.hpp"
 #include <filesystem>
 namespace mikudancestudio::render {
 struct SceneRenderSources {
@@ -17,6 +18,7 @@ struct SceneRenderSettings {
     // Absent: timeline/export convention. Present: native editor mode; 255
     // selects the camera panel, other values select the model reference pivot.
     std::optional<std::uint8_t> editorModel;
+    SceneDisplayOptions display;
 };
 bool SceneViewInputs(const runtime::SceneRuntime&, const SceneRenderSettings&, ModelFrameInputs&,
                      std::string&);

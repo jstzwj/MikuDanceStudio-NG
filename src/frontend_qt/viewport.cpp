@@ -148,6 +148,7 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
     settings.width = w;
     settings.height = h;
     settings.editorModel = session_.Selected().model;
+    settings.display = session_.DisplayOptions();
     const auto revision = session_.Revision(), updates = session_.Runtime().Counters().frames;
     const bool history = session_.Document().view.captureMode != 0;
     if (!frameCached_ || history || cachedRevision_ != revision || cachedUpdates_ != updates ||
@@ -605,7 +606,8 @@ void Viewport::wheelEvent(QWheelEvent* e) {
 }
 bool RenderImage(const runtime::SceneRuntime& scene, const editor::EditorAssets& assets,
                  const std::filesystem::path& builtins, const rhi::BackendOptions& options,
-                 unsigned width, unsigned height, QImage& image, std::string& reason) {
+                 unsigned width, unsigned height, QImage& image, std::string& reason,
+                 const SceneDisplayOptions& display) {
     auto backend = rhi::CreateOffscreenBackendDevice(width, height, options);
     if (!backend) {
         reason = backend.reason;
@@ -618,6 +620,7 @@ bool RenderImage(const runtime::SceneRuntime& scene, const editor::EditorAssets&
     render::SceneRenderSettings settings;
     settings.width = width;
     settings.height = height;
+    settings.display = display;
     rhi::RenderFrame frame;
     if (!producer.Build(scene, settings, frame, reason))
         return false;

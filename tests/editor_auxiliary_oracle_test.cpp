@@ -409,6 +409,57 @@ unsigned ModelRenderFlags(OriginalPhysicsModule& original, const std::filesystem
                 }
     return count;
 }
+unsigned ModelDisplayCommands(OriginalPhysicsModule& original) {
+    void* menu = reinterpret_cast<void*>(&ShadowMenu);
+    void* check = reinterpret_cast<void*>(&ShadowMenuCheck);
+    Patch menuImport(original.Function<void*>(0x1286a0), &menu, sizeof menu);
+    Patch checkImport(original.Function<void*>(0x1287a0), &check, sizeof check);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    unsigned count = 0;
+    for (bool transparency : {false, true})
+        for (unsigned raw : {0u, 1u, 7u})
+            for (bool playing : {false, true})
+                for (bool loaded : {false, true}) {
+                    std::memset(app.get(), 0, sizeof(*app));
+                    app->characterTransparentMode = app->modelNonDisplayMode = std::uint8_t(raw);
+                    app->playbackActive = playing;
+                    app->sceneModified = 0x7d;
+                    app->physicsResetPending = 1;
+                    app->currentFrame = 123;
+                    std::vector<std::unique_ptr<mdl::ModelRecord>> models, expectedModels;
+                    if (loaded)
+                        for (unsigned slot : {0u, 4u, 254u}) {
+                            models.push_back(std::make_unique<mdl::ModelRecord>());
+                            auto& model = *models.back();
+                            model.loadComplete = slot != 4;
+                            model.displayState = std::uint8_t(slot);
+                            app->modelSlots[slot] = &model;
+                            expectedModels.push_back(std::make_unique<mdl::ModelRecord>(model));
+                            if (transparency)
+                                expectedModels.back()->displayState = !raw;
+                        }
+                    auto expected = std::make_unique<MMDAppState>(*app);
+                    (transparency ? expected->characterTransparentMode
+                                  : expected->modelNonDisplayMode) = !raw;
+                    expected->letterKeyState[transparency ? 4 : 6] = 1;
+                    switchMenuCommand = transparency ? MDS_CMD_TOGGLE_MODEL_TRANSPARENCY
+                                                     : MDS_CMD_TOGGLE_MODEL_NON_DISPLAY;
+                    shadowMenuChecked = raw != 0;
+                    shadowMenuWrites = 0;
+                    original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, switchMenuCommand);
+                    Check(shadowMenuWrites == 1 &&
+                              !std::memcmp(app.get(), expected.get(), sizeof(*app)),
+                          "native model display command application state");
+                    for (unsigned i = 0; i < models.size(); ++i)
+                        Check(!std::memcmp(models[i].get(), expectedModels[i].get(),
+                                           sizeof(mdl::ModelRecord)),
+                              "native model display command model state");
+                    ++count;
+                }
+    return count;
+}
 unsigned FrameRateCommands(OriginalPhysicsModule& original) {
     auto state = std::make_unique<MMDAppState>();
     auto* pointer = state.get();
@@ -1307,6 +1358,9 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf(
         "%u original disable-WAV switches: unchanged playback and complete application state\n",
         AudioDisableCommands(original));
+    std::printf(
+        "%u original model display commands: sparse slots, playback, raw flags and complete state\n",
+        ModelDisplayCommands(original));
     std::printf("%u original FPS commands: exact rate and unchanged application state\n",
                 FrameRateCommands(original));
     unsigned count = 0;
