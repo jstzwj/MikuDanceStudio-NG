@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QMediaDevices>
 #include <QTemporaryDir>
 #include <QThread>
@@ -124,6 +125,9 @@ int main(int argc, char** argv) {
     // server). Bound that startup separately, then measure steady clock drift.
     elapsed.restart();
     double previous = baseline, maximumLag = 0, maximumLead = 0;
+    QJsonArray clockTrace;
+    double nextTrace = 0;
+    bool clockBudgetFailed = false;
     int advancing = 0;
     while (elapsed.elapsed() < seconds * 1000) {
         app.processEvents();
@@ -139,11 +143,21 @@ int main(int argc, char** argv) {
         const auto lag = wall - (*position - baseline);
         maximumLag = std::max(maximumLag, lag);
         maximumLead = std::max(maximumLead, -lag);
+        if (wall >= nextTrace) {
+            clockTrace.append(QJsonObject{
+                {"wallSeconds", wall}, {"positionSeconds", *position}, {"lagSeconds", lag}});
+            nextTrace = wall + (wall < 6 ? .05 : 1);
+        }
         report["wallSeconds"] = wall;
         report["positionSeconds"] = *position;
         report["maximumLagSeconds"] = maximumLag;
         report["maximumLeadSeconds"] = maximumLead;
-        if (lag > .1 || lag < -.1)
+        clockBudgetFailed |= lag > .1 || lag < -.1;
+        if (clockBudgetFailed)
+            report["clockTrace"] = clockTrace;
+        // Keep a short trace after a failed sample to distinguish cold-start
+        // prebuffering from continuing device-clock drift. The failure remains.
+        if (clockBudgetFailed && wall >= 6)
             return finish(1, "Native clock differs from elapsed time by over 100 ms");
         QThread::msleep(5);
     }
@@ -152,7 +166,12 @@ int main(int argc, char** argv) {
     report["maximumLagSeconds"] = maximumLag;
     report["maximumLeadSeconds"] = maximumLead;
     report["advancingSamples"] = advancing;
+    QElapsedTimer stopTimer;
+    stopTimer.start();
     transport.Stop();
+    report["stopMilliseconds"] = double(stopTimer.elapsed());
+    if (stopTimer.elapsed() > 100)
+        return finish(1, "Native stop blocked over 100 ms instead of discarding queued audio");
     if (transport.Running() || transport.ClockPosition())
         return finish(1, "Stop retained a live native clock");
     if (!transport.Play(1.5, reason))

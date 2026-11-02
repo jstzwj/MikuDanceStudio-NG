@@ -2412,3 +2412,29 @@ checks passed in **13.24 seconds**, including actual modal dispatch, geometry,
 languages, cancellation, history, CPU counters, saving/reopening and gates.
 The production editor builds. **67/103** original menu commands are implemented;
 this is progress toward C1, not complete P4 acceptance.
+
+## Native stop and Linux clock diagnosis (2026-11-03)
+
+At `eb03d96`, Windows and macOS editor jobs passed in
+[run 41483700893](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41483700893).
+The native CoreAudio check completed **120 seconds**, seek/restart, exact EOF and
+editor clock agreement: steady maximum lag **8.552 ms**, lead **6.279 ms**, startup
+**72 ms** on Apple Virtual Sound Device. The [retained report](evidence/cross-platform-p4-native-audio-macos.json)
+identifies the virtual endpoint; acoustic output latency is not qualified. Its
+editor wall offset reached 1.554 seconds despite exact device-clock agreement,
+so stop/restart responsiveness is being checked separately.
+
+Linux's offscreen/native-surface regressions passed, but PulseAudio again failed
+the strict native-clock budget. The first processed samples were followed by a
+stall. The opt-in test now retains six seconds of timestamped samples after the
+first violation and still fails, allowing prebuffering and ongoing drift to be
+distinguished without hiding the error or relaxing 100 ms. Linux qualification
+remains open.
+
+Native pause/seek now calls `QAudioSink::reset()` to discard queued data rather
+than `stop()`, whose PulseAudio implementation drains queued samples before
+returning. This also avoids carrying previous playback into the next seek.
+The explicit native test now requires stop within 100 ms. Local Windows silent
+smoke passed with **3 ms stop**, steady lag **9.034 ms** and unchanged EOF/editor
+clock checks; the deterministic transport regression also passed. Updated native
+three-platform checks, including the Linux diagnostic, remain pending.

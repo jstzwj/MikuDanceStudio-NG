@@ -33,7 +33,9 @@ public:
     }
     void Stop() override {
         if (sink_)
-            sink_->stop();
+            // Pause/seek discard queued audio. PulseAudio stop() drains it and
+            // can block the UI; reset() flushes it before destroying the sink.
+            sink_->reset();
         sink_.reset();
         source_ = nullptr;
         processed_ = 0;
