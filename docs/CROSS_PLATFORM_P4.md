@@ -85,7 +85,7 @@ This closes that command's integration gap, not the complete clipboard/input gat
 | Shared editing and serialization | First local regression passed; full command/compatibility coverage pending |
 | Qt original layout and multilingual interface | Initial three-platform command/language regression passed; full original parity pending |
 | C1 scene rendering | Model outlines, texture morphs and screen history passed on three platforms; accessory self-shadow passed local DX9 comparisons on DX11/DX12/Vulkan; full C1 comparison pending |
-| WAV and synchronization | Deterministic transport and dedicated-thread Windows/CoreAudio silent output passed 120s clock/seek/EOF checks; Linux steady clock passed, EOF handoff still fails and short-stream prebuffering is being corrected; physical speaker latency is unmeasured |
+| WAV and synchronization | Deterministic transport and Windows/CoreAudio/PulseAudio silent output passed 120s clock/seek/EOF checks on their recorded device profiles; Linux uses an explicit 50 ms virtual queue; physical speaker latency and the default two-second cold null-sink profile are unqualified |
 | Fixed-step image sequence export and cancellation | Generated 30fps sequence, strict repeat and cancellation passed on three platforms |
 | Three-platform open/edit/play/save/reopen/export | Initial generated workflow passed; complete C1 workflow coverage pending |
 | MMD v9.32 independent geometry, behavior and output comparison | Pending |
@@ -2652,3 +2652,30 @@ Linux run 41505954622 compiled the native PulseAudio changes, but stopped at
 its executable. The other 36 tests passed; native audio was not reached. The
 workflow now explicitly builds both scene-contract and editor-gate executables.
 This failure does not establish any native audio result.
+
+
+## Qualified native PulseAudio clock and package (2026-11-03)
+
+[Linux run 41508686075](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41508686075)
+at `485f5c6` passed all **38 P4 tests**, isolated X11/Wayland presentation,
+cold three-second and full **120-second** native silent PCM checks, and relocated
+package validation. The preceding native-surface material-history fixture now
+explicitly enters tool mode, as required by the original effect-renderer gate;
+bone-select mode correctly has no stock-effect history to advance.
+
+The [native report](evidence/cross-platform-p4-native-audio-linux.json) records
+maximum steady lag **7.743 ms**, lead **4.668 ms**, startup **219 ms**, stop **0 ms**,
+**256.09 ms** of sample-clock progress while the UI was blocked and exact final
+position **123 s**. The editor agrees with its observed native sample clock to
+floating-point precision; its maximum wall offset was **48.082 ms**. EOF uses the
+server's final PCM index and measured remaining device queue, independently of a
+rewind-history-delayed drain acknowledgement. No nonzero PCM or visible window
+was used.
+
+This qualification explicitly uses `module-null-sink norewinds=1`: 50 ms maximum
+queue, 45 ms configured sink latency. Earlier default-null-sink runs with a
+two-second cold rewind block failed the unchanged two-second startup gate and
+remain recorded above. The passing result does not qualify that configuration,
+arbitrary PulseAudio/PipeWire hardware or physical speaker latency. Windows,
+CoreAudio and this Linux profile now each have native output evidence; other
+P4/C1 command, input, layout and full-scene gates remain open.
