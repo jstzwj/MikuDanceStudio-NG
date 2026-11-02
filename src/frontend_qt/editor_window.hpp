@@ -12,6 +12,7 @@
 #include <QAction>
 #include <QPointer>
 #include <QTranslator>
+#include <QUrl>
 #include <map>
 namespace mikudancestudio::qt {
 class EdgeThicknessDialog;
@@ -112,7 +113,8 @@ private:
     bool PanelEdit(int, double);
     bool PanelSlider(int, int);
     bool PanelCombo(int, int);
-    void FileAction(const QString&);
+    void FileAction(const QString&, const QString& inputPath = {});
+    void DropFiles(const QList<QUrl>&);
     QString ChooseFile(FileKind, bool save, const QString& title, const QString& filter,
                        const QString& suggestedName = {}, bool confirmOverwrite = true);
     void Numeric();

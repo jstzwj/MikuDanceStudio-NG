@@ -10,6 +10,7 @@
 #include "mikudancestudio/mmd_editor_labels.hpp"
 #include "mikudancestudio/sidebar_navigation.hpp"
 #include "mikudancestudio/menu_commands.h"
+#include "mikudancestudio/file_drop.hpp"
 #include <QApplication>
 #include <QAbstractButton>
 #include <QPushButton>
@@ -27,6 +28,10 @@
 #include <QCloseEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
+#include <QUrl>
 #include <QSignalBlocker>
 #include <QPainter>
 #include <QSettings>
@@ -158,6 +163,7 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
                            std::unique_ptr<AudioOutput> audio)
     : assets_(std::move(assets)), testing_(testing), audio_(std::move(audio), testing) {
     setObjectName("mmd.editor");
+    setAcceptDrops(true);
     installEventFilter(this);
     setMinimumSize(640, 480);
     resize(1024, 768);
@@ -168,6 +174,7 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     font.setPixelSize(12);
     setFont(font);
     canvas_ = new Canvas(language_, session_, assets_, this);
+    canvas_->setAcceptDrops(true);
     canvas_->installEventFilter(this);
     setCentralWidget(canvas_);
     timeline_ = new Timeline(session_, language_, assets_, canvas_);
@@ -416,6 +423,7 @@ void EditorWindow::SetSeparateWindow(bool enabled) {
         dockedSidebarWidth_ = session_.Document().envelope.settings.editPanelWidth;
         auto* window = new Canvas(language_, session_, assets_, nullptr, true);
         window->setObjectName("mmd.separateViewport");
+        window->setAcceptDrops(true);
         window->setWindowTitle("MMD");
         window->setFont(font());
         window->setWindowFlag(Qt::WindowStaysOnTopHint, separateOnTop_);
@@ -889,7 +897,7 @@ QString EditorWindow::ChooseFile(FileKind kind, bool save, const QString& title,
     fileHistory_.Confirm(kind, path);
     return path;
 }
-void EditorWindow::FileAction(const QString& id) {
+void EditorWindow::FileAction(const QString& id, const QString& inputPath) {
     if (id == "view.screen_size") {
         ScreenSize();
         return;
@@ -1028,8 +1036,9 @@ void EditorWindow::FileAction(const QString& id) {
     if (pose || motion) {
         const bool save = id.endsWith("save");
         const auto filter = pose ? "MMD Pose (*.vpd)" : "MMD Motion (*.vmd)";
-        const auto path =
-            ChooseFile(pose ? FileKind::Pose : FileKind::Motion, save, language_.Text(id), filter);
+        const auto path = inputPath.isEmpty() ? ChooseFile(pose ? FileKind::Pose : FileKind::Motion,
+                                                           save, language_.Text(id), filter)
+                                              : inputPath;
         if (path.isEmpty())
             return;
         std::string r;
@@ -1077,6 +1086,73 @@ void EditorWindow::FileAction(const QString& id) {
         }
         std::fclose(stream);
         Result(ok, r.empty() ? "motion-or-pose-file-invalid" : r);
+        Refresh();
+    }
+}
+void EditorWindow::DropFiles(const QList<QUrl>& urls) {
+    for (const auto& url : urls) {
+        if (!url.isLocalFile())
+            continue;
+        auto path = url.toLocalFile();
+        // Preserve DragQueryFileW's UTF-16 truncation, including classification
+        // of path components before the filename. QFile receives the same path.
+        path.truncate(int(editor::DroppedFilePath(path.toStdU16String()).size()));
+        const auto kind = editor::ClassifyDroppedFile(path.toStdU16String());
+        if (kind == DroppedFileKind::Unknown)
+            continue;
+        if (kind == DroppedFileKind::Project && session_.Dirty()) {
+            QMessageBox dialog(QMessageBox::NoIcon, language_.Text("drop.project_title"),
+                               language_.Text("drop.unsaved"),
+                               QMessageBox::Ok | QMessageBox::Cancel, separate_ ? separate_ : this);
+            dialog.setObjectName("mmd.dropUnsaved");
+            if (dialog.exec() != QMessageBox::Ok)
+                break;
+        }
+        if ((kind == DroppedFileKind::Pose || kind == DroppedFileKind::Vocaloid ||
+             kind == DroppedFileKind::Kinect) &&
+            session_.Selected().model == 255) {
+            Result(false, language_.Text("drop.select_model").toStdString());
+            continue;
+        }
+        idleRenderState_ = 1;
+        const auto remember = [&](FileKind type) { fileHistory_.Confirm(type, path); };
+        std::string reason;
+        switch (kind) {
+        case DroppedFileKind::Project:
+            remember(FileKind::Project);
+            Open(Path(path));
+            break;
+        case DroppedFileKind::Model:
+            remember(FileKind::Model);
+            Result(session_.ImportModel(Path(path), reason), reason);
+            break;
+        case DroppedFileKind::Accessory:
+            remember(FileKind::Accessory);
+            Result(session_.ImportAccessory(Path(path), reason), reason);
+            break;
+        case DroppedFileKind::Pose:
+        case DroppedFileKind::Motion:
+            remember(kind == DroppedFileKind::Pose ? FileKind::Pose : FileKind::Motion);
+            FileAction(kind == DroppedFileKind::Pose ? "file.pose_open" : "file.motion_open", path);
+            break;
+        case DroppedFileKind::Wave:
+            remember(FileKind::Wave);
+            Result(session_.ImportWave(Path(path), reason), reason);
+            break;
+        case DroppedFileKind::Bitmap:
+        case DroppedFileKind::Jpeg:
+            if (kind == DroppedFileKind::Bitmap)
+                remember(FileKind::Background);
+            Result(session_.ImportPicture(Path(path), unsigned(viewport_->width()),
+                                          unsigned(viewport_->height()), reason),
+                   reason);
+            break;
+        default:
+            // Classified native media/hardware commands retain their explicit
+            // unsupported status until their corresponding stage is implemented.
+            Result(false, language_.Text("menu.unavailable").toStdString());
+            break;
+        }
         Refresh();
     }
 }
@@ -1742,6 +1818,22 @@ void EditorWindow::FinishSidebarDrag() {
     canvas_->setCursor(sidebarCursor_);
 }
 bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
+    if (event->type() == QEvent::DragEnter || event->type() == QEvent::DragMove ||
+        event->type() == QEvent::Drop) {
+        auto* drop = static_cast<QDropEvent*>(event);
+        if (drop->mimeData()->hasUrls()) {
+            const auto urls = drop->mimeData()->urls();
+            const bool local = std::any_of(urls.begin(), urls.end(),
+                                           [](const auto& url) { return url.isLocalFile(); });
+            if (local) {
+                drop->setDropAction(Qt::CopyAction);
+                drop->accept();
+                if (event->type() == QEvent::Drop)
+                    DropFiles(urls);
+                return true;
+            }
+        }
+    }
     // Timer/paint/update events must not wake a sleeping scene themselves.
     switch (event->type()) {
     case QEvent::KeyPress:

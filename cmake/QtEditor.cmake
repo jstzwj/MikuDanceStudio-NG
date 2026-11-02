@@ -122,6 +122,12 @@ function(mds_add_qt_editor)
             --test $<TARGET_FILE:qt_numeric_test> --assets "${root}/res/assets")
         set_tests_properties(qt_numeric PROPERTIES LABELS "p4;offscreen;qt;oracle" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_menu_test "${root}/tests/qt_menu_test.cpp")
+        qt_add_executable(qt_file_drop_test "${root}/tests/qt_file_drop_test.cpp")
+        target_link_libraries(qt_file_drop_test PRIVATE mikudancestudio_frontend_qt)
+        add_test(NAME qt_file_drop COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"
+            --passes $<TARGET_FILE:qt_file_drop_test> --assets "${root}/res/assets")
+        set_tests_properties(qt_file_drop PROPERTIES LABELS "p4;offscreen;qt" TIMEOUT 120
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         target_link_libraries(qt_menu_test PRIVATE mikudancestudio_frontend_qt)
         add_test(NAME qt_menu COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_qt_menu.py"
             --test $<TARGET_FILE:qt_menu_test> --assets "${root}/res/assets")

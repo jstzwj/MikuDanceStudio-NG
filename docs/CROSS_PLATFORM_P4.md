@@ -3122,3 +3122,55 @@ application build and the DX9 owned snapshot conversion regression also passed.
 The final revision passed all **41 local P4 tests in 134.94 seconds**. The menu
 now implements **83/103** original commands. This closes the wireframe display
 gap; complete command/input/layout and combined-scene C1 acceptance remain open.
+
+The wireframe revision `3727087` passed Windows, Linux and macOS in
+[CI 41546361233](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41546361233),
+including native Metal, lavapipe Bresenham wireframe, isolated presentation,
+silent audio and relocated deployment checks.
+
+## Native file-drop routing and Qt integration (2026-11-03)
+
+Main and detached Qt windows now accept local file URL drops. Files execute in
+the original order, with PMM replacing the scene before later imports. PMD/PMX,
+static `.x`, VPD, VMD, WAV and BMP/JPG reuse the existing shared loaders. A failed
+file does not prevent later imports. Pose drops require a selected model.
+Dropping a project onto a dirty scene uses the original icon-free OK/Cancel
+confirmation and stops the remainder on cancellation. Dialog text is translated
+through the common English/Japanese/Chinese catalogs.
+
+`ClassifyDroppedFile` preserves the original whole-path substring order and
+explicit lower/upper/title-case variants, including the dotless `Vac` needle.
+It deliberately does not replace this with case-insensitive suffix matching.
+The previous-folder switch applies before loading, including failure; JPG
+retains the original omission from background-folder history. Unknown files
+are ignored; remote URLs are not opened. Classified video/VSQ/Kinect inputs
+retain an explicit unsupported diagnostic until their own implementation.
+Classification of VAC is covered; importing its placement settings is still a
+separate gap, not claimed as successful accessory loading here.
+
+The optional `editor_file_drop_oracle_test <original.exe>` invokes the actual
+x64 dispatcher at RVA 978B0. It intercepts only shell enumeration/cleanup,
+menu/message APIs and terminal loaders, without opening files or creating UI.
+**172 routing cases** passed: 42 suffix variants × model/camera × folder policy,
+plus four whole-path precedence/dotless-name cases. All seven original directory
+buffers are checked, including JPG's omission. A separate multi-file case
+verifies cancellation after pose/motion, skipped later loads and the native
+missing `DragFinish` cleanup call. Qt retains its own safe URL ownership instead
+of reproducing that native leak.
+
+The original advertises 512 UTF-16 units to a 256-unit stack buffer. An isolated
+long-path probe terminates through the native stack-cookie check, so it is not
+treated as a successful compatibility result. The portable classifier bounds
+its view without writing a fixed stack buffer; embedded NUL and overlong-query
+classification have safe public regressions. Shared file/PMM representability
+validation continues to reject paths it cannot store.
+
+The new three-language Qt offscreen gate exercises main/canvas/detached targets,
+unknown/remote files, ordered model/accessory/background/silent-WAV loading,
+shared VPD/VMD parsers, failure followed by success, JPG directory retention,
+project cancellation/confirmation and model-required diagnostics. No audio is
+played and no local window is shown. Native desktop drag delivery remains part
+of the wider isolated input/DPI qualification.
+
+All **42 local P4 tests passed in 132.79 seconds**, followed by the final native
+dispatcher check. P4/C1 remains in progress.
