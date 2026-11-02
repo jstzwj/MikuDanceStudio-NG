@@ -199,8 +199,10 @@ jobs:
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=mds_acceptance rate=48000 channels=2
           pactl set-default-sink mds_acceptance
-          python tests/test_native_audio.py --test out/p4/qt_native_audio_test --seconds 3 --report out/p4/native-audio-smoke.json
+          smoke_status=0
+          python tests/test_native_audio.py --test out/p4/qt_native_audio_test --seconds 3 --report out/p4/native-audio-smoke.json || smoke_status=$?
           python tests/test_native_audio.py --test out/p4/qt_native_audio_test --report out/p4/native-audio.json
+          test "$smoke_status" -eq 0
       - name: Deploy and validate relocated package
         shell: bash
         run: |

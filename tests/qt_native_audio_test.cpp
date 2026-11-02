@@ -132,6 +132,7 @@ int main(int argc, char** argv) {
         QThread::msleep(5);
     }
     report["startupMilliseconds"] = double(elapsed.elapsed());
+    report["startupDevice"] = QString::fromStdString(transport.Diagnostic());
     report["firstProgressMilliseconds"] = firstProgress * 1000;
     report["startupClockLatencySeconds"] = elapsed.nsecsElapsed() / 1e9 - (baseline - .25);
     if (baseline == .25 || elapsed.elapsed() > 2000)

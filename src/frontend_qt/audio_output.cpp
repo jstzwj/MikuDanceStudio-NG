@@ -13,9 +13,18 @@ public:
     bool Start(const QAudioDevice& device, const QAudioFormat& format, const QByteArray& pcm,
                qint64 offset, float volume, std::string& reason) {
         Stop();
+        if (offset < 0 || offset > pcm.size()) {
+            reason = "audio-output-source-unavailable";
+            return false;
+        }
+        pcm_ = pcm;
         source_ = std::make_unique<QBuffer>();
-        source_->setData(pcm); // Implicit sharing: retain PCM without copying it.
-        if (!source_->open(QIODevice::ReadOnly) || !source_->seek(offset)) {
+        // Qt's native adapters use QIODevice::size() to configure short-stream
+        // prebuffering. A seek into the full WAV misreports the available tail
+        // and can leave it below PulseAudio's prebuffer forever. Expose only
+        // the remaining immutable PCM; retain its shared owner without copying.
+        source_->setData(QByteArray::fromRawData(pcm_.constData() + offset, pcm_.size() - offset));
+        if (!source_->open(QIODevice::ReadOnly)) {
             reason = "audio-output-source-unavailable";
             Stop();
             return false;
@@ -43,6 +52,7 @@ public:
             sink_->reset();
         sink_.reset();
         source_.reset();
+        pcm_.clear();
         processed_ = 0;
         duration_ = 0;
     }
@@ -102,6 +112,7 @@ private:
     std::unique_ptr<QAudioSink> sink_;
     QAudioFormat format_;
     std::unique_ptr<QBuffer> source_;
+    QByteArray pcm_;
     mutable qint64 processed_ = 0;
     qint64 duration_ = 0;
 };
