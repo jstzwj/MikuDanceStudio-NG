@@ -357,7 +357,7 @@ void Scene(Writer& w, const PmmSceneDocument& d) {
     }
 }
 }
-bool PreservePmmUnusedRecords(const PmmSceneDocument& source, PmmSceneDocument& target) {
+bool PreservePmmSessionState(const PmmSceneDocument& source, PmmSceneDocument& target) {
     const auto copy = [](const auto& from, auto& to) {
         // The preservation writer also accepts legacy tracks outside the
         // topology editor's stricter contract. Validate only this transient
@@ -386,6 +386,7 @@ bool PreservePmmUnusedRecords(const PmmSceneDocument& source, PmmSceneDocument& 
         if (to == target.models.end() || !copy(from.boneKeys, to->boneKeys) ||
             !copy(from.morphKeys, to->morphKeys) || !copy(from.displayKeys, to->displayKeys))
             return false;
+        to->pmdEdgeDiffuse = from.pmdEdgeDiffuse;
     }
     for (const auto& from : source.accessories) {
         const auto to = std::find_if(target.accessories.begin(), target.accessories.end(),
@@ -405,7 +406,7 @@ bool RebuildPmmV2(const PmmSceneDocument& source, PmmSceneDocument& output, std:
             reason = "pmm-rebuilt-document-rejected";
             return false;
         }
-        if (!PreservePmmUnusedRecords(source, checked)) {
+        if (!PreservePmmSessionState(source, checked)) {
             reason = "pmm-unused-records-invalid";
             return false;
         }

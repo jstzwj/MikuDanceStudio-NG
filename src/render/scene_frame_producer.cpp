@@ -738,10 +738,14 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         const bool pmd = model.resource->SourceKind() == format::ModelKind::Pmd;
         const auto& source = model.resource->Document();
         float scale = 1;
+        std::uint32_t pmdDiffuse = 0xff000000u;
         if (doc)
             for (const auto& record : doc->models)
-                if (record.slot == slot)
+                if (record.slot == slot) {
                     scale = record.edgeScale;
+                    pmdDiffuse = record.pmdEdgeDiffuse;
+                    break;
+                }
         Vec3 center{};
         if (!snapshot->bones.empty()) {
             const auto n = snapshot->bones.size() > 1 ? 1 : 0;
@@ -772,7 +776,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                                                                       : edgeScale)
                         : cpu_edge::PmxComponent(v.position[c], v.normal[c], edgeScale,
                                                  original.edgeScale, material.edgeSize);
-            edge.diffuse = pmd ? 0xff000000u : cpu_edge::Color(material.edgeColor, mode != 0);
+            edge.diffuse = pmd ? pmdDiffuse : cpu_edge::Color(material.edgeColor, mode != 0);
         }
         if (!model.geometry->Publish())
             return Fail(reason, "model_geometry_publish");
@@ -878,6 +882,14 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                     draw.pipeline.shadow = shadow;
                     draw.pipeline.shadow.mode = BuiltinShadowMode::Outline;
                     std::copy_n(material.edgeColor, 4, draw.pipeline.shadow.color.begin());
+                }
+                if (!ground && pmd && mode && doc) {
+                    draw.pipeline.shadow = shadow;
+                    draw.pipeline.shadow.mode = BuiltinShadowMode::Outline;
+                    for (unsigned c = 0; c < 3; ++c)
+                        draw.pipeline.shadow.color[c] =
+                            doc->appearance.outlineColor[c] * (1.f / 256.f);
+                    draw.pipeline.shadow.color[3] = 1;
                 }
                 if (ground) {
                     ModelReplayResource helper;

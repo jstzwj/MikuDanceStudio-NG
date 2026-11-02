@@ -50,6 +50,7 @@ public:
     void SetSidebarWidth(int width);
     bool SetFrameLimit(unsigned limit);
     bool SetGroundShadowColor(float value);
+    bool SetOutlineColor(const std::array<std::uint8_t, 3>& rgb);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
     void ClearPoseEditMarkers();
     bool SelectPhysicsOnKeys(std::uint8_t, const std::vector<std::uint8_t>& physical);

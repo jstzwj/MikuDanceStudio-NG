@@ -122,6 +122,7 @@ bool Implemented(int command) {
     case MDS_CMD_FPS_30:
     case MDS_CMD_FPS_60:
     case MDS_CMD_GROUND_SHADOW_COLOR:
+    case MDS_CMD_EDGE_COLOR:
         return true;
     default:
         return false;
@@ -329,6 +330,10 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_CENTER_POSITION_BIAS) {
         CenterBias();
+        return;
+    }
+    if (command == MDS_CMD_EDGE_COLOR) {
+        OutlineColor();
         return;
     }
     if (command == MDS_CMD_DELETE_UNUSED_FRAMES) {

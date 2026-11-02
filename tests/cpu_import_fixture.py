@@ -21,16 +21,24 @@ class Bytes(bytearray):
 POSITIONS = ((-10, -8, 0), (0, 10, 0), (10, -8, 0))
 
 
-def pmd(texture='checker.bmp', alpha=1, bones=None, bone_types=None, bone_parents=None, facial=False):
+def pmd(texture='checker.bmp', alpha=1, bones=None, bone_types=None, bone_parents=None, facial=False, outline=False):
     b = Bytes(b'Pmd'); b.f(1); b.fixed('CPU triangle', 20); b.zero(256)
     b.u32(3)
     for index, p in enumerate(POSITIONS):
-        b.f(*p); b.f(0, 0, -1); b.f(index / 2, index % 2)
+        b.f(*p)
+        if outline:
+            length = (p[0] ** 2 + p[1] ** 2) ** .5
+            b.f(p[0] / length, p[1] / length, 0)
+        else:
+            b.f(0, 0, -1)
+        b.f(index / 2, index % 2)
         b.u16(0); b.u16(0); b.u8(100); b.u8(0)
-    b.u32(3)
+    b.u32(6 if outline else 3)
     for index in (0, 1, 2): b.u16(index)
+    if outline:
+        for index in (2, 1, 0): b.u16(index)
     b.u32(1); b.f(.8, .6, .4, alpha, 4, .1, .1, .1, .3, .3, .3)
-    b.u8(255); b.u8(1); b.u32(3); b.fixed(texture, 20)
+    b.u8(255); b.u8(1); b.u32(6 if outline else 3); b.fixed(texture, 20)
     bones = bones or ('B',)
     b.u16(len(bones))
     for index, name in enumerate(bones):
@@ -281,6 +289,7 @@ def write(directory):
     (root / 'sphere.pmd').write_bytes(pmd('s.sph'))
     (root / 'triangle.pmx').write_bytes(pmx())
     (root / 'outline.pmx').write_bytes(pmx(outline=True))
+    (root / 'outline.pmd').write_bytes(pmd(outline=True))
     (root / 'overlay-offset.pmx').write_bytes(pmx(tail_offset=True))
     (root / 'overlay-types.pmd').write_bytes(pmd(bones=tuple('T%d' % n for n in range(10)), bone_types=tuple(range(10))))
     (root / 'drag-roots.pmd').write_bytes(pmd(bones=('root', 'child', 'other'), bone_types=(1, 1, 1), bone_parents=(65535, 0, 65535)))

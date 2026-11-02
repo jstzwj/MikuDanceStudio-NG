@@ -20,6 +20,7 @@
 #include <QScrollBar>
 #include <QMenuBar>
 #include <QFileDialog>
+#include <QColorDialog>
 #include <QMessageBox>
 #include <QSaveFile>
 #include <QCloseEvent>
@@ -1121,6 +1122,23 @@ void EditorWindow::EdgeThickness() {
             edgeDialog_->show();
         break;
     }
+}
+void EditorWindow::OutlineColor() {
+    const auto& rgb = session_.Document().appearance.outlineColor;
+    // Native CHOOSECOLOR initializes red/blue as bytes and green as a word.
+    // Loaded PMM values outside the picker range retain this packing behavior.
+    QColorDialog dialog(QColor(rgb[0] & 255, rgb[1] & 255, ((rgb[1] >> 8) & 255) | (rgb[2] & 255)),
+                        this);
+    dialog.setObjectName("mmd.outlineColor");
+    dialog.setOption(QColorDialog::DontUseNativeDialog, testing_);
+    dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    const auto color = dialog.selectedColor();
+    if (color.isValid() &&
+        session_.SetOutlineColor(
+            {std::uint8_t(color.red()), std::uint8_t(color.green()), std::uint8_t(color.blue())}))
+        UpdateFrame();
 }
 void EditorWindow::CenterBias() {
     CenterBiasDialog dialog(language_, this);

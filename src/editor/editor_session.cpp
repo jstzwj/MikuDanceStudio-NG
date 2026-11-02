@@ -356,7 +356,16 @@ bool EditorSession::SetFrameLimit(unsigned limit) {
     return runtime_ && runtime_->SetFrameLimit(limit);
 }
 bool EditorSession::SetGroundShadowColor(float value) {
-    return runtime_ && runtime_->SetGroundShadowColor(value);
+    if (!runtime_ || !runtime_->SetGroundShadowColor(value))
+        return false;
+    ++appearanceRevision_;
+    return true;
+}
+bool EditorSession::SetOutlineColor(const std::array<std::uint8_t, 3>& rgb) {
+    if (!runtime_ || !runtime_->SetOutlineColor(rgb))
+        return false;
+    ++appearanceRevision_;
+    return true;
 }
 void EditorSession::SetPhysicsFloor(bool enabled) {
     runtime_->SetPhysicsFloor(enabled);

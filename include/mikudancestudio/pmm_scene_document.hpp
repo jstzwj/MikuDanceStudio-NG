@@ -80,7 +80,15 @@ struct PmmSceneModel {
     std::vector<PmmRigidPose> rigidPose;
     std::uint8_t postLoadFlag = 0, toonFlag = 0, previousDisplayOrder = 0;
     float edgeScale = 0;
+    // Live PMD secondary-vertex color, not a per-model disk field. Opening a
+    // PMM reapplies the scene color; a later model import starts opaque black.
+    // PMX uses its material's edge color and ignores this value.
+    std::uint32_t pmdEdgeDiffuse = 0xff000000u;
 };
+inline std::uint32_t PmdOutlineDiffuse(const std::array<std::int32_t, 3>& rgb) {
+    return 0xff000000u | (std::uint32_t(rgb[0]) << 16) | (std::uint32_t(rgb[1] & 255) << 8) |
+           std::uint32_t(rgb[2] & 255);
+}
 struct PmmSceneAccessory {
     std::uint8_t slot = 0, order = 0;
     std::array<char, 100> name{};

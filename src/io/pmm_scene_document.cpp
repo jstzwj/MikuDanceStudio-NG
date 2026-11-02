@@ -503,6 +503,8 @@ static bool ParseSections(const PmmDocument& envelope, ResolvePmmV1ModelLayout r
     }
     if (cursor.remaining() != 0)
         return false;
+    for (auto& model : parsed.models)
+        model.pmdEdgeDiffuse = PmdOutlineDiffuse(parsed.appearance.outlineColor);
     return true;
 }
 bool ParsePmmSceneDocument(const PmmDocument& envelope, ResolvePmmV1ModelLayout resolveV1,

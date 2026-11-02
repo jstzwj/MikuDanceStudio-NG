@@ -152,6 +152,9 @@ public:
     void SetSidebarWidth(int width);
     bool SetFrameLimit(unsigned limit);
     bool SetGroundShadowColor(float value);
+    bool SetOutlineColor(const std::array<std::uint8_t, 3>& rgb);
+    // Invalidate visual changes which preserve the document's dirty revision.
+    std::uint64_t AppearanceRevision() const { return appearanceRevision_; }
     void SetPhysicsFloor(bool enabled);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);
     void SetEditMode(std::int32_t mode);
@@ -203,6 +206,7 @@ private:
     State state_;
     bool DeleteKeys(State next, const std::set<KeyAddress>&, std::string&, bool markedModelRecords);
     std::uint64_t gravityEpoch_ = 0;
+    std::uint64_t appearanceRevision_ = 0;
     std::unique_ptr<runtime::SceneRuntime> runtime_;
     enum class HistoryKind {
         None,

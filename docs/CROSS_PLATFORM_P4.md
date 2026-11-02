@@ -2457,3 +2457,29 @@ for 250 ms and requires clock progress while it is blocked. Local Windows silent
 smoke passed: **250 ms progress**, **5 ms stop**, startup **425 ms**, maximum
 steady lag **23.487 ms**; deterministic audio also passed. Linux/CoreAudio reruns
 of the dedicated-thread implementation remain pending.
+
+## Outline color and live PMD state (2026-11-03)
+
+Command 286 now opens the color picker in all three languages. It preserves the
+original initialization packing, accepts RGB bytes and leaves dirty/history,
+physics and CPU evaluation counters unchanged. The shared appearance revision
+invalidates prepared frames immediately without inventing an editing operation.
+
+The original D2240 kernel updates secondary-vertex colors only on currently
+loaded PMDs. New imports start black, saving retains each live PMD color, and
+opening a PMM reapplies its global color to all loaded PMDs. PMX material edge
+colors remain independent. The fixed PMD path consumes vertex ARGB; the effect
+path uses the native global RGB / 256 constants. Transient per-model color is
+preserved through document validation and editing without adding a disk field.
+
+The optional original numeric oracle passed **36** actual D2240 cases, including
+PMD/PMX mode gates, zero/nonzero vertex counts and noncanonical input integers.
+It compares all vertex bytes, the complete model record and buffer lock/unlock
+calls. The offscreen render regression checks both PMD paths, PMX exclusion,
+byte-exact repeated submission and restoration. Shared/Qt tests cover playback,
+Undo/Redo, new imports, slot reuse, save/reopen, cancellation and all languages.
+The menu now implements **68/103** original commands; C1 acceptance remains open.
+
+The full local Release build, including the production editor, passed. All
+**31** local P4 regressions then passed in **105.62 seconds**, using Qt offscreen
+and DX11 WARP; no desktop window was shown.

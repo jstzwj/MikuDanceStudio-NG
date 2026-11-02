@@ -121,6 +121,17 @@ public:
         scene_.physics.projectedShadowAmbient = value;
         return true;
     }
+    bool SetOutlineColor(const std::array<std::uint8_t, 3>& rgb,
+                         const std::vector<std::uint8_t>& pmdSlots) {
+        if (!loaded_)
+            return false;
+        std::copy(rgb.begin(), rgb.end(), scene_.appearance.outlineColor.begin());
+        const auto diffuse = PmdOutlineDiffuse(scene_.appearance.outlineColor);
+        for (auto& model : scene_.models)
+            if (std::find(pmdSlots.begin(), pmdSlots.end(), model.slot) != pmdSlots.end())
+                model.pmdEdgeDiffuse = diffuse;
+        return true;
+    }
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded) {
         for (auto& model : scene_.models)
             if (model.slot == slot && group < model.selection.groupFlags.size())

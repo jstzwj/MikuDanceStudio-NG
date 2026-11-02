@@ -111,6 +111,7 @@ private:
     void EdgeThickness();
     void GroundShadowColor();
     void CenterBias();
+    void OutlineColor();
     void GravitySettings();
     void MorphScale();
     void CameraScale();

@@ -150,6 +150,40 @@ int main(int argc, char** argv) {
                 CHECK(physics.SelectModel(255, reason) &&
                       !physics.SetSelectedKeyPhysics(false, reason));
             }
+    {
+        EditorSession color;
+        CHECK(color.ImportModel(root / "facial.pmd", reason));
+        CHECK(color.ImportModel(root / "triangle.pmx", reason));
+        CHECK(color.SelectModel(0, reason) && color.SetBone(0, 0, {1, 2, 3}, {0, 0, 0, 1}, reason));
+        CHECK(color.Undo(reason) && color.CanRedo());
+        CHECK(color.Save(root / "outline.pmm", Write, reason));
+        const auto* runtime = &color.Runtime();
+        const auto frames = runtime->Counters().frames, revision = color.Revision();
+        const auto appearance = color.AppearanceRevision();
+        CHECK(color.SetOutlineColor({0x12, 0x34, 0x56}));
+        CHECK(color.AppearanceRevision() > appearance && color.Revision() == revision &&
+              !color.Dirty());
+        CHECK(color.Document().models[0].pmdEdgeDiffuse == 0xff123456u &&
+              color.Document().models[1].pmdEdgeDiffuse == 0xff000000u);
+        CHECK(color.Redo(reason) && color.Document().models[0].pmdEdgeDiffuse == 0xff123456u);
+        CHECK(color.Undo(reason) && color.Document().models[0].pmdEdgeDiffuse == 0xff123456u);
+        CHECK(&color.Runtime() == runtime && runtime->Counters().frames == frames);
+        CHECK(color.ImportModel(root / "articulated.pmd", reason));
+        CHECK(color.Document().models[2].pmdEdgeDiffuse == 0xff000000u);
+        CHECK(color.Save(root / "outline.pmm", Write, reason));
+        CHECK(color.Document().models[2].pmdEdgeDiffuse == 0xff000000u);
+        CHECK(color.Open(root / "outline.pmm", reason));
+        CHECK(color.Document().models[0].pmdEdgeDiffuse == 0xff123456u &&
+              color.Document().models[2].pmdEdgeDiffuse == 0xff123456u);
+        CHECK(color.UnloadModel(0, reason) && color.ImportModel(root / "facial.pmd", reason));
+        for (const auto& model : color.Document().models)
+            if (model.slot == 0)
+                CHECK(model.pmdEdgeDiffuse == 0xff000000u);
+        CHECK(color.Play(reason) && color.SetOutlineColor({0, 255, 0}));
+        color.Pause();
+        CHECK(color.New(reason) &&
+              color.Document().appearance.outlineColor == (std::array<std::int32_t, 3>{}));
+    }
     for (const char* file : {"facial.pmd", "articulated.pmx"}) {
         EditorSession bone;
         CHECK(BoneScaleFixture(bone, root, file, {0, 0, 0, 1}, reason));

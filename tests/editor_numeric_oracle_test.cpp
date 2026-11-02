@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include "mikudancestudio/editor_numeric.hpp"
+#include "mikudancestudio/pmm_scene_document.hpp"
 #include "mikudancestudio/mmd_dialog_edit_metrics.hpp"
 #include <commctrl.h>
 #include "editor_numeric_fixture.hpp"
@@ -310,6 +311,56 @@ LRESULT WINAPI GroundMessage(HWND control, UINT message, WPARAM, LPARAM value) {
         Check(message == 0xb1, "original ground shadow edit message");
     return 0;
 }
+struct EdgeBufferRecorder {
+    void** vtable;
+    std::vector<unsigned char> bytes;
+    unsigned locks = 0, unlocks = 0;
+};
+HRESULT WINAPI ColorLock(EdgeBufferRecorder* buffer, UINT offset, UINT size, void** output,
+                         DWORD flags) {
+    Check(!offset && size == buffer->bytes.size() && !flags, "original edge color lock range");
+    *output = buffer->bytes.data();
+    ++buffer->locks;
+    return S_OK;
+}
+HRESULT WINAPI ColorUnlock(EdgeBufferRecorder* buffer) {
+    ++buffer->unlocks;
+    return S_OK;
+}
+void OutlineColorOracle(OriginalPhysicsModule& original) {
+    std::array<void*, 13> vtable{};
+    vtable[11] = reinterpret_cast<void*>(&ColorLock);
+    vtable[12] = reinterpret_cast<void*>(&ColorUnlock);
+    unsigned cases = 0;
+    for (const std::array<std::int32_t, 3> rgb :
+         {std::array<std::int32_t, 3>{0, 0, 0}, {255, 12, 64}, {0x123, 0x234, 0x345}, {-1, -2, -3}})
+        for (unsigned char mode : {0, 1, 2})
+            for (unsigned count : {0, 1, 7}) {
+                std::vector<unsigned char> model(0x4000);
+                model[0x3ca6] = mode;
+                std::memcpy(model.data() + 8, &count, 4);
+                EdgeBufferRecorder buffer{vtable.data(),
+                                          std::vector<unsigned char>(count * 16, 0x7b)};
+                auto* address = &buffer;
+                std::memcpy(model.data() + 0x18, &address, sizeof address);
+                const auto before = model;
+                auto expected = buffer.bytes;
+                if (mode != 2) {
+                    const auto color = mikudancestudio::format::PmdOutlineDiffuse(rgb);
+                    for (unsigned i = 0; i < count; ++i)
+                        std::memcpy(expected.data() + 16 * i + 12, &color, 4);
+                }
+                original.Function<void (*)(void*, int, int, int)>(0xd2240)(model.data(), rgb[0],
+                                                                           rgb[1], rgb[2]);
+                Check(model == before && buffer.bytes == expected &&
+                          buffer.locks == unsigned(mode != 2 && count) &&
+                          buffer.unlocks == buffer.locks,
+                      "original PMD outline bytes, positions, empty buffer and PMX exclusion");
+                ++cases;
+            }
+    std::printf("Original outline color: %u exact secondary-buffer cases; no windows or GPU\n",
+                cases);
+}
 void GroundOracle(OriginalPhysicsModule& original) {
     std::vector<std::unique_ptr<Patch>> patches;
     const auto patch = [&](unsigned offset, auto replacement) {
@@ -470,6 +521,7 @@ int wmain(int argc, wchar_t** argv) try {
     Check(hash == 0xa78d309a17788cb1ull, "original camera numeric corpus hash");
     EdgeOracle(original);
     GroundOracle(original);
+    OutlineColorOracle(original);
     EditWidthOracle(argv[1]);
     std::printf(
         "Original camera numeric command: 256 exact input/output cases, hash %016llx; no windows or GPU\n",

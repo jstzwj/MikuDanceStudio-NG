@@ -24,6 +24,7 @@
 #include <QInputMethodEvent>
 #include <QComboBox>
 #include <QWheelEvent>
+#include <QColorDialog>
 #include <iostream>
 #include <limits>
 using namespace mikudancestudio;
@@ -476,6 +477,46 @@ int main(int argc, char** argv) {
         CHECK(owner.close());
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         CHECK(live.isNull() && editor.Document().models[1].edgeScale == 2.5f);
+    }
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(language.Set(code));
+        qt::EditorWindow owner(std::filesystem::absolute(argv[2]), true);
+        auto& editor = owner.Session();
+        CHECK(owner.SetLanguage(code) && editor.ImportModel(root / "pose.pmd", reason));
+        CHECK(owner.Save(root / "outline-dialog.pmm"));
+        QAction* action = nullptr;
+        for (auto* candidate : owner.findChildren<QAction*>())
+            if (candidate->property("mmdCommandId").toInt() == MDS_CMD_EDGE_COLOR)
+                action = candidate;
+        CHECK(action && action->isEnabled());
+        auto* viewport = owner.RenderWindow();
+        CHECK(viewport->PrepareFrame(128, 96, reason));
+        const auto builds = viewport->FrameBuilds(), frames = editor.Runtime().Counters().frames;
+        const auto revision = editor.Revision();
+        for (bool accept : {false, true}) {
+            bool visited = false;
+            QTimer::singleShot(0, &owner, [&] {
+                auto* dialog = qobject_cast<QColorDialog*>(QApplication::activeModalWidget());
+                if (!dialog) {
+                    QApplication::closeAllWindows();
+                    return;
+                }
+                visited = dialog->currentColor() == QColor(0, 0, 0);
+                dialog->setCurrentColor(QColor(17, 83, 149));
+                if (accept)
+                    dialog->accept();
+                else
+                    dialog->reject();
+            });
+            action->trigger();
+            CHECK(visited && !editor.Dirty() && editor.Revision() == revision);
+            CHECK(editor.Document().models[0].pmdEdgeDiffuse ==
+                  (accept ? 0xff115395u : 0xff000000u));
+        }
+        CHECK(viewport->PrepareFrame(128, 96, reason) && viewport->FrameBuilds() == builds + 1);
+        CHECK(editor.Runtime().Counters().frames == frames && !owner.isVisible());
+        CHECK(owner.Save(root / "outline-dialog.pmm") && owner.Open(root / "outline-dialog.pmm"));
+        CHECK(editor.Document().models[0].pmdEdgeDiffuse == 0xff115395u);
     }
     for (const char* code : {"en", "ja", "zh_CN"}) {
         CHECK(language.Set(code));

@@ -696,6 +696,17 @@ bool SceneRuntime::SetFrameLimit(unsigned limit) {
 bool SceneRuntime::SetGroundShadowColor(float value) {
     return impl_ && impl_->session && impl_->session->SetGroundShadowColor(value);
 }
+bool SceneRuntime::SetOutlineColor(const std::array<std::uint8_t, 3>& rgb) {
+    if (!impl_ || !impl_->session)
+        return false;
+    std::vector<std::uint8_t> slots;
+    for (const auto& model : impl_->session->Document().models) {
+        const auto resource = Resource(model.slot);
+        if (resource && resource->SourceKind() == format::ModelKind::Pmd)
+            slots.push_back(model.slot);
+    }
+    return impl_->session->SetOutlineColor(rgb, slots);
+}
 void SceneRuntime::SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded) {
     if (impl_ && impl_->session)
         impl_->session->SetGroupExpanded(slot, group, expanded);

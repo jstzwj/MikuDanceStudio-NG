@@ -157,7 +157,7 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
         cachedEditMode_ != session_.Document().timeline.editMode ||
         cachedCoordinateSystem_ != session_.CoordinateSystem() ||
         cachedToolOperation_ != toolOperation_ ||
-        cachedGroundShadowColor_ != session_.Document().physics.projectedShadowAmbient) {
+        cachedAppearanceRevision_ != session_.AppearanceRevision()) {
         frameCached_ = false;
         if (!producer_.Build(session_.Runtime(), settings, cachedFrame_, reason))
             return false;
@@ -175,7 +175,7 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
         cpuTimings_.overlay = elapsed();
         ++frameBuilds_;
         cachedRevision_ = revision;
-        cachedGroundShadowColor_ = session_.Document().physics.projectedShadowAmbient;
+        cachedAppearanceRevision_ = session_.AppearanceRevision();
         cachedUpdates_ = updates;
         cachedWidth_ = w;
         cachedHeight_ = h;

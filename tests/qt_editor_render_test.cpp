@@ -354,8 +354,46 @@ int main(int argc, char** argv) {
     CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
                           edgeRestored, reason));
     CHECK(edgeFirst == edgeRestored);
+    CHECK(session.SetOutlineColor({17, 223, 91}));
+    QImage coloredEdge, coloredRepeated;
+    CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
+                          coloredEdge, reason));
+    CHECK(coloredEdge == edgeFirst); // PMX retains its material's edge color.
+    CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
+                          coloredRepeated, reason) &&
+          coloredRepeated == coloredEdge);
+    CHECK(session.SetOutlineColor({0, 0, 0}));
+    CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
+                          edgeRestored, reason) &&
+          edgeFirst == edgeRestored);
     CHECK(session.Runtime().Counters().frames == edgeFrames &&
           session.Runtime().Counters().editorUpdates == edgeUpdates);
+    CHECK(session.New(reason) && session.ImportModel(root / "outline.pmd", reason));
+    CHECK(session.SetEdgeThickness(8, reason));
+    for (int mode : {0, 1}) {
+        CHECK(session.Edit(
+            "pmd-outline-mode",
+            [&](auto& d, auto&) {
+                d.view.groundGrid = d.view.groundShadow = 0;
+                d.selfShadowMode = std::uint8_t(mode);
+                return true;
+            },
+            reason));
+        CHECK(session.SetOutlineColor({0, 0, 0}));
+        CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
+                              edgeFirst, reason));
+        CHECK(session.SetOutlineColor({17, 223, 91}));
+        CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
+                              coloredEdge, reason) &&
+              coloredEdge != edgeFirst);
+        CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
+                              coloredRepeated, reason) &&
+              coloredRepeated == coloredEdge);
+        CHECK(session.SetOutlineColor({0, 0, 0}));
+        CHECK(qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 128, 96,
+                              edgeRestored, reason) &&
+              edgeRestored == edgeFirst);
+    }
     CHECK(session.New(reason) && session.ImportModel(root / "tint-morph.pmx", reason));
     CHECK(session.Edit(
         "plain-morph-view",
