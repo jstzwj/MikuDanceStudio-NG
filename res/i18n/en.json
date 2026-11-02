@@ -572,5 +572,17 @@
   "dialog.numeric.physics_keys.control.4": "OK",
   "dialog.numeric.physics_keys.control.5": "cancel",
   "dialog.numeric.physics_keys.on": "ON (X mark)",
-  "dialog.numeric.physics_keys.off": "OFF"
+  "dialog.numeric.physics_keys.off": "OFF",
+  "dialog.numeric.draw_order.title": "model disply order",
+  "dialog.numeric.draw_order.control.1": "drawing order",
+  "dialog.numeric.draw_order.control.2": "up",
+  "dialog.numeric.draw_order.control.3": "down",
+  "dialog.numeric.draw_order.control.4": "OK",
+  "dialog.numeric.draw_order.control.5": "cancel",
+  "dialog.numeric.calculation_order.title": "model calculate order",
+  "dialog.numeric.calculation_order.control.1": "calculate order",
+  "dialog.numeric.calculation_order.control.2": "up",
+  "dialog.numeric.calculation_order.control.3": "down",
+  "dialog.numeric.calculation_order.control.4": "OK",
+  "dialog.numeric.calculation_order.control.5": "cancel"
 }

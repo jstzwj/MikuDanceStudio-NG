@@ -150,8 +150,8 @@ void EditorWindow::RefreshPanels() {
         auto* c = static_cast<QComboBox*>(Control(id));
         SyncComboItems(c, [&](auto add) {
             add(language_.Text(none), -1);
-            for (const auto& m : d.models)
-                add(Label(m.name), int(m.slot));
+            for (auto slot : format::PmmModelOrder(d, format::ModelOrderKind::Draw))
+                add(ModelLabel(slot), int(slot));
         });
         c->setCurrentIndex(c->findData(slot));
     };

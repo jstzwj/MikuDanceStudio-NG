@@ -241,7 +241,8 @@ INT_PTR CALLBACK ModelDisplayOrderDlgProc(HWND hDlg, UINT msg, WPARAM wParam,
     if (id == panel::kOrderDownButton) { // move down (0x4642DE)
         const int sel = static_cast<int>(
             SendMessageA(GetDlgItem(hDlg, panel::kOrderListBox), LB_GETCURSEL, 0, 0));
-        if (sel != -1 && sel < g_displayOrderDialogCount - 1) {
+        // Original x64 57EDA subtracts two: count includes the camera entry.
+        if (sel != -1 && sel < g_displayOrderDialogCount - 2) {
             char buf[0x100];
             SendMessageA(GetDlgItem(hDlg, panel::kOrderListBox), LB_GETTEXT, sel, (LPARAM)buf);
             SendMessageA(GetDlgItem(hDlg, panel::kOrderListBox), LB_DELETESTRING, sel, 0);

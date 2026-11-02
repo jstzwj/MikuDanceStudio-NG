@@ -304,6 +304,8 @@ bool EditorSession::UnloadModel(std::uint8_t slot, std::string& reason) {
     d.models.erase(std::remove_if(d.models.begin(), d.models.end(),
                                   [&](const auto& m) { return m.slot == slot; }),
                    d.models.end());
+    for (auto kind : {format::ModelOrderKind::Draw, format::ModelOrderKind::Calculation})
+        format::SetPmmModelOrder(d, kind, format::PmmModelOrder(d, kind));
     d.modelRegistrations.clear();
     const auto clear = [&](auto& ref) {
         if (ref.parentModel == slot)

@@ -43,6 +43,63 @@ int main(int argc, char** argv) {
     CHECK(format::EncodeVmdBoneInterpolation(curve.data(), 1.1f, true) == expected);
     CHECK(format::DecodeVmdBoneInterpolation(expected) == curve);
     const auto root = std::filesystem::absolute(argv[1]);
+    for (const char* file : {"articulated.pmd", "articulated.pmx"}) {
+        EditorSession order;
+        for (unsigned i = 0; i < 3; ++i)
+            CHECK(order.ImportModel(root / file, reason));
+        using format::ModelOrderKind;
+        const auto draw = ModelOrderKind::Draw, calculation = ModelOrderKind::Calculation;
+        for (unsigned i = 0; i < 3; ++i) {
+            CHECK(order.Document().models[i].selection.comboIndex == i + 1);
+            CHECK(order.Document().models[i].previousDisplayOrder == i);
+        }
+        CHECK(order.SetBone(2, 0, {2, 3, 4}, {0, 0, 0, 1}, reason));
+        CHECK(order.Save(root / "ordered.pmm", Write, reason));
+        const auto revision = order.Revision();
+        const auto resource = order.Runtime().Resource(2);
+        const auto* snapshot = order.Runtime().Snapshot(2);
+        const auto counters = order.Runtime().Counters();
+        const auto selected = order.Selected().keys;
+        for (auto kind : {draw, calculation})
+            for (const auto& invalid :
+                 {std::vector<std::uint8_t>{0, 1}, {0, 1, 1}, {0, 1, 254}, {0, 1, 255}})
+                CHECK(!order.SetModelOrder(kind, invalid, reason));
+        CHECK(order.Revision() == revision && !order.Dirty());
+        CHECK(order.SetModelOrder(calculation, {2, 0, 1}, reason));
+        CHECK(!order.Dirty() && order.Selected().model == 2 && order.CanUndo());
+        CHECK(order.Selected().keys == selected && order.Runtime().Snapshot(2) == snapshot);
+        CHECK(format::PmmModelOrder(order.Document(), calculation) ==
+              std::vector<std::uint8_t>({2, 0, 1}));
+        CHECK(format::PmmModelOrder(order.Document(), draw) ==
+              std::vector<std::uint8_t>({0, 1, 2}));
+        CHECK(order.SetModelOrder(draw, {1, 2, 0}, reason));
+        CHECK(!order.Dirty() && order.Selected().model == 255);
+        CHECK(order.Runtime().Counters().frames == counters.frames &&
+              order.Runtime().Counters().preparedModels == counters.preparedModels &&
+              order.Runtime().Resource(2) == resource && order.Runtime().Snapshot(2) == snapshot);
+        CHECK(order.SelectModel(2, reason) && order.CanUndo() && order.Undo(reason));
+        CHECK(order.Document().models[2].bonePose[0].components[0] == 0);
+        CHECK(format::PmmModelOrder(order.Document(), draw) ==
+              std::vector<std::uint8_t>({1, 2, 0}));
+        CHECK(order.Redo(reason));
+        CHECK(order.SetModelOrder(calculation, {2, 0, 1}, reason) && order.Dirty());
+        CHECK(order.Save(root / "ordered.pmm", Write, reason));
+        EditorSession reopenedOrder;
+        CHECK(reopenedOrder.Open(root / "ordered.pmm", reason));
+        CHECK(format::PmmModelOrder(reopenedOrder.Document(), draw) ==
+              std::vector<std::uint8_t>({1, 2, 0}));
+        CHECK(format::PmmModelOrder(reopenedOrder.Document(), calculation) ==
+              std::vector<std::uint8_t>({2, 0, 1}));
+        CHECK(order.Play(reason));
+        CHECK(!order.SetModelOrder(draw, {0, 1, 2}, reason));
+        order.Pause();
+        CHECK(order.UnloadModel(0, reason));
+        CHECK(order.ImportModel(root / file, reason));
+        CHECK(format::PmmModelOrder(order.Document(), draw) ==
+              std::vector<std::uint8_t>({1, 2, 0}));
+        CHECK(format::PmmModelOrder(order.Document(), calculation) ==
+              std::vector<std::uint8_t>({2, 1, 0}));
+    }
     for (const char* file : {"articulated.pmd", "articulated.pmx"})
         for (bool reverse : {false, true})
             for (unsigned variant = 0; variant < 3; ++variant) {

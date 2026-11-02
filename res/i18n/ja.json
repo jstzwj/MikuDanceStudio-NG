@@ -572,5 +572,17 @@
   "dialog.numeric.physics_keys.control.4": "OK",
   "dialog.numeric.physics_keys.control.5": "ｷｬﾝｾﾙ",
   "dialog.numeric.physics_keys.on": "ON (X印)",
-  "dialog.numeric.physics_keys.off": "OFF"
+  "dialog.numeric.physics_keys.off": "OFF",
+  "dialog.numeric.draw_order.title": "モデル描画順設定",
+  "dialog.numeric.draw_order.control.1": "  描画順序",
+  "dialog.numeric.draw_order.control.2": "上",
+  "dialog.numeric.draw_order.control.3": "下",
+  "dialog.numeric.draw_order.control.4": "OK",
+  "dialog.numeric.draw_order.control.5": "ｷｬﾝｾﾙ",
+  "dialog.numeric.calculation_order.title": "モデル計算順設定",
+  "dialog.numeric.calculation_order.control.1": "  計算順序",
+  "dialog.numeric.calculation_order.control.2": "上",
+  "dialog.numeric.calculation_order.control.3": "下",
+  "dialog.numeric.calculation_order.control.4": "OK",
+  "dialog.numeric.calculation_order.control.5": "ｷｬﾝｾﾙ"
 }

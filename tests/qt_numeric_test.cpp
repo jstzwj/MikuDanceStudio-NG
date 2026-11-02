@@ -1002,6 +1002,107 @@ int main(int argc, char** argv) {
         owner.Refresh();
         CHECK(!action->isEnabled() && !owner.isVisible());
     }
+    for (const char* code : {"en", "ja", "zh_CN"})
+        for (bool calculation : {false, true}) {
+            CHECK(language.Set(code));
+            qt::ModelOrderDialog form(calculation, language, {{7, "first"}, {254, "second"}});
+            const QString kind = calculation ? "calculation_order" : "draw_order";
+            const auto expected =
+                reference[kind + "." + (language.Code() == "en" ? "en" : "ja")].toObject();
+            const int unitY = language.Code() == "en" ? 15 : 12;
+            CHECK(form.Template().id == expected["id"].toInt());
+            const auto controls = expected["controls"].toArray();
+            const auto button = [&](int id) {
+                for (auto* b : form.findChildren<QPushButton*>())
+                    if (b->property("mmdControlId").toInt() == id)
+                        return b;
+                return static_cast<QPushButton*>(nullptr);
+            };
+            for (int i = 0; i < controls.size(); ++i) {
+                const auto control = controls[i].toObject();
+                const auto r = control["rect"].toArray();
+                auto* widget = form.findChild<QWidget*>(QString("numeric.control.%1").arg(i));
+                CHECK(widget &&
+                      widget->geometry() ==
+                          QRect((r[0].toInt() * 7 + 2) / 4, (r[1].toInt() * unitY + 4) / 8,
+                                (r[2].toInt() * 7 + 2) / 4,
+                                control["kind"] == "Listbox"
+                                    ? (((r[3].toInt() * unitY + 4) / 8 - 4) / unitY) * unitY + 4
+                                    : (r[3].toInt() * unitY + 4) / 8));
+                if (language.Code() != "zh_CN") {
+                    if (auto* label = qobject_cast<QLabel*>(widget))
+                        CHECK(label->text() == control["text"].toString());
+                    if (auto* b = qobject_cast<QPushButton*>(widget))
+                        CHECK(b->text() == control["text"].toString());
+                }
+            }
+            CHECK(form.Rows()->currentRow() == -1 && form.Rows()->focusPolicy() == Qt::ClickFocus);
+            button(630)->click();
+            button(631)->click();
+            button(633)->click();
+            CHECK(form.Order() == std::vector<std::uint8_t>({7, 254}) && form.result() == 0);
+            form.Rows()->setCurrentRow(1);
+            button(631)->click();
+            CHECK(form.Rows()->currentRow() == 1);
+            button(630)->click();
+            CHECK(form.Order() == std::vector<std::uint8_t>({254, 7}) &&
+                  form.Rows()->currentRow() == 0);
+            button(630)->click();
+            CHECK(form.Order() == std::vector<std::uint8_t>({254, 7}));
+            button(632)->click();
+            CHECK(form.result() == QDialog::Accepted);
+
+            qt::EditorWindow owner(std::filesystem::absolute(argv[2]), true);
+            for (int i = 0; i < 3; ++i)
+                CHECK(owner.Session().ImportModel(root / "articulated.pmx", reason));
+            CHECK(owner.Session().ImportAccessory(root / "bound.x", reason));
+            CHECK(owner.SetLanguage(code) && owner.Save(root / "order-dialog.pmm"));
+            QAction* action = nullptr;
+            for (auto* item : owner.findChildren<QAction*>())
+                if (item->property("mmdCommandId").toInt() ==
+                    (calculation ? MDS_CMD_MODEL_CALCULATION_ORDER : MDS_CMD_MODEL_DRAW_ORDER))
+                    action = item;
+            CHECK(action && action->isEnabled());
+            const auto revision = owner.Session().Revision();
+            for (bool accept : {false, true}) {
+                bool interacted = false;
+                QTimer::singleShot(0, &owner, [&] {
+                    auto* dialog =
+                        dynamic_cast<qt::ModelOrderDialog*>(QApplication::activeModalWidget());
+                    if (!dialog) {
+                        QApplication::closeAllWindows();
+                        return;
+                    }
+                    interacted = dialog->Order() == std::vector<std::uint8_t>({0, 1, 2});
+                    dialog->Rows()->setCurrentRow(2);
+                    for (auto* b : dialog->findChildren<QPushButton*>())
+                        if (b->property("mmdControlId").toInt() == 630)
+                            b->click();
+                    if (accept)
+                        dialog->accept();
+                    else
+                        dialog->reject();
+                });
+                action->trigger();
+                CHECK(interacted && owner.LastError().isEmpty() && !owner.Session().Dirty());
+                CHECK((owner.Session().Revision() != revision) == accept);
+            }
+            const auto orderKind =
+                calculation ? format::ModelOrderKind::Calculation : format::ModelOrderKind::Draw;
+            CHECK(format::PmmModelOrder(owner.Session().Document(), orderKind) ==
+                  std::vector<std::uint8_t>({0, 2, 1}));
+            CHECK(owner.Session().Selected().model == (calculation ? 2 : 255));
+            for (int id :
+                 {panel::kMainComboModel, panel::kMainComboNormal, panel::kMainComboGround}) {
+                auto* combo = qobject_cast<QComboBox*>(owner.Control(id));
+                CHECK(combo && combo->count() == 4);
+                CHECK(combo->itemData(2).toInt() == (calculation ? 1 : 2));
+                CHECK(combo->itemData(3).toInt() == (calculation ? 2 : 1));
+            }
+            CHECK(owner.Session().Play(reason));
+            owner.Refresh();
+            CHECK(!action->isEnabled() && !owner.isVisible());
+        }
     std::cout
         << "Numeric dialogs: binary geometry/labels, tab order, formatting, cancel and editor publication passed\n";
 }

@@ -655,8 +655,8 @@ void EditorWindow::Refresh() {
     auto* models = qobject_cast<QComboBox*>(Control(kMainComboModel));
     SyncComboItems(models, [&](auto add) {
         add(language_.Text("camera_mode"), 255);
-        for (const auto& m : doc.models)
-            add(Name(m.name), m.slot);
+        for (auto slot : format::PmmModelOrder(doc, format::ModelOrderKind::Draw))
+            add(ModelLabel(slot), slot);
     });
     models->setCurrentIndex(models->findData(session_.Selected().model));
     const auto camera = session_.Runtime().Session()->Pose().camera;
@@ -1121,6 +1121,33 @@ void EditorWindow::PhysicsKeys() {
         return;
     std::string reason;
     Result(session_.SetSelectedKeyPhysics(dialog.PhysicsEnabled(), reason), reason);
+    Refresh();
+}
+QString EditorWindow::ModelLabel(std::uint8_t slot) const {
+    if (language_.Code() == "en")
+        if (const auto resource = session_.Runtime().Resource(slot)) {
+            const auto& bytes = resource->Document().texts.fields[1];
+            std::string name;
+            if (text::DecodeUtf16Le(bytes.data(), bytes.size(), name) && !name.empty())
+                return QString::fromUtf8(name.c_str());
+        }
+    for (const auto& model : session_.Document().models)
+        if (model.slot == slot)
+            return Name(model.name);
+    return {};
+}
+void EditorWindow::ModelOrder(bool calculation) {
+    const auto kind =
+        calculation ? format::ModelOrderKind::Calculation : format::ModelOrderKind::Draw;
+    std::vector<std::pair<std::uint8_t, QString>> rows;
+    for (auto slot : format::PmmModelOrder(session_.Document(), kind))
+        rows.emplace_back(slot, ModelLabel(slot));
+    ModelOrderDialog dialog(calculation, language_, rows, this);
+    dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    std::string reason;
+    Result(session_.SetModelOrder(kind, dialog.Order(), reason), reason);
     Refresh();
 }
 void EditorWindow::GravitySettings() {

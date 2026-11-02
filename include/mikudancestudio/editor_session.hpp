@@ -179,6 +179,7 @@ public:
     // These only change selection metadata, never evaluate the scene or create history.
     bool SelectBones(const std::vector<std::uint32_t>&, int active, std::string&);
     bool SelectModel(std::uint8_t, std::string&);
+    bool SetModelOrder(format::ModelOrderKind, const std::vector<std::uint8_t>&, std::string&);
     bool SelectAllBones(bool unregisteredOnly, std::string&);
     bool SelectPhysicsBones(std::string&);
     bool SelectPhysicsOnKeys(std::string&);

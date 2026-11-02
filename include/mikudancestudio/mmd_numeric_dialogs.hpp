@@ -8,7 +8,8 @@ enum class NumericControlKind {
     Button,
     Slider,
     Checkbox,
-    Combobox
+    Combobox,
+    Listbox
 };
 struct NumericControl {
     int id, x, y, width, height;
@@ -366,4 +367,48 @@ inline constexpr NumericControl kNumericPhysicsKeysJaControls[] = {
 };
 inline constexpr NumericTemplate kNumericPhysicsKeysJa = {
     812, 170, 70, 9, "MS UI Gothic", "dialog.numeric.physics_keys.title", kNumericPhysicsKeysJaControls, 6};
+inline constexpr NumericControl kNumericDrawOrderEnControls[] = {
+    {628, 3, 3, 95, 140, NumericControlKind::Listbox, ""},
+    {-1, 117, 35, 80, 12, NumericControlKind::Static, "dialog.numeric.draw_order.control.1"},
+    {630, 115, 50, 18, 15, NumericControlKind::Button, "dialog.numeric.draw_order.control.2"},
+    {631, 145, 50, 18, 15, NumericControlKind::Button, "dialog.numeric.draw_order.control.3"},
+    {632, 105, 117, 30, 14, NumericControlKind::Button, "dialog.numeric.draw_order.control.4"},
+    {2, 140, 117, 30, 14, NumericControlKind::Button, "dialog.numeric.draw_order.control.5"},
+    {633, 0, 0, 0, 0, NumericControlKind::Button, ""},
+};
+inline constexpr NumericTemplate kNumericDrawOrderEn = {
+    805, 175, 145, 9, "Arial", "dialog.numeric.draw_order.title", kNumericDrawOrderEnControls, 7};
+inline constexpr NumericControl kNumericDrawOrderJaControls[] = {
+    {628, 3, 3, 95, 140, NumericControlKind::Listbox, ""},
+    {-1, 120, 35, 80, 12, NumericControlKind::Static, "dialog.numeric.draw_order.control.1"},
+    {630, 115, 50, 15, 15, NumericControlKind::Button, "dialog.numeric.draw_order.control.2"},
+    {631, 145, 50, 15, 15, NumericControlKind::Button, "dialog.numeric.draw_order.control.3"},
+    {632, 105, 117, 30, 14, NumericControlKind::Button, "dialog.numeric.draw_order.control.4"},
+    {2, 140, 117, 30, 14, NumericControlKind::Button, "dialog.numeric.draw_order.control.5"},
+    {633, 0, 0, 0, 0, NumericControlKind::Button, ""},
+};
+inline constexpr NumericTemplate kNumericDrawOrderJa = {
+    804, 175, 145, 9, "MS PGothic", "dialog.numeric.draw_order.title", kNumericDrawOrderJaControls, 7};
+inline constexpr NumericControl kNumericCalculationOrderEnControls[] = {
+    {628, 3, 3, 95, 140, NumericControlKind::Listbox, ""},
+    {-1, 117, 35, 80, 12, NumericControlKind::Static, "dialog.numeric.calculation_order.control.1"},
+    {630, 115, 50, 18, 15, NumericControlKind::Button, "dialog.numeric.calculation_order.control.2"},
+    {631, 145, 50, 18, 15, NumericControlKind::Button, "dialog.numeric.calculation_order.control.3"},
+    {632, 105, 117, 30, 14, NumericControlKind::Button, "dialog.numeric.calculation_order.control.4"},
+    {2, 140, 117, 30, 14, NumericControlKind::Button, "dialog.numeric.calculation_order.control.5"},
+    {633, 0, 0, 0, 0, NumericControlKind::Button, ""},
+};
+inline constexpr NumericTemplate kNumericCalculationOrderEn = {
+    811, 175, 145, 9, "Arial", "dialog.numeric.calculation_order.title", kNumericCalculationOrderEnControls, 7};
+inline constexpr NumericControl kNumericCalculationOrderJaControls[] = {
+    {628, 3, 3, 95, 140, NumericControlKind::Listbox, ""},
+    {-1, 120, 35, 80, 12, NumericControlKind::Static, "dialog.numeric.calculation_order.control.1"},
+    {630, 115, 50, 15, 15, NumericControlKind::Button, "dialog.numeric.calculation_order.control.2"},
+    {631, 145, 50, 15, 15, NumericControlKind::Button, "dialog.numeric.calculation_order.control.3"},
+    {632, 105, 117, 30, 14, NumericControlKind::Button, "dialog.numeric.calculation_order.control.4"},
+    {2, 140, 117, 30, 14, NumericControlKind::Button, "dialog.numeric.calculation_order.control.5"},
+    {633, 0, 0, 0, 0, NumericControlKind::Button, ""},
+};
+inline constexpr NumericTemplate kNumericCalculationOrderJa = {
+    810, 175, 145, 9, "MS PGothic", "dialog.numeric.calculation_order.title", kNumericCalculationOrderJaControls, 7};
 }

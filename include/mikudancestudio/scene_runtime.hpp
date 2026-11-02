@@ -29,6 +29,7 @@ public:
     bool SetGravity(const format::PmmEvaluatedGravity&, bool applyWorld);
     bool RegisterGravity(std::string&);
     bool SetModelEdgeScale(std::uint8_t slot, float value);
+    bool SetModelOrder(format::ModelOrderKind, const std::vector<std::uint8_t>&);
     bool Reset(std::string&);
     bool StartPlayback(std::string&, format::PmmSceneApplication = {});
     void Pause();

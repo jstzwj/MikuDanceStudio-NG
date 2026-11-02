@@ -94,6 +94,29 @@ bool EditorSession::SelectModel(std::uint8_t slot, std::string& reason) {
     revision_ = nextRevision_++;
     return true;
 }
+bool EditorSession::SetModelOrder(format::ModelOrderKind kind,
+                                  const std::vector<std::uint8_t>& slots, std::string& reason) {
+    auto candidate = Document();
+    if (playing_ || !format::SetPmmModelOrder(candidate, kind, slots)) {
+        reason = playing_ ? "model-order-during-playback" : "model-order-invalid-slots";
+        return false;
+    }
+    const bool clean = !Dirty();
+    // Original draw-order OK selects the camera entry in the rebuilt combo.
+    // Calculation order leaves the current mode and view untouched.
+    if (kind == format::ModelOrderKind::Draw && !SelectModel(255, reason))
+        return false;
+    if (!runtime_->SetModelOrder(kind, slots)) {
+        reason = "model-order-runtime-unavailable";
+        return false;
+    }
+    EndGesture();
+    revision_ = nextRevision_++;
+    if (clean)
+        savedRevision_ = revision_;
+    reason.clear();
+    return true;
+}
 bool EditorSession::RestoreModelSelection(std::uint8_t slot, std::string& reason) {
     if (slot != 255 && !runtime_->Resource(slot)) {
         reason = "model-selection-expired";

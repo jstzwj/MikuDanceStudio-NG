@@ -3,6 +3,7 @@
 #include "mikudancestudio/pmm_scene_evaluation.hpp"
 #include "mikudancestudio/pmm_scene_world.hpp"
 #include "mikudancestudio/pmm_key_selection.hpp"
+#include "mikudancestudio/pmm_model_order.hpp"
 #include <functional>
 #include <cmath>
 #include <optional>
@@ -95,6 +96,9 @@ public:
                 return true;
             }
         return false;
+    }
+    bool SetModelOrder(ModelOrderKind kind, const std::vector<std::uint8_t>& orderedSlots) {
+        return loaded_ && SetPmmModelOrder(scene_, kind, orderedSlots);
     }
     // UI-only PMM metadata; does not seek or invalidate the evaluated pose.
     void SetPanelExpanded(unsigned option, bool expanded) {

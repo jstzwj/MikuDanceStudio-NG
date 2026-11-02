@@ -107,6 +107,8 @@ private:
     void CameraScale();
     void BoneScale();
     void PhysicsKeys();
+    void ModelOrder(bool calculation);
+    QString ModelLabel(std::uint8_t) const;
     bool Result(bool, const std::string&);
     bool ConfirmUnsaved();
     void CreateViewport(const rhi::BackendOptions&);

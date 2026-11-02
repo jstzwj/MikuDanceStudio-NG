@@ -572,5 +572,17 @@
   "dialog.numeric.physics_keys.control.4": "确定",
   "dialog.numeric.physics_keys.control.5": "取消",
   "dialog.numeric.physics_keys.on": "开 (X标记)",
-  "dialog.numeric.physics_keys.off": "关"
+  "dialog.numeric.physics_keys.off": "关",
+  "dialog.numeric.draw_order.title": "模型绘制顺序",
+  "dialog.numeric.draw_order.control.1": "绘制顺序",
+  "dialog.numeric.draw_order.control.2": "上",
+  "dialog.numeric.draw_order.control.3": "下",
+  "dialog.numeric.draw_order.control.4": "确定",
+  "dialog.numeric.draw_order.control.5": "取消",
+  "dialog.numeric.calculation_order.title": "模型计算顺序",
+  "dialog.numeric.calculation_order.control.1": "计算顺序",
+  "dialog.numeric.calculation_order.control.2": "上",
+  "dialog.numeric.calculation_order.control.3": "下",
+  "dialog.numeric.calculation_order.control.4": "确定",
+  "dialog.numeric.calculation_order.control.5": "取消"
 }

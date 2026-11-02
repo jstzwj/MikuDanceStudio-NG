@@ -6,6 +6,7 @@
 #include <QSlider>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QListWidget>
 #include "mikudancestudio/pmm_scene_evaluation.hpp"
 #include <array>
 #include <functional>
@@ -21,6 +22,8 @@ protected:
     QSlider* Slider(int id) const { return sliders_.at(id); }
     QCheckBox* Checkbox(int id) const { return checkboxes_.at(id); }
     QComboBox* Combo(int id) const { return combos_.at(id); }
+    QListWidget* List(int id) const { return lists_.at(id); }
+    virtual void ButtonClicked(int id) { id == 1 ? accept() : reject(); }
     void Prefill(int id, const QString&);
 
 private:
@@ -30,6 +33,7 @@ private:
     std::map<int, QSlider*> sliders_;
     std::map<int, QCheckBox*> checkboxes_;
     std::map<int, QComboBox*> combos_;
+    std::map<int, QListWidget*> lists_;
 };
 class NumericDialog final : public TemplateDialog {
 public:
@@ -100,6 +104,17 @@ public:
     PhysicsKeysDialog(const Language&, QWidget* parent = nullptr);
     QComboBox* Choice() const { return Combo(669); }
     bool PhysicsEnabled() const { return Choice()->currentIndex() == 0; }
+};
+class ModelOrderDialog final : public TemplateDialog {
+public:
+    ModelOrderDialog(bool calculation, const Language&,
+                     const std::vector<std::pair<std::uint8_t, QString>>&,
+                     QWidget* parent = nullptr);
+    QListWidget* Rows() const { return List(628); }
+    std::vector<std::uint8_t> Order() const;
+
+protected:
+    void ButtonClicked(int id) override;
 };
 class GravityDialog final : public TemplateDialog {
 public:

@@ -671,6 +671,17 @@ bool SceneRuntime::SetModelEdgeScale(std::uint8_t slot, float value) {
     return impl_ && !impl_->failed && impl_->session &&
            impl_->session->SetModelEdgeScale(slot, value);
 }
+bool SceneRuntime::SetModelOrder(format::ModelOrderKind kind,
+                                 const std::vector<std::uint8_t>& slots) {
+    // Allocate before publication. Existing instances, poses, physics bodies
+    // and frame counters survive; the next evaluation consumes the new order.
+    auto next = slots;
+    if (!impl_ || impl_->failed || !impl_->session || !impl_->session->SetModelOrder(kind, slots))
+        return false;
+    if (kind == format::ModelOrderKind::Calculation)
+        impl_->order = std::move(next);
+    return true;
+}
 void SceneRuntime::SetPanelExpanded(unsigned option, bool expanded) {
     if (impl_ && impl_->session)
         impl_->session->SetPanelExpanded(option, expanded);

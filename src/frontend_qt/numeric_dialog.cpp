@@ -9,10 +9,23 @@
 #include <QKeyEvent>
 #include <QCloseEvent>
 #include <QWheelEvent>
+#include <QStyledItemDelegate>
 #include <charconv>
 #include <cmath>
 namespace mikudancestudio::qt {
 namespace {
+class OrderRowDelegate final : public QStyledItemDelegate {
+public:
+    OrderRowDelegate(int height, QObject* parent) : QStyledItemDelegate(parent), height_(height) {}
+    QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override {
+        auto size = QStyledItemDelegate::sizeHint(option, index);
+        size.setHeight(height_);
+        return size;
+    }
+
+private:
+    int height_;
+};
 class DialogTrackbar final : public QSlider {
 public:
     explicit DialogTrackbar(QWidget* owner) : QSlider(Qt::Horizontal, owner) {
@@ -123,6 +136,14 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
             combo->setFocusPolicy(Qt::ClickFocus); // Original 669 has no WS_TABSTOP.
             combos_[control.id] = combo;
             widget = combo;
+        } else if (control.kind == ui::NumericControlKind::Listbox) {
+            auto* list = new QListWidget(this);
+            list->setFocusPolicy(Qt::ClickFocus);
+            list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+            list->setSelectionMode(QAbstractItemView::SingleSelection);
+            list->setItemDelegate(new OrderRowDelegate(baseY, list));
+            lists_[control.id] = list;
+            widget = list;
         } else if (control.kind == ui::NumericControlKind::Checkbox) {
             auto* check = new QCheckBox(language.Text(control.message), this);
             check->setFocusPolicy(Qt::ClickFocus);
@@ -131,9 +152,9 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
         } else {
             auto* button = new QPushButton(language.Text(control.message), this);
             button->setAutoDefault(false);
-            button->setDefault(control.id == 1);
+            button->setDefault(control.id == 1 || control.id == 633);
             connect(button, &QPushButton::clicked, this,
-                    [this, id = control.id] { id == 1 ? accept() : reject(); });
+                    [this, id = control.id] { ButtonClicked(id); });
             widget = button;
         }
         widget->setObjectName(QString("numeric.control.%1").arg(i));
@@ -143,6 +164,8 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
         widget->setGeometry(x(control.x), y(control.y), x(control.width),
                             control.kind == ui::NumericControlKind::Combobox ? baseY + 8
                                                                              : y(control.height));
+        if (control.kind == ui::NumericControlKind::Listbox)
+            widget->resize(widget->width(), ((y(control.height) - 4) / baseY) * baseY + 4);
         if (control.kind == ui::NumericControlKind::Edit ||
             control.kind == ui::NumericControlKind::Button) {
             if (previous)
@@ -150,6 +173,42 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
             previous = widget;
         }
     }
+}
+ModelOrderDialog::ModelOrderDialog(bool calculation, const Language& language,
+                                   const std::vector<std::pair<std::uint8_t, QString>>& rows,
+                                   QWidget* parent)
+    : TemplateDialog(calculation ? (language.Code() == "en" ? ui::kNumericCalculationOrderEn
+                                                            : ui::kNumericCalculationOrderJa)
+                                 : (language.Code() == "en" ? ui::kNumericDrawOrderEn
+                                                            : ui::kNumericDrawOrderJa),
+                     language, parent) {
+    setObjectName(calculation ? "mmd.calculationOrder" : "mmd.drawOrder");
+    for (const auto& [slot, label] : rows) {
+        auto* item = new QListWidgetItem(label, Rows());
+        item->setData(Qt::UserRole, slot);
+    }
+    Rows()->setCurrentRow(-1);
+}
+std::vector<std::uint8_t> ModelOrderDialog::Order() const {
+    std::vector<std::uint8_t> orderedSlots;
+    for (int i = 0; i < Rows()->count(); ++i)
+        orderedSlots.push_back(std::uint8_t(Rows()->item(i)->data(Qt::UserRole).toUInt()));
+    return orderedSlots;
+}
+void ModelOrderDialog::ButtonClicked(int id) {
+    if (id == 632)
+        accept();
+    else if (id == 2)
+        reject();
+    else if (id == 630 || id == 631) {
+        const int row = Rows()->currentRow(), next = row + (id == 630 ? -1 : 1);
+        if (row < 0 || next < 0 || next >= Rows()->count())
+            return;
+        auto* item = Rows()->takeItem(row);
+        Rows()->insertItem(next, item);
+        Rows()->setCurrentRow(next);
+    }
+    // Original default button 633 is a zero-size Enter sink, not OK (632).
 }
 void TemplateDialog::Prefill(int id, const QString& text) {
     auto* field = Edit(id);

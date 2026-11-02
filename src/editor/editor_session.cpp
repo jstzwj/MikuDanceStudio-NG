@@ -281,7 +281,6 @@ PmmSceneModel MakeModel(std::uint8_t slot, const runtime::ModelResource& resourc
     m.rigidCount = std::uint32_t(m.rigidSources.size());
     m.selection.groupFlags.resize(m.groupCount, 0);
     m.selection.loadComplete = 1;
-    m.selection.comboIndex = slot;
     m.selection.maxFrame = 300;
     m.edgeScale = 1;
     m.boneKeys.dense.resize(m.layout.boneCount);
@@ -723,6 +722,8 @@ bool EditorSession::ImportModel(const std::filesystem::path& path, std::string& 
         if (!runtime::ModelResource::Create(doc, resource, reason))
             return false;
         auto model = MakeModel(std::uint8_t(slot), *resource);
+        model.selection.comboIndex = std::uint8_t(next.document.models.size() + 1);
+        model.previousDisplayOrder = std::uint8_t(next.document.models.size());
         model.name = model.sourceName = Name(absolute.stem().u8string());
         if (!DiskPath(absolute, absolute.parent_path(), model.path, reason))
             return false;

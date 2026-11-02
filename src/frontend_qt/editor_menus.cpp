@@ -114,6 +114,8 @@ bool Implemented(int command) {
     case MDS_CMD_EDGE_THICKNESS:
     case MDS_CMD_GRAVITY_SETTINGS:
     case MDS_CMD_MULTIPLY_CAMERA_FRAMES:
+    case MDS_CMD_MODEL_DRAW_ORDER:
+    case MDS_CMD_MODEL_CALCULATION_ORDER:
         return true;
     default:
         return false;
@@ -231,6 +233,8 @@ void EditorWindow::RefreshMenus() {
             enabled &= !model && !session_.Playing();
         if (command == MDS_CMD_MULTIPLY_CAMERA_FRAMES)
             enabled &= !model && !session_.Playing();
+        if (command == MDS_CMD_MODEL_DRAW_ORDER || command == MDS_CMD_MODEL_CALCULATION_ORDER)
+            enabled &= !session_.Playing();
         action->setEnabled(enabled);
     }
     const auto check = [&](int command, bool value) {
@@ -299,6 +303,10 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_TOGGLE_FRAME_PHYSICS) {
         PhysicsKeys();
+        return;
+    }
+    if (command == MDS_CMD_MODEL_DRAW_ORDER || command == MDS_CMD_MODEL_CALCULATION_ORDER) {
+        ModelOrder(command == MDS_CMD_MODEL_CALCULATION_ORDER);
         return;
     }
     if (command == MDS_CMD_TOGGLE_UI_LANGUAGE) {
