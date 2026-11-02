@@ -149,7 +149,7 @@ jobs:
           repository: KhronosGroup/Vulkan-Headers
           ref: v1.3.296
           path: out/vulkan-headers
-      - run: sudo apt-get update -qq && sudo apt-get install -y ninja-build ccache patchelf spirv-tools libvulkan1 mesa-vulkan-drivers libxcb1-dev libwayland-dev wayland-protocols libxkbcommon-x11-0 libxcb-cursor0 libegl1 libgl1 libpulse0 xvfb weston
+      - run: sudo apt-get update -qq && sudo apt-get install -y ninja-build ccache patchelf spirv-tools libvulkan1 mesa-vulkan-drivers libxcb1-dev libwayland-dev wayland-protocols libxkbcommon-x11-0 libxcb-cursor0 libegl1 libgl1 libpulse-dev xvfb weston
       - uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.3'

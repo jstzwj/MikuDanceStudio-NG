@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <sstream>
 namespace mikudancestudio::qt {
+#if defined(Q_OS_LINUX)
+std::unique_ptr<AudioOutput> CreatePulseAudioOutput();
+#endif
 namespace {
 class NativeAudioEngine final {
 public:
@@ -188,6 +191,10 @@ private:
 };
 }
 std::unique_ptr<AudioOutput> CreateAudioOutput() {
+#if defined(Q_OS_LINUX)
+    return CreatePulseAudioOutput();
+#else
     return std::make_unique<NativeAudioOutput>();
+#endif
 }
 }

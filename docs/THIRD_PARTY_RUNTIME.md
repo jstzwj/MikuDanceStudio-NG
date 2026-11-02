@@ -20,6 +20,11 @@ linked Qt remains replaceable by a compatible shared build.
   Source: https://github.com/KhronosGroup/MoltenVK/tree/v1.4.2
 * Windows includes Microsoft's redistributable compiler runtime. Linux system
   graphics/audio services and GPU drivers remain host dependencies.
+* Linux native WAV output uses the dynamically linked PulseAudio client library
+  (LGPL-2.1-or-later), also compatible with PipeWire's PulseAudio service.
+  Development builds require `libpulse-dev` (API >=13); installed systems need
+  `libpulse.so.0` and a running audio service. Source and license:
+  https://gitlab.freedesktop.org/pulseaudio/pulseaudio
 
 The official Qt multimedia deployment may also include FFmpeg shared libraries;
 their corresponding source and notices are available in the Qt multimedia source
