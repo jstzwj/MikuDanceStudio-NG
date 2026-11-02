@@ -27,6 +27,19 @@ int main(int argc, char** argv) {
     CHECK(qEnvironmentVariable("MDS_QT_ISOLATED_DISPLAY") == "1");
 #endif
     QApplication app(argc, argv);
+    {
+        QWindow host;
+        host.resize(17, 19);
+        auto original = qt::QtSurface(host, reason);
+        CHECK(original && original->health() == rhi::SurfaceHealth::Ready);
+        host.destroy();
+        CHECK(original->health() == rhi::SurfaceHealth::Removed);
+        host.create();
+        CHECK(original->health() == rhi::SurfaceHealth::Removed);
+        auto recreated = qt::QtSurface(host, reason);
+        CHECK(recreated && recreated->health() == rhi::SurfaceHealth::Ready);
+        CHECK(original->health() == rhi::SurfaceHealth::Removed && !host.isVisible());
+    }
     CHECK(argc == 3);
     const auto root = std::filesystem::absolute(argv[1]);
     editor::EditorSession session;

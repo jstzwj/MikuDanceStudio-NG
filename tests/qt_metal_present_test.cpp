@@ -87,9 +87,12 @@ int main(int argc, char** argv) try {
     CHECK(renderer.Unload(1) && renderer.Detach());
     // The window can disappear first; a moved-out device must keep its layer
     // lease until native command queues and textures have been destroyed.
-    window.reset();
+    window->destroy();
     pump();
     CHECK(backend.swapchain->Health() == SurfaceHealth::Removed);
+    window->create();
+    CHECK(backend.swapchain->Health() == SurfaceHealth::Removed);
+    window.reset();
     backend.swapchain.reset();
     auto moved = std::move(backend.device);
     options.surface.reset();

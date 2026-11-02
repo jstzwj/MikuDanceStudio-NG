@@ -1,11 +1,11 @@
 #include "viewport.hpp"
-#include <QPointer>
+#include "surface_lease.hpp"
 #import <Cocoa/Cocoa.h>
 #import <QuartzCore/CAMetalLayer.h>
 namespace mikudancestudio::qt {
 namespace {
-struct Lease {
-    QPointer<QWindow> window;
+struct Lease : QtWindowLease {
+    using QtWindowLease::QtWindowLease;
     CAMetalLayer* __strong layer;
 };
 }
@@ -16,8 +16,7 @@ std::shared_ptr<const rhi::WindowSurfaceSource> QtSurface(QWindow& window, std::
         reason = "qt-cocoa-view-unavailable";
         return {};
     }
-    auto lease = std::make_shared<Lease>();
-    lease->window = &window;
+    auto lease = std::make_shared<Lease>(window);
     lease->layer = [CAMetalLayer layer];
     lease->layer.contentsScale = window.devicePixelRatio();
     view.wantsLayer = YES;
@@ -27,7 +26,7 @@ std::shared_ptr<const rhi::WindowSurfaceSource> QtSurface(QWindow& window, std::
     return rhi::CreateWindowSurface(
         native, 0, lease,
         [lease] {
-            if (!lease->window)
+            if (!lease->window || !lease->nativeAlive)
                 return rhi::SurfaceHealth::Removed;
             lease->layer.contentsScale = lease->window->devicePixelRatio();
             return lease->window->width() > 0 && lease->window->height() > 0

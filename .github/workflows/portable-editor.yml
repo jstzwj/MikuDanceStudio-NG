@@ -11,6 +11,11 @@ on:
         description: Platform to validate (all by default)
         default: all
         options: [all, windows, linux, macos]
+      macos_runner:
+        type: choice
+        description: macOS acceptance image
+        default: macos-15
+        options: [macos-15, macos-26]
 concurrency:
   group: editor-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -214,7 +219,9 @@ jobs:
             out/p4/Testing/Temporary/
   macos:
     if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'macos'
-    runs-on: macos-15
+    runs-on: ${{ inputs.macos_runner || 'macos-15' }}
+    env:
+      MDS_MACOS_CACHE: ${{ inputs.macos_runner == 'macos-26' && 'macos26' || 'macos15' }}
     steps:
       - uses: actions/checkout@v4
       - name: Validate tagged product version
@@ -270,8 +277,8 @@ jobs:
         id: objects
         with:
           path: .cache/ccache
-          key: editor-objects-macos15-${{ runner.arch }}-qt683-v1-${{ github.sha }}
-          restore-keys: editor-objects-macos15-${{ runner.arch }}-qt683-v1-
+          key: editor-objects-${{ env.MDS_MACOS_CACHE }}-${{ runner.arch }}-qt683-v1-${{ github.sha }}
+          restore-keys: editor-objects-${{ env.MDS_MACOS_CACHE }}-${{ runner.arch }}-qt683-v1-
       - name: Build and test editor
         env:
           CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
@@ -316,7 +323,7 @@ jobs:
         if: always() && github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
         with:
           path: .cache/ccache
-          key: editor-objects-macos15-${{ runner.arch }}-qt683-v1-${{ github.sha }}
+          key: editor-objects-${{ env.MDS_MACOS_CACHE }}-${{ runner.arch }}-qt683-v1-${{ github.sha }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
