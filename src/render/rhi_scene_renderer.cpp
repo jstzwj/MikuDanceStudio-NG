@@ -270,6 +270,10 @@ ModelReplayResult SceneRenderer::PrepareImpl(std::uint64_t id, const ModelReplay
     for (const auto& e : stream.events)
         if (e.op == ModelReplayOp::Draw) {
             const auto& draw = e.draw;
+            const auto state =
+                draw.shader ? ShaderRasterAdapter(draw.shader->pipeline) : draw.pipeline;
+            if (state.raster.wireframe && !d.RasterFeatures().wireframe)
+                return {false, e.sequence, 0, "wireframe_not_supported"};
             constantBytes +=
                 draw.shader ? ShaderConstantBytes(draw.shader->pipeline, shaderCaps)
                 : draw.pipeline.postProcess.mode != PostProcessMode::None
@@ -293,8 +297,6 @@ ModelReplayResult SceneRenderer::PrepareImpl(std::uint64_t id, const ModelReplay
                 if (!d.PrepareShaderPipeline(PostProcessPipeline(draw.pipeline)))
                     return {false, e.sequence, 0, d.ShaderDiagnostic()};
             }
-            const auto state =
-                draw.shader ? ShaderRasterAdapter(draw.shader->pipeline) : draw.pipeline;
             if ((draw.indexed ? !caps.indexed : !caps.nonIndexed) ||
                 (state.topology == PrimitiveTopology::LineList && !caps.lines) ||
                 (state.vertexLayout == VertexLayout::PositionColor ? !caps.positionColor

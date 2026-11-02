@@ -15,6 +15,8 @@ struct DelayedDevice final:Device {
     Backend BackendType()const override{return Backend::Null;}Capabilities Features()const override{return {};}
     DeviceStatus Status()const override{return {identity,epoch,removed?DeviceState::Removed:DeviceState::Ready};}
     ModelCapabilities ModelFeatures()const override{return {true,true,true,true,true,true,true,true,true,true,false,512};}
+    bool wireframeSupported = false;
+    RasterCapabilities RasterFeatures() const override { return {wireframeSupported}; }
     Handle CreateBuffer(BufferDesc desc,const void* data)override{if(failUpload)return {};handles.insert(++uploads);descriptions[uploads]=desc;if(data)contents[uploads].assign(static_cast<const std::uint8_t*>(data),static_cast<const std::uint8_t*>(data)+desc.size);return {uploads,1,identity};}
     Handle CreateTexture(TextureDesc)override{return CreateBuffer({},nullptr);}
     std::vector<RgbaImage> mipUpload;
@@ -97,7 +99,24 @@ int VerifySimultaneousVersions() {
     CHECK(!gpu.handles.empty()); // all submitted versions still await completion
     gpu.completed=gpu.issued;CHECK(renderer.Collect() && gpu.handles.empty());return 0;
 }
-int main(){DelayedDevice old,newDevice;SceneRenderer renderer(old);auto stream=Fixture();PreparedModelFrame f;CHECK(renderer.Prepare(1,stream,f));
+int main() {
+    DelayedDevice old, newDevice;
+    SceneRenderer renderer(old);
+    auto stream = Fixture();
+    PreparedModelFrame f;
+    {
+        DelayedDevice gpu;
+        SceneRenderer wireRenderer(gpu);
+        PreparedModelFrame prepared;
+        auto wire = stream;
+        wire.events.back().draw.pipeline.raster.wireframe = true;
+        CHECK(wireRenderer.Prepare(1, wire, prepared).reason == "wireframe_not_supported" &&
+              !gpu.uploads && !gpu.width);
+        gpu.wireframeSupported = true;
+        CHECK(wireRenderer.Prepare(1, wire, prepared));
+        CHECK(wireRenderer.Unload(1) && wireRenderer.Detach());
+    }
+    CHECK(renderer.Prepare(1, stream, f));
     CHECK(VerifyBufferPool()==0);
     CHECK(VerifySimultaneousVersions()==0);
     CompletionToken token;for(unsigned n=0;n<1000;++n){CHECK(renderer.Submit(f,token));old.completed=token.value;}
@@ -188,4 +207,5 @@ int main(){DelayedDevice old,newDevice;SceneRenderer renderer(old);auto stream=F
     liveNew.completed=liveNew.issued;CHECK(live.Collect() && liveNew.handles.empty() && live.Stats().cpuResources==0);
     CHECK(live.Unload(1));assembler.Reset();
     CHECK(assembler.Stats().identityCount==0 && live.Stats().cpuResources==0);
-    std::puts("Scene renderer cache, full Mip versions/recovery, CPU frames, namespaces, stale frames and delayed completion passed");return 0;}
+    std::puts("Scene renderer cache, full Mip versions/recovery, CPU frames, namespaces, stale frames and delayed completion passed");return 0;
+}

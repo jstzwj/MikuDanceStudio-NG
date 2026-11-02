@@ -192,6 +192,7 @@ public:
     Backend BackendType() const override { return Backend::Metal; }
     Capabilities Features() const override { return {true, false, true, true}; }
     RenderTargetLimits TargetLimits() const override { return {16384, 16384}; }
+    RasterCapabilities RasterFeatures() const override { return {true}; }
     ShaderCapabilities ShaderFeatures() const override {
         auto c = GraphicsShaderProfile(detail::RuntimeSpirvCompilerAvailable(), true);
         c.constantAlignment = 256;
@@ -957,6 +958,8 @@ public:
             [encoder setDepthStencilState:found->second.depth];
             [encoder setStencilReferenceValue:p.stencilReference];
             [encoder setFrontFacingWinding:MTLWindingClockwise];
+            [encoder setTriangleFillMode:p.raster.wireframe ? MTLTriangleFillModeLines
+                                                            : MTLTriangleFillModeFill];
             [encoder setCullMode:p.raster.cull == BatchCull::None               ? MTLCullModeNone
                                  : p.raster.cull == BatchCull::CounterClockwise ? MTLCullModeBack
                                                                                 : MTLCullModeFront];

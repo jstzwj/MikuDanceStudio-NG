@@ -7,6 +7,7 @@ struct SceneDisplayOptions {
     bool transparentModels = false;
     bool hideModels = false;
     bool mipmaps = true;
+    bool wireframe = false;
     // PMM loading initializes each model's displayState to zero without
     // resetting the global effect parameter. Ordinary model imports inherit it.
     std::array<bool, 255> opaqueModels{};

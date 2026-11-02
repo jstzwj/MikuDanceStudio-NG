@@ -996,6 +996,17 @@ int main(int argc,char** argv) {
     ModelReplayStream stream;stream.target.width=stream.target.height=64;stream.events.push_back({1,ModelReplayOp::Clear});
     auto c=Fixture();CHECK(AppendD3D9ReplaySnapshot(stream,c));
     {
+        auto wire = c;
+        Set(wire, D3DRS_FILLMODE, D3DFILL_WIREFRAME);
+        ModelReplayStream input;
+        input.target = stream.target;
+        input.events.push_back({1, ModelReplayOp::Clear});
+        CHECK(AppendD3D9ReplaySnapshot(input, wire));
+        CHECK(input.events.back().draw.pipeline.raster.wireframe);
+        Set(wire, D3DRS_FILLMODE, D3DFILL_POINT);
+        CHECK(!AppendD3D9ReplaySnapshot(input, wire));
+    }
+    {
         auto baseOnly = c;
         for (auto& sampler : baseOnly.samplerStates)
             if (sampler.key == D3DSAMP_MIPFILTER)

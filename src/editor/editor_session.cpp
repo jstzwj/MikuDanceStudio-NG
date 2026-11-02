@@ -401,6 +401,12 @@ void EditorSession::SetMipmaps(bool value) {
         ++appearanceRevision_;
     }
 }
+void EditorSession::SetWireframe(bool value) {
+    if (display_.wireframe != value) {
+        display_.wireframe = value;
+        ++appearanceRevision_;
+    }
+}
 void EditorSession::SetPhysicsFloor(bool enabled) {
     runtime_->SetPhysicsFloor(enabled);
 }

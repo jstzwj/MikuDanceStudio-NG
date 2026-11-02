@@ -149,6 +149,27 @@ int main(int argc, char** argv) {
               session.CanRedo() == redo);
     }
     CHECK(window.SetLanguage("en"));
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        CHECK(window.SetLanguage(language));
+        const auto revision = session.Revision(), appearance = session.AppearanceRevision();
+        const auto updates = session.Runtime().Counters().frames;
+        const auto undo = session.CanUndo(), redo = session.CanRedo();
+        auto* wireframe = command(MDS_CMD_TOGGLE_WIREFRAME);
+        CHECK(wireframe->isEnabled() && !wireframe->isChecked());
+        wireframe->trigger();
+        CHECK(wireframe->isChecked() && session.DisplayOptions().wireframe);
+        CHECK(session.AppearanceRevision() == appearance + 1 &&
+              session.Runtime().Counters().frames == updates);
+        CHECK(session.Play(reason));
+        window.Refresh();
+        CHECK(command(MDS_CMD_TOGGLE_WIREFRAME)->isEnabled());
+        command(MDS_CMD_TOGGLE_WIREFRAME)->trigger();
+        CHECK(session.Playing() && !session.DisplayOptions().wireframe);
+        session.Pause();
+        CHECK(session.Revision() == revision && session.CanUndo() == undo &&
+              session.CanRedo() == redo);
+    }
+    CHECK(window.SetLanguage("en"));
     command(MDS_CMD_TOGGLE_UI_LANGUAGE)->trigger();
     CHECK(window.CurrentLanguage() == "ja");
     command(MDS_CMD_TOGGLE_UI_LANGUAGE)->trigger();
@@ -443,7 +464,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 82);
+    CHECK(implemented == 83);
     for (const char* language : {"en", "ja", "zh_CN"})
         for (int id : {MDS_CMD_DELETE_MOUTH_FRAMES, MDS_CMD_DELETE_EYE_FRAMES,
                        MDS_CMD_DELETE_EYEBROW_FRAMES}) {

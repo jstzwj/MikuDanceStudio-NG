@@ -63,6 +63,7 @@ public:
     ShaderResourceBindings genericBindings;
     bool genericReady = false, genericBound = false;
     std::string genericError;
+    RasterCapabilities RasterFeatures() const override { return {true}; }
     ShaderCapabilities ShaderFeatures() const override {
         auto c = GraphicsShaderProfile(true, false);
         c.maxColorAttachments = 4;
@@ -1373,7 +1374,7 @@ bool D3D11Device::SetModelPipeline(const ModelPipeline& p) {
     b.RenderTargetWriteMask = p.colorWriteMask;
     D3D11_RASTERIZER_DESC rs;
     std::memset(&rs, 0, sizeof(rs));
-    rs.FillMode = D3D11_FILL_SOLID;
+    rs.FillMode = p.raster.wireframe ? D3D11_FILL_WIREFRAME : D3D11_FILL_SOLID;
     rs.CullMode = p.raster.cull == BatchCull::None ? D3D11_CULL_NONE : D3D11_CULL_BACK;
     rs.FrontCounterClockwise = p.raster.cull == BatchCull::Clockwise;
     rs.DepthClipEnable = TRUE;

@@ -3072,3 +3072,53 @@ complete command and native input/DPI acceptance continue.
 
 The legacy Win32 application also rebuilt successfully. Its owned DX9 replay
 conversion regression passed with a new MIPFILTER_NONE preservation check.
+
+The mip/folder correction at `a7973cd` subsequently passed Windows, Linux and
+macOS in [CI 41542716500](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41542716500).
+
+## Wireframe display and native raster contract (2026-11-03)
+
+Command 287 now controls the shared Qt viewport in all three languages,
+including during playback. It is live application state, persisted separately
+from PMM and undo history. Six independent original command cases cover raw
+display values 0/1/7 and stopped/playing, requiring the complete application
+bytes to remain unchanged except for the canonical toggled byte. The complete
+auxiliary oracle also passed (163.23 seconds); no window or GPU is created by
+the command comparison.
+
+The producer marks only model/accessory body draws as wireframe. Background,
+ground, projected shadows and self-shadow depth remain solid; model outlines
+are omitted. Remaining resources retain identity/version and no CPU frame is
+evaluated by the switch. An initial test incorrectly required the omitted
+outline's unused geometry to remain published; the corrected check verifies
+the identities of resources that are actually referenced. Its regression and
+the unsupported-device preflight test passed after the other 39 P4 checks.
+
+The public offscreen raster gate covers 36 cases per profile: built-in material,
+self-shadow material and generic HLSL, both cull directions/no culling,
+opaque/translucent, odd width and new devices. It requires nonempty triangle
+edges with an empty interior, exact repeated submissions and exact restoration
+in both switching directions. DX11/DX12 hardware and WARP and Vulkan hardware
+passed locally. Native Metal and Linux lavapipe remain required platform CI
+profiles. The texture/render-target contracts and output tolerances are unchanged.
+
+The independent original raster oracle exposed a Vulkan difference that the
+structural gate alone could not detect: default rectangular lines added 382
+covered pixels to the first PMD case. The backend now requires and enables
+`VK_EXT_line_rasterization` Bresenham lines for the wireframe capability, in
+addition to `fillModeNonSolid`. Unsupported devices can still render solid
+frames, and reject wireframe before mutation. No tolerance was relaxed.
+
+With that correction, **48 independent original comparisons / 96 submissions**
+passed on DX11, DX12 and Vulkan (29.57 seconds). Generated PMD/PMX, opaque and
+translucent materials, rest and registered bone/Morph poses, both shadow modes
+and 512/257 sizes are covered. Final color is byte exact in every case; shadow
+maximum error is 5.96046448e-8 within the existing 1e-6 limit. The profile remains
+explicit D3D9Ex HAL on TITAN Xp with the managed-allocation test adapter; no
+Managed reset/eviction or other hardware qualification is inferred. See the
+[wireframe evidence](evidence/cross-platform-p4-wireframe.json). The legacy
+application build and the DX9 owned snapshot conversion regression also passed.
+
+The final revision passed all **41 local P4 tests in 134.94 seconds**. The menu
+now implements **83/103** original commands. This closes the wireframe display
+gap; complete command/input/layout and combined-scene C1 acceptance remain open.

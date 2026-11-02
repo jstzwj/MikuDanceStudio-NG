@@ -859,6 +859,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 }
                 if (additive)
                     packet.pipeline.raster.destinationBlend = BlendFactor::One;
+                packet.pipeline.raster.wireframe = settings.display.wireframe;
                 for (unsigned stage = 0; stage < 3; ++stage) {
                     const auto role = packet.pipeline.shader.layout.stages[stage].role;
                     if (role == MaterialTextureRole::None)
@@ -895,6 +896,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 auto draw = main.draws[n];
                 draw.shadowTarget = 0;
                 draw.pipeline.shadow.mode = BuiltinShadowMode::Depth;
+                draw.pipeline.raster.wireframe = false;
                 draw.pipeline.raster.cull =
                     (material.flags & 1) && !pmd ? BatchCull::None : BatchCull::CounterClockwise;
                 draw.pipeline.raster.alphaBlend = false;
@@ -940,11 +942,12 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                  {SceneDrawFamily::ProjectedModelShadow, SceneDrawFamily::ModelOutline}) {
                 const bool ground = family == SceneDrawFamily::ProjectedModelShadow;
                 const bool enabled =
-                    ground ? viewportEffects && doc && doc->view.groundShadow &&
-                                 frame.scene.lightState[4] < 0 &&
-                                 (pmd || ((material.flags & 2) && material.edgeColor[3] > 0))
-                           : viewportEffects && !additive && scale > 0 &&
-                                 (pmd ? material.flags != 0 : (material.flags & 16) != 0);
+                    ground
+                        ? viewportEffects && doc && doc->view.groundShadow &&
+                              frame.scene.lightState[4] < 0 &&
+                              (pmd || ((material.flags & 2) && material.edgeColor[3] > 0))
+                        : viewportEffects && !settings.display.wireframe && !additive &&
+                              scale > 0 && (pmd ? material.flags != 0 : (material.flags & 16) != 0);
                 if (!count || !enabled || settings.display.Transparent(slot) ||
                     (!ground && mode && settings.display.hideModels))
                     continue;
@@ -1057,6 +1060,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 packet.indexCount = subset.indexCount;
                 if (!BuildAccessoryPassInputs(local, input, {}, packet.pipeline))
                     return Fail(reason, "accessory_pipeline");
+                packet.pipeline.raster.wireframe = settings.display.wireframe;
                 if (mode && pose.shadowEnabled) {
                     auto& s = packet.pipeline.shadow;
                     s = shadow;
@@ -1101,6 +1105,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                     auto draw = main.draws[start + n];
                     draw.shadowTarget = 0;
                     draw.pipeline.shadow.mode = BuiltinShadowMode::Depth;
+                    draw.pipeline.raster.wireframe = false;
                     draw.pipeline.raster.alphaBlend = false;
                     draw.pipeline.stencil = false;
                     draw.pipeline.shader.alphaTest = false;

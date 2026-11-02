@@ -95,15 +95,17 @@ DWORD State(IDirect3DDevice9* device, D3DRENDERSTATETYPE key) {
 }
 bool CaptureRaster(IDirect3DDevice9* device, rhi::BatchRasterState& state) {
     constexpr D3DRENDERSTATETYPE keys[] = {
-        D3DRS_ZENABLE,  D3DRS_ZWRITEENABLE, D3DRS_ZFUNC,   D3DRS_ALPHABLENDENABLE,
-        D3DRS_SRCBLEND, D3DRS_DESTBLEND,    D3DRS_CULLMODE};
-    DWORD values[7]{};
-    for (unsigned i = 0; i < 7; ++i)
+        D3DRS_ZENABLE,  D3DRS_ZWRITEENABLE, D3DRS_ZFUNC,    D3DRS_ALPHABLENDENABLE,
+        D3DRS_SRCBLEND, D3DRS_DESTBLEND,    D3DRS_CULLMODE, D3DRS_FILLMODE};
+    DWORD values[8]{};
+    for (unsigned i = 0; i < 8; ++i)
         if (FAILED(device->GetRenderState(keys[i], &values[i])))
             return false;
     if (values[0] > 1 || values[2] < 1 || values[2] > 8 || values[4] < 1 || values[4] > 11 ||
-        values[5] < 1 || values[5] > 11 || values[6] < 1 || values[6] > 3)
+        values[5] < 1 || values[5] > 11 || values[6] < 1 || values[6] > 3 ||
+        (values[7] != D3DFILL_SOLID && values[7] != D3DFILL_WIREFRAME))
         return false;
+    state.wireframe = values[7] == D3DFILL_WIREFRAME;
     state.depthTest = values[0] != 0;
     state.depthWrite = values[1] != 0;
     state.depthCompare = static_cast<rhi::DepthComparison>(values[2] - 1);

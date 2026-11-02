@@ -44,6 +44,25 @@ int main(int argc, char** argv) try {
           producer.Build(scene, settings, second, reason));
     CHECK(scene.Counters().frames == updates && Keys(first) == Keys(second));
     CHECK(rhi::ValidateRenderFrame(first));
+    settings.display.wireframe = true;
+    CHECK(producer.Build(scene, settings, second, reason) && rhi::ValidateRenderFrame(second));
+    bool modelEdges = false;
+    for (const auto& pass : second.passes)
+        for (const auto& draw : pass.draws) {
+            CHECK(draw.pipeline.shadow.mode != rhi::BuiltinShadowMode::Outline);
+            if (draw.pipeline.shadow.mode == rhi::BuiltinShadowMode::Depth ||
+                draw.pipeline.vertexLayout == rhi::VertexLayout::PositionColor ||
+                draw.pipeline.postProcess.mode != rhi::PostProcessMode::None)
+                CHECK(!draw.pipeline.raster.wireframe);
+            modelEdges |= draw.pipeline.raster.wireframe;
+        }
+    CHECK(modelEdges && scene.Counters().frames == updates);
+    const auto solidKeys = Keys(first);
+    // Omitted outlines no longer publish their unused geometry. All resources
+    // still referenced by the wireframe retain their original identity/version.
+    for (const auto& [id, version] : Keys(second))
+        CHECK(solidKeys.count(id) && solidKeys.at(id) == version);
+    settings.display.wireframe = false;
     const auto compareFresh = [&] {
         render::SceneFrameProducer fresh;
         rhi::RenderFrame reference;

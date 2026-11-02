@@ -123,6 +123,7 @@ public:
     ShaderResourceBindings genericBindings;
     bool genericReady = false, genericBound = false;
     std::string genericError;
+    RasterCapabilities RasterFeatures() const override { return {true}; }
     ShaderCapabilities ShaderFeatures() const override {
         auto caps = GraphicsShaderProfile(true, false);
         caps.maxColorAttachments = 4;
@@ -1489,7 +1490,8 @@ bool D3D12Device::UsePipeline(const ModelPipeline& p, VertexLayout layout, ID3DB
     }
     b.LogicOp = D3D12_LOGIC_OP_NOOP;
     b.RenderTargetWriteMask = p.colorWriteMask;
-    d.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+    d.RasterizerState.FillMode =
+        p.raster.wireframe ? D3D12_FILL_MODE_WIREFRAME : D3D12_FILL_MODE_SOLID;
     d.RasterizerState.CullMode =
         p.raster.cull == BatchCull::None ? D3D12_CULL_MODE_NONE : D3D12_CULL_MODE_BACK;
     d.RasterizerState.FrontCounterClockwise = p.raster.cull == BatchCull::Clockwise;

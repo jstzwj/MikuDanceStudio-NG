@@ -280,6 +280,8 @@ ShaderResult ValidateShaderTargetSupport(const Device& d, const ShaderPipeline& 
     const auto valid = ValidateShaderPipeline(p, d.ShaderFeatures());
     if (!valid)
         return valid;
+    if (p.raster.wireframe && !d.RasterFeatures().wireframe)
+        return Fail("wireframe_not_supported");
     for (auto f : p.colorFormats) {
         const auto c = d.FormatFeatures(f);
         if (!c.render || (p.raster.alphaBlend && !c.blend))

@@ -159,6 +159,7 @@ int wmain(int argc, wchar_t** argv) try {
     Check(size == source.size() && std::memcmp(data, source.data(), size) == 0,
           "standard effect source differs from original binary");
     rhi::FileAssetSource files(assets);
+    const bool wireframe = std::getenv("MDS_TEST_WIREFRAME") != nullptr;
     NativeApi nativeApi;
     unsigned cases = 0;
     for (bool pmx : {false, true})
@@ -190,6 +191,14 @@ int wmain(int argc, wchar_t** argv) try {
                 WriteComplexModel(path, false, true, translucent ? .375f : 1.f);
             else
                 WriteModel(path, translucent ? .375f : 1.f);
+            if (!output.empty()) {
+                std::filesystem::create_directories(output);
+                const auto name = std::string(pmx ? "pmx" : "pmd") +
+                                  (translucent ? "-alpha" : "-opaque") +
+                                  (pmx ? ".pmx" : ".pmd");
+                std::filesystem::copy_file(path, output / name,
+                                           std::filesystem::copy_options::overwrite_existing);
+            }
             fixture.LoadModelFile(path, 0, 1);
             OriginalModel original(binary, fixture, path, 2);
             original.Pose();
@@ -243,6 +252,8 @@ int wmain(int argc, wchar_t** argv) try {
             render::SceneFrameProducer producer;
             Check(producer.Load(session.Runtime(), sources, files, reason), reason.c_str());
             render::SceneRenderSettings settings;
+            app.state.wireframeRenderingEnabled = wireframe;
+            settings.display.wireframe = wireframe;
             settings.width = settings.height = settings.shadow.mapSize = kSize;
             settings.editorModel = 255;
             settings.postProcessCopy = false;

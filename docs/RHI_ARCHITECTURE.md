@@ -1,5 +1,19 @@
 # Rendering hardware interface: incremental migration
 
+Wireframe (2026-11-03): `BatchRasterState::wireframe` applies to triangle
+edges while retaining culling, depth, interpolation and blend state.
+`RasterFeatures().wireframe` reports the device's implemented capability;
+Vulkan requires `fillModeNonSolid` plus `VK_EXT_line_rasterization` Bresenham
+lines: its default rectangular rule adds coverage along diagonal edges.
+Both features are queried/enabled only when available. Unsupported
+frames fail before target/resource mutation. DX11/DX12 use the native wireframe
+fill state; Metal uses the encoder triangle fill mode. Pipeline cache identities
+include the flag where it is baked into the pipeline. The Qt editor's live
+display switch affects model/accessory bodies, omits outlines and keeps shadow
+depth, projected shadows, the ground and backgrounds solid. It changes neither
+PMM tracks nor CPU evaluation. The legacy editor keeps its existing whole-frame
+compatibility guard until that host path has its own acceptance coverage.
+
 Base-level sampling (2026-11-03): `SamplerDesc::mipmaps=false` clamps implicit
 and explicit sampling LOD to zero independently of min/mag, mip contents,
 addressing and Alpha. DX11/DX12 use MaxLOD=0, Vulkan uses maxLod=0, Metal uses

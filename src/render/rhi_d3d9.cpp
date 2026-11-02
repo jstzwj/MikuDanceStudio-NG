@@ -587,6 +587,7 @@ public:
         state(D3DRS_SRCBLEND, blends[source]);
         state(D3DRS_DESTBLEND, blends[destination]);
         state(D3DRS_CULLMODE, culls[cull]);
+        state(D3DRS_FILLMODE, raster.wireframe ? D3DFILL_WIREFRAME : D3DFILL_SOLID);
         if (readOnly) {
             state(D3DRS_STENCILFAIL, D3DSTENCILOP_KEEP);
             state(D3DRS_STENCILZFAIL, D3DSTENCILOP_KEEP);

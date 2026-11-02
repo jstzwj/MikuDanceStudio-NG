@@ -27,6 +27,7 @@ public:
         c.maxColorAttachments = 4;
         return c;
     }
+    RasterCapabilities RasterFeatures() const override { return {true}; }
     TextureFormatCapabilities FormatFeatures(TextureFormat f) const override {
         if (!TexturePixelBytes(f) && f != TextureFormat::DepthStencil)
             return {};

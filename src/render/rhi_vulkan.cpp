@@ -217,6 +217,8 @@ public:
     ShaderResourceBindings genericBindings;
     bool genericReady = false, genericBound = false;
     std::string genericError;
+    bool wireframeSupported = false;
+    RasterCapabilities RasterFeatures() const override { return {wireframeSupported}; }
     ShaderCapabilities ShaderFeatures() const override {
         auto caps = GraphicsShaderProfile(detail::RuntimeSpirvCompilerAvailable(), true);
         caps.maxConstantBytes =
@@ -1897,6 +1899,9 @@ bool VulkanDevice::Initialize(unsigned w, unsigned h, VulkanDriver driver, Vulka
         if (cpu != (driver == VulkanDriver::Software) || p.apiVersion < VK_API_VERSION_1_3)
             continue;
         VkPhysicalDeviceVulkan13Features f13{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
+        VkPhysicalDeviceLineRasterizationFeaturesEXT lines{
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT};
+        f13.pNext = &lines;
         VkPhysicalDeviceVulkan12Features f12{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
         f12.pNext = &f13;
         VkPhysicalDeviceFeatures2 f{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
@@ -1931,6 +1936,7 @@ bool VulkanDevice::Initialize(unsigned w, unsigned h, VulkanDriver driver, Vulka
                     best = score;
                     physical = candidate;
                     properties = p;
+                    wireframeSupported = f.features.fillModeNonSolid && lines.bresenhamLines;
                     family = i;
                     timestampBits = queues[i].timestampValidBits;
                 }
@@ -1968,6 +1974,7 @@ bool VulkanDevice::Initialize(unsigned w, unsigned h, VulkanDriver driver, Vulka
     f12.pNext = &f13;
     VkPhysicalDeviceFeatures features{};
     features.samplerAnisotropy = VK_TRUE;
+    features.fillModeNonSolid = wireframeSupported;
     VkDeviceCreateInfo device{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
     device.pNext = &f12;
     device.queueCreateInfoCount = 1;
@@ -1987,6 +1994,19 @@ bool VulkanDevice::Initialize(unsigned w, unsigned h, VulkanDriver driver, Vulka
     for (const auto& e : deviceExtensions)
         if (std::strcmp(e.extensionName, "VK_KHR_portability_subset") == 0)
             enabledDeviceExtensions.push_back("VK_KHR_portability_subset");
+    const auto lineExtension =
+        std::find_if(deviceExtensions.begin(), deviceExtensions.end(), [](const auto& e) {
+            return std::strcmp(e.extensionName, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME) == 0;
+        });
+    wireframeSupported &= lineExtension != deviceExtensions.end();
+    VkPhysicalDeviceLineRasterizationFeaturesEXT lines{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT};
+    if (wireframeSupported) {
+        enabledDeviceExtensions.push_back(VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME);
+        lines.bresenhamLines = VK_TRUE;
+        f13.pNext = &lines;
+    }
+    features.fillModeNonSolid = wireframeSupported;
     device.enabledExtensionCount = unsigned(enabledDeviceExtensions.size());
     device.ppEnabledExtensionNames = enabledDeviceExtensions.data();
     reason = "device_creation_failed";
@@ -2132,6 +2152,7 @@ bool VulkanDevice::MakePipeline(const ModelPipeline& p, VkPipeline& out,
                        unsigned(p.shadow.mode),
                        unsigned(p.postProcess.mode),
                        unsigned(p.raster.cull),
+                       unsigned(p.raster.wireframe),
                        unsigned(p.raster.depthTest),
                        unsigned(p.raster.depthWrite),
                        unsigned(p.raster.depthCompare),
@@ -2235,7 +2256,13 @@ bool VulkanDevice::MakePipeline(const ModelPipeline& p, VkPipeline& out,
     vp.viewportCount = vp.scissorCount = 1;
     VkPipelineRasterizationStateCreateInfo rs{
         VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
-    rs.polygonMode = VK_POLYGON_MODE_FILL;
+    rs.polygonMode = p.raster.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+    VkPipelineRasterizationLineStateCreateInfoEXT lines{
+        VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO_EXT};
+    if (p.raster.wireframe) {
+        lines.lineRasterizationMode = VK_LINE_RASTERIZATION_MODE_BRESENHAM_EXT;
+        rs.pNext = &lines;
+    }
     rs.lineWidth = 1;
     rs.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rs.cullMode = p.raster.cull == BatchCull::None               ? VK_CULL_MODE_NONE
@@ -2499,7 +2526,8 @@ bool VulkanDevice::SetModelPipeline(const ModelPipeline& p) {
     const auto& s = p.shader;
     std::array<float, 4> evaluated;
     std::array<std::array<float, 4>, 3> samples{};
-    if (!Live() || !inFrame || !ValidPostProcess(p) || !ValidBuiltinShadowState(p.shadow) ||
+    if (!Live() || !inFrame || (p.raster.wireframe && !wireframeSupported) ||
+        !ValidPostProcess(p) || !ValidBuiltinShadowState(p.shadow) ||
         (p.shadow.mode != BuiltinShadowMode::None &&
          (!passes.Active() || !ValidBuiltinShadowVertexLayout(p.shadow.mode, p.vertexLayout) ||
           p.topology != PrimitiveTopology::TriangleList)) ||

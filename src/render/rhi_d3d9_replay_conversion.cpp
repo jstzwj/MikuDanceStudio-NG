@@ -39,11 +39,13 @@ ModelReplayResult AppendD3D9ReplaySnapshot(ModelReplayStream& stream, const D3D9
                    D3DRS_SRGBWRITEENABLE, D3DRS_TWOSIDEDSTENCILMODE})
         if (rs(k))
             return fail("unsupported_render_state");
-    if (rs(D3DRS_FILLMODE) != D3DFILL_SOLID || rs(D3DRS_SHADEMODE) != D3DSHADE_GOURAUD ||
-        rs(D3DRS_ZENABLE) > 1 || rs(D3DRS_MULTISAMPLEMASK) != 0xffffffffu)
+    if ((rs(D3DRS_FILLMODE) != D3DFILL_SOLID && rs(D3DRS_FILLMODE) != D3DFILL_WIREFRAME) ||
+        rs(D3DRS_SHADEMODE) != D3DSHADE_GOURAUD || rs(D3DRS_ZENABLE) > 1 ||
+        rs(D3DRS_MULTISAMPLEMASK) != 0xffffffffu)
         return fail("unsupported_raster_mode");
     ModelReplayDraw draw;
     auto& p = draw.pipeline;
+    p.raster.wireframe = rs(D3DRS_FILLMODE) == D3DFILL_WIREFRAME;
     auto& s = p.shader;
     p.vertexLayout = positionColor ? VertexLayout::PositionColor : VertexLayout::PositionNormalUv;
     p.topology =

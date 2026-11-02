@@ -455,6 +455,35 @@ struct NativeSamplerDevice : SnapshotDeviceFixture {
         return S_OK;
     }
 };
+unsigned WireframeCommands(OriginalPhysicsModule& original) {
+    switchMenuCommand = MDS_CMD_TOGGLE_WIREFRAME;
+    auto menu = &ShadowMenu;
+    auto check = &ShadowMenuCheck;
+    Patch a(original.Function<void*>(0x1286a0), &menu, sizeof menu);
+    Patch b(original.Function<void*>(0x1287a0), &check, sizeof check);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    unsigned cases = 0;
+    for (unsigned raw : {0u, 1u, 7u})
+        for (bool playing : {false, true}) {
+            std::memset(app.get(), 0, sizeof(*app));
+            app->wireframeRenderingEnabled = static_cast<unsigned char>(raw);
+            app->playbackActive = playing;
+            app->sceneModified = 0x7d;
+            app->physicsResetPending = 1;
+            app->currentFrame = 123;
+            auto expected = std::make_unique<MMDAppState>(*app);
+            expected->wireframeRenderingEnabled = !raw;
+            shadowMenuChecked = raw != 0;
+            shadowMenuWrites = 0;
+            original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, MDS_CMD_TOGGLE_WIREFRAME);
+            Check(shadowMenuWrites == 1 && !std::memcmp(app.get(), expected.get(), sizeof(*app)),
+                  "original wireframe switch changes only its display byte and menu");
+            ++cases;
+        }
+    return cases;
+}
 unsigned MipmapCommands(OriginalPhysicsModule& original) {
     switchMenuCommand = MDS_CMD_TOGGLE_MIPMAP;
     auto menu = &ShadowMenu;
@@ -2122,6 +2151,11 @@ int wmain(int argc, wchar_t** argv) try {
                         MipmapCommands(original));
             return 0;
         }
+        if (std::wcscmp(argv[3], L"--wireframe") == 0) {
+            std::printf("%u original wireframe command comparisons passed\n",
+                        WireframeCommands(original));
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--file-folders") == 0) {
             std::printf("%u original file folder comparisons passed\n",
                         FileFolderCommands(original));
@@ -2170,6 +2204,7 @@ int wmain(int argc, wchar_t** argv) try {
                 FrameRateCommands(original));
     std::printf("%u original file folder comparisons passed\n", FileFolderCommands(original));
     std::printf("%u original mipmap command comparisons passed\n", MipmapCommands(original));
+    std::printf("%u original wireframe command comparisons passed\n", WireframeCommands(original));
     unsigned count = 0;
     for (const char* file : {"articulated.pmd", "articulated.pmx", "facial.pmd"}) {
         EditorSession session;

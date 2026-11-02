@@ -137,6 +137,7 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_LOW_POWER:
     case MDS_CMD_TOGGLE_PREVIOUS_FOLDER:
     case MDS_CMD_TOGGLE_MIPMAP:
+    case MDS_CMD_TOGGLE_WIREFRAME:
         return true;
     default:
         return false;
@@ -285,6 +286,7 @@ void EditorWindow::RefreshMenus() {
     check(MDS_CMD_TOGGLE_LOW_POWER, lowPower_);
     check(MDS_CMD_TOGGLE_PREVIOUS_FOLDER, fileHistory_.enabled);
     check(MDS_CMD_TOGGLE_MIPMAP, session_.DisplayOptions().mipmaps);
+    check(MDS_CMD_TOGGLE_WIREFRAME, session_.DisplayOptions().wireframe);
     check(MDS_CMD_TOGGLE_PLAYBACK_PHYSICS_ON_OFF, session_.PlaybackPhysicsOnOff());
     check(MDS_CMD_TOGGLE_MODEL_TRANSPARENCY, session_.DisplayOptions().transparentModels);
     check(MDS_CMD_TOGGLE_MODEL_NON_DISPLAY, session_.DisplayOptions().hideModels);
@@ -306,6 +308,12 @@ void EditorWindow::MenuCommand(int command) {
     if (found == menuActions_.end() || !found->second->isEnabled())
         return;
     idleRenderState_ = 1;
+    if (command == MDS_CMD_TOGGLE_WIREFRAME) {
+        session_.SetWireframe(!session_.DisplayOptions().wireframe);
+        RefreshMenus();
+        UpdateFrame();
+        return;
+    }
     if (command == MDS_CMD_TOGGLE_MIPMAP) {
         session_.SetMipmaps(!session_.DisplayOptions().mipmaps);
         RefreshMenus();

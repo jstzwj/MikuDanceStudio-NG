@@ -90,6 +90,11 @@ struct BatchRasterState {
     BlendFactor sourceBlend = BlendFactor::SourceAlpha;
     BlendFactor destinationBlend = BlendFactor::InvSourceAlpha;
     BatchCull cull = BatchCull::CounterClockwise;
+    // Triangle edges retain depth, culling, interpolation and blending rules.
+    bool wireframe = false;
+};
+struct RasterCapabilities {
+    bool wireframe = false;
 };
 enum class RasterCull {
     None,
@@ -486,6 +491,7 @@ public:
     virtual Backend BackendType() const = 0;
     virtual Capabilities Features() const = 0;
     virtual RenderTargetLimits TargetLimits() const { return {}; }
+    virtual RasterCapabilities RasterFeatures() const { return {}; }
     virtual ShaderCapabilities ShaderFeatures() const { return {}; }
     virtual TextureFormatCapabilities FormatFeatures(TextureFormat) const { return {}; }
     // CPU/native shader creation and reflection before any frame is submitted.
