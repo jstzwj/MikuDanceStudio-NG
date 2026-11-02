@@ -36,9 +36,15 @@ int main(int argc, char** argv) {
     CHECK(session.SetBone(0, 0, {3, 0, 0}, {0, 0, 0, 1}, reason));
     CHECK(session.Register({{editor::Track::Bone, 0, 0, 10}}, reason));
     unsigned backends = 0;
-    for (auto backend : {rhi::Backend::D3D11, rhi::Backend::D3D12, rhi::Backend::Vulkan}) {
+    const auto requested = qEnvironmentVariable("MDS_GPU_BACKEND");
+    for (const auto [backend, name] :
+         {std::pair{rhi::Backend::D3D11, "d3d11"}, std::pair{rhi::Backend::D3D12, "d3d12"},
+          std::pair{rhi::Backend::Vulkan, "vulkan"}}) {
+        if (!requested.isEmpty() && requested != name)
+            continue;
         if (!rhi::BackendAvailable(backend))
             continue;
+        std::cout << "Qt native backend: " << name << '\n';
         const auto revision = session.Revision();
         ++backends;
         qt::Viewport viewport(session, std::filesystem::absolute(argv[2]));

@@ -85,6 +85,9 @@ jobs:
           ctest --test-dir out/p4 -C Release -L p4 --output-on-failure --output-junit p4.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test.exe --assets res/assets
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:MDS_GPU_BACKEND = 'd3d12'
+          python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test.exe --assets res/assets
       - name: Deploy and validate relocated package
         shell: bash
         run: |

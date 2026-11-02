@@ -43,6 +43,10 @@ artifacts. Compiler caches are partitioned by OS, architecture, compiler image
 and Qt version; dependency downloads use their pinned revisions. CMake build
 trees and runner/compiler profiles are never restored as caches.
 
+Windows CI checks DX11/DX12 WARP presentation and bundles Vulkan, but does not
+claim Vulkan device execution on runners without a Vulkan driver. Linux and
+macOS execute the Vulkan path; every Vulkan package also checks its shipped DXC.
+
 Qt's standard dialog translations are bundled in addition to the editor's
 embedded English, Japanese and Simplified Chinese catalogs. Runtime licenses
 and source references are under `licenses/`.
