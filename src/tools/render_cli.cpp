@@ -50,10 +50,12 @@ int Run(const std::vector<std::string>& args) {
             options.driver =
                 value == "software" ? BackendDriver::Software : BackendDriver::Hardware;
         } else if (arg == "--backend") {
-            Require(value == "vulkan" || value == "dx11" || value == "dx12", "invalid_backend");
-            options.backend = value == "dx11"   ? Backend::D3D11
-                              : value == "dx12" ? Backend::D3D12
-                                                : Backend::Vulkan;
+            Require(value == "vulkan" || value == "dx11" || value == "dx12" || value == "metal",
+                    "invalid_backend");
+            options.backend = value == "dx11"    ? Backend::D3D11
+                              : value == "dx12"  ? Backend::D3D12
+                              : value == "metal" ? Backend::Metal
+                                                 : Backend::Vulkan;
         } else {
             unsigned number = 0;
             const auto parsed = std::from_chars(value.data(), value.data() + value.size(), number);
@@ -85,7 +87,7 @@ int Run(const std::vector<std::string>& args) {
     Require(
         !input.empty() && !assets.empty() && !output.empty() && frames > 0 && frames <= 10000 &&
             resize <= 1,
-        "usage:mds_render_cli --input scene.pmm|model.pmd|model.pmx --assets directory --output prefix [--backend vulkan|dx11|dx12] [--driver hardware|software] [--motion vmd] [--frame N] [--frames N] [--resize 1] [--replace-at N] [--shadow 0..2]");
+        "usage:mds_render_cli --input scene.pmm|model.pmd|model.pmx --assets directory --output prefix [--backend vulkan|dx11|dx12|metal] [--driver hardware|software] [--motion vmd] [--frame N] [--frames N] [--resize 1] [--replace-at N] [--shadow 0..2]");
     input = std::filesystem::absolute(input);
     runtime::SceneRuntime scene;
     render::SceneRenderSources sources;
@@ -248,6 +250,7 @@ int Run(const std::vector<std::string>& args) {
            << ",\"backend\":"
            << Quote(options.backend == Backend::Vulkan  ? "vulkan"
                     : options.backend == Backend::D3D11 ? "dx11"
+                    : options.backend == Backend::Metal ? "metal"
                                                         : "dx12")
            << ",\"width\":" << actual.description.width
            << ",\"height\":" << actual.description.height << ",\"frames\":" << frames

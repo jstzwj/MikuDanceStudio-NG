@@ -4,6 +4,8 @@
 // Explicit test-host configuration, never consulted by production factories.
 inline void ConfigureVulkanTest(mikudancestudio::rhi::BackendOptions& options,
                                 const std::string& argument) {
+    if (argument.find("metal") == 0)
+        options.backend = mikudancestudio::rhi::Backend::Metal;
     if (argument.find("software") != std::string::npos)
         options.driver = mikudancestudio::rhi::BackendDriver::Software;
     if (argument.find("debug") != std::string::npos)

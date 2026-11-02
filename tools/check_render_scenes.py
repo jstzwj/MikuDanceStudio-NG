@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--assets", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--driver", choices=("hardware", "software"), default="hardware")
-    parser.add_argument("--backend", choices=("vulkan", "dx11", "dx12"), default="vulkan")
+    parser.add_argument("--backend", choices=("vulkan", "dx11", "dx12", "metal"), default="vulkan")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     # Exercise a native UTF-8 filesystem path on every OS, independent of ACP.

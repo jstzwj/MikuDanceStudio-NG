@@ -3,6 +3,7 @@
 #include "mikudancestudio/rhi_d3d12.hpp"
 #include "mikudancestudio/rhi_vulkan.hpp"
 #include "material_sampling_fixture.hpp"
+#include "rhi_test_platform.hpp"
 #include <cmath>
 #include <cstdio>
 #include <stdexcept>
@@ -105,6 +106,7 @@ int main(int argc, char** argv) try {
     options.debugLayer = api.find("debug") != std::string::npos;
     options.driver =
         api.find("warp") != std::string::npos ? BackendDriver::Software : BackendDriver::Hardware;
+    ConfigureVulkanTest(options, api);
     auto native = CreateOffscreenBackendDevice(64, 64, options);
     if (!native && options.debugLayer &&
         (native.reason == "validation_layer_unavailable" ||
