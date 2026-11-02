@@ -14,6 +14,27 @@
 #include <cmath>
 #include <iostream>
 
+class ObservedOutput final : public mikudancestudio::qt::AudioOutput {
+public:
+    bool Start(const QAudioFormat& format, QIODevice& source, float volume,
+               std::string& reason) override {
+        processed = 0;
+        return native_->Start(format, source, volume, reason);
+    }
+    void Stop() override { native_->Stop(); }
+    void Volume(float volume) override { native_->Volume(volume); }
+    bool Running() const override { return native_->Running(); }
+    std::string Error() const override { return native_->Error(); }
+    qint64 ProcessedMicroseconds() const override {
+        processed = native_->ProcessedMicroseconds();
+        return processed;
+    }
+    mutable qint64 processed = 0;
+
+private:
+    std::unique_ptr<AudioOutput> native_ = mikudancestudio::qt::CreateAudioOutput();
+};
+
 // This opt-in test opens a real platform audio device, feeding only float zero.
 // The ordinary offscreen suite never opens an audio device. Missing devices are
 // reported as unavailable (77), never as a successful native acceptance.
@@ -83,13 +104,26 @@ int main(int argc, char** argv) {
     elapsed.start();
     if (!transport.Play(.25, reason))
         return finish(1, reason);
+    report["initializationMilliseconds"] = double(elapsed.elapsed());
+    double baseline = .25;
+    while (elapsed.elapsed() <= 2000) {
+        app.processEvents();
+        const auto position = transport.ClockPosition();
+        if (!position || !transport.Error().empty())
+            return finish(1, "Native clock stopped during startup: " + transport.Error());
+        if (*position >= .27) {
+            baseline = *position;
+            break;
+        }
+        QThread::msleep(5);
+    }
     report["startupMilliseconds"] = double(elapsed.elapsed());
-    if (elapsed.elapsed() > 2000)
-        return finish(1, "Native output initialization exceeded two seconds");
-    // Device activation is synchronous and precedes sample playback. Measure
-    // that separately instead of counting initialization as missing audio.
+    if (baseline == .25 || elapsed.elapsed() > 2000)
+        return finish(1, "Native output did not start processing within two seconds");
+    // A successful start can still be prebuffering (notably a cold PulseAudio
+    // server). Bound that startup separately, then measure steady clock drift.
     elapsed.restart();
-    double previous = .25, maximumLag = 0, maximumLead = 0;
+    double previous = baseline, maximumLag = 0, maximumLead = 0;
     int advancing = 0;
     while (elapsed.elapsed() < seconds * 1000) {
         app.processEvents();
@@ -102,14 +136,14 @@ int main(int argc, char** argv) {
         if (*position > previous)
             ++advancing;
         previous = *position;
-        const auto lag = wall - (*position - .25);
+        const auto lag = wall - (*position - baseline);
         maximumLag = std::max(maximumLag, lag);
         maximumLead = std::max(maximumLead, -lag);
         report["wallSeconds"] = wall;
         report["positionSeconds"] = *position;
         report["maximumLagSeconds"] = maximumLag;
         report["maximumLeadSeconds"] = maximumLead;
-        if (wall > 2 && (lag > .1 || lag < -.1))
+        if (lag > .1 || lag < -.1)
             return finish(1, "Native clock differs from elapsed time by over 100 ms");
         QThread::msleep(5);
     }
@@ -152,9 +186,10 @@ int main(int argc, char** argv) {
 
     // Exercise the actual editor's clock selection with intentionally jittery
     // UI ticks. No window is shown and no viewport frame is submitted.
+    auto observed = std::make_unique<ObservedOutput>();
+    const auto* clockOutput = observed.get();
     mikudancestudio::qt::EditorWindow window(
-        mikudancestudio::qt::Path(option("--assets", "res/assets")), true,
-        mikudancestudio::qt::CreateAudioOutput());
+        mikudancestudio::qt::Path(option("--assets", "res/assets")), true, std::move(observed));
     auto& session = window.Session();
     if (!session.ImportWave(mikudancestudio::qt::Path(wave.fileName()), reason) ||
         !session.Edit(
@@ -174,13 +209,16 @@ int main(int argc, char** argv) {
     elapsed.restart();
     unsigned ticks = 0;
     double frameError = 0;
+    double wallError = 0;
     while (elapsed.elapsed() < 3000) {
         app.processEvents();
         window.Tick(ticks % 2 ? .001 : .9);
         const auto wall = elapsed.nsecsElapsed() / 1e9;
-        frameError = std::max(frameError, std::abs(session.CursorSeconds() - 1 - wall) * 30);
-        if (!session.Playing() || !window.LastError().isEmpty() || frameError > 3)
-            return finish(1, "Editor did not follow the native audio clock within three frames");
+        wallError = std::max(wallError, std::abs(session.CursorSeconds() - 1 - wall));
+        frameError = std::max(
+            frameError, std::abs(session.CursorSeconds() - 1 - clockOutput->processed / 1e6) * 30);
+        if (!session.Playing() || !window.LastError().isEmpty() || frameError > 1)
+            return finish(1, "Editor did not follow the native audio clock within one frame");
         ++ticks;
         QThread::msleep(ticks % 2 ? 7 : 31);
     }
@@ -191,6 +229,7 @@ int main(int argc, char** argv) {
         window.RenderWindow()->Submissions())
         return finish(1, "Editor stop advanced playback or exposed a native window");
     report["editorMaximumFrameError"] = frameError;
+    report["editorMaximumWallErrorSeconds"] = wallError;
     report["editorJitteredTicks"] = int(ticks);
     return finish(0, "Native silent PCM, processed clock, stop, seek/restart and EOF passed");
 }

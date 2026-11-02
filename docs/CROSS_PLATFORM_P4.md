@@ -2345,3 +2345,13 @@ wait at most two seconds for the first processed samples, then retain the strict
 requires cursor agreement within one frame, recording wall latency separately.
 It does not substitute wall time for the audio clock or classify startup as a
 steady-state pass. Three-platform acceptance of this refinement remains pending.
+
+
+The refined Windows native test also passed a complete 120-second run: startup
+294 ms, steady maximum lag 35.984 ms / lead 5.461 ms, exact EOF and editor
+agreement with the observed native clock to numerical precision (wall offset
+62.243 ms). The versioned evidence now records the separate startup/steady
+measurement and the unchanged 100 ms drift bound. The earlier CoreAudio result
+had already passed its stream clock/EOF, but is retained as a failed overall
+acceptance because the editor test had not passed. Linux/CoreAudio must pass
+the refined test before their native qualification is closed.
