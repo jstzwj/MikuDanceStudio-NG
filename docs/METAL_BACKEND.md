@@ -72,6 +72,12 @@ The runner reports an Apple paravirtual device; physical GPU performance, Intel
 Mac coverage, signing/notarization and complete P4/C1 editor parity remain separate
 acceptance work.
 
+Qt 6.8.3's OpenGL wrapper links the obsolete AGL framework even when the selected
+SDK no longer contains it. The editor's CMake integration removes that dependency,
+following [Qt's upstream removal](https://github.com/qt/qtbase/commit/cdb33c3d5621ce035ad6950c8e2268fe94b73de5).
+OpenGL and all other Qt dependencies remain linked. This permits the pinned Qt
+package to build against the macOS 26 SDK without changing renderer behavior.
+
 Known comparison limitation: enabling `MTL_DEBUG_LAYER=1` for MoltenVK 1.4.2
 triggered `MTLDebugDevice::notifyExternalReferencesNonZeroOnDealloc` during the
 existing Qt Vulkan lifecycle test in [41421819905](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41421819905).
