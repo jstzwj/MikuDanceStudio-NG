@@ -1,5 +1,6 @@
 """Build a relocatable Qt editor dist through CMake's Runtime install component."""
 import argparse
+import configparser
 import hashlib
 import json
 from pathlib import Path
@@ -117,6 +118,17 @@ def runtime(stage, config):
         # offscreen plugin too; it was copied after that deployment step.
         tool = Path(config['qmake']).parent / 'macdeployqt'
         run(tool, bundle, '-always-overwrite', '-no-strip')
+        # macdeployqt's prefix is Contents, while our translations are resources.
+        # Preserve its framework/plugin paths and add the explicit translation path.
+        conf = bundle / 'Contents/Resources/qt.conf'
+        paths = configparser.ConfigParser(interpolation=None)
+        paths.optionxform = str
+        paths.read(conf, encoding='utf-8')
+        if not paths.has_section('Paths'):
+            paths.add_section('Paths')
+        paths['Paths']['Translations'] = 'Resources/translations'
+        with conf.open('w', encoding='utf-8') as stream:
+            paths.write(stream)
         run('codesign', '--force', '--deep', '--sign', '-', bundle)
     return bindir
 
