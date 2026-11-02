@@ -139,7 +139,7 @@ public:
         if (f == TextureFormat::Depth24Stencil8)
             return {bool(native.depth24Stencil8PixelFormatSupported), false, false, false};
         if (f == TextureFormat::Rgba8)
-            return {true, true, true, false, true};
+            return {true, true, true, true, true};
         if (f == TextureFormat::Rgba16Float || f == TextureFormat::R32Float)
             return {true, true, true, true};
         return {};
