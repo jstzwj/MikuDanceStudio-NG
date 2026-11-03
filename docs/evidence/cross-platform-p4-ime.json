@@ -2248,6 +2248,81 @@
       "followup_run": 41681020356,
       "followup_revision": "9f80bd5",
       "followup": "Activate TSF only on the GUI thread, with IME_SMODE_NONE rather than phrase prediction. Actual mode, native input events and natural client exit remain checked."
+    },
+    "ordinary_mode_diagnostic": {
+      "run": 41681020356,
+      "revision": "9f80bd5",
+      "accepted": false,
+      "lastStatus": {
+        "active": true,
+        "command": 2,
+        "commits": 3,
+        "committed": "ん",
+        "error": "",
+        "events": [
+          {
+            "commit": "",
+            "preedit": "ｎ",
+            "type": "input"
+          },
+          {
+            "commit": "に",
+            "preedit": "",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "ｈ",
+            "type": "input"
+          },
+          {
+            "commit": "ほ",
+            "preedit": "",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "ｎ",
+            "type": "input"
+          },
+          {
+            "commit": "ん",
+            "preedit": "",
+            "type": "input"
+          }
+        ],
+        "field": "にほん",
+        "finishing": false,
+        "focus": true,
+        "language": "en",
+        "name": "before",
+        "nativeIme": {
+          "conversion": 25,
+          "keyboardLayout": "4110411",
+          "open": true,
+          "sentence": 0
+        },
+        "platform": "windows",
+        "preedit": "",
+        "preedits": 3,
+        "publicationRetries": 1,
+        "qt": "6.8.3",
+        "sceneUnchanged": true,
+        "windowActive": true
+      },
+      "finding": "IME_SMODE_NONE produces direct per-character Hiragana commits on this installed MS-IME; candidate conversion and shutdown were not reached.",
+      "followup_run": 41682733858,
+      "followup_revision": "655e373",
+      "followup": "Request IME_SMODE_PLAURALCLAUSE, retain the initial/actual modes, and require candidate conversion plus natural exit. The IME-only dispatch skips unrelated P4 regression; normal push/PR remains unchanged."
+    },
+    "multi_clause_followup": {
+      "run": 41682733858,
+      "revision": "655e373",
+      "accepted": false,
+      "failure": "No startup status was published; native input and shutdown scenarios did not run. The generated client log was empty.",
+      "followup_run": 41683817570,
+      "followup_revision": "b600413",
+      "followup": "Arm own-process stack/minidump diagnostics around QApplication initialization, before native input activation."
     }
   }
 }

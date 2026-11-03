@@ -142,6 +142,15 @@ exercised. Revision `9f80bd5` selects ordinary composition (`IME_SMODE_NONE`) an
 activates TSF only on the GUI thread. Native mode values, event ordering and
 natural exit remain required; the phrase-prediction observation is retained
 separately, not counted as a passing composition scenario.
+Run **41681020356** confirms that `IME_SMODE_NONE` instead commits each completed
+Hiragana character on this installed IME. It does not provide a candidate
+conversion scenario. Revision `655e373` requests multi-clause conversion and
+records both the initial and resulting native modes. Its IME-only dispatch
+qualifies that client independently; ordinary push/PR still runs the complete
+editor regression. This remains an unresolved Windows qualification.
+The first multi-clause dispatch stopped before publishing startup status; it
+did not exercise the input scenario. Revision `b600413` also arms the guarded
+own-process stack/minidump diagnostic around `QApplication` initialization.
 
 Windows run **41671549143** at `830201b` passed all **73 P4 regressions**, all 460
 complete empty EDIT comparisons and all **68 displayed populated list/combobox
@@ -4353,24 +4362,42 @@ All 22 combo item rectangles independently match USER32. Run **41671549143**
 at `830201b` retains the complete images and report. Run **41677249943** at
 `68493ae` additionally passes all six focused-list cases, using native text/XOR
 focus paint with its monochrome brush colors and item-view focus state. The
-oracle asserts actual focus ownership immediately before capture. Focused combos,
-populated EDIT glyphs and non-Windows appearance remain
+oracle asserts actual focus ownership immediately before capture. Focused combos
+are qualified below; populated EDIT glyphs and non-Windows appearance remain
 outside this accepted corpus.
 
 Run **41679356903** adds real combo keyboard focus: all six list cases still
 pass, while all 22 focused combos expose the remaining Qt text/focus path.
 Revision `04077f8` uses the same GDI label path while focused and paints the
 native XOR rectangle over the unadjusted `rcItem`. Its 28-case isolated
-qualification is pending in run **41680950630**.
+qualification passed all **28 cases** in run **41680950630**, which also passed
+all 73 P4 regressions, complete EDITs, displayed content, list-only focus and
+relocated packaging. Focused combos are now included in the accepted Windows
+corpus. Populated EDIT glyphs, unmeasured input transitions and non-Windows
+appearance remain separate.
 
 ALL_BUILD and all **31 affected Qt gates passed (152.61 seconds)**. The preceding
 button-text revision `b1eed84` passed ordinary Windows/macOS/Linux editor CI
 in run **41654914200**. Full P4/C1 acceptance remains open.
 
-The latest ALL_BUILD and **31 affected Qt gates passed (160.85 seconds)**;
-the final three hidden control gates passed again after the focus fixes
-(22.94 seconds). The clean `68493ae` Windows development archive passed relocated
+The latest ALL_BUILD and **31 affected Qt gates passed (152.01 seconds)**;
+the three hidden control gates also passed after the combo focus fix
+(24.07 seconds). The clean `0608cd3` Windows development archive passed relocated
 PMM, language, multimedia and offscreen/native-hidden rendering checks with an
 SDK-free PATH. Its SHA-256 is
-`28409db6a7583c97876bbd72a493c03ef708fae50dda9ca254b42b8c4402fa02`.
+`1324a89abe987ca2ca78954c639193e43e31bda7af84891331ec89a64f3834bf`.
 Build identity and precise test scope are retained in the control evidence.
+
+## Reproducible strict color diagnostics
+
+`tools/analyze_editor_composite.py` reads the frozen public native PNGs and
+retained raw RGBA without rewriting either. Its thresholds are the existing
+RGB 1, Alpha 0 and exact white-background coverage criteria. It retains every
+failed coordinate and native/actual channel value, source hashes and enlarged
+example crops. NVIDIA hardware captures pass; WARP, Metal and Linux software
+Vulkan retain exactly their earlier failing counts. Linux rest additionally
+records two coverage/Alpha edge differences. Complete coordinates are versioned
+in the [Metal report](evidence/cross-platform-p4-metal-composite-diff.json) and
+[Linux report](evidence/cross-platform-p4-linux-composite-diff.json). Analysis
+controls are retained in the composite evidence. These observations do not
+relax the output contract or accept P4/C1.
