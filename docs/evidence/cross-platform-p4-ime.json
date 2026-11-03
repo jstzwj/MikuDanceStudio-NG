@@ -1,7 +1,7 @@
 {
-  "date": "2026-11-03",
+  "date": "2026-11-04",
   "accepted": true,
-  "scope": "Real Linux X11 IBus/libpinyin and Anthy only; Windows/macOS IMEs and complete P4 acceptance remain separate",
+  "scope": "Real Linux X11 IBus/libpinyin and Anthy, plus native macOS Kotoeri in three UI languages; Windows IME and complete P4 acceptance remain separate",
   "run": 41634648066,
   "revision": "c149568",
   "isolation": "Private Xvfb and DBus; test-owned IBus socket; X11 input only in guarded isolated GitHub runner",
@@ -518,5 +518,1584 @@
         }
       ]
     }
+  },
+  "macos": {
+    "run": 41671259166,
+    "revision": "615dc40",
+    "accepted": true,
+    "input_source": "com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese",
+    "isolation": "Guarded hosted macos-15 runner; test-owned active windows; background-only driver; native HID keys with foreground ownership checked before delivery",
+    "raw_artifact": "p4-macos/system-ime-kotoeri.json",
+    "event_storage": "Complete native event sequence retained once per profile; duplicate prefix arrays omitted from intermediate snapshots",
+    "result": {
+      "accepted": true,
+      "engine": "Kotoeri",
+      "profiles": [
+        {
+          "language": "en",
+          "preedit": {
+            "active": true,
+            "command": 2,
+            "commits": 0,
+            "committed": "",
+            "error": "",
+            "field": "",
+            "finishing": false,
+            "focus": true,
+            "language": "en",
+            "name": "before",
+            "platform": "cocoa",
+            "preedit": "日本",
+            "preedits": 6,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "conversion": {
+            "active": true,
+            "command": 2,
+            "commits": 0,
+            "committed": "",
+            "error": "",
+            "field": "",
+            "finishing": false,
+            "focus": true,
+            "language": "en",
+            "name": "before",
+            "platform": "cocoa",
+            "preedit": "日本",
+            "preedits": 6,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "commit": {
+            "active": true,
+            "command": 2,
+            "commits": 1,
+            "committed": "日本",
+            "error": "",
+            "field": "日本",
+            "finishing": false,
+            "focus": true,
+            "language": "en",
+            "name": "before",
+            "platform": "cocoa",
+            "preedit": "",
+            "preedits": 6,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "apply": {
+            "active": true,
+            "command": 2,
+            "commits": 1,
+            "committed": "日本",
+            "error": "",
+            "field": "日本",
+            "finishing": false,
+            "focus": true,
+            "language": "en",
+            "name": "日本",
+            "platform": "cocoa",
+            "preedit": "",
+            "preedits": 6,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "imeReturn": {
+            "active": true,
+            "command": 3,
+            "commits": 2,
+            "committed": "日本",
+            "error": "",
+            "field": "日本",
+            "finishing": false,
+            "focus": true,
+            "language": "en",
+            "name": "日本",
+            "platform": "cocoa",
+            "preedit": "",
+            "preedits": 12,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "cancel": {
+            "active": true,
+            "command": 4,
+            "commits": 2,
+            "committed": "日本",
+            "error": "",
+            "field": "",
+            "finishing": false,
+            "focus": true,
+            "language": "en",
+            "name": "日本",
+            "platform": "cocoa",
+            "preedit": "",
+            "preedits": 20,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "candidateKeys": [
+            {
+              "active": true,
+              "command": 2,
+              "commits": 1,
+              "committed": "日本",
+              "error": "",
+              "field": "日本",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "before",
+              "platform": "cocoa",
+              "preedit": "",
+              "preedits": 6,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            }
+          ],
+          "conversionMode": "live",
+          "candidateCommitKey": "return",
+          "returnKeys": [
+            {
+              "active": true,
+              "command": 3,
+              "commits": 2,
+              "committed": "日本",
+              "error": "",
+              "field": "日本",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "日本",
+              "platform": "cocoa",
+              "preedit": "",
+              "preedits": 12,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            }
+          ],
+          "cancelKeys": [
+            {
+              "active": true,
+              "command": 4,
+              "commits": 2,
+              "committed": "日本",
+              "error": "",
+              "field": "",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "日本",
+              "platform": "cocoa",
+              "preedit": "にほん",
+              "preedits": 19,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            },
+            {
+              "active": true,
+              "command": 4,
+              "commits": 2,
+              "committed": "日本",
+              "error": "",
+              "field": "",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "日本",
+              "platform": "cocoa",
+              "preedit": "",
+              "preedits": 20,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            }
+          ],
+          "nativeEvents": [
+            {
+              "commit": "",
+              "preedit": "n",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "に",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にh",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほ",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほn",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "日本",
+              "type": "input"
+            },
+            {
+              "commit": "日本",
+              "preedit": "",
+              "type": "input"
+            },
+            {
+              "key": 16777220,
+              "scan": 0,
+              "text": "\r",
+              "type": "up"
+            },
+            {
+              "key": 16777220,
+              "scan": 0,
+              "text": "\r",
+              "type": "down"
+            },
+            {
+              "key": 16777220,
+              "scan": 0,
+              "text": "\r",
+              "type": "up"
+            },
+            {
+              "commit": "",
+              "preedit": "n",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "に",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にh",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほ",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほn",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "日本",
+              "type": "input"
+            },
+            {
+              "commit": "日本",
+              "preedit": "",
+              "type": "input"
+            },
+            {
+              "key": 16777220,
+              "scan": 0,
+              "text": "\r",
+              "type": "up"
+            },
+            {
+              "commit": "",
+              "preedit": "n",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "に",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にh",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほ",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほn",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "日本",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほん",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": " ",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "",
+              "type": "input"
+            },
+            {
+              "key": 16777216,
+              "scan": 0,
+              "text": "\u001b",
+              "type": "up"
+            }
+          ]
+        },
+        {
+          "language": "ja",
+          "preedit": {
+            "active": true,
+            "command": 2,
+            "commits": 0,
+            "committed": "",
+            "error": "",
+            "field": "",
+            "finishing": false,
+            "focus": true,
+            "language": "ja",
+            "name": "before",
+            "platform": "cocoa",
+            "preedit": "日本",
+            "preedits": 6,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "conversion": {
+            "active": true,
+            "command": 2,
+            "commits": 0,
+            "committed": "",
+            "error": "",
+            "field": "",
+            "finishing": false,
+            "focus": true,
+            "language": "ja",
+            "name": "before",
+            "platform": "cocoa",
+            "preedit": "日本",
+            "preedits": 6,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "commit": {
+            "active": true,
+            "command": 2,
+            "commits": 1,
+            "committed": "日本",
+            "error": "",
+            "field": "日本",
+            "finishing": false,
+            "focus": true,
+            "language": "ja",
+            "name": "before",
+            "platform": "cocoa",
+            "preedit": "",
+            "preedits": 6,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "apply": {
+            "active": true,
+            "command": 2,
+            "commits": 1,
+            "committed": "日本",
+            "error": "",
+            "field": "日本",
+            "finishing": false,
+            "focus": true,
+            "language": "ja",
+            "name": "日本",
+            "platform": "cocoa",
+            "preedit": "",
+            "preedits": 6,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "imeReturn": {
+            "active": true,
+            "command": 3,
+            "commits": 2,
+            "committed": "日本",
+            "error": "",
+            "field": "日本",
+            "finishing": false,
+            "focus": true,
+            "language": "ja",
+            "name": "日本",
+            "platform": "cocoa",
+            "preedit": "",
+            "preedits": 12,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "cancel": {
+            "active": true,
+            "command": 4,
+            "commits": 2,
+            "committed": "日本",
+            "error": "",
+            "field": "",
+            "finishing": false,
+            "focus": true,
+            "language": "ja",
+            "name": "日本",
+            "platform": "cocoa",
+            "preedit": "",
+            "preedits": 20,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "candidateKeys": [
+            {
+              "active": true,
+              "command": 2,
+              "commits": 1,
+              "committed": "日本",
+              "error": "",
+              "field": "日本",
+              "finishing": false,
+              "focus": true,
+              "language": "ja",
+              "name": "before",
+              "platform": "cocoa",
+              "preedit": "",
+              "preedits": 6,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            }
+          ],
+          "conversionMode": "live",
+          "candidateCommitKey": "return",
+          "returnKeys": [
+            {
+              "active": true,
+              "command": 3,
+              "commits": 2,
+              "committed": "日本",
+              "error": "",
+              "field": "日本",
+              "finishing": false,
+              "focus": true,
+              "language": "ja",
+              "name": "日本",
+              "platform": "cocoa",
+              "preedit": "",
+              "preedits": 12,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            }
+          ],
+          "cancelKeys": [
+            {
+              "active": true,
+              "command": 4,
+              "commits": 2,
+              "committed": "日本",
+              "error": "",
+              "field": "",
+              "finishing": false,
+              "focus": true,
+              "language": "ja",
+              "name": "日本",
+              "platform": "cocoa",
+              "preedit": "にほん",
+              "preedits": 19,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            },
+            {
+              "active": true,
+              "command": 4,
+              "commits": 2,
+              "committed": "日本",
+              "error": "",
+              "field": "",
+              "finishing": false,
+              "focus": true,
+              "language": "ja",
+              "name": "日本",
+              "platform": "cocoa",
+              "preedit": "",
+              "preedits": 20,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            }
+          ],
+          "nativeEvents": [
+            {
+              "commit": "",
+              "preedit": "n",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "に",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にh",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほ",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほn",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "日本",
+              "type": "input"
+            },
+            {
+              "commit": "日本",
+              "preedit": "",
+              "type": "input"
+            },
+            {
+              "key": 16777220,
+              "scan": 0,
+              "text": "\r",
+              "type": "up"
+            },
+            {
+              "key": 16777220,
+              "scan": 0,
+              "text": "\r",
+              "type": "down"
+            },
+            {
+              "key": 16777220,
+              "scan": 0,
+              "text": "\r",
+              "type": "up"
+            },
+            {
+              "commit": "",
+              "preedit": "n",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "に",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にh",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほ",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほn",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "日本",
+              "type": "input"
+            },
+            {
+              "commit": "日本",
+              "preedit": "",
+              "type": "input"
+            },
+            {
+              "key": 16777220,
+              "scan": 0,
+              "text": "\r",
+              "type": "up"
+            },
+            {
+              "commit": "",
+              "preedit": "n",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "に",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にh",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほ",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほn",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "日本",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほん",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": " ",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "",
+              "type": "input"
+            },
+            {
+              "key": 16777216,
+              "scan": 0,
+              "text": "\u001b",
+              "type": "up"
+            }
+          ]
+        },
+        {
+          "language": "zh_CN",
+          "preedit": {
+            "active": true,
+            "command": 2,
+            "commits": 0,
+            "committed": "",
+            "error": "",
+            "field": "",
+            "finishing": false,
+            "focus": true,
+            "language": "zh_CN",
+            "name": "before",
+            "platform": "cocoa",
+            "preedit": "日本",
+            "preedits": 6,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "conversion": {
+            "active": true,
+            "command": 2,
+            "commits": 0,
+            "committed": "",
+            "error": "",
+            "field": "",
+            "finishing": false,
+            "focus": true,
+            "language": "zh_CN",
+            "name": "before",
+            "platform": "cocoa",
+            "preedit": "日本",
+            "preedits": 6,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "commit": {
+            "active": true,
+            "command": 2,
+            "commits": 1,
+            "committed": "日本",
+            "error": "",
+            "field": "日本",
+            "finishing": false,
+            "focus": true,
+            "language": "zh_CN",
+            "name": "before",
+            "platform": "cocoa",
+            "preedit": "",
+            "preedits": 6,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "apply": {
+            "active": true,
+            "command": 2,
+            "commits": 1,
+            "committed": "日本",
+            "error": "",
+            "field": "日本",
+            "finishing": false,
+            "focus": true,
+            "language": "zh_CN",
+            "name": "日本",
+            "platform": "cocoa",
+            "preedit": "",
+            "preedits": 6,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "imeReturn": {
+            "active": true,
+            "command": 3,
+            "commits": 2,
+            "committed": "日本",
+            "error": "",
+            "field": "日本",
+            "finishing": false,
+            "focus": true,
+            "language": "zh_CN",
+            "name": "日本",
+            "platform": "cocoa",
+            "preedit": "",
+            "preedits": 12,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "cancel": {
+            "active": true,
+            "command": 4,
+            "commits": 2,
+            "committed": "日本",
+            "error": "",
+            "field": "",
+            "finishing": false,
+            "focus": true,
+            "language": "zh_CN",
+            "name": "日本",
+            "platform": "cocoa",
+            "preedit": "",
+            "preedits": 20,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "candidateKeys": [
+            {
+              "active": true,
+              "command": 2,
+              "commits": 1,
+              "committed": "日本",
+              "error": "",
+              "field": "日本",
+              "finishing": false,
+              "focus": true,
+              "language": "zh_CN",
+              "name": "before",
+              "platform": "cocoa",
+              "preedit": "",
+              "preedits": 6,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            }
+          ],
+          "conversionMode": "live",
+          "candidateCommitKey": "return",
+          "returnKeys": [
+            {
+              "active": true,
+              "command": 3,
+              "commits": 2,
+              "committed": "日本",
+              "error": "",
+              "field": "日本",
+              "finishing": false,
+              "focus": true,
+              "language": "zh_CN",
+              "name": "日本",
+              "platform": "cocoa",
+              "preedit": "",
+              "preedits": 12,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            }
+          ],
+          "cancelKeys": [
+            {
+              "active": true,
+              "command": 4,
+              "commits": 2,
+              "committed": "日本",
+              "error": "",
+              "field": "",
+              "finishing": false,
+              "focus": true,
+              "language": "zh_CN",
+              "name": "日本",
+              "platform": "cocoa",
+              "preedit": "にほん",
+              "preedits": 19,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            },
+            {
+              "active": true,
+              "command": 4,
+              "commits": 2,
+              "committed": "日本",
+              "error": "",
+              "field": "",
+              "finishing": false,
+              "focus": true,
+              "language": "zh_CN",
+              "name": "日本",
+              "platform": "cocoa",
+              "preedit": "",
+              "preedits": 20,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            }
+          ],
+          "nativeEvents": [
+            {
+              "commit": "",
+              "preedit": "n",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "に",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にh",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほ",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほn",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "日本",
+              "type": "input"
+            },
+            {
+              "commit": "日本",
+              "preedit": "",
+              "type": "input"
+            },
+            {
+              "key": 16777220,
+              "scan": 0,
+              "text": "\r",
+              "type": "up"
+            },
+            {
+              "key": 16777220,
+              "scan": 0,
+              "text": "\r",
+              "type": "down"
+            },
+            {
+              "key": 16777220,
+              "scan": 0,
+              "text": "\r",
+              "type": "up"
+            },
+            {
+              "commit": "",
+              "preedit": "n",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "に",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にh",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほ",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほn",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "日本",
+              "type": "input"
+            },
+            {
+              "commit": "日本",
+              "preedit": "",
+              "type": "input"
+            },
+            {
+              "key": 16777220,
+              "scan": 0,
+              "text": "\r",
+              "type": "up"
+            },
+            {
+              "commit": "",
+              "preedit": "n",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "に",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にh",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほ",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほn",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "日本",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "にほん",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": " ",
+              "type": "input"
+            },
+            {
+              "commit": "",
+              "preedit": "",
+              "type": "input"
+            },
+            {
+              "key": 16777216,
+              "scan": 0,
+              "text": "\u001b",
+              "type": "up"
+            }
+          ]
+        }
+      ],
+      "shutdownStatus": {
+        "active": true,
+        "command": 5,
+        "commits": 2,
+        "committed": "日本",
+        "error": "",
+        "field": "",
+        "finishing": true,
+        "focus": true,
+        "language": "zh_CN",
+        "name": "日本",
+        "platform": "cocoa",
+        "preedit": "",
+        "preedits": 20,
+        "publicationRetries": 0,
+        "qt": "6.8.3",
+        "sceneUnchanged": true,
+        "windowActive": true
+      }
+    }
+  },
+  "windows": {
+    "run": 41672933040,
+    "revision": "a79d020",
+    "accepted": false,
+    "engine": "Microsoft Japanese IME",
+    "raw_artifact": "p4-windows/system-ime-ms-ime.json and system-ime-ms-ime.en.log",
+    "result": {
+      "accepted": false,
+      "profiles": [
+        {
+          "language": "en",
+          "preedit": {
+            "active": true,
+            "command": 2,
+            "commits": 0,
+            "committed": "",
+            "error": "",
+            "field": "",
+            "finishing": false,
+            "focus": true,
+            "language": "en",
+            "name": "before",
+            "nativeIme": {
+              "conversion": 25,
+              "keyboardLayout": "4110411",
+              "open": true,
+              "sentence": 8
+            },
+            "platform": "windows",
+            "preedit": "にほん",
+            "preedits": 6,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "conversion": {
+            "active": true,
+            "command": 2,
+            "commits": 0,
+            "committed": "",
+            "error": "",
+            "field": "",
+            "finishing": false,
+            "focus": true,
+            "language": "en",
+            "name": "before",
+            "nativeIme": {
+              "conversion": 25,
+              "keyboardLayout": "4110411",
+              "open": true,
+              "sentence": 8
+            },
+            "platform": "windows",
+            "preedit": "日本",
+            "preedits": 7,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "commit": {
+            "active": true,
+            "command": 2,
+            "commits": 1,
+            "committed": "日本",
+            "error": "",
+            "field": "日本",
+            "finishing": false,
+            "focus": true,
+            "language": "en",
+            "name": "before",
+            "nativeIme": {
+              "conversion": 25,
+              "keyboardLayout": "4110411",
+              "open": true,
+              "sentence": 8
+            },
+            "platform": "windows",
+            "preedit": "",
+            "preedits": 7,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "apply": {
+            "active": true,
+            "command": 2,
+            "commits": 1,
+            "committed": "日本",
+            "error": "",
+            "field": "日本",
+            "finishing": false,
+            "focus": true,
+            "language": "en",
+            "name": "日本",
+            "nativeIme": {
+              "conversion": 25,
+              "keyboardLayout": "4110411",
+              "open": true,
+              "sentence": 8
+            },
+            "platform": "windows",
+            "preedit": "",
+            "preedits": 7,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "imeReturn": {
+            "active": true,
+            "command": 3,
+            "commits": 2,
+            "committed": "にほん",
+            "error": "",
+            "field": "にほん",
+            "finishing": false,
+            "focus": true,
+            "language": "en",
+            "name": "日本",
+            "nativeIme": {
+              "conversion": 25,
+              "keyboardLayout": "4110411",
+              "open": true,
+              "sentence": 8
+            },
+            "platform": "windows",
+            "preedit": "",
+            "preedits": 20,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "cancel": {
+            "active": true,
+            "command": 4,
+            "commits": 2,
+            "committed": "にほん",
+            "error": "",
+            "field": "",
+            "finishing": false,
+            "focus": true,
+            "language": "en",
+            "name": "日本",
+            "nativeIme": {
+              "conversion": 25,
+              "keyboardLayout": "4110411",
+              "open": true,
+              "sentence": 8
+            },
+            "platform": "windows",
+            "preedit": "",
+            "preedits": 34,
+            "publicationRetries": 0,
+            "qt": "6.8.3",
+            "sceneUnchanged": true,
+            "windowActive": true
+          },
+          "candidateKeys": [
+            {
+              "active": true,
+              "command": 2,
+              "commits": 1,
+              "committed": "日本",
+              "error": "",
+              "field": "日本",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "before",
+              "nativeIme": {
+                "conversion": 25,
+                "keyboardLayout": "4110411",
+                "open": true,
+                "sentence": 8
+              },
+              "platform": "windows",
+              "preedit": "",
+              "preedits": 7,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            }
+          ],
+          "conversionMode": "henkan",
+          "candidateCommitKey": "return",
+          "returnKeys": [
+            {
+              "active": true,
+              "command": 3,
+              "commits": 2,
+              "committed": "にほん",
+              "error": "",
+              "field": "にほん",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "日本",
+              "nativeIme": {
+                "conversion": 25,
+                "keyboardLayout": "4110411",
+                "open": true,
+                "sentence": 8
+              },
+              "platform": "windows",
+              "preedit": "",
+              "preedits": 20,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            }
+          ],
+          "cancelKeys": [
+            {
+              "active": true,
+              "command": 4,
+              "commits": 2,
+              "committed": "にほん",
+              "error": "",
+              "field": "",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "日本",
+              "nativeIme": {
+                "conversion": 25,
+                "keyboardLayout": "4110411",
+                "open": true,
+                "sentence": 8
+              },
+              "platform": "windows",
+              "preedit": "にほん",
+              "preedits": 34,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            },
+            {
+              "active": true,
+              "command": 4,
+              "commits": 2,
+              "committed": "にほん",
+              "error": "",
+              "field": "",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "日本",
+              "nativeIme": {
+                "conversion": 25,
+                "keyboardLayout": "4110411",
+                "open": true,
+                "sentence": 8
+              },
+              "platform": "windows",
+              "preedit": "",
+              "preedits": 34,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            }
+          ]
+        }
+      ],
+      "nativeEvents": [
+        {
+          "commit": "",
+          "preedit": "ｎ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "に",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にｈ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほｎ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほん",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "日本",
+          "type": "input"
+        },
+        {
+          "commit": "日本",
+          "preedit": "",
+          "type": "input"
+        },
+        {
+          "key": 16777220,
+          "scan": 28,
+          "text": "\r",
+          "type": "down"
+        },
+        {
+          "key": 16777220,
+          "scan": 28,
+          "text": "\r",
+          "type": "up"
+        },
+        {
+          "commit": "",
+          "preedit": "ｎ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "ｎ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "に",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "に",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "に",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にｈ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にｈ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほｎ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほｎ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほん",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほん",
+          "type": "input"
+        },
+        {
+          "commit": "にほん",
+          "preedit": "",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "ｎ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "ｎ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "に",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "に",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "に",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にｈ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にｈ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほｎ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほｎ",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほん",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほん",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "にほん",
+          "type": "input"
+        },
+        {
+          "commit": "",
+          "preedit": "",
+          "type": "input"
+        }
+      ],
+      "shutdownStatus": {
+        "active": true,
+        "command": 5,
+        "commits": 2,
+        "committed": "にほん",
+        "error": "",
+        "field": "",
+        "finishing": true,
+        "focus": true,
+        "language": "en",
+        "name": "日本",
+        "nativeIme": {
+          "conversion": 25,
+          "keyboardLayout": "4110411",
+          "open": true,
+          "sentence": 8
+        },
+        "platform": "windows",
+        "preedit": "",
+        "preedits": 34,
+        "publicationRetries": 0,
+        "qt": "6.8.3",
+        "sceneUnchanged": true,
+        "windowActive": true
+      }
+    },
+    "failure": "English native scenario passed, but input-context cleanup blocked before client exit and before Japanese/Chinese UI profiles. Native Henkan conversion was used. This does not qualify Windows IME.",
+    "followup_run": 41675939566,
+    "followup_revision": "0eb3f53",
+    "followup": "Capture blocked UI-thread stack and own-process minidump on the isolated runner; no forced exit is counted as acceptance."
   }
 }

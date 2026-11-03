@@ -108,22 +108,32 @@ The Japanese Anthy profile also passed all three languages in run **41641234931*
 at `46b2bd1`: Hiragana preedit, conversion to the Japanese candidate, IME-owned
 commit/cancel and the subsequent editor command. The distro engine runs with its
 system Python/PyGObject runtime and an explicitly selected Hiragana input mode.
-This does not qualify Windows/macOS native IMEs.
+This Linux result does not qualify other platform input contexts.
 
 Native Windows/Microsoft Japanese IME and macOS/Kotoeri drivers run only on
-isolated hosted runners. Windows run **41659361085** passed the complete English
-UI scenario, including native candidate commit, a separate editor Enter and
-cancellation; client shutdown then timed out before the other languages ran.
-macOS run **41659371934** established actual Hiragana preedit and candidate
-conversion, but candidate Return did not commit. These are unsuccessful overall
-qualifications. Final command acknowledgements and input-context logs are retained
-to distinguish shutdown and input delivery failures. Neither profile is accepted
-until all three languages complete and the native clients exit successfully.
+isolated hosted runners. macOS run **41671259166** at `615dc40` passed all three
+UI languages with actual Kotoeri live conversion, native commit/cancel, a separate
+editor Enter, unchanged scene evaluation/history/resources and successful client
+shutdown. Its complete editor build, P4 tests, silent CoreAudio clock and relocated
+Metal package also passed. Raw outcomes and complete event sequences are retained
+in the [IME evidence](evidence/cross-platform-p4-ime.json). The driver uses prohibited
+application activation policy so its input-source/process queries cannot steal
+the client application's foreground ownership.
 
-Windows run **41659495981** passed all **73 P4 regressions** and all 460 complete
-empty EDIT comparisons. Its new displayed populated-control qualification failed
-all 68 list/combobox states. The earlier 24 hidden populated-list comparisons
-remain separate evidence; they do not qualify displayed controls or combo labels.
+Windows run **41672933040** at `a79d020` passed the complete English
+UI scenario using native Henkan conversion, including candidate commit, a
+separate editor Enter and cancellation; input-context cleanup then blocked
+before the other languages ran.
+That Windows profile remains unaccepted until all three languages complete and
+the native clients exit successfully. Final command acknowledgements and
+input-context logs distinguish shutdown and input delivery failures.
+
+Windows run **41671549143** at `830201b` passed all **73 P4 regressions**, all 460
+complete empty EDIT comparisons and all **68 displayed populated list/combobox
+states** with exact RGB equality. The new six actual keyboard-focus list cases
+failed. Revision `625f5db` replaces the focused Qt delegate with native GDI text
+and XOR focus painting; its isolated qualification is pending. The earlier 24
+hidden populated-list comparisons remain separate evidence.
 
 The selected-target clipboard command (250, F) is now connected to the shared
 session and all three Qt languages. It pastes only copied bone/accessory keys
@@ -4316,11 +4326,20 @@ labels clip to their measured box. Both rules are preserved separately.
 
 All **24 populated list states** (ASCII/Japanese rows, selected/unselected,
 enabled/disabled) pass exact RGB against both independent Win32 controls and the
-actual original resources. `qt_list_content` is a hidden P4 regression. Focused
-rows retain the existing Qt path until displayed focus qualification runs in an
-isolated runner. Populated combo capture is also deferred: hidden `WM_PRINT`
-omits its selected text and cannot provide a valid reference. No empty reference
-is counted as successful text qualification.
+actual original resources. `qt_list_content` is a hidden P4 regression. Hidden
+`WM_PRINT` omits combo selected text and cannot provide a valid reference, so
+displayed controls use parent-dialog `PrintWindow` only on isolated CI.
+
+That displayed qualification now passes **68 cases**: 24 populated list states
+and 44 populated combo states. The displayed list edge uses the theme's native
+nonclient border color. Combo text uses GDI and the exact `COMBOBOXINFO::rcItem`
+geometry, including its one-pixel left text inset and unchanged right clip edge.
+All 22 combo item rectangles independently match USER32. Run **41671549143**
+at `830201b` retains the complete images and report. Its additional six focused
+list cases failed; `625f5db` implements their native text/XOR focus path and adds
+a focus-ownership assertion immediately before capture. Qualification remains
+pending. Focused combos, populated EDIT glyphs and non-Windows appearance remain
+outside this accepted corpus.
 
 ALL_BUILD and all **31 affected Qt gates passed (152.61 seconds)**. The preceding
 button-text revision `b1eed84` passed ordinary Windows/macOS/Linux editor CI

@@ -1,7 +1,7 @@
 {
-  "date": "2026-11-03",
+  "date": "2026-11-04",
   "accepted": true,
-  "scope": "Windows common-controls steady theme paint and qualified button text/focus; full P4 remains unaccepted",
+  "scope": "Windows common-control steady theme paint, qualified button text/focus and displayed populated list/combo states; full P4 remains unaccepted",
   "original_sha256": "07516fd3bf1e6b1339836b6773a156f61bdd6f848eeb621fdda012375df313a1",
   "windows_build": "26100.9457",
   "original_resources": {
@@ -37,7 +37,7 @@
     "windowsShown": false
   },
   "exclusions": [
-    "Text/focus outside the qualified button corpus, including populated EDIT/list/combo controls",
+    "Text/focus outside the qualified corpora, including populated EDIT and focused list/combo controls",
     "Animations",
     "macOS and Linux theme paint",
     "Physical monitor transitions"
@@ -51,19 +51,23 @@
     "final_qt_passed": 31,
     "final_qt_seconds": 152.61,
     "final_qt_log": "out/p4-list-qt-tests.log",
-    "final_control_passed": 2,
-    "final_control_seconds": 21.62,
-    "final_control_log": "out/p4-text-final-tests.log",
+    "final_control_passed": 3,
+    "final_control_seconds": 21.44,
+    "final_control_log": "out/p4-list-focus-tests.log",
     "windows_ci": {
-      "run": 41659495981,
-      "revision": "5077514",
+      "run": 41671549143,
+      "revision": "830201b",
       "p4_passed": 73,
       "p4_failed": 0,
       "complete_edit_cases": 460,
       "complete_edit_mismatches": 0,
       "displayed_populated_cases": 68,
-      "displayed_populated_mismatches": 68,
-      "accepted_displayed_content": false
+      "displayed_populated_mismatches": 0,
+      "accepted_displayed_content": true,
+      "focused_list_cases": 6,
+      "focused_list_mismatches": 6,
+      "accepted_focused_lists": false,
+      "workflow_conclusion": "failure: focused-list qualification failed after all preceding gates passed"
     }
   },
   "relocated_package": {
@@ -227,6 +231,415 @@
       "trackbarGeometryCases": 864,
       "windowsShown": false
     },
-    "scope": "ASCII/Japanese rows across six original lists, unselected/selected and enabled/disabled; actual focus retains previous Qt renderer pending isolated displayed qualification"
+    "scope": "ASCII/Japanese rows across six original lists, unselected/selected and enabled/disabled; hidden original-resource evidence. Displayed content and actual keyboard focus are separately recorded."
+  },
+  "displayed_content": {
+    "run": 41671549143,
+    "revision": "830201b",
+    "accepted": true,
+    "isolation": "Only test-owned shown windows on an isolated GitHub Windows runner; PrintWindow of their parent dialogs, no desktop capture",
+    "report": {
+      "cases": 68,
+      "comboLayouts": [
+        {
+          "control": 669,
+          "native": [
+            3,
+            3,
+            85,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            85,
+            20
+          ],
+          "template": 813
+        },
+        {
+          "control": 669,
+          "native": [
+            3,
+            3,
+            59,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            59,
+            17
+          ],
+          "template": 812
+        },
+        {
+          "control": 669,
+          "native": [
+            3,
+            3,
+            89,
+            19
+          ],
+          "qt": [
+            3,
+            3,
+            89,
+            19
+          ],
+          "template": 666
+        },
+        {
+          "control": 673,
+          "native": [
+            3,
+            3,
+            89,
+            19
+          ],
+          "qt": [
+            3,
+            3,
+            89,
+            19
+          ],
+          "template": 666
+        },
+        {
+          "control": 677,
+          "native": [
+            3,
+            3,
+            89,
+            19
+          ],
+          "qt": [
+            3,
+            3,
+            89,
+            19
+          ],
+          "template": 666
+        },
+        {
+          "control": 669,
+          "native": [
+            3,
+            3,
+            89,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            89,
+            17
+          ],
+          "template": 665
+        },
+        {
+          "control": 673,
+          "native": [
+            3,
+            3,
+            89,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            89,
+            17
+          ],
+          "template": 665
+        },
+        {
+          "control": 677,
+          "native": [
+            3,
+            3,
+            89,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            89,
+            17
+          ],
+          "template": 665
+        },
+        {
+          "control": 704,
+          "native": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 707,
+          "native": [
+            3,
+            3,
+            76,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            76,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 708,
+          "native": [
+            3,
+            3,
+            24,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            24,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 736,
+          "native": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 741,
+          "native": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 742,
+          "native": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 743,
+          "native": [
+            3,
+            3,
+            62,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            62,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 704,
+          "native": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "template": 683
+        },
+        {
+          "control": 707,
+          "native": [
+            3,
+            3,
+            76,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            76,
+            17
+          ],
+          "template": 683
+        },
+        {
+          "control": 708,
+          "native": [
+            3,
+            3,
+            33,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            33,
+            17
+          ],
+          "template": 683
+        },
+        {
+          "control": 736,
+          "native": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "template": 683
+        },
+        {
+          "control": 741,
+          "native": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "template": 683
+        },
+        {
+          "control": 742,
+          "native": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "template": 683
+        },
+        {
+          "control": 743,
+          "native": [
+            3,
+            3,
+            62,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            62,
+            17
+          ],
+          "template": 683
+        }
+      ],
+      "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+      "gdiBorderCases": 0,
+      "gdiBorderMismatches": 0,
+      "keyboardFocusCues": false,
+      "listContent": true,
+      "mismatches": 0,
+      "os": "Windows Server 2022 Version 21H2",
+      "platform": "windows",
+      "qt": "6.8.3",
+      "reference": "Win32 controls using frozen original resource styles",
+      "style": "windowsvista",
+      "templates": 38,
+      "textGeometryCases": 0,
+      "textGeometryKeyboardFocus": false,
+      "textGlyphs": true,
+      "trackbarGeometryCases": 0,
+      "windowsShown": true
+    }
+  },
+  "displayed_list_focus": {
+    "run": 41671549143,
+    "revision": "830201b",
+    "accepted": false,
+    "report": {
+      "cases": 6,
+      "comboLayouts": [],
+      "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+      "gdiBorderCases": 0,
+      "gdiBorderMismatches": 0,
+      "keyboardFocusCues": true,
+      "listContent": true,
+      "mismatches": 6,
+      "os": "Windows Server 2022 Version 21H2",
+      "platform": "windows",
+      "qt": "6.8.3",
+      "reference": "Win32 controls using frozen original resource styles",
+      "style": "windowsvista",
+      "templates": 38,
+      "textGeometryCases": 0,
+      "textGeometryKeyboardFocus": false,
+      "textGlyphs": true,
+      "trackbarGeometryCases": 0,
+      "windowsShown": true
+    },
+    "followup_revision": "625f5db",
+    "followup_run": 41675216620,
+    "followup_status": "pending isolated qualification"
   }
 }
