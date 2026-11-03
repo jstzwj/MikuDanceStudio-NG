@@ -38,8 +38,6 @@ class MacInput:
             (self.cg, 'CGEventCreateKeyboardEvent', c.c_void_p, [c.c_void_p, c.c_ushort, c.c_bool]),
             (self.cg, 'CGEventPost', None, [c.c_uint, c.c_void_p]),
             (self.cg, 'CGEventSetFlags', None, [c.c_void_p, c.c_uint64]),
-            (self.cg, 'CGEventKeyboardSetUnicodeString', None,
-             [c.c_void_p, c.c_ulong, c.POINTER(c.c_uint16)]),
         ]
         for library, name, result, arguments in signatures:
             function = getattr(library, name)
@@ -90,9 +88,8 @@ class MacInput:
             if not event:
                 raise RuntimeError('Cannot create a native keyboard event')
             self.cg.CGEventSetFlags(event, 0)
-            if code in (36, 49, 53):
-                character = c.c_uint16({36: 13, 49: 32, 53: 27}[code])
-                self.cg.CGEventKeyboardSetUnicodeString(event, 1, c.byref(character))
+            # Leave character translation to the active keyboard/input method.
+            # A Unicode override can bypass its handling of physical control keys.
             # Candidate panels are owned by the native IME service. HID delivery
             # must let that service route keys instead of bypassing it by PID.
             self.cg.CGEventPost(0, event)
@@ -301,8 +298,15 @@ def main():
                                                'cancel': cancelled, 'candidateKeys': commit_keys,
                                                'returnKeys': return_keys, 'cancelKeys': cancel_keys})
                     command('finish')
-                    if client.wait(timeout=10):
-                        raise RuntimeError('Input client failed')
+                    try:
+                        result = client.wait(timeout=10)
+                    finally:
+                        # Retain the final acknowledgement even when native
+                        # platform teardown hangs after the scenario passed.
+                        if status.exists():
+                            report['shutdownStatus'] = json.loads(status.read_text(encoding='utf-8'))
+                    if result:
+                        raise RuntimeError(f'Input client failed: {result}')
                     client = None
             report['accepted'] = True
     finally:

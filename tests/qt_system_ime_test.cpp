@@ -101,6 +101,7 @@ int main(int argc, char** argv) {
     qInstallMessageHandler(
         [](QtMsgType, const QMessageLogContext& context, const QString& message) {
             std::fprintf(stderr, "%s: %s\n", context.category, message.toUtf8().constData());
+            std::fflush(stderr);
         });
     QApplication app(argc, argv);
     bool platformInput = (QGuiApplication::platformName() == "xcb" &&
@@ -150,6 +151,9 @@ int main(int argc, char** argv) {
             const auto sequence = unsigned(request["sequence"].toInt());
             if (sequence > command) {
                 command = sequence;
+                std::fprintf(stderr, "IME command %u: %s\n", command,
+                             request["action"].toString().toUtf8().constData());
+                std::fflush(stderr);
                 if (request["action"] == "select") {
                     if (QGuiApplication::platformName() != "xcb") {
                         dialog.raise();
@@ -187,6 +191,7 @@ int main(int argc, char** argv) {
             {"platform", QGuiApplication::platformName()},
             {"qt", qVersion()},
             {"command", int(command)},
+            {"finishing", finishing},
             {"focus", field->hasFocus()},
             {"windowActive", dialog.isActiveWindow()},
             {"active", dialog.Active()},
@@ -205,12 +210,23 @@ int main(int argc, char** argv) {
             app.exit(1);
             return;
         }
-        if (finishing)
+        if (finishing) {
+            timer.stop();
+            std::fprintf(stderr, "IME finish snapshot published; leaving event loop\n");
+            std::fflush(stderr);
             app.exit(unchanged && dialog.Active() && reason.empty() ? 0 : 1);
+        }
     });
     dialog.show();
     field->setFocus();
     timer.start(25);
     QTimer::singleShot(60000, &app, [&] { app.exit(1); });
-    return app.exec();
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, [] {
+        std::fprintf(stderr, "IME application aboutToQuit\n");
+        std::fflush(stderr);
+    });
+    const auto result = app.exec();
+    std::fprintf(stderr, "IME event loop returned %d\n", result);
+    std::fflush(stderr);
+    return result;
 }
