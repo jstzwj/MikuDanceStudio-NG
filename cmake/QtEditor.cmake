@@ -99,6 +99,8 @@ function(mds_add_qt_editor)
     if(BUILD_TESTING)
         qt_add_executable(qt_editor_font_test "${root}/tests/qt_editor_font_test.cpp")
         target_link_libraries(qt_editor_font_test PRIVATE mikudancestudio_frontend_qt)
+        qt_add_executable(qt_system_ime_test EXCLUDE_FROM_ALL "${root}/tests/qt_system_ime_test.cpp")
+        target_link_libraries(qt_system_ime_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
             qt_add_executable(qt_control_style_test "${root}/tests/qt_control_style_oracle_test.cpp"
                 "${root}/res/frontend_qt/windows.manifest")

@@ -65,6 +65,16 @@ behavior and all frame-line operations require further implementation/comparison
 
 ## Remaining exit gates
 
+Real Linux IME qualification is available explicitly with the `system_ime`
+workflow input. It creates a private Xvfb display and DBus session, starts the
+distribution's IBus/libpinyin engine, and sends native X11 keyboard events to the
+actual English-name dialog in all three UI languages. It checks preedit,
+candidate commit, a subsequent editor Enter, IME-owned Enter and Escape, and
+unchanged scene evaluation/history/resource identity. This is separate from
+synthetic `QInputMethodEvent` tests. The client and driver refuse to show/input
+anything outside an explicitly isolated GitHub runner. Execution evidence is
+pending; it does not qualify Windows/macOS native IMEs.
+
 The selected-target clipboard command (250, F) is now connected to the shared
 session and all three Qt languages. It pastes only copied bone/accessory keys
 into the active bone/accessory, retaining time offsets relative to the complete

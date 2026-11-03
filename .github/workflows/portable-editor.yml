@@ -24,6 +24,10 @@ on:
         type: boolean
         description: Qualify native EDIT nonclient paint in isolated Windows runner windows
         default: false
+      system_ime:
+        type: boolean
+        description: Qualify real IBus/libpinyin input in a private Linux display and DBus session
+        default: false
 concurrency:
   group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -225,6 +229,14 @@ jobs:
         env:
           MDS_GPU_DRIVER: software
         run: ctest --test-dir out/p4 -L native-reference --output-on-failure --output-junit native-reference.xml
+      - name: Qualify real IBus composition and command ordering
+        if: inputs.system_ime
+        env:
+          MDS_QT_ISOLATED_DISPLAY: '1'
+        run: |
+          sudo apt-get install -y ibus ibus-libpinyin dbus-x11 xdotool
+          cmake --build out/p4 --target qt_system_ime_test --parallel 3
+          xvfb-run -a dbus-run-session -- python tests/test_system_ime.py --test out/p4/qt_system_ime_test --report out/p4/system-ime.json
       - name: Native PulseAudio silent clock
         run: |
           sudo apt-get install -y pulseaudio pulseaudio-utils
@@ -264,6 +276,7 @@ jobs:
             out/p4/p4.xml
             out/p4/native-reference.xml
             out/p4/native-reference/
+            out/p4/system-ime*
             out/p4/distribution-check.*
             out/p4/editor-frame-performance*.json
             out/p4/native-audio*.json
