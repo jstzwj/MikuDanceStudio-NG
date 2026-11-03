@@ -307,7 +307,8 @@ void Timeline::mousePressEvent(QMouseEvent* e) {
             clear.emplace(key.track, key.slot);
     if (!session_.SetSelectedKeys(selected, error, clear))
         return;
-    session_.Seek(frame, error);
+    if (!(seek ? seek(frame, error) : session_.Seek(frame, error)))
+        return;
     dragging_ = true;
     if (changed)
         changed();

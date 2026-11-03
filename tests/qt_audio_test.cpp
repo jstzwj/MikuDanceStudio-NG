@@ -5,6 +5,9 @@
 #include <QFile>
 #include <QDataStream>
 #include <QTemporaryDir>
+#include <QEventLoop>
+#include <QLineEdit>
+#include <QTimer>
 #include <cmath>
 #include <iostream>
 using namespace mikudancestudio;
@@ -233,7 +236,82 @@ int main(int argc, char** argv) {
     disableAudio()->trigger();
     CHECK(window.Save(qt::Path(dir.path() + "/audio-pref.pmm")) &&
           window.Open(qt::Path(dir.path() + "/audio-pref.pmm")) && session.PlaybackAudioDisabled());
+    session.SetPlaybackAudioDisabled(false);
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(window.SetLanguage(code));
+        QAction* preview = nullptr;
+        for (auto* action : window.findChildren<QAction*>())
+            if (action->property("mmdCommandId").toInt() == MDS_CMD_TOGGLE_WAVE_ON_FRAME)
+                preview = action;
+        CHECK(preview && preview->isEnabled() && !preview->isChecked());
+        const auto revision = session.Revision(), updates = session.Runtime().Counters().frames;
+        const auto undo = session.CanUndo(), redo = session.CanRedo();
+        preview->trigger();
+        CHECK(session.FrameAudioPreview() && preview->isChecked() &&
+              session.Revision() == revision && session.Runtime().Counters().frames == updates &&
+              session.CanUndo() == undo && session.CanRedo() == redo);
+        const std::pair<unsigned, qint64> offsets[]{
+            {0, 0}, {1, 0}, {2, 266}, {30, 7733}, {31, 8000}, {60, 15733}, {61, 16000}, {6000, -1}};
+        for (const auto [frame, sample] : offsets) {
+            const auto starts = sink->starts;
+            static_cast<QLineEdit*>(window.Control(panel::kGotoFrameEdit))
+                ->setText(QString::number(frame));
+            window.Dispatch(panel::kGoToFrameButton);
+            CHECK(window.LastError().isEmpty() &&
+                  unsigned(session.Document().timeline.currentFrame) == frame &&
+                  !session.Playing());
+            CHECK(sample < 0 ? !sink->Running() && sink->starts == starts
+                             : sink->Running() && sink->starts == starts + 1 &&
+                                   sink->offset == sample * 4);
+            const auto previewUpdates = session.Runtime().Counters().frames;
+            QEventLoop loop;
+            QTimer::singleShot(60, &loop, &QEventLoop::quit);
+            loop.exec();
+            CHECK(!sink->Running() && unsigned(session.Document().timeline.currentFrame) == frame &&
+                  !session.Playing() && session.Runtime().Counters().frames == previewUpdates);
+        }
+        CHECK(session.Seek(30, reason));
+        auto starts = sink->starts;
+        window.Dispatch(panel::kNextFrameButton);
+        CHECK(sink->Running() && sink->starts == starts + 1 && sink->offset == 8000 * 4);
+        window.Dispatch(
+            panel::kPreviousFrameButton); // Restart the previous slice, not a second clock.
+        CHECK(sink->Running() && sink->starts == starts + 2 && sink->offset == 7733 * 4);
+        window.Refresh();
+        CHECK(sink->Running()); // Painting/translation must not truncate preview.
+        CHECK(window.SetLanguage(code));
+        CHECK(sink->Running());
+        disableAudio()->trigger();
+        window.Dispatch(panel::kNextFrameButton);
+        CHECK(sink->starts == starts + 2); // Same native startup/loop/preview gate.
+        disableAudio()->trigger();
+        window.Dispatch(panel::kPlayButton);
+        CHECK(session.Playing() && sink->Running() && sink->starts == starts + 3);
+        QEventLoop loop;
+        QTimer::singleShot(60, &loop, &QEventLoop::quit);
+        loop.exec();
+        CHECK(sink->Running()); // Preview's former deadline cannot stop normal playback.
+        window.Dispatch(panel::kPlayButton);
+        starts = sink->starts;
+        sink->fail = true;
+        window.Dispatch(panel::kNextFrameButton);
+        CHECK(!session.Playing() && !sink->Running() && sink->starts == starts + 1 &&
+              window.LastError() == "injected-output-failure");
+        sink->fail = false;
+        // Rebuilding translations replaces QAction instances.
+        for (auto* action : window.findChildren<QAction*>())
+            if (action->property("mmdCommandId").toInt() == MDS_CMD_TOGGLE_WAVE_ON_FRAME)
+                preview = action;
+        preview->trigger();
+        CHECK(!session.FrameAudioPreview() && !preview->isChecked());
+        starts = sink->starts;
+        window.Dispatch(panel::kNextFrameButton);
+        CHECK(sink->starts == starts && !sink->Running());
+    }
+    session.SetFrameAudioPreview(true);
+    session.SetPlaybackAudioDisabled(true);
     CHECK(session.New(reason) && session.PlaybackAudioDisabled());
+    CHECK(session.FrameAudioPreview());
     std::cout
         << "Silent audio transport: PCM offsets, 120s clock/jitter, loop, seek, stop and output failure passed\n";
 }

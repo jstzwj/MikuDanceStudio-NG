@@ -141,6 +141,7 @@ bool Implemented(int command) {
     case MDS_CMD_ABOUT:
     case MDS_CMD_ABOUT_PHYSICS:
     case MDS_CMD_RESTORE_TEXTURES:
+    case MDS_CMD_TOGGLE_WAVE_ON_FRAME:
         return true;
     default:
         return false;
@@ -286,6 +287,7 @@ void EditorWindow::RefreshMenus() {
     check(MDS_CMD_TOGGLE_GROUND_SHADOW, doc.view.groundShadow);
     check(MDS_CMD_TOGGLE_SELF_SHADOW, doc.selfShadowEnabled != 0);
     check(MDS_CMD_TOGGLE_WAVE_DISABLED, session_.PlaybackAudioDisabled());
+    check(MDS_CMD_TOGGLE_WAVE_ON_FRAME, session_.FrameAudioPreview());
     check(MDS_CMD_TOGGLE_LOW_POWER, lowPower_);
     check(MDS_CMD_TOGGLE_PREVIOUS_FOLDER, fileHistory_.enabled);
     check(MDS_CMD_TOGGLE_MIPMAP, session_.DisplayOptions().mipmaps);
@@ -329,6 +331,9 @@ void EditorWindow::MenuCommand(int command) {
         dialog.setObjectName(physics ? "mmd.aboutPhysics" : "mmd.about");
         dialog.setTextFormat(Qt::PlainText);
         dialog.setOption(QMessageBox::Option::DontUseNativeDialog);
+        // QMessageBox intentionally ignores titles on macOS. The original
+        // MMD dialog contract requires one on every platform.
+        dialog.QDialog::setWindowTitle(title);
         if (physics)
             dialog.setWindowFlag(Qt::WindowStaysOnTopHint);
         const bool running = timer_.isActive();
@@ -375,6 +380,11 @@ void EditorWindow::MenuCommand(int command) {
         // Native 297 only changes the startup/loop gate. Current PCM playback
         // continues; the switch does not mute, stop or seek the active device.
         session_.SetPlaybackAudioDisabled(!session_.PlaybackAudioDisabled());
+        RefreshMenus();
+        return;
+    }
+    if (command == MDS_CMD_TOGGLE_WAVE_ON_FRAME) {
+        session_.SetFrameAudioPreview(!session_.FrameAudioPreview());
         RefreshMenus();
         return;
     }

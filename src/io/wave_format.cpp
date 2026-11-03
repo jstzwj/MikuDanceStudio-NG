@@ -88,6 +88,7 @@ bool ReadWave(const std::vector<std::uint8_t>& bytes, WaveAudio& output, std::st
             next.samples.push_back(sample);
         }
     }
+    next.sourceBlockAlign = align;
     output = std::move(next);
     reason.clear();
     return true;

@@ -19,6 +19,7 @@
 #include "mikudancestudio/camera_key_math.hpp"
 #include "mikudancestudio/cpu_model_state.hpp"
 #include "mikudancestudio/idle_render_gate.hpp"
+#include "mikudancestudio/audio_frame_preview.hpp"
 #include "mikudancestudio/blink_registration.hpp"
 #include "d3d9_device_fixture.hpp"
 #include <cstdio>
@@ -760,6 +761,216 @@ unsigned MipmapCommands(OriginalPhysicsModule& original) {
                     ++cases;
                 }
     return cases;
+}
+unsigned AudioPreviewCommands(OriginalPhysicsModule& original) {
+    void* menu = reinterpret_cast<void*>(&ShadowMenu);
+    void* check = reinterpret_cast<void*>(&ShadowMenuCheck);
+    Patch menuImport(original.Function<void*>(0x1286a0), &menu, sizeof menu);
+    Patch checkImport(original.Function<void*>(0x1287a0), &check, sizeof check);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    switchMenuCommand = MDS_CMD_TOGGLE_WAVE_ON_FRAME;
+    unsigned count = 0;
+    for (unsigned enabled : {0u, 1u, 7u})
+        for (bool playing : {false, true})
+            for (bool wave : {false, true}) {
+                std::memset(app.get(), 0, sizeof(*app));
+                app->wavPlaysOnFrameMove = std::uint8_t(enabled);
+                app->playbackActive = playing;
+                app->waveEnabled = wave;
+                app->sceneModified = 0x7d;
+                app->currentFrame = 123;
+                auto expected = std::make_unique<MMDAppState>(*app);
+                expected->wavPlaysOnFrameMove = !enabled;
+                expected->letterKeyState[16] = 1;
+                shadowMenuChecked = enabled != 0;
+                shadowMenuWrites = 0;
+                original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, switchMenuCommand);
+                Check(shadowMenuWrites == 1 &&
+                          !std::memcmp(app.get(), expected.get(), sizeof(*app)),
+                      "native frame-WAV toggle changes only preference, menu and F latch");
+                ++count;
+            }
+    return count;
+}
+double observedPreviewSeconds = -1;
+void* observedPreviewAudio = nullptr;
+void ObservePreview(void* audio, double seconds) {
+    observedPreviewAudio = audio;
+    observedPreviewSeconds = seconds;
+}
+unsigned AudioPreviewMath(OriginalPhysicsModule& original) {
+    const auto observe = &ObservePreview;
+    std::array<unsigned char, 12> jump{0x48, 0xb8};
+    std::memcpy(jump.data() + 2, &observe, sizeof observe);
+    jump[10] = 0xff;
+    jump[11] = 0xe0;
+    Patch restart(original.Function<void*>(0xdac20), jump.data(), jump.size());
+    const unsigned char expected[]{0x8b, 0x87, 0x50, 0x14, 0, 0};
+    Check(!std::memcmp(original.Function<void*>(0x3d485), expected, sizeof expected),
+          "native frame-WAV time block identity");
+    // Preserve RDI and the original call alignment/shadow space. Execute the
+    // actual CVTSI2SS/DIVSS/CVTPS2PD block, observing its WaveRestartAt argument.
+    const unsigned char done[]{0x48, 0x83, 0xc4, 0x20, 0x5f, 0xc3};
+    Patch tail(original.Function<void*>(0x3d4be), done, sizeof done);
+    std::vector<unsigned char> code{0x57, 0x48, 0x83, 0xec, 0x20, 0x48, 0x8b, 0xf9, 0x48, 0xb8};
+    const auto entry = reinterpret_cast<std::uintptr_t>(original.Function<void*>(0x3d485));
+    for (unsigned shift = 0; shift < 64; shift += 8)
+        code.push_back(std::uint8_t(entry >> shift));
+    code.insert(code.end(), {0xff, 0xe0});
+    void* memory = VirtualAlloc(nullptr, code.size(), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    Check(memory != nullptr, "preview wrapper allocation");
+    std::memcpy(memory, code.data(), code.size());
+    DWORD protection;
+    Check(VirtualProtect(memory, code.size(), PAGE_EXECUTE_READ, &protection),
+          "preview wrapper executable");
+    FlushInstructionCache(GetCurrentProcess(), memory, code.size());
+    auto app = std::make_unique<MMDAppState>();
+    std::memset(app.get(), 0, sizeof(*app));
+    app->audioContext = reinterpret_cast<void*>(0x12345678);
+    std::vector<std::uint32_t> frames{0,         1,         2,          29,        30,   31,
+                                      59,        60,        61,         999,       1000, 1001,
+                                      0x1000000, 0x1000001, 0x7fffffff, 0xffffffff};
+    for (unsigned n = 0; n < 64; ++n)
+        frames.push_back(n * 327671u + 7);
+    for (const auto frame : frames) {
+        app->currentFrame = std::int32_t(frame);
+        observedPreviewSeconds = -1;
+        observedPreviewAudio = nullptr;
+        reinterpret_cast<void (*)(MMDAppState*)>(memory)(app.get());
+        Check(observedPreviewSeconds == AudioFramePreviewSeconds(frame) &&
+                  observedPreviewAudio == app->audioContext,
+              "native frame-WAV start offset uses unsigned wrap and float division");
+    }
+    VirtualFree(memory, 0, MEM_RELEASE);
+    return unsigned(frames.size());
+}
+std::vector<unsigned> previewOrder;
+void* previewContext = nullptr;
+DWORD previewFrequency = 0;
+BOOL WINAPI PreviewKill(HWND window, UINT_PTR id) {
+    Check(window == reinterpret_cast<HWND>(2) && id == 100, "native preview KillTimer");
+    previewOrder.push_back(1);
+    return TRUE;
+}
+void PreviewClose(void* audio) {
+    Check(audio == previewContext, "native preview close context");
+    previewOrder.push_back(2);
+}
+bool PreviewStart(void* audio) {
+    Check(audio == previewContext, "native preview start context");
+    previewOrder.push_back(3);
+    return true;
+}
+HRESULT STDMETHODCALLTYPE PreviewFrequency(void*, DWORD frequency) {
+    previewFrequency = frequency;
+    previewOrder.push_back(4);
+    return E_INVALIDARG;
+}
+void PreviewFeed(void* audio, double seconds) {
+    Check(audio == previewContext, "native preview feed context");
+    observedPreviewSeconds = seconds;
+    previewOrder.push_back(5);
+}
+UINT_PTR WINAPI PreviewTimer(HWND window, UINT_PTR id, UINT interval, TIMERPROC proc) {
+    Check(window == reinterpret_cast<HWND>(2) && id == 100 &&
+              interval == AudioFramePreviewMilliseconds && !proc,
+          "native preview SetTimer");
+    previewOrder.push_back(6);
+    return 100;
+}
+unsigned AudioPreviewRestart(OriginalPhysicsModule& original) {
+    const auto jump = [](auto function) {
+        std::array<unsigned char, 12> code{0x48, 0xb8};
+        std::memcpy(code.data() + 2, &function, sizeof function);
+        code[10] = 0xff;
+        code[11] = 0xe0;
+        return code;
+    };
+    const auto close = jump(&PreviewClose), start = jump(&PreviewStart), feed = jump(&PreviewFeed);
+    Patch a(original.Function<void*>(0xda250), close.data(), close.size());
+    Patch b(original.Function<void*>(0xda930), start.data(), start.size());
+    Patch c(original.Function<void*>(0xdab80), feed.data(), feed.size());
+    auto kill = &PreviewKill;
+    auto timer = &PreviewTimer;
+    Patch d(original.Function<void*>(0x128760), &kill, sizeof kill);
+    Patch e(original.Function<void*>(0x128738), &timer, sizeof timer);
+    std::array<void*, 16> table{};
+    table[15] = reinterpret_cast<void*>(&PreviewFrequency);
+    auto* vtable = table.data();
+    auto* buffer = &vtable;
+    unsigned count = 0;
+    for (LONG volume : {-10000l, -600l, 0l})
+        for (double seconds : {0., .25, 1., 143165584.}) {
+            std::array<unsigned char, 0x300> audio{};
+            HWND window = reinterpret_cast<HWND>(2);
+            std::memcpy(audio.data() + 0x18, &window, sizeof window);
+            std::memcpy(audio.data() + 0x28, &buffer, sizeof buffer);
+            std::memcpy(audio.data() + 0x288, &volume, sizeof volume);
+            const auto before = audio;
+            previewContext = audio.data();
+            previewOrder.clear();
+            observedPreviewSeconds = -1;
+            original.Function<void (*)(void*, double)>(0xdac20)(audio.data(), seconds);
+            Check(
+                previewOrder == (std::vector<unsigned>{1, 2, 3, 4, 5, 6}) &&
+                    observedPreviewSeconds == seconds && previewFrequency == DWORD(volume) &&
+                    audio == before,
+                "native preview restart sequence, 33ms stop and invalid volume-as-frequency call");
+            ++count;
+        }
+    return count;
+}
+std::uintptr_t __cdecl PreviewThread(void(__cdecl* entry)(void*), unsigned stackSize,
+                                     void* context) {
+    Check(entry && stackSize == 0 && context == previewContext, "native preview starts feeder");
+    return 1234; // Observe the request without starting any thread or audio device.
+}
+unsigned AudioPreviewFileOffsets(OriginalPhysicsModule& original,
+                                 const std::filesystem::path& root) {
+    auto thread = &PreviewThread;
+    Patch spawn(original.Function<void*>(0x1283c0), &thread, sizeof thread);
+    const auto path = root / "preview-offset.tmp";
+    HANDLE file = CreateFileW(path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                              FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, nullptr);
+    Check(file != INVALID_HANDLE_VALUE, "preview offset file");
+    std::array<unsigned char, 64> bytes{};
+    DWORD written = 0;
+    Check(WriteFile(file, bytes.data(), DWORD(bytes.size()), &written, nullptr) &&
+              written == bytes.size(),
+          "preview offset file bytes");
+    unsigned count = 0;
+    for (DWORD rate : {8000u, 44100u, 48000u, 192000u})
+        for (WORD align : {1u, 2u, 4u, 6u, 8u})
+            for (DWORD frame :
+                 {0u, 1u, 2u, 30u, 31u, 60u, 61u, 5400u, 6000u, 0x1000000u, 0x7fffffffu}) {
+                Check(SetFilePointer(file, 44, nullptr, FILE_BEGIN) == 44,
+                      "preview initial data offset");
+                std::array<unsigned char, 0x300> audio{};
+                void* buffer = reinterpret_cast<void*>(1);
+                const DWORD avg = rate * align, data = 44;
+                std::memcpy(audio.data() + 0x28, &buffer, sizeof buffer);
+                std::memcpy(audio.data() + 0x38, &avg, sizeof avg);
+                std::memcpy(audio.data() + 0x3c, &align, sizeof align);
+                std::memcpy(audio.data() + 0x268, &data, sizeof data);
+                std::memcpy(audio.data() + 0x270, &file, sizeof file);
+                previewContext = audio.data();
+                Check(original.Function<bool (*)(void*, double)>(0xdab80)(
+                          audio.data(), AudioFramePreviewSeconds(frame)),
+                      "native feeder start");
+                const auto actual = SetFilePointer(file, 0, nullptr, FILE_CURRENT);
+                const auto expected =
+                    44 + AudioFramePreviewSampleOffset(frame, rate, align) * align;
+                Check(actual == expected,
+                      "native signed-byte seek, alignment and negative-seek fallback");
+                std::uintptr_t worker;
+                std::memcpy(&worker, audio.data() + 0x258, sizeof worker);
+                Check(worker == 1234, "native preview worker token");
+                ++count;
+            }
+    CloseHandle(file);
+    return count;
 }
 unsigned AudioDisableCommands(OriginalPhysicsModule& original) {
     void* menu = reinterpret_cast<void*>(&ShadowMenu);
@@ -2367,6 +2578,15 @@ int wmain(int argc, wchar_t** argv) try {
           "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
     if (argc == 4) {
+        if (std::wcscmp(argv[3], L"--frame-audio") == 0) {
+            std::printf(
+                "%u original frame-WAV commands, %u time blocks and %u restart sequences passed\n",
+                AudioPreviewCommands(original), AudioPreviewMath(original),
+                AudioPreviewRestart(original));
+            std::printf("%u original frame-WAV actual file seeks passed\n",
+                        AudioPreviewFileOffsets(original, argv[2]));
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--texture-reload") == 0) {
             std::printf("%u original texture reload commands passed\n",
                         TextureReloadCommands(original));
@@ -2440,6 +2660,11 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf("%u original about command comparisons passed\n", AboutCommands(original));
     std::printf("%u original texture reload commands passed\n", TextureReloadCommands(original));
     std::printf("%u original texture reload cache profiles passed\n", TextureReloadCache(original));
+    std::printf("%u original frame-WAV commands, %u time blocks and %u restart sequences passed\n",
+                AudioPreviewCommands(original), AudioPreviewMath(original),
+                AudioPreviewRestart(original));
+    std::printf("%u original frame-WAV actual file seeks passed\n",
+                AudioPreviewFileOffsets(original, argv[2]));
     unsigned count = 0;
     for (const char* file : {"articulated.pmd", "articulated.pmx", "facial.pmd"}) {
         EditorSession session;

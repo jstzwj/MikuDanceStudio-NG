@@ -9,6 +9,7 @@ class Timeline final : public QWidget {
 public:
     Timeline(editor::EditorSession&, Language&, const std::filesystem::path& assets, QWidget*);
     std::function<void()> changed;
+    std::function<bool(unsigned, std::string&)> seek;
     void Refresh();
     void SetFrameScroll(int);
     void SetRowScroll(int);

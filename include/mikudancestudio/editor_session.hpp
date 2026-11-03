@@ -137,6 +137,8 @@ public:
     void SetAutoInterpolation(bool enabled) { autoInterpolation_ = enabled; }
     bool PlaybackAudioDisabled() const { return playbackAudioDisabled_; }
     void SetPlaybackAudioDisabled(bool disabled) { playbackAudioDisabled_ = disabled; }
+    bool FrameAudioPreview() const { return frameAudioPreview_; }
+    void SetFrameAudioPreview(bool enabled) { frameAudioPreview_ = enabled; }
     bool PlaybackPhysicsOnOff() const { return playbackPhysicsOnOff_; }
     // Native menu policy affects the next playback start, not an active run.
     void SetPlaybackPhysicsOnOff(bool enabled) { playbackPhysicsOnOff_ = enabled; }
@@ -280,6 +282,7 @@ private:
     bool playing_ = false;
     bool autoInterpolation_ = true;
     bool playbackAudioDisabled_ = false;
+    bool frameAudioPreview_ = false;
     bool playbackPhysicsOnOff_ = false;
     bool registrationPhysics_ = true;
     std::uint8_t blinkPhase_ = 0;

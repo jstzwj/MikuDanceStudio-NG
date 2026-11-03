@@ -466,7 +466,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 86);
+    CHECK(implemented == 87);
     for (const char* language : {"en", "ja", "zh_CN"}) {
         qt::EditorWindow about(std::filesystem::absolute(argv[2]), true);
         CHECK(about.SetLanguage(language));
@@ -484,12 +484,15 @@ int main(int argc, char** argv) {
                     CHECK(about.Session().Play(reason));
                 about.Refresh();
                 for (int id : {MDS_CMD_ABOUT, MDS_CMD_ABOUT_PHYSICS}) {
+                    auto* frameTimer = about.findChild<QChronoTimer*>("editor.frameTimer");
+                    CHECK(frameTimer);
+                    frameTimer->start();
                     const auto revision = about.Session().Revision();
                     const auto updates = about.Session().Runtime().Counters().frames;
                     const auto appearance = about.Session().AppearanceRevision();
                     const bool physics = id == MDS_CMD_ABOUT_PHYSICS;
                     bool visited = false;
-                    QTimer::singleShot(0, [&] {
+                    QTimer::singleShot(40, [&] {
                         auto* dialog =
                             qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
                         if (!dialog)
@@ -529,6 +532,8 @@ int main(int argc, char** argv) {
                     });
                     CHECK(action(id)->isEnabled());
                     action(id)->trigger();
+                    const auto resumed = frameTimer->isActive();
+                    frameTimer->stop();
                     if (about.Session().Revision() != revision ||
                         about.Session().Runtime().Counters().frames != updates ||
                         about.Session().AppearanceRevision() != appearance ||
@@ -540,7 +545,7 @@ int main(int argc, char** argv) {
                                   << " appearance=" << appearance << '/'
                                   << about.Session().AppearanceRevision() << " playing=" << playing
                                   << '/' << about.Session().Playing() << '\n';
-                    CHECK(visited && about.Session().Revision() == revision &&
+                    CHECK(visited && resumed && about.Session().Revision() == revision &&
                           about.Session().Runtime().Counters().frames == updates &&
                           about.Session().AppearanceRevision() == appearance &&
                           about.Session().Playing() == playing);

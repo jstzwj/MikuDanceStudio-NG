@@ -180,6 +180,9 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     timeline_ = new Timeline(session_, language_, assets_, canvas_);
     timeline_->installEventFilter(this);
     timeline_->changed = [this] { Refresh(); };
+    timeline_->seek = [this](unsigned frame, std::string& reason) {
+        return SeekFrame(frame, reason);
+    };
     interpolation_ = new Interpolation(session_, canvas_);
     interpolation_->installEventFilter(this);
     interpolation_->changed = [this](bool ok, const std::string& reason) {
@@ -660,7 +663,8 @@ void EditorWindow::Refresh() {
     idleRenderState_ = 1;
     refreshing_ = true;
     RefreshFrameTimer();
-    if (!session_.Playing())
+    if (!session_.Playing() && (!audio_.Previewing() || audio_.Path() != session_.Assets().wave ||
+                                !session_.Document().wave.enabled))
         audio_.Stop();
     const auto& doc = session_.Document();
     if (edgeDialog_) {
@@ -837,6 +841,17 @@ void EditorWindow::UpdateFrame() {
         if (!viewport_->Render(reason))
             lastError_ = QString::fromStdString(reason);
     }
+}
+bool EditorWindow::SeekFrame(unsigned frame, std::string& reason) {
+    if (!session_.Seek(frame, reason))
+        return false;
+    if (!session_.Playing() && session_.FrameAudioPreview() && !session_.PlaybackAudioDisabled() &&
+        session_.Document().wave.enabled && !session_.Assets().wave.empty()) {
+        if (audio_.Path() != session_.Assets().wave && !audio_.Load(session_.Assets().wave, reason))
+            return false;
+        return audio_.PreviewFrame(frame, reason);
+    }
+    return true;
 }
 bool EditorWindow::Open(const std::filesystem::path& path) {
     std::string r;
@@ -1479,17 +1494,16 @@ void EditorWindow::Dispatch(int id) {
         ok = session_.Redo(r);
         break;
     case kPreviousFrameButton:
-        ok = session_.Seek(current ? current - 1 : 0, r);
+        ok = SeekFrame(current ? current - 1 : 0, r);
         break;
     case kNextFrameButton:
-        ok = session_.Seek(current + 1, r);
+        ok = SeekFrame(current + 1, r);
         break;
     case kFirstFrameButton:
-        ok = session_.Seek(0, r);
+        ok = SeekFrame(0, r);
         break;
     case kLastFrameButton:
-        ok = session_.Seek(unsigned(std::max(0, session_.Document().timeline.lastRegisteredFrame)),
-                           r);
+        ok = SeekFrame(unsigned(std::max(0, session_.Document().timeline.lastRegisteredFrame)), r);
         break;
     case kPreviousKeyframeButton:
     case kNextKeyframeButton: {
@@ -1500,7 +1514,7 @@ void EditorWindow::Dispatch(int id) {
                 target = k.frame;
         if (target == 0x7fffffffu)
             target = current;
-        ok = session_.Seek(target, r);
+        ok = SeekFrame(target, r);
         break;
     }
     case kPlayButton:
@@ -1565,7 +1579,7 @@ void EditorWindow::Dispatch(int id) {
         timeline_->SetFrameScroll(std::max(0, int(current) - (side_ - 84) / 26));
         break;
     case kGoToFrameButton:
-        ok = session_.Seek(static_cast<QLineEdit*>(Control(kGotoFrameEdit))->text().toUInt(), r);
+        ok = SeekFrame(static_cast<QLineEdit*>(Control(kGotoFrameEdit))->text().toUInt(), r);
         break;
     case kSetGoToFrameButton:
         static_cast<QLineEdit*>(Control(kGotoFrameEdit))->setText(QString::number(current));
@@ -1692,7 +1706,7 @@ void EditorWindow::EditField(int id) {
     std::string r;
     bool ok = true;
     if (id == kCurrentFrameEdit)
-        ok = value >= 0 && value <= 0x7fffffff && session_.Seek(unsigned(value), r);
+        ok = value >= 0 && value <= 0x7fffffff && SeekFrame(unsigned(value), r);
     else if (id == kPlayStartFrameEdit || id == kPlayStopFrameEdit)
         ok = session_.Edit(
             "playback-range",

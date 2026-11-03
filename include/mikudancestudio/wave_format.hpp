@@ -5,6 +5,7 @@
 namespace mikudancestudio::format {
 struct WaveAudio {
     std::uint32_t sampleRate = 0, channels = 0;
+    std::uint32_t sourceBlockAlign = 0;
     std::vector<float> samples;
     std::uint64_t SampleFrames() const { return channels ? samples.size() / channels : 0; }
     std::uint64_t FrameOffset(std::uint32_t mmdFrame) const;

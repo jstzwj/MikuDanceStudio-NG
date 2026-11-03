@@ -1,4 +1,5 @@
 #include "audio.hpp"
+#include "mikudancestudio/audio_frame_preview.hpp"
 #include "editor_window.hpp"
 #include <QFile>
 #include <cmath>
@@ -7,6 +8,12 @@ AudioTransport::AudioTransport(std::unique_ptr<AudioOutput> output, bool disable
     : output_(std::move(output)) {
     if (!output_ && !disableNativeOutput)
         output_ = CreateAudioOutput();
+    previewTimer_.setSingleShot(true);
+    previewTimer_.setTimerType(Qt::PreciseTimer);
+    QObject::connect(&previewTimer_, &QTimer::timeout, [this] { Stop(); });
+}
+AudioTransport::~AudioTransport() {
+    Stop();
 }
 bool AudioTransport::Load(const std::filesystem::path& path, std::string& reason) {
     QFile file(qt::Path(path));
@@ -32,14 +39,17 @@ bool AudioTransport::Play(double seconds, std::string& reason) {
         reason = "invalid-audio-start";
         return false;
     }
+    const auto duration = double(wave_.SampleFrames()) / wave_.sampleRate;
+    const auto offset = std::min(wave_.SampleFrames(),
+                                 std::uint64_t(std::min(seconds, duration) * wave_.sampleRate));
+    return Start(offset, true, reason);
+}
+bool AudioTransport::Start(std::uint64_t offset, bool playbackClock, std::string& reason) {
     Stop();
     QAudioFormat format;
     format.setSampleRate(int(wave_.sampleRate));
     format.setChannelCount(int(wave_.channels));
     format.setSampleFormat(QAudioFormat::Float);
-    const auto duration = double(wave_.SampleFrames()) / wave_.sampleRate;
-    const auto offset = std::min(wave_.SampleFrames(),
-                                 std::uint64_t(std::min(seconds, duration) * wave_.sampleRate));
     start_ = double(offset) / wave_.sampleRate;
     reason.clear();
     if (!output_ || offset == wave_.SampleFrames())
@@ -50,10 +60,27 @@ bool AudioTransport::Play(double seconds, std::string& reason) {
         Stop();
         return false;
     }
-    clockActive_ = true;
+    clockActive_ = playbackClock;
+    return true;
+}
+bool AudioTransport::PreviewFrame(std::uint32_t frame, std::string& reason) {
+    if (!wave_.sampleRate) {
+        reason = "invalid-audio-start";
+        return false;
+    }
+    const auto offset =
+        std::min(wave_.SampleFrames(),
+                 AudioFramePreviewSampleOffset(frame, wave_.sampleRate, wave_.sourceBlockAlign));
+    if (!Start(offset, false, reason))
+        return false;
+    // Paused preview never supplies the editor's playback clock. Repeated
+    // seeks restart both the PCM stream and the original 33ms stop deadline.
+    if (Running())
+        previewTimer_.start(AudioFramePreviewMilliseconds);
     return true;
 }
 void AudioTransport::Stop() {
+    previewTimer_.stop();
     clockActive_ = false;
     if (output_)
         output_->Stop();

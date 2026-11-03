@@ -3294,3 +3294,50 @@ revision. P4/C1 remains in progress.
 
 Local `ALL_BUILD` and the complete **44-test P4 label passed (142.55 seconds)**
 after this change; the run uses Qt offscreen and contains no desktop interaction.
+
+The reload gate additionally passed DX12 WARP (9.91 seconds) and Vulkan hardware
+(6.20 seconds). The explicit Vulkan software profile could not create a device
+on this machine and is not counted as a render pass. The complete auxiliary
+original-executable suite also passed after the cache additions.
+
+## WAV preview while moving frames (2026-11-03)
+
+Command 284 is connected to the shared editor preference and three-language Qt
+menu, bringing implemented entries to **87/103**. Manual frame stepping, numeric
+navigation and timeline clicks can restart a paused WAV preview, gated by the
+existing disable-WAV startup policy. The preference itself changes no document,
+history, pose or playback state and survives a new project.
+
+The native x64 start time is `double(float(unsigned(frame - 1)) / 30.f)`. It is
+not the rational timestamp used for ordinary playback. Source block alignment
+is retained by the WAV decoder so the native signed-byte seek/truncation can be
+reproduced before addressing normalized float PCM. A signed overflow causes the
+native negative `SetFilePointer(FILE_BEGIN)` request to fail, leaving its newly
+opened stream at the data start; notably frame zero previews that beginning.
+The bounded portable reader reproduces the resulting sample position without
+issuing an invalid file seek. Positions beyond EOF remain silent.
+
+Preview never supplies the editor playback clock and stops using a precise
+single-shot **33ms** timer. Repeated frame moves restart that deadline; starting
+normal playback cancels it. Refresh/translation does not stop a pending preview.
+This describes the request/stop window, not physical speaker latency or native
+DirectSound's buffered tail.
+
+The optional auxiliary `--frame-audio` oracle passed **12 complete toggle
+commands, 80 original time-computation blocks, 12 original restart sequences and
+220 actual original file seeks**. The latter uses temporary files at four sample
+rates and five alignments, observing `_beginthread` without creating a worker.
+The restart observer confirms timer 100/33ms and the original invalid call of the
+volume value to `SetFrequency`; no sound device or window is opened. The Qt
+silent consuming sink checks three languages, exact offsets, repeated stepping,
+EOF, timer expiry, playback handoff, disable policy and output failure. Its
+focused audio/menu/format gates passed locally. Native frame-input eligibility
+and physical output timing retain their broader acceptance boundaries.
+
+The reload revision's macOS failure was isolated to QMessageBox's platform
+implementation ignoring its title. The dialog now sets the QWidget/QDialog
+title explicitly, preserving the existing cross-platform title assertion.
+
+Local `ALL_BUILD` and all **44 P4 gates passed (146.10 seconds)** with the WAV
+preview implementation. The about test additionally exercises a running frame
+timer, requiring no modal-time CPU updates and an active timer after closing.

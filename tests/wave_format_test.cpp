@@ -39,6 +39,7 @@ int main() {
     WaveAudio wave;
     std::string reason;
     CHECK(ReadWave(bytes, wave, reason));
+    CHECK(wave.sourceBlockAlign == 2);
     CHECK(wave.samples[0] == -1.f);
     CHECK(wave.samples[1] == 32767 / 32768.f);
     const auto valid = bytes;

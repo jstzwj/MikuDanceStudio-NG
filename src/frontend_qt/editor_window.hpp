@@ -141,6 +141,7 @@ private:
     void ToggleSeparateOnTop();
     void SetFullScreenViewport(bool enabled);
     void UpdateFrame();
+    bool SeekFrame(unsigned, std::string&);
 };
 std::filesystem::path Path(const QString&);
 QString Path(const std::filesystem::path&);
