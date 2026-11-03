@@ -8,6 +8,7 @@
 #include "toon_dialog.hpp"
 #include "model_labels.hpp"
 #include "editor_font.hpp"
+#include "edit_composition.hpp"
 #include "mikudancestudio/editor_numeric.hpp"
 #include "mikudancestudio/mmd_control_specs.hpp"
 #include "mikudancestudio/text_encoding.hpp"
@@ -2075,6 +2076,10 @@ void EditorWindow::FinishSidebarDrag() {
     canvas_->setCursor(sidebarCursor_);
 }
 bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
+    if (HandleEditComposition(object, event)) {
+        idleRenderState_ = 1;
+        return true;
+    }
     if (event->type() == QEvent::DragEnter || event->type() == QEvent::DragMove ||
         event->type() == QEvent::Drop) {
         auto* drop = static_cast<QDropEvent*>(event);

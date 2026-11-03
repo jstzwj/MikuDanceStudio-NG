@@ -93,6 +93,13 @@ function(mds_add_qt_editor)
         target_link_libraries(qt_editor_font_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
             target_link_libraries(qt_editor_font_test PRIVATE gdi32)
+            qt_add_executable(qt_native_input_test "${root}/tests/qt_native_input_test.cpp")
+            target_link_libraries(qt_native_input_test PRIVATE mikudancestudio_frontend_qt user32)
+            add_test(NAME qt_native_input COMMAND ${Python3_EXECUTABLE}
+                "${root}/tests/test_runtime_cpu_scene.py"
+                --passes $<TARGET_FILE:qt_native_input_test> --assets "${root}/res/assets")
+            set_tests_properties(qt_native_input PROPERTIES LABELS "p4;hidden;qt;input"
+                TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=windows")
         endif()
         add_test(NAME qt_editor_font COMMAND qt_editor_font_test "${root}/res/assets")
         set_tests_properties(qt_editor_font PROPERTIES LABELS "p4;offscreen;qt;font" TIMEOUT 30 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

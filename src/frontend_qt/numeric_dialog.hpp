@@ -30,6 +30,7 @@ protected:
     QPlainTextEdit* Multiline(int id) const { return multiline_.at(id); }
     virtual void ButtonClicked(int id) { id == 1 ? accept() : reject(); }
     void Prefill(int id, const QString&);
+    bool eventFilter(QObject*, QEvent*) override;
 
 private:
     const ui::NumericTemplate& template_;

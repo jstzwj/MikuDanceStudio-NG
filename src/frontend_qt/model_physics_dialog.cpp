@@ -376,6 +376,8 @@ void ModelPhysicsDialog::ButtonClicked(int id) {
     }
 }
 bool ModelPhysicsDialog::eventFilter(QObject* watched, QEvent* event) {
+    if (TemplateDialog::eventFilter(watched, event))
+        return true;
     if (event->type() == QEvent::KeyPress) {
         auto* key = static_cast<QKeyEvent*>(event);
         if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter) {
@@ -387,7 +389,7 @@ bool ModelPhysicsDialog::eventFilter(QObject* watched, QEvent* event) {
             return true;
         }
     }
-    return TemplateDialog::eventFilter(watched, event);
+    return false;
 }
 void ModelPhysicsDialog::Finish(bool accepted) {
     if (closing_)

@@ -123,6 +123,8 @@ void EnglishNameDialog::Select(unsigned kind, int index) {
         changed();
 }
 bool EnglishNameDialog::eventFilter(QObject* watched, QEvent* event) {
+    if (TemplateDialog::eventFilter(watched, event))
+        return true;
     if (event->type() == QEvent::KeyPress) {
         auto* key = static_cast<QKeyEvent*>(event);
         if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter)
@@ -132,7 +134,7 @@ bool EnglishNameDialog::eventFilter(QObject* watched, QEvent* event) {
                     return true;
                 }
     }
-    return TemplateDialog::eventFilter(watched, event);
+    return false;
 }
 void EnglishNameDialog::ButtonClicked(int id) {
     if (id == 1 || id == 2)

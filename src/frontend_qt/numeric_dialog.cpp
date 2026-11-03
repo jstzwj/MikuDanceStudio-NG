@@ -1,4 +1,5 @@
 #include "numeric_dialog.hpp"
+#include "edit_composition.hpp"
 #include "mikudancestudio/mmd_dialog_edit_metrics.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
 #include <QLabel>
@@ -136,6 +137,7 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
         if (control.kind == ui::NumericControlKind::Edit) {
             auto* field = new QLineEdit(this);
             edits_[control.id] = field;
+            field->installEventFilter(this);
             widget = field;
         } else if (control.kind == ui::NumericControlKind::Multiline) {
             auto* field = new QPlainTextEdit(this);
@@ -148,6 +150,7 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
                                                                           : Qt::ScrollBarAlwaysOff);
             field->setTabChangesFocus(true);
             multiline_[control.id] = field;
+            field->installEventFilter(this);
             widget = field;
         } else if (control.kind == ui::NumericControlKind::Static) {
             auto* label = new QLabel(language.Text(control.message), this);
@@ -254,6 +257,9 @@ void TemplateDialog::Prefill(int id, const QString& text) {
         std::string_view(bytes.constData(), std::size_t(bytes.size())), english_, field->width());
     field->setText(text.left(qsizetype(length)));
 }
+bool TemplateDialog::eventFilter(QObject* object, QEvent* event) {
+    return HandleEditComposition(object, event) || QDialog::eventFilter(object, event);
+}
 AccessoryOrderDialog::AccessoryOrderDialog(
     const Language& language, const std::vector<std::pair<std::uint8_t, QString>>& rows, int split,
     QWidget* parent)
@@ -328,6 +334,8 @@ void AccessoryOrderDialog::ButtonClicked(int id) {
     }
 }
 bool AccessoryOrderDialog::eventFilter(QObject* object, QEvent* event) {
+    if (TemplateDialog::eventFilter(object, event))
+        return true;
     if (event->type() == QEvent::KeyPress) {
         auto* key = static_cast<QKeyEvent*>(event);
         if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter) {
@@ -336,7 +344,7 @@ bool AccessoryOrderDialog::eventFilter(QObject* object, QEvent* event) {
             return true;
         }
     }
-    return TemplateDialog::eventFilter(object, event);
+    return false;
 }
 NumericDialog::NumericDialog(bool camera, const Language& language,
                              const std::array<float, 7>& values, QWidget* parent)
@@ -666,6 +674,8 @@ void GravityDialog::Apply(unsigned channel) {
         changed(channel, value);
 }
 bool GravityDialog::eventFilter(QObject* watched, QEvent* event) {
+    if (TemplateDialog::eventFilter(watched, event))
+        return true;
     if (event->type() == QEvent::KeyPress) {
         auto* key = static_cast<QKeyEvent*>(event);
         if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter)
@@ -676,7 +686,7 @@ bool GravityDialog::eventFilter(QObject* watched, QEvent* event) {
                     return true; // The native edit subclass consumes Enter before the default button.
                 }
     }
-    return TemplateDialog::eventFilter(watched, event);
+    return false;
 }
 void GravityDialog::Reset(const format::PmmEvaluatedGravity& value) {
     resetting_ = true;

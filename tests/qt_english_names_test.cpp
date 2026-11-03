@@ -2,6 +2,7 @@
 #include "editor_window.hpp"
 #include "model_labels.hpp"
 #include "mikudancestudio/menu_commands.h"
+#include "mikudancestudio/english_name_edit.hpp"
 #include <QApplication>
 #include <QFile>
 #include <QJsonArray>
@@ -9,6 +10,7 @@
 #include <QJsonObject>
 #include <QPushButton>
 #include <QTest>
+#include <QInputMethodEvent>
 #include <iostream>
 using namespace mikudancestudio;
 std::string reason;
@@ -90,6 +92,27 @@ int main(int argc, char** argv) {
             auto* comment = qobject_cast<QPlainTextEdit*>(control(668));
             CHECK(name && bone && boneCombo && morph && morphCombo && group && comment);
             CHECK(!comment->isReadOnly() && comment->lineWrapMode() == QPlainTextEdit::NoWrap);
+            format::PmmModelEnglishNames composingNames;
+            CHECK(session.ModelEnglishNames(0, composingNames, reason));
+            name->setText("uncommitted raw text");
+            name->selectAll();
+            QInputMethodEvent preedit(QStringLiteral("\u306b\u307b\u3093"), {});
+            QCoreApplication::sendEvent(name, &preedit);
+            QTest::keyClick(name, Qt::Key_Return);
+            format::PmmModelEnglishNames duringComposition;
+            CHECK(session.ModelEnglishNames(0, duringComposition, reason) &&
+                  duringComposition.name == composingNames.name && dialog->Active());
+            QTest::keyClick(name, Qt::Key_Escape);
+            CHECK(dialog->Active());
+            QCoreApplication::sendEvent(name, &preedit);
+            QInputMethodEvent committed;
+            committed.setCommitString(QStringLiteral("\u65e5\u672c"));
+            QCoreApplication::sendEvent(name, &committed);
+            CHECK(name->text() == QStringLiteral("\u65e5\u672c"));
+            QTest::keyClick(name, Qt::Key_Return);
+            CHECK(session.ModelEnglishNames(0, duringComposition, reason) &&
+                  QString::fromUtf8(editor::EnglishNameDisplay(duringComposition.name).c_str()) ==
+                      QStringLiteral("\u65e5\u672c"));
             name->setText("new English model");
             QTest::keyClick(name, Qt::Key_Return);
             CHECK(dialog->Active());

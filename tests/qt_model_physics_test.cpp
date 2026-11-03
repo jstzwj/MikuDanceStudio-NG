@@ -11,6 +11,7 @@
 #include <QTest>
 #include <QMouseEvent>
 #include <QFocusEvent>
+#include <QInputMethodEvent>
 #include "mikudancestudio/background_placement.hpp"
 #include <QSignalBlocker>
 #include <fstream>
@@ -106,6 +107,7 @@ int main(int argc, char** argv) {
                         control["kind"].toString() == "Combobox" ? baseY + 8
                                                                  : (r[3].toInt() * baseY + 4) / 8));
         }
+        bool imeChecked = false;
         const auto steps = snapshots[profile].toArray();
         for (int step = 0; step < steps.size(); ++step) {
             const auto state = steps[step].toObject();
@@ -125,6 +127,25 @@ int main(int argc, char** argv) {
                 const int row = state["value"].toString().toInt();
                 combo->setCurrentIndex(row);
                 QMetaObject::invokeMethod(combo, "activated", Q_ARG(int, row));
+            }
+            if (!imeChecked && dialog->SelectedBody() >= 0) {
+                auto* name = static_cast<QLineEdit*>(dialog->Control(705));
+                const auto text = name->text();
+                const auto bodyName =
+                    std::string(dialog->State().bodies.at(dialog->SelectedBody()).pmdName, 20);
+                name->setText("uncommitted scratch name");
+                name->selectAll();
+                QInputMethodEvent composition(QStringLiteral("\u306b\u307b\u3093"), {});
+                QCoreApplication::sendEvent(name, &composition);
+                QTest::keyClick(name, Qt::Key_Return);
+                CHECK(dialog->Active() &&
+                      std::string(dialog->State().bodies.at(dialog->SelectedBody()).pmdName, 20) ==
+                          bodyName);
+                QTest::keyClick(name, Qt::Key_Escape);
+                CHECK(dialog->Active());
+                const QSignalBlocker blocked(name);
+                name->setText(text);
+                imeChecked = true;
             }
             CHECK(dialog->SelectedBody() == state["body"].toInt() &&
                   dialog->SelectedJoint() == state["joint"].toInt());

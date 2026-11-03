@@ -158,6 +158,12 @@ int main(int argc, char** argv) {
             QInputMethodEvent composition(QStringLiteral("12"), {});
             QCoreApplication::sendEvent(keyboard.Field(0), &composition);
             CHECK(keyboard.Values() == initial);
+            QTest::keyClick(keyboard.Field(0), Qt::Key_Return);
+            CHECK(keyboard.result() == QDialog::Rejected && keyboard.isVisible() &&
+                  keyboard.Values() == initial);
+            QTest::keyClick(keyboard.Field(0), Qt::Key_Escape);
+            CHECK(keyboard.result() == QDialog::Rejected && keyboard.isVisible() &&
+                  keyboard.Values() == initial);
             QInputMethodEvent commit;
             commit.setCommitString(QStringLiteral("12.75"));
             QCoreApplication::sendEvent(keyboard.Field(0), &commit);

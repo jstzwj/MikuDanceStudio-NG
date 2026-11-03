@@ -87,7 +87,7 @@ This closes that command's integration gap, not the complete clipboard/input gat
 | C1 scene rendering | Model outlines, texture morphs and screen history passed on three platforms; accessory self-shadow passed local DX9 comparisons on DX11/DX12/Vulkan; full C1 comparison pending |
 | WAV and synchronization | Qualified Windows silent profile and new CoreAudio/PulseAudio 120-second runs passed; latest Windows hosted runner has no audio device and reports unavailable; Linux uses an explicit 50 ms virtual queue; physical speaker latency and the default two-second cold null-sink profile are unqualified |
 | Fixed-step image sequence export and cancellation | Generated 30fps sequence, strict repeat and cancellation passed on three platforms |
-| Three-platform open/edit/play/save/reopen/export | Initial generated workflow passed; complete C1 workflow coverage pending |
+| Three-platform open/edit/play/save/reopen/export | Combined PMD/PMX, accessory/screen, WAV, physics, all-key-pool edit/save/reopen/export workflow passed at c097942; independent output qualification remains separate |
 | MMD v9.32 independent geometry, behavior and output comparison | Pending |
 | Input, IME, DPI, font metrics and lifecycle acceptance | Native surface lifecycle passed on all platforms; full input/IME/DPI/font acceptance pending |
 | CPU frame-production performance | Local Sour Miku complete offscreen CPU/GPU budget passed on DX11/DX12/Vulkan; generated three-platform CPU/GPU qualification passed at 6dbc9cf; physical presentation latency is separate |
@@ -3831,7 +3831,7 @@ save/reopen and frame-zero-warmed PNG sequence export. Save/reopen outputs must
 match exactly. Unloading invalidates the departed model's history, and a new
 session reopens the combined project. No native surface or audio device opens.
 The generated Windows DX11 WARP, DX12 WARP and hardware Vulkan runs passed;
-other platforms are pending CI. All 66 local P4 gates passed (300.33 seconds).
+Windows, macOS and Linux subsequently passed at de78145 and c097942. All 66 local P4 gates passed (300.33 seconds).
 This integration complements the independent native kernel comparisons rather
 than turning the shared editor into its own original-MMD oracle.
 
@@ -3893,3 +3893,36 @@ DPI and combined C1 export). The complete new DPI and combined-workflow profiles
 at de78145 passed Windows, macOS and Linux in
 [editor run 41601514221](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41601514221);
 formats, rendering and Bullet workflows also passed at that revision.
+
+
+## Composition-aware commands and hidden native input
+
+Preedit text exposed a real command-ordering defect: Return in the English-name
+dialog applied the raw edit contents before the input method committed its
+candidate. The regression failed before the fix. Text edits now process
+composition before MMD Return/Escape commands. Return requests an input-method
+commit and consumes that key; Escape cancels the composition without closing
+the dialog. A subsequent key retains the original command behavior. The helper
+handles both single-line and multiline edits, clears its state on focus loss or
+hide, and guards against widget destruction during input-context cancellation.
+
+Three-language tests cover frame seeking, English-name CP932 metadata, staged
+physics names and numeric-dialog acceptance. Preedit must not seek, evaluate a
+CPU frame, apply an incomplete name or close the active dialog. Committed text
+then follows the existing command path. The numeric and physics checks also run
+in the 125%, 150% and 200% profiles. Local ALL_BUILD and all 28 affected Qt P4
+gates passed (134.40 seconds). No desktop input or visible native window was used.
+
+The Windows-only `qt_native_input` gate uses the real windows QPA and sends
+WM_CHAR / WM_KEYDOWN / WM_KEYUP directly to its own never-shown child HWNDs.
+Japanese text, Return/Escape, frame dispatch and model metadata pass in all three
+languages, without OS focus, activation, SendInput or keyboard-layout changes.
+It verifies committed native-message delivery; it does not pretend to activate
+an OS IME candidate window or qualify physical per-monitor transitions. The
+Qt preedit protocol and native-message checks are separate evidence.
+
+All three editor platforms, formats, rendering and Bullet workflows passed the
+preceding font-profile revision c097942, including
+[editor run 41604019926](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41604019926).
+P4/C1 remains open for the independent composite output and complete native
+input/layout qualifications described above.

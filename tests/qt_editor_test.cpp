@@ -22,6 +22,7 @@
 #include <QSignalSpy>
 #include <QPointer>
 #include <QCloseEvent>
+#include <QInputMethodEvent>
 #include <QMenuBar>
 #include <QFileDialog>
 #include <QTimer>
@@ -265,6 +266,31 @@ int main(int argc, char** argv) {
     CHECK(QFontMetrics(window.font()).inFont(QChar('0')));
     CHECK(!window.isVisible());
     CHECK(window.SetLanguage("en"));
+    {
+        qt::EditorWindow ime(std::filesystem::absolute(argv[2]), true);
+        auto* frame = static_cast<QLineEdit*>(ime.Control(panel::kCurrentFrameEdit));
+        for (const char* language : {"en", "ja", "zh_CN"}) {
+            CHECK(ime.SetLanguage(language));
+            const auto before = ime.Session().Runtime().Counters().frames;
+            frame->setText("17");
+            frame->setModified(true);
+            frame->selectAll();
+            QInputMethodEvent composition(QStringLiteral("17"), {});
+            QCoreApplication::sendEvent(frame, &composition);
+            QTest::keyClick(frame, Qt::Key_Return);
+            CHECK(ime.Session().Document().timeline.currentFrame == 0 &&
+                  ime.Session().Runtime().Counters().frames == before);
+            QTest::keyClick(frame, Qt::Key_Escape);
+            CHECK(!ime.isVisible() && ime.Session().Document().timeline.currentFrame == 0);
+            QInputMethodEvent committed;
+            committed.setCommitString("17");
+            QCoreApplication::sendEvent(frame, &committed);
+            QTest::keyClick(frame, Qt::Key_Return);
+            CHECK(ime.Session().Document().timeline.currentFrame == 17);
+            CHECK(ime.Session().Seek(0, reason));
+            ime.Refresh();
+        }
+    }
     {
         qt::EditorWindow detached(std::filesystem::absolute(argv[2]), true);
         auto& session = detached.Session();
