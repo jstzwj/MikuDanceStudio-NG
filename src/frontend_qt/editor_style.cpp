@@ -1,4 +1,5 @@
 #include "editor_style.hpp"
+#include "editor_font.hpp"
 #include <QApplication>
 #include <QProxyStyle>
 #include <QStyleFactory>
@@ -51,6 +52,7 @@ public:
 };
 }
 void InstallEditorStyle(QApplication& app) {
+    InstallEditorFonts();
     if (app.style()->objectName() == "mmd.editorStyle")
         return;
     QStyle* base = nullptr;

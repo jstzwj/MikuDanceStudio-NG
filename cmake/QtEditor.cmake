@@ -93,6 +93,7 @@ function(mds_add_qt_editor)
         target_sources(MikuDanceStudioNG PRIVATE "${root}/res/frontend_qt/windows.manifest")
     endif()
     target_link_libraries(MikuDanceStudioNG PRIVATE mikudancestudio_frontend_qt)
+    include("${root}/cmake/EditorFonts.cmake")
     add_custom_command(TARGET MikuDanceStudioNG POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${root}/res/assets" "$<TARGET_FILE_DIR:MikuDanceStudioNG>/assets")
     include("${root}/cmake/QtDistribution.cmake")

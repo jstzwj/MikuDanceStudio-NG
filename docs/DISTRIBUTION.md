@@ -60,3 +60,9 @@ performance or release qualification on physical Intel/Apple Silicon devices.
 Qt's standard dialog translations are bundled in addition to the editor's
 embedded English, Japanese and Simplified Chinese catalogs. Runtime licenses
 and source references are under `licenses/`.
+
+The unmodified, OFL-licensed Noto Sans CJK 2.004 Regular collection is included
+for hosts without Japanese/Chinese system fonts. CMake fetches its pinned source
+revision and verifies SHA-256; offline builds can set `MDS_EDITOR_FONT_FILE` to
+that same TTC. Installed original fonts keep priority. This fallback supplies
+glyphs and is not a claim of identical Windows font metrics on other systems.

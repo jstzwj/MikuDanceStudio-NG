@@ -1,5 +1,6 @@
 """Run the relocated production package with no SDK search paths or visible UI."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -100,6 +101,13 @@ def main():
             raise RuntimeError(f'Relocated distribution failed ({result.returncode}); see {diagnostic.with_suffix(".log")}')
         evidence = json.loads(report.read_text(encoding='utf-8'))
         evidence['profiles'] = profile_checks
+        if not evidence.get('bundledFonts') or not (package / 'licenses/NotoSansCJK/NotoSansCJK-OFL.txt').is_file():
+            raise RuntimeError('Package is missing its redistributable CJK fonts or license')
+        fonts = (package / 'MikuDanceStudioNG.app/Contents/Resources/fonts' if system == 'Darwin'
+                 else exe.parent / 'fonts')
+        with (fonts / 'NotoSansCJK-Regular.ttc').open('rb') as font:
+            if hashlib.file_digest(font, 'sha256').hexdigest() != 'b76b0433203017ca80401b2ee0dd69350349871c4b19d504c34dbdd80541690a':
+                raise RuntimeError('Packaged Noto CJK collection is not the qualified unmodified version')
         for key in ('plugins', 'translations', 'assets'):
             path = Path(evidence[key]).resolve()
             if not path.is_relative_to(package) or not path.is_dir():

@@ -117,11 +117,13 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
     setWindowTitle(language.Text(template_.title));
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     QFont font;
-    font.setFamilies(language.Code() == "en"
-                         ? QStringList{QString::fromUtf8(template_.fontFamily), "Liberation Sans",
-                                       "Helvetica", "DejaVu Sans"}
-                         : QStringList{QString::fromUtf8(template_.fontFamily), "Noto Sans CJK SC",
-                                       "Hiragino Sans", "Microsoft YaHei", "PingFang SC"});
+    font.setFamilies(
+        language.Code() == "en"
+            ? QStringList{QString::fromUtf8(template_.fontFamily), "Liberation Sans", "Helvetica",
+                          "DejaVu Sans"}
+            : QStringList{QString::fromUtf8(template_.fontFamily),
+                          language.Code() == "ja" ? "Noto Sans CJK JP" : "Noto Sans CJK SC",
+                          "Hiragino Sans", "Microsoft YaHei", "PingFang SC"});
     font.setPixelSize(template_.pointSize * 96 / 72);
     setFont(font);
     // Original 96-DPI Arial / MS PGothic dialog base units, independently

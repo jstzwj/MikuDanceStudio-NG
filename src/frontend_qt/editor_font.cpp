@@ -1,4 +1,7 @@
 #include "editor_font.hpp"
+#include <QCoreApplication>
+#include <QFontDatabase>
+#include <QFileInfo>
 #include <map>
 #include <tuple>
 #ifdef _WIN32
@@ -8,6 +11,22 @@
 #endif
 
 namespace mikudancestudio::qt {
+bool InstallEditorFonts() {
+    static const bool loaded = [] {
+        const auto directory = QCoreApplication::applicationDirPath();
+        for (const auto& path : {directory + "/fonts/NotoSansCJK-Regular.ttc",
+                                 directory + "/../Resources/fonts/NotoSansCJK-Regular.ttc"}) {
+            if (!QFileInfo::exists(path))
+                continue;
+            const auto id = QFontDatabase::addApplicationFont(path);
+            const auto families = QFontDatabase::applicationFontFamilies(id);
+            return id >= 0 && families.contains("Noto Sans CJK JP") &&
+                   families.contains("Noto Sans CJK SC");
+        }
+        return false;
+    }();
+    return loaded;
+}
 QFont GlyphFont(const QString& language, int pixels, bool bold) {
     // Font mapping is stable within a UI session. Never create GDI objects on
     // each label paint; the cache contains only Qt value objects.

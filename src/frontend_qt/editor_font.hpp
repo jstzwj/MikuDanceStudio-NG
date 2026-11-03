@@ -4,6 +4,9 @@
 #include <QStringList>
 
 namespace mikudancestudio::qt {
+// Registers the packaged OFL font collection, without replacing installed
+// original Windows fonts. False means the runtime package is incomplete.
+bool InstallEditorFonts();
 inline QFont EditorFont(const QString& language) {
     QFont font;
     if (language == "en") {

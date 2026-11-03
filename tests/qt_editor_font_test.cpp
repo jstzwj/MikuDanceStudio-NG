@@ -74,6 +74,13 @@ int main(int argc, char** argv) {
         QFontDatabase::addApplicationFont(qEnvironmentVariable("WINDIR") + "/Fonts/" + file);
 #endif
     qt::EditorWindow window(std::filesystem::absolute(argv[1]), true);
+    CHECK(qt::InstallEditorFonts());
+    for (const char* family : {"Noto Sans CJK JP", "Noto Sans CJK SC"}) {
+        QFont font(QString::fromLatin1(family));
+        const QFontMetrics metrics(font);
+        for (const auto code : {0x65e5, 0x672c, 0x8a9e, 0x4e2d, 0x6587, 0x7b80, 0x4f53})
+            CHECK(metrics.inFont(QChar(code)));
+    }
     const auto style = app.style();
     CHECK(style->objectName() == "mmd.editorStyle");
     qt::InstallEditorStyle(app);

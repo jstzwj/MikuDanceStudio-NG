@@ -1,5 +1,6 @@
 #include "editor_window.hpp"
 #include "editor_style.hpp"
+#include "editor_font.hpp"
 #include <QApplication>
 #include <QProxyStyle>
 #include <QCommandLineParser>
@@ -77,6 +78,7 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
     const auto proxy = qobject_cast<QProxyStyle*>(qApp->style());
     const auto styleBase = proxy ? proxy->baseStyle()->objectName() : qApp->style()->objectName();
     QJsonObject result{{"qt", qVersion()},
+                       {"bundledFonts", mikudancestudio::qt::InstallEditorFonts()},
                        {"platform", QGuiApplication::platformName()},
                        {"styleBase", styleBase},
                        {"languages", languages},

@@ -4,6 +4,14 @@ Status: **in progress**. P4 and C1 have not been accepted. The current work also
 includes strict MMD v9.32 layout/behavior parity and multilingual UI, as requested
 on 2026-11-01. These are acceptance requirements, not claims about this revision.
 
+The Qt runtime now carries the hash-pinned, unmodified Noto Sans CJK 2.004 Regular
+collection and OFL notice. Installed original fonts remain preferred. Both JP and
+SC faces and representative Japanese/Simplified Chinese glyphs are checked in the
+font gate; relocated packages must load the collection without SDK paths and
+retain its exact hash/license. This closes dependence on CJK fonts preinstalled
+by the host for basic display. It does not qualify identical Windows glyph
+rasterization on macOS/Linux. Japanese dialogs select the JP fallback face.
+
 The macOS Qt viewport now defaults to native Metal, with Vulkan available for
 comparisons. Window generations, Retina, actual drawable pixels, backend switching
 and relocated packages have separate [Metal acceptance evidence](METAL_BACKEND.md).
