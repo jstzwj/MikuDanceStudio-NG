@@ -18,6 +18,7 @@
 #include <QSaveFile>
 #include <QTimer>
 #include <cstdio>
+#include <optional>
 #ifdef __APPLE__
 void ActivateCocoaInputWindow(std::uintptr_t);
 std::string ActivateCocoaJapanese();
@@ -25,8 +26,15 @@ std::string ActivateCocoaJapanese();
 
 using namespace mikudancestudio;
 namespace {
+struct LifetimeTrace {
+    const char* name;
+    ~LifetimeTrace() {
+        std::fprintf(stderr, "IME destroyed %s\n", name);
+        std::fflush(stderr);
+    }
+};
 #ifdef _WIN32
-QString ActivateJapaneseIme(HWND window) {
+QString ActivateJapaneseIme(HWND window, std::optional<TF_INPUTPROCESSORPROFILE>& previous) {
     using Microsoft::WRL::ComPtr;
     ComPtr<ITfInputProcessorProfiles> profiles;
     auto result = CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr, CLSCTX_INPROC_SERVER,
@@ -44,6 +52,12 @@ QString ActivateJapaneseIme(HWND window) {
             continue;
         ComPtr<ITfInputProcessorProfileMgr> manager;
         result = profiles.As(&manager);
+        if (SUCCEEDED(result) && !previous) {
+            TF_INPUTPROCESSORPROFILE active{};
+            result = manager->GetActiveProfile(GUID_TFCAT_TIP_KEYBOARD, &active);
+            if (SUCCEEDED(result))
+                previous = active;
+        }
         if (SUCCEEDED(result))
             result = manager->ActivateProfile(TF_PROFILETYPE_INPUTPROCESSOR, 0x411, profile.clsid,
                                               profile.guidProfile, nullptr,
@@ -66,6 +80,27 @@ QString ActivateJapaneseIme(HWND window) {
         return opened && converted ? QString() : QString("Cannot select native Hiragana mode");
     }
     return "No installed Japanese TSF keyboard profile";
+}
+void RestoreInputProfile(HWND window, const std::optional<TF_INPUTPROCESSORPROFILE>& previous) {
+    std::fprintf(stderr, "IME restoring input context\n");
+    std::fflush(stderr);
+    if (const auto context = ImmGetContext(window)) {
+        ImmSetOpenStatus(context, FALSE);
+        ImmReleaseContext(window, context);
+    }
+    if (previous) {
+        Microsoft::WRL::ComPtr<ITfInputProcessorProfileMgr> manager;
+        auto result = CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr, CLSCTX_INPROC_SERVER,
+                                       IID_PPV_ARGS(&manager));
+        if (SUCCEEDED(result))
+            result = manager->ActivateProfile(previous->dwProfileType, previous->langid,
+                                               previous->clsid, previous->guidProfile, previous->hkl,
+                                               TF_IPPMF_FORPROCESS |
+                                                   TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE);
+        std::fprintf(stderr, "IME restored original TSF profile: 0x%lx\n",
+                     static_cast<unsigned long>(result));
+        std::fflush(stderr);
+    }
 }
 #endif
 class InputObserver final : public QObject {
@@ -98,6 +133,7 @@ public:
 };
 }
 int main(int argc, char** argv) {
+    LifetimeTrace applicationTrace{"application"};
     qInstallMessageHandler(
         [](QtMsgType, const QMessageLogContext& context, const QString& message) {
             std::fprintf(stderr, "%s: %s\n", context.category, message.toUtf8().constData());
@@ -117,6 +153,7 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "Requires isolated CI platform IME: model language status command\n");
         return 2;
     }
+    LifetimeTrace sessionTrace{"session"};
     editor::EditorSession session;
     std::string reason;
     if (!session.New(reason) || !session.ImportModel(std::filesystem::u8path(argv[1]), reason) ||
@@ -127,6 +164,7 @@ int main(int argc, char** argv) {
     qt::Language language;
     if (!language.Set(argv[2]))
         return 1;
+    LifetimeTrace dialogTrace{"dialog"};
     qt::EnglishNameDialog dialog(session, language);
     dialog.setWindowTitle(QString("MDS-IBus-%1").arg(argv[2]));
     QLineEdit* field = nullptr;
@@ -135,6 +173,7 @@ int main(int argc, char** argv) {
             field = edit;
     if (!field || !dialog.Active())
         return 1;
+    LifetimeTrace observerTrace{"observer/timer"};
     InputObserver observer;
     field->installEventFilter(&observer);
     dialog.failed = [&](const std::string& error) { reason = error; };
@@ -143,6 +182,9 @@ int main(int argc, char** argv) {
     unsigned command = 0;
     unsigned publicationFailures = 0, publicationRetries = 0;
     bool finishing = false;
+#ifdef _WIN32
+    std::optional<TF_INPUTPROCESSORPROFILE> previousProfile;
+#endif
     QTimer timer;
     QObject::connect(&timer, &QTimer::timeout, [&] {
         QFile input(QString::fromLocal8Bit(argv[4]));
@@ -168,8 +210,8 @@ int main(int argc, char** argv) {
                 }
 #ifdef _WIN32
                 else if (request["action"] == "activate-ime")
-                    reason =
-                        ActivateJapaneseIme(reinterpret_cast<HWND>(dialog.winId())).toStdString();
+                    reason = ActivateJapaneseIme(reinterpret_cast<HWND>(dialog.winId()),
+                                                   previousProfile).toStdString();
 #endif
 #ifdef __APPLE__
                 else if (request["action"] == "activate-ime")
@@ -232,9 +274,15 @@ int main(int argc, char** argv) {
         publicationFailures = 0;
         if (finishing) {
             timer.stop();
+            const auto result = unchanged && dialog.Active() && reason.empty() ? 0 : 1;
+#ifdef _WIN32
+            RestoreInputProfile(reinterpret_cast<HWND>(dialog.winId()), previousProfile);
+#endif
+            field->clearFocus();
+            dialog.hide();
             std::fprintf(stderr, "IME finish snapshot published; leaving event loop\n");
             std::fflush(stderr);
-            app.exit(unchanged && dialog.Active() && reason.empty() ? 0 : 1);
+            app.exit(result);
         }
     });
     dialog.show();

@@ -77,12 +77,17 @@ class MacInput:
     def key(self, pid, code):
         if not self.cg.CGPreflightPostEventAccess():
             raise RuntimeError('The isolated runner has no macOS event-posting permission')
-        workspace = self.send_object(self.objc.objc_getClass(b'NSWorkspace'),
-                                     self.objc.sel_registerName(b'sharedWorkspace'))
-        application = self.send_object(workspace, self.objc.sel_registerName(b'frontmostApplication'))
-        foreground = self.send_pid(application, self.objc.sel_registerName(b'processIdentifier'))
+        deadline = time.monotonic() + 2
+        while True:
+            workspace = self.send_object(self.objc.objc_getClass(b'NSWorkspace'),
+                                         self.objc.sel_registerName(b'sharedWorkspace'))
+            application = self.send_object(workspace, self.objc.sel_registerName(b'frontmostApplication'))
+            foreground = self.send_pid(application, self.objc.sel_registerName(b'processIdentifier'))
+            if foreground == pid or time.monotonic() >= deadline:
+                break
+            time.sleep(.025)
         if foreground != pid:
-            raise RuntimeError('Input refused: the test client is not the active macOS application')
+            raise RuntimeError(f'Input refused: foreground application={foreground}; client={pid}')
         for down in (True, False):
             event = self.cg.CGEventCreateKeyboardEvent(None, code, down)
             if not event:
