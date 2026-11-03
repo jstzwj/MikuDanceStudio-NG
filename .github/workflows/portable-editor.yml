@@ -129,7 +129,7 @@ jobs:
         run: out/p4/qt_control_style_test.exe --isolated-nonclient out/p4/control-style-nonclient
       - name: Qualify native Japanese input and command ordering
         if: ${{ !cancelled() && inputs.system_ime }}
-        shell: pwsh
+        shell: powershell
         env:
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: |

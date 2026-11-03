@@ -17,6 +17,10 @@
 #include <QSaveFile>
 #include <QTimer>
 #include <cstdio>
+#ifdef __APPLE__
+void ActivateCocoaInputWindow(std::uintptr_t);
+std::string ActivateCocoaJapanese();
+#endif
 
 using namespace mikudancestudio;
 namespace {
@@ -132,11 +136,18 @@ int main(int argc, char** argv) {
                     }
                     field->setFocus();
                     field->selectAll();
+#ifdef __APPLE__
+                    ActivateCocoaInputWindow(std::uintptr_t(dialog.winId()));
+#endif
                 }
 #ifdef _WIN32
                 else if (request["action"] == "activate-ime")
                     reason =
                         ActivateJapaneseIme(reinterpret_cast<HWND>(dialog.winId())).toStdString();
+#endif
+#ifdef __APPLE__
+                else if (request["action"] == "activate-ime")
+                    reason = ActivateCocoaJapanese();
 #endif
                 else if (request["action"] == "finish")
                     finishing = true;
@@ -156,6 +167,7 @@ int main(int argc, char** argv) {
             {"qt", qVersion()},
             {"command", int(command)},
             {"focus", field->hasFocus()},
+            {"windowActive", dialog.isActiveWindow()},
             {"active", dialog.Active()},
             {"preedit", observer.preedit},
             {"preedits", int(observer.preedits)},

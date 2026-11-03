@@ -63,7 +63,8 @@ class MacInput:
             raise RuntimeError(f'Cannot enable/select Japanese Romaji/Hiragana: {enabled}/{selected}')
 
     def activate(self, command, wait):
-        self.select()
+        sequence = command('activate-ime')
+        wait(lambda s: s['command'] == sequence, 'native input-mode activation')
 
     def key(self, pid, code):
         if not self.cg.CGPreflightPostEventAccess():
