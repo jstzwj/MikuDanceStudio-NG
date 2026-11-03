@@ -230,7 +230,7 @@ jobs:
           MDS_GPU_DRIVER: software
         run: ctest --test-dir out/p4 -L native-reference --output-on-failure --output-junit native-reference.xml
       - name: Qualify real IBus composition and command ordering
-        if: inputs.system_ime
+        if: ${{ !cancelled() && inputs.system_ime }}
         env:
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: |
