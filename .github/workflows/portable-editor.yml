@@ -19,6 +19,11 @@ on:
         description: macOS acceptance image
         default: macos-15
         options: [macos-15, macos-26]
+      windows_runner:
+        type: choice
+        description: Windows acceptance image
+        default: windows-2022
+        options: [windows-2022, windows-2025]
       native_reference:
         type: boolean
         description: Strict qualification against the original hardware composite capture
@@ -32,14 +37,14 @@ on:
         description: Qualify real platform IMEs on isolated Windows, Linux and macOS runners
         default: false
 concurrency:
-  group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}-${{ inputs.system_ime && 'ime' || inputs.native_controls && 'controls' || inputs.native_reference && 'reference' || 'regular' }}
+  group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}-${{ inputs.windows_runner || 'windows-2022' }}-${{ inputs.system_ime && 'ime' || inputs.native_controls && 'controls' || inputs.native_reference && 'reference' || 'regular' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
   windows:
     if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'windows'
-    runs-on: windows-2022
+    runs-on: ${{ inputs.windows_runner || 'windows-2022' }}
     env:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
       SCCACHE_CACHE_SIZE: 700M
@@ -73,8 +78,8 @@ jobs:
         id: objects
         with:
           path: .cache/sccache
-          key: editor-objects-windows2022-x64-qt683-${{ github.sha }}
-          restore-keys: editor-objects-windows2022-x64-qt683-
+          key: editor-objects-${{ inputs.windows_runner || 'windows-2022' }}-x64-qt683-${{ github.sha }}
+          restore-keys: editor-objects-${{ inputs.windows_runner || 'windows-2022' }}-x64-qt683-
       - uses: actions/cache@v4
         id: renderer-tools
         with:
@@ -182,7 +187,7 @@ jobs:
         if: always() && !cancelled() && github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
         with:
           path: .cache/sccache
-          key: editor-objects-windows2022-x64-qt683-${{ github.sha }}
+          key: editor-objects-${{ inputs.windows_runner || 'windows-2022' }}-x64-qt683-${{ github.sha }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
