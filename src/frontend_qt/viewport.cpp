@@ -420,8 +420,13 @@ void Viewport::CancelInput() {
         changed(true, {});
 }
 bool Viewport::event(QEvent* event) {
+    const bool geometryChanged = event->type() == QEvent::ScreenChangeInternal ||
+                                 event->type() == QEvent::DevicePixelRatioChange ||
+                                 event->type() == QEvent::Resize;
+    if (geometryChanged)
+        frameCached_ = false;
     if (event->type() == QEvent::FocusOut || event->type() == QEvent::Hide ||
-        event->type() == QEvent::UngrabMouse) {
+        event->type() == QEvent::UngrabMouse || geometryChanged) {
         CancelInput();
     }
     if (event->type() == QEvent::PlatformSurface &&

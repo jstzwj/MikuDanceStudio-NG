@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QMouseEvent>
 #include <QFocusEvent>
+#include <QResizeEvent>
 #include <iostream>
 #include <cmath>
 using namespace mikudancestudio;
@@ -74,6 +75,26 @@ int main(int argc, char** argv) {
     session.EndGesture();
     CHECK(session.Undo(reason));
     CHECK(session.Document().models[0].bonePose[0].components == initial);
+    // A drag retains projection dimensions and physical anchors. A screen/DPR
+    // transition must finish it before motion uses the new coordinate space.
+    for (auto type : {QEvent::ScreenChangeInternal, QEvent::DevicePixelRatioChange, QEvent::Resize}) {
+        mouse(QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
+        mouse(QEvent::MouseMove, start - QPointF(0, 10), Qt::NoButton, Qt::LeftButton);
+        const auto committed = session.Document().models[0].bonePose[0].components;
+        std::unique_ptr<QEvent> transition;
+        if (type == QEvent::Resize)
+            transition = std::make_unique<QResizeEvent>(QSize(800, 600), viewport.size());
+        else
+            transition = std::make_unique<QEvent>(type);
+        QCoreApplication::sendEvent(&viewport, transition.get());
+        CHECK(viewport.cursor().shape() != Qt::BlankCursor);
+        CHECK(session.BeginGesture());
+        session.EndGesture();
+        mouse(QEvent::MouseMove, start - QPointF(0, 30), Qt::NoButton, Qt::LeftButton);
+        CHECK(session.Document().models[0].bonePose[0].components == committed);
+        CHECK(session.Undo(reason));
+        CHECK(session.Document().models[0].bonePose[0].components == initial);
+    }
     // Direct cursor movement enters temporary ToolDrag and returns to Move on release.
     CHECK(session.PrepareView(reason));
     std::vector<cpu_bone::ScreenPoint> points;
@@ -139,6 +160,17 @@ int main(int argc, char** argv) {
     const auto stopped = session.Document().cameraState;
     mouse(QEvent::MouseMove, cameraAngle - QPointF(0, 30), Qt::NoButton, Qt::LeftButton);
     CHECK(session.Document().cameraState == stopped);
+    for (auto type : {QEvent::ScreenChangeInternal, QEvent::DevicePixelRatioChange}) {
+        mouse(QEvent::MouseButtonPress, cameraX, Qt::LeftButton, Qt::LeftButton);
+        mouse(QEvent::MouseMove, cameraX - QPointF(0, 10), Qt::NoButton, Qt::LeftButton);
+        const auto committed = session.Document().cameraState;
+        QEvent transition(type);
+        QCoreApplication::sendEvent(&viewport, &transition);
+        CHECK(viewport.cursor().shape() != Qt::BlankCursor);
+        mouse(QEvent::MouseMove, cameraX - QPointF(0, 30), Qt::NoButton, Qt::LeftButton);
+        CHECK(session.Document().cameraState == committed);
+        CHECK(session.Runtime().Counters().frames == frames && !session.CanUndo());
+    }
     CHECK(!viewport.isVisible() && viewport.Submissions() == 0);
     std::cout
         << "Qt synthetic bone gestures, axis hit, selection inheritance, focus loss, undo and DPR passed without a surface\n";

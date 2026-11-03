@@ -3973,3 +3973,21 @@ The additional public camera-input gate passed and is now labelled P3/P4 and
 built by each editor CI job. The machine-readable
 [composite evidence](evidence/cross-platform-p4-composite.json) deliberately
 records `accepted: false` and all 96 color/shadow results.
+
+
+## Screen/DPR changes during live gestures
+
+A regression reproduced a viewport defect before the fix: ScreenChangeInternal
+left the blank cursor and active bone gesture in place. Physical drag anchors
+and projection dimensions then belonged to the old screen while later motion
+used the new pixel ratio. Screen, device-pixel-ratio and resize events now end
+the active tool/box gesture and invalidate the prepared frame. Previously
+committed movement remains one undo entry; later motion cannot continue it.
+The same cancellation covers camera, physics and header tool state.
+
+Bone and camera cancellation checks passed at 100%, 125%, 150% and 200%. The
+10 affected editor/C1/physics/DPI tests passed, followed by all four expanded
+bone-drag profiles. Native Qt lifecycle tests also passed DX11 WARP, DX12 WARP
+and hardware Vulkan, including resize, device replacement, detach/dock,
+destroy/recreate and unload; every local window stayed hidden. This validates
+the event boundary and lifecycle, not physical movement between real monitors.
