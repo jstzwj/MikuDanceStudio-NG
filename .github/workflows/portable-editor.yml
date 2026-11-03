@@ -130,6 +130,8 @@ jobs:
           out/p4/qt_control_style_test.exe --isolated-nonclient out/p4/control-style-nonclient
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           out/p4/qt_control_style_test.exe --isolated-content out/p4/control-content-visible
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          out/p4/qt_control_style_test.exe --isolated-list-focus out/p4/control-list-focus
       - name: Qualify native Japanese input and command ordering
         if: ${{ !cancelled() && inputs.system_ime }}
         shell: powershell
@@ -185,6 +187,7 @@ jobs:
             out/p4/control-style/
             out/p4/control-style-nonclient/
             out/p4/control-content-visible/
+            out/p4/control-list-focus/
             out/p4/distribution-check.*
             out/p4/editor-frame-performance*.json
             out/p4/native-audio*.json

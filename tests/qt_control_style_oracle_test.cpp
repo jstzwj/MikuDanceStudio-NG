@@ -223,11 +223,12 @@ int main(int argc, char** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     QApplication app(argc, argv);
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
+    const bool focused = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-list-focus";
     const bool visible = argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--isolated-nonclient" ||
-                                      QString::fromLocal8Bit(argv[1]) == "--isolated-content");
+                                      QString::fromLocal8Bit(argv[1]) == "--isolated-content" || focused);
     const bool text = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--text";
     const bool content = argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--content" ||
-                                      QString::fromLocal8Bit(argv[1]) == "--isolated-content");
+                                      QString::fromLocal8Bit(argv[1]) == "--isolated-content" || focused);
     Check(argc == 2 || visible || text || content,
           "usage: [--isolated-nonclient|--text|--content] output-directory");
     Check(!visible || (qEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
@@ -235,6 +236,7 @@ int main(int argc, char** argv) try {
           "visible control qualification requires an isolated GitHub runner");
 #else
     constexpr bool visible = false;
+    constexpr bool focused = false;
     const bool text = argc == 4 && QString::fromLocal8Bit(argv[1]) == "--text";
     const bool content = argc == 4 && QString::fromLocal8Bit(argv[1]) == "--content";
     Check(argc == 3 || text || content, "usage: [--text|--content] original.exe output-directory");
@@ -334,15 +336,19 @@ int main(int argc, char** argv) try {
         if (visible) {
             // Explicit runner-only path; never enabled by a local CTest label.
             dialog.setAttribute(Qt::WA_ShowWithoutActivating);
-            dialog.setWindowFlag(Qt::WindowDoesNotAcceptFocus);
-            for (auto* child : dialog.findChildren<QWidget*>())
-                child->setFocusPolicy(Qt::NoFocus);
+            if (!focused) {
+                dialog.setWindowFlag(Qt::WindowDoesNotAcceptFocus);
+                for (auto* child : dialog.findChildren<QWidget*>())
+                    child->setFocusPolicy(Qt::NoFocus);
+            }
             dialog.show();
             ShowWindow(native, SW_SHOWNOACTIVATE);
             QCoreApplication::processEvents();
         }
         for (std::size_t index = 0; index < description->count; ++index) {
             const auto& entry = description->controls[index];
+            if (focused && entry.kind != NumericControlKind::Listbox)
+                continue;
             // WM_PRINT omits hidden EDIT nonclient paint. The hidden border
             // regression therefore compares only the GDI WS_BORDER primitive;
             // complete EDIT painting is qualified separately in isolated CI.
@@ -470,7 +476,8 @@ int main(int argc, char** argv) try {
                 SendMessageW(control, TBM_SETRANGE, FALSE, MAKELONG(0, 100));
                 SendMessageW(control, TBM_SETTICFREQ, 1000, 0);
             }
-            for (unsigned state = 0; state < (slider                                      ? 8u
+            for (unsigned state = 0; state < (focused                                     ? 1u
+                                              : slider                                      ? 8u
                                               : entry.kind == NumericControlKind::Listbox ? 4u
                                               : !button                                   ? 2u
                                               : button->isCheckable()                     ? 6u
@@ -525,6 +532,17 @@ int main(int argc, char** argv) try {
                     button->setChecked(checked);
                 }
                 if (visible) {
+                    if (focused) {
+                        auto* list = qobject_cast<QListWidget*>(widget);
+                        Check(list != nullptr, "focus qualification list");
+                        list->setCurrentRow(0);
+                        SendMessageW(control, LB_SETCURSEL, 0, 0);
+                        SetActiveWindow(native);
+                        SetFocus(control);
+                        Check(GetFocus() == control, "native list owns actual keyboard focus");
+                        SendMessageW(control, WM_UPDATEUISTATE,
+                                     MAKEWPARAM(UIS_CLEAR, UISF_HIDEFOCUS), 0);
+                    }
                     RedrawWindow(native, nullptr, nullptr,
                                  RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN |
                                      RDW_UPDATENOW);
@@ -532,6 +550,14 @@ int main(int argc, char** argv) try {
                     QCoreApplication::processEvents();
                 }
                 const auto expected = NativeImage(control, visible, borderOnly);
+                if (focused) {
+                    dialog.activateWindow();
+                    SetActiveWindow(reinterpret_cast<HWND>(dialog.winId()));
+                    QApplication::setActiveWindow(&dialog);
+                    widget->setFocus(Qt::TabFocusReason);
+                    QCoreApplication::processEvents();
+                    Check(widget->hasFocus(), "Qt list owns actual keyboard focus");
+                }
                 widget->resize(expected.size());
                 QImage actual(expected.size(), QImage::Format_RGB32);
                 actual.fill(app.palette().window().color());
@@ -588,7 +614,7 @@ int main(int argc, char** argv) try {
         {"comparison", visible && !content
                            ? "exact RGB, EDIT normal/disabled including nonclient"
                            : "exact RGB, normal/disabled/pressed, checked/unchecked"},
-        {"keyboardFocusCues", false},
+        {"keyboardFocusCues", focused},
         {"textGlyphs", text || content},
         {"listContent", content},
         {"comboLayouts", comboLayouts},
