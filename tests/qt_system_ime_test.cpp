@@ -248,6 +248,17 @@ int main(int argc, char** argv) {
             {"name", QString::fromUtf8(editor::EnglishNameDisplay(names.name).c_str())},
             {"sceneUnchanged", unchanged},
             {"error", QString::fromStdString(reason)}};
+#ifdef _WIN32
+        if (const auto context = ImmGetContext(reinterpret_cast<HWND>(dialog.winId()))) {
+            DWORD conversion = 0, sentence = 0;
+            ImmGetConversionStatus(context, &conversion, &sentence);
+            report.insert("nativeIme", QJsonObject{
+                {"conversion", int(conversion)}, {"sentence", int(sentence)},
+                {"open", bool(ImmGetOpenStatus(context))},
+                {"keyboardLayout", QString::number(quintptr(GetKeyboardLayout(0)), 16)}});
+            ImmReleaseContext(reinterpret_cast<HWND>(dialog.winId()), context);
+        }
+#endif
         QSaveFile output(QString::fromLocal8Bit(argv[3]));
         if (!output.open(QIODevice::WriteOnly) ||
             output.write(QJsonDocument(report).toJson()) < 0) {

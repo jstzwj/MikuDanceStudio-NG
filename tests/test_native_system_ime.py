@@ -180,13 +180,14 @@ class WindowsInput:
             raise RuntimeError(f'Input refused: foreground owner={owner.value}, '
                                f'window={foreground}, class={window_class.value!r}; client={pid}')
         virtual = {45: ord('N'), 34: ord('I'), 4: ord('H'), 31: ord('O'),
-                   49: 0x20, 36: 0x0D, 53: 0x1B}[code]
+                   49: 0x20, 44: 0x1C, 36: 0x0D, 53: 0x1B}[code]
         scan = self.user.MapVirtualKeyW(virtual, 0)
         for down in (True, False):
             event = self.Input()
             event.type = 1
             event.data.keyboard.scan = scan
-            event.data.keyboard.flags = 8 | (0 if down else 2)
+            event.data.keyboard.key = 0 if scan else virtual
+            event.data.keyboard.flags = (8 if scan else 0) | (0 if down else 2)
             if self.user.SendInput(1, c.byref(event), c.sizeof(event)) != 1:
                 raise RuntimeError(f'Native key input failed: {c.get_last_error()}')
             time.sleep(.025)
@@ -309,7 +310,10 @@ def main():
                     # flag emoji), rather than starting conversion as on Windows.
                     live_conversion = '\u65e5\u672c' in preedit['preedit']
                     if not live_conversion:
-                        native.key(client.pid, 49)  # Space: candidate conversion
+                        # Use the native JIS Henkan key on Windows. A prediction
+                        # panel can treat Space as finalization or a full-width
+                        # space; Henkan explicitly requests candidate conversion.
+                        native.key(client.pid, 44 if sys.platform == 'win32' else 49)
                     converted = wait(lambda s: '\u65e5\u672c' in s['preedit'] or
                                      (s['commits'] == 1 and s['committed'] == '\u65e5\u672c'),
                                      'Japanese candidate conversion')
@@ -351,7 +355,8 @@ def main():
                                                'conversion': converted, 'commit': committed,
                                                'apply': applied, 'imeReturn': ime_return,
                                                'cancel': cancelled, 'candidateKeys': commit_keys,
-                                               'conversionMode': 'live' if live_conversion else 'space',
+                                               'conversionMode': 'live' if live_conversion else
+                                                   'henkan' if sys.platform == 'win32' else 'space',
                                                'candidateCommitKey': 'return' if commit_keys else 'conversion',
                                                'returnKeys': return_keys, 'cancelKeys': cancel_keys})
                     command('finish')
