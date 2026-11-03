@@ -38,7 +38,7 @@ on:
         default: false
 concurrency:
   group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}-${{ inputs.windows_runner || 'windows-2022' }}-${{ inputs.system_ime && 'ime' || inputs.native_controls && 'controls' || inputs.native_reference && 'reference' || 'regular' }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 permissions:
   contents: read
 jobs:
