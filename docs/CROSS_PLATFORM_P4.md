@@ -3835,3 +3835,30 @@ other platforms are pending CI. All 66 local P4 gates passed (300.33 seconds).
 This integration complements the independent native kernel comparisons rather
 than turning the shared editor into its own original-MMD oracle.
 
+The optional original-executable scene oracle now accepts `MDS_TEST_COMPOSITE=1`.
+It independently loads two .x accessories through original RVA DC560, builds the
+ground through F3C0, places the image quad through 68CB0 and executes the original
+shadow/frame routines. Only scalar settings, public files and the explicit
+portable trilinear sampling profile are common inputs. Native D3DX image resize
+and mip generation are independent of portable image preparation. Original
+accessory ownership is shared with the existing native scene fixture.
+
+This diagnostic exposed a Vulkan ordinary-line bug: Bresenham was enabled for
+polygon wireframe, but LineList still used the implementation's default line
+rasterization. The backend now negotiates Bresenham independently of non-solid
+polygon support and also uses it for ordinary lines. A public two-endpoint line
+regression checks the complete diamond-exit coverage map at even/odd widths;
+DX11 WARP, DX12 WARP and hardware Vulkan passed it and all existing wireframe
+checks. The composite PMD's 24 original comparisons now pass, with exact Alpha
+and coverage, RGB error at most one and shadow depth within 1e-6.
+
+The complete 48-case composite diagnostic remains **failed**, with 24 PMX cases
+outside the existing color tolerance. All backends reproduce the remaining
+coplanar ground-line/projected-shadow differences (15 pixels at 512, eight at
+257 in each tested PMX frame; RGB maximum 86/85). Alpha and color coverage agree;
+shadow-map error is below 1.5e-7. Neither comparison tolerance nor draw ordering
+was changed. A test of moving the ordinary material pixel-center correction to
+the viewport did not resolve these PMX cases and was discarded. Independent
+combined-scene output acceptance therefore stays open. Raw local results are
+`out/p4-original-composite.log` and its `.rgba`/`.f32` output directory; the
+original executable and generated private evidence are not distributed.

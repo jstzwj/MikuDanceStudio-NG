@@ -6,6 +6,8 @@
 #include "mikudancestudio/rhi_scene_renderer.hpp"
 #include "self_shadow_compare.hpp"
 #include "d3d9_device_fixture.hpp"
+#include "original_accessory_fixture.hpp"
+#include "../src/render/background_quad.hpp"
 
 namespace {
 // Explicit test profile only: the ordinary D3D9 path remains the default.
@@ -77,6 +79,131 @@ struct ExPoolDevice : SnapshotDeviceFixture {
                                        shared);
     }
 };
+// Common inputs are files and explicit editable scalar values. Each path loads
+// its own mesh/texture and constructs its own draw geometry independently.
+struct OriginalComposite {
+    NativeAccessories accessories;
+    MMDApp& app;
+    Com<IDirect3DTexture9> picture;
+    OriginalComposite(Fixture& fixture, OriginalModel& original, editor::EditorSession& session,
+                      const D3DXVECTOR3& focus, bool pmx)
+        : accessories(original), app(*fixture.app) {
+        const auto mesh = fixture.directory / "composite.x";
+        std::ofstream(mesh) << R"X(xof 0303txt 0032
+Mesh {3;0.0;0.0;0.0;,4.0;0.0;0.0;,0.0;4.0;0.0;;
+2;3;0,2,1;,3;0,1,2;;
+MeshNormals {1;0.0;0.0;-1.0;;2;3;0,0,0;,3;0,0,0;;}
+MeshTextureCoords {3;0.0;0.0;,1.0;0.0;,0.0;1.0;;}
+MeshMaterialList {1;2;0,0;;Material {1.0;0.3;0.1;1.0;;4.0;0.0;0.0;0.0;;0.1;0.1;0.1;;}}}
+)X";
+        std::string reason;
+        for (unsigned i = 0; i < 2; ++i) {
+            accessories.Load(fixture, i, mesh);
+            auto& object = *accessories.objects[i];
+            object.order = std::uint8_t(i);
+            object.scale = pmx ? 1.f : .2f;
+            object.position[0] = focus.x + (i ? 1.f : -2.f) * object.scale;
+            object.position[1] = focus.y - .75f * object.scale;
+            object.position[2] = -1.f;
+            object.opacity = i ? .4f : 1.f;
+            object.visible = object.shadowEnabled = 1;
+            app.AccessorySlot(i) = &object;
+            Check(session.ImportAccessory(mesh, reason), reason.c_str());
+            auto state = session.Document().accessories[i].state;
+            state.position = {object.position[0], object.position[1], object.position[2]};
+            state.scale = object.scale;
+            state.opacity = object.opacity;
+            state.visible = state.shadowEnabled = 1;
+            Check(session.SetAccessory(std::uint8_t(i), state, reason), reason.c_str());
+            Check(session.Register({{editor::Track::Accessory, std::uint8_t(i), 0, 0}}, reason),
+                  reason.c_str());
+        }
+        app.AccessoryRenderSplitOrder() = 1;
+        // A small public BMP, independently decoded by D3DX and the portable
+        // image service. Use opaque texels and exact powers of two here.
+        const auto bitmap = fixture.directory / "composite.bmp";
+        std::vector<unsigned char> bytes(54 + 64 * 32 * 3);
+        const auto put = [&](unsigned n, unsigned v, unsigned count) {
+            for (unsigned i = 0; i < count; ++i)
+                bytes[n + i] = std::uint8_t(v >> (8 * i));
+        };
+        bytes[0] = 'B';
+        bytes[1] = 'M';
+        put(2, unsigned(bytes.size()), 4);
+        put(10, 54, 4);
+        put(14, 40, 4);
+        put(18, 64, 4);
+        put(22, 32, 4);
+        put(26, 1, 2);
+        put(28, 24, 2);
+        for (unsigned y = 0; y < 32; ++y)
+            for (unsigned x = 0; x < 64; ++x) {
+                const auto n = 54 + (y * 64 + x) * 3;
+                bytes[n] = std::uint8_t(32 + (x / 16) * 32);
+                bytes[n + 1] = std::uint8_t(64 + (y / 8) * 32);
+                bytes[n + 2] = std::uint8_t(96 + (x / 16 + y / 8) * 16);
+            }
+        std::ofstream bmp(bitmap, std::ios::binary);
+        bmp.write(reinterpret_cast<const char*>(bytes.data()), bytes.size());
+        bmp.close();
+        Hr(D3DXCreateTextureFromFileExW(fixture.device, bitmap.c_str(), 1024, 1024, 0, 0,
+                                        D3DFMT_A8R8G8B8, D3DPOOL_MANAGED, 0xffffffffu, 0xffffffffu,
+                                        0, nullptr, nullptr, picture.Out()),
+           "native composite picture");
+        Check(session.ImportPicture(bitmap, 512, 512, reason), reason.c_str());
+        Check(session.Edit(
+                  "composite inputs",
+                  [](auto& d, auto&) {
+                      d.picture.offsetX = 37;
+                      d.picture.offsetY = -13;
+                      d.picture.scale = 20;
+                      d.physics.accessoryRenderOrder = 1;
+                      return true;
+                  },
+                  reason),
+              reason.c_str());
+        app.PictureBackgroundTexture() = picture.p;
+        app.PictureBackgroundEnabled() = 1;
+        app.PictureWidth() = 64;
+        app.PictureHeight() = 32;
+        app.PictureOffsetX() = 37;
+        app.PictureOffsetY() = -13;
+        app.PictureScale() = 20;
+    }
+    ~OriginalComposite() {
+        app.PictureBackgroundTexture() = nullptr;
+        app.PictureBackgroundEnabled() = 0;
+        for (unsigned i = 0; i < 2; ++i)
+            app.AccessorySlot(i) = nullptr;
+    }
+};
+struct OriginalFrameGeometry {
+    MMDAppState* state;
+    Com<IDirect3DVertexBuffer9> picture;
+    OriginalFrameGeometry(OriginalModel& model, MMDAppState* app, unsigned dimension) : state(app) {
+        if (app->groundGridEnabled) {
+            Check(model.module.Function<bool (*)(MMDAppState*)>(0xf3c0)(app),
+                  "original ground geometry");
+        }
+        if (app->pictureBackgroundEnabled) {
+            Hr(model.renderer->device->CreateVertexBuffer(kBackgroundQuadBytes, 0,
+                                                          kTexturedScreenVertexFvf, D3DPOOL_MANAGED,
+                                                          picture.Out(), nullptr),
+               "original picture buffer");
+            std::memcpy(&app->pad129, &picture.p, sizeof picture.p);
+            reinterpret_cast<RECT&>(app->hideRight) = {0, 0, LONG(dimension), LONG(dimension)};
+            model.renderer->viewScale = float(double(dimension) * 1.2 / 1280.0);
+            model.renderer->screenWidth = model.renderer->screenHeight = dimension;
+            model.module.Function<void (*)(MMDAppState*)>(0x68cb0)(app);
+        }
+    }
+    ~OriginalFrameGeometry() {
+        for (auto* resource :
+             {state->groundGridVertices, state->groundGridIndices, state->groundPlaneVertices})
+            if (resource)
+                static_cast<IUnknown*>(resource)->Release();
+    }
+};
 rhi::AttachmentReadback NativeColor(const std::vector<DWORD>& pixels, unsigned dimension) {
     rhi::AttachmentReadback result;
     result.description = {dimension, dimension, rhi::TextureFormat::Rgba8};
@@ -101,6 +228,19 @@ NativeFrame(Fixture& fixture, OriginalModel& model, StandardEffect& effect, cons
     renderer.depthStencilSurface = target.depth.p;
     app.state.renderPassCount = 1;
     InitRenderStates(&app);
+    if (std::getenv("MDS_TEST_COMPOSITE")) {
+        // Explicit common sampling profile, approved for the portable editor.
+        // Original image preparation and frame draw code remain independent.
+        // Native anisotropic/base-level-only profiles are separate comparisons.
+        for (unsigned slot = 0; slot < 3; ++slot) {
+            Hr(fixture.device->SetSamplerState(slot, D3DSAMP_MINFILTER, D3DTEXF_LINEAR),
+               "portable native min");
+            Hr(fixture.device->SetSamplerState(slot, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR),
+               "portable native mag");
+            Hr(fixture.device->SetSamplerState(slot, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR),
+               "portable native mip");
+        }
+    }
     Hr(fixture.device->SetVertexShader(nullptr), "native reset VS");
     Hr(fixture.device->SetPixelShader(nullptr), "native reset PS");
     Hr(fixture.device->SetTransform(D3DTS_WORLD, &world), "native world");
@@ -110,8 +250,9 @@ NativeFrame(Fixture& fixture, OriginalModel& model, StandardEffect& effect, cons
     Hr(fixture.device->Clear(0, nullptr, D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL,
                              0x00ffffff, 1, 0),
        "native clear");
-    Hr(fixture.device->BeginScene(), "native begin");
     OriginalRenderApp originalApp(app, model);
+    OriginalFrameGeometry geometry(model, originalApp.State(), dimension);
+    Hr(fixture.device->BeginScene(), "native begin");
     originalApp.Shadow(model, view, world);
     // The original frame loop decrements the retired ABI workspace, rather
     // than the portable runtime field which happens to have the same purpose.
@@ -160,8 +301,11 @@ int wmain(int argc, wchar_t** argv) try {
           "standard effect source differs from original binary");
     rhi::FileAssetSource files(assets);
     const bool wireframe = std::getenv("MDS_TEST_WIREFRAME") != nullptr;
+    const bool composite = std::getenv("MDS_TEST_COMPOSITE") != nullptr;
+    if (composite)
+        std::puts("Composite profile: portable trilinear on original background input");
     NativeApi nativeApi;
-    unsigned cases = 0;
+    unsigned cases = 0, failures = 0;
     for (bool pmx : {false, true})
         for (bool translucent : {false, true}) {
             std::unique_ptr<ExPoolDevice> allocationAdapter;
@@ -208,7 +352,9 @@ int wmain(int argc, wchar_t** argv) try {
             app.CameraMode() = 1;
             app.PlaybackActive() = 0;
             app.state.editMode = 2;
-            app.GroundGridEnabled() = app.GroundShadowEnabled() = 0;
+            app.GroundGridEnabled() = app.GroundShadowEnabled() = composite;
+            app.SetProjectedShadowAmbient(.375f);
+            app.state.projectedShadowBlendEnabled = 1;
             app.RenderWidth() = app.RenderHeight() = kSize;
             app.ViewOffsetX() = app.ViewOffsetY() = 0;
             app.CameraDistance() = pmx ? -45.f : -5.f;
@@ -229,12 +375,18 @@ int wmain(int argc, wchar_t** argv) try {
             editor::EditorSession session;
             std::string reason;
             Check(session.ImportModel(path, reason), reason.c_str());
+            std::unique_ptr<OriginalComposite> components;
+            if (composite)
+                components =
+                    std::make_unique<OriginalComposite>(fixture, original, session, focus, pmx);
             // Native mode switches reload the registered camera. Apply the pending
             // input only after switching, as an editor gesture would.
             Check(session.SelectModel(255, reason), reason.c_str());
             const auto applyInput = [&](auto& doc, auto&) {
                 doc.physics.playbackMode = 0;
-                doc.view.groundGrid = doc.view.groundShadow = 0;
+                doc.physics.projectedShadowAmbient = .375f;
+                doc.physics.projectedShadowBlend = 1;
+                doc.view.groundGrid = doc.view.groundShadow = composite;
                 doc.timeline.editMode = 2;
                 doc.cameraState[0] = focus.x;
                 doc.cameraState[1] = focus.y;
@@ -249,6 +401,8 @@ int wmain(int argc, wchar_t** argv) try {
             Check(session.Edit("native frame input", applyInput, reason), reason.c_str());
             render::SceneRenderSources sources;
             sources.models = session.Assets().modelPaths;
+            sources.accessories = session.Assets().accessoryPaths;
+            sources.picture = session.Assets().picture;
             render::SceneFrameProducer producer;
             Check(producer.Load(session.Runtime(), sources, files, reason), reason.c_str());
             render::SceneRenderSettings settings;
@@ -258,6 +412,8 @@ int wmain(int argc, wchar_t** argv) try {
             settings.editorModel = 255;
             settings.postProcessCopy = false;
             StandardEffect effect(*original.renderer, fixture.device, 3);
+            if (composite)
+                original.renderer->d3dInitialized = 1;
             for (bool posed : {false, true}) {
                 const unsigned dimension = posed ? 257 : 512;
                 app.RenderWidth() = app.RenderHeight() = dimension;
@@ -326,7 +482,7 @@ int wmain(int argc, wchar_t** argv) try {
                                 diff.outsideTolerance, diff.coverageDifferences);
                             accepted &= diff.Accepted();
                         }
-                        Check(accepted, "independent original frame comparison");
+                        failures += !accepted;
                         // A second submission consumes the same frozen frame and
                         // resident resources. Its two outputs must match exactly.
                         std::array<rhi::AttachmentReadback, 2> first;
@@ -348,7 +504,8 @@ int wmain(int argc, wchar_t** argv) try {
             }
         }
     Check(cases > 0, "at least one production backend executed");
-    std::printf("%u independent original scene comparisons passed\n", cases);
+    std::printf("%u independent original scene comparisons, %u failures\n", cases, failures);
+    Check(!failures, "independent original frame comparison");
     return 0;
 } catch (const std::exception& e) {
     std::fprintf(stderr, "%s\n", e.what());

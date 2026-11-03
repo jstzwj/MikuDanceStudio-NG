@@ -73,6 +73,34 @@ std::size_t Coverage(const AttachmentReadback& image) {
         count += image.bytes[i] != 255 || image.bytes[i + 1] != 255 || image.bytes[i + 2] != 255;
     return count;
 }
+void CheckLineCoverage(Device& device, unsigned width) {
+    auto frame=Frame(width,2,BatchCull::None,false);
+    auto& draw=frame.passes.back().draws.front();
+    draw.pipeline.topology=draw.shader->pipeline.topology=PrimitiveTopology::LineList;
+    draw.drawVertexCount=2;
+    const auto vertex = [&](float x, float y) {
+        return sampling_fixture::Vertex{x * 2 / width - 1, 1 - y * 2 / 64, .5f};
+    };
+    const sampling_fixture::Vertex vertices[] = {vertex(8.5f, 8.5f), vertex(58.5f, 28.5f)};
+    auto& bytes = frame.resources[0].bytes;
+    bytes.resize(sizeof vertices);
+    std::memcpy(bytes.data(), vertices, sizeof vertices);
+    const auto image = Render(device, frame);
+    // Diamond-exit rasterization, slope 2/5 with no halfway ties, includes
+    // the first endpoint and excludes the last. Rectangle-based Vulkan lines
+    // cover extra pixels even though polygon wireframe uses Bresenham.
+    for (unsigned y = 0; y < 64; ++y)
+        for (unsigned x = 0; x < width; ++x) {
+            const bool expected = x >= 8 && x < 58 && y == 8 + (2 * (x - 8) + 2) / 5;
+            const auto at = (y * width + x) * 4;
+            const bool covered =
+                image.bytes[at] != 255 || image.bytes[at + 1] != 255 || image.bytes[at + 2] != 255;
+            if (covered != expected)
+                std::fprintf(stderr, "line width=%u pixel=%u,%u covered=%u expected=%u\n", width, x,
+                             y, covered, expected);
+            CHECK(covered == expected);
+        }
+}
 }
 int main(int argc, char** argv) try {
     CHECK(argc == 2);
@@ -86,6 +114,7 @@ int main(int argc, char** argv) try {
     for (unsigned width : {96u, 127u}) {
         auto device = CreateOffscreenBackendDevice(width, 64, options);
         CHECK(device && device.device->RasterFeatures().wireframe);
+        CheckLineCoverage(*device.device,width);
         for (unsigned pipeline = 0; pipeline < 3; ++pipeline)
             for (auto cull : {BatchCull::None, BatchCull::Clockwise, BatchCull::CounterClockwise})
                 for (bool blend : {false, true}) {

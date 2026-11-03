@@ -218,7 +218,7 @@ public:
     ShaderResourceBindings genericBindings;
     bool genericReady = false, genericBound = false;
     std::string genericError;
-    bool wireframeSupported = false;
+    bool wireframeSupported = false, bresenhamSupported = false;
     RasterCapabilities RasterFeatures() const override { return {wireframeSupported}; }
     ShaderCapabilities ShaderFeatures() const override {
         auto caps = GraphicsShaderProfile(detail::RuntimeSpirvCompilerAvailable(), true);
@@ -1956,7 +1956,8 @@ bool VulkanDevice::Initialize(unsigned w, unsigned h, VulkanDriver driver, Vulka
                     best = score;
                     physical = candidate;
                     properties = p;
-                    wireframeSupported = f.features.fillModeNonSolid && lines.bresenhamLines;
+                    bresenhamSupported = lines.bresenhamLines;
+                    wireframeSupported = f.features.fillModeNonSolid && bresenhamSupported;
                     family = i;
                     timestampBits = queues[i].timestampValidBits;
                 }
@@ -2018,10 +2019,11 @@ bool VulkanDevice::Initialize(unsigned w, unsigned h, VulkanDriver driver, Vulka
         std::find_if(deviceExtensions.begin(), deviceExtensions.end(), [](const auto& e) {
             return std::strcmp(e.extensionName, VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME) == 0;
         });
-    wireframeSupported &= lineExtension != deviceExtensions.end();
+    bresenhamSupported &= lineExtension != deviceExtensions.end();
+    wireframeSupported &= bresenhamSupported;
     VkPhysicalDeviceLineRasterizationFeaturesEXT lines{
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT};
-    if (wireframeSupported) {
+    if (bresenhamSupported) {
         enabledDeviceExtensions.push_back(VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME);
         lines.bresenhamLines = VK_TRUE;
         f13.pNext = &lines;
@@ -2281,7 +2283,7 @@ bool VulkanDevice::MakePipeline(const ModelPipeline& p, VkPipeline& out,
     rs.polygonMode = p.raster.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
     VkPipelineRasterizationLineStateCreateInfoEXT lines{
         VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO_EXT};
-    if (p.raster.wireframe) {
+    if (bresenhamSupported && (p.raster.wireframe || p.topology == PrimitiveTopology::LineList)) {
         lines.lineRasterizationMode = VK_LINE_RASTERIZATION_MODE_BRESENHAM_EXT;
         rs.pNext = &lines;
     }
