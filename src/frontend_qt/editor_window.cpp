@@ -7,6 +7,7 @@
 #include "model_physics_dialog.hpp"
 #include "toon_dialog.hpp"
 #include "model_labels.hpp"
+#include "editor_font.hpp"
 #include "mikudancestudio/editor_numeric.hpp"
 #include "mikudancestudio/mmd_control_specs.hpp"
 #include "mikudancestudio/text_encoding.hpp"
@@ -148,9 +149,7 @@ public:
         p.setPen(Qt::white);
         for (const auto& label :
              ui::MmdPanelLabels(side, bottom, options, language_.Code() == "en")) {
-            QFont font = this->font();
-            font.setPixelSize(label.size);
-            p.setFont(font);
+            p.setFont(GlyphFont(language_.Code(), label.size));
             p.drawText(QRect(label.x, label.y, 250, label.size + 3), Qt::AlignTop | Qt::AlignLeft,
                        language_.Text(label.id));
         }
@@ -172,11 +171,10 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     setMinimumSize(640, 480);
     resize(1024, 768);
     menuBar()->setNativeMenuBar(false);
-    QFont font;
-    font.setFamilies({"MS UI Gothic", "Noto Sans CJK SC", "Microsoft YaHei", "Hiragino Sans",
-                      "PingFang SC", "DejaVu Sans"});
-    font.setPixelSize(12);
-    setFont(font);
+    setFont(EditorFont(language_.Code()));
+    // The original menu retains the system non-client font, independently
+    // of the language-specific font applied to panel controls.
+    menuBar()->setFont(QApplication::font("QMenuBar"));
     canvas_ = new Canvas(language_, session_, assets_, this);
     canvas_->setAcceptDrops(true);
     canvas_->installEventFilter(this);
@@ -571,6 +569,13 @@ void EditorWindow::TranslateStandardDialogs() {
         QCoreApplication::installTranslator(&standardTranslation_);
 }
 void EditorWindow::Texts() {
+    setFont(EditorFont(language_.Code()));
+    for (const int id :
+         {panel::kCurrentFrameEdit, panel::kPreviousFrameButton, panel::kNextFrameButton,
+          panel::kNextKeyframeButton, panel::kPreviousKeyframeButton, panel::kFirstFrameButton,
+          panel::kLastFrameButton})
+        if (auto* control = Control(id))
+            control->setFont(FrameNavigationFont());
     for (const auto& pair : controls_)
         if (auto* button = qobject_cast<QAbstractButton*>(pair.second))
             button->setText(language_.Text(QString("control.%1").arg(pair.first)));

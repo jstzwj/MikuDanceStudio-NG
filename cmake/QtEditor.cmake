@@ -28,6 +28,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/timeline.cpp"
         "${root}/src/frontend_qt/interpolation.cpp"
         "${root}/src/frontend_qt/editor_window.cpp"
+        "${root}/src/frontend_qt/editor_font.cpp"
         "${root}/src/frontend_qt/editor_menus.cpp"
         "${root}/src/frontend_qt/editor_panels.cpp"
         "${root}/src/frontend_qt/numeric_dialog.cpp"
@@ -88,6 +89,13 @@ function(mds_add_qt_editor)
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${root}/res/assets" "$<TARGET_FILE_DIR:MikuDanceStudioNG>/assets")
     include("${root}/cmake/QtDistribution.cmake")
     if(BUILD_TESTING)
+        qt_add_executable(qt_editor_font_test "${root}/tests/qt_editor_font_test.cpp")
+        target_link_libraries(qt_editor_font_test PRIVATE mikudancestudio_frontend_qt)
+        if(WIN32)
+            target_link_libraries(qt_editor_font_test PRIVATE gdi32)
+        endif()
+        add_test(NAME qt_editor_font COMMAND qt_editor_font_test "${root}/res/assets")
+        set_tests_properties(qt_editor_font PROPERTIES LABELS "p4;offscreen;qt;font" TIMEOUT 30 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_c1_workflow_test "${root}/tests/qt_c1_workflow_test.cpp")
         target_link_libraries(qt_c1_workflow_test PRIVATE mikudancestudio_frontend_qt)
         add_test(NAME qt_c1_workflow COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"

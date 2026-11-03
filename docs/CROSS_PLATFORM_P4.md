@@ -3862,3 +3862,34 @@ the viewport did not resolve these PMX cases and was discarded. Independent
 combined-scene output acceptance therefore stays open. Raw local results are
 `out/p4-original-composite.log` and its `.rgba`/`.f32` output directory; the
 original executable and generated private evidence are not distributed.
+
+
+## Language-specific panel and glyph fonts
+
+The frontend separates the original child-control font, frame-navigation class
+font and DrawGlyph font. English controls use Tahoma at an 11-pixel em (the
+original positive 13-pixel cell); Japanese controls use MS PGothic at 12 pixels.
+The frame edit and six navigation buttons retain the System 16-pixel bold class
+font. Menus keep their system font through language replacement.
+
+DrawGlyph requests a negative em height and SHIFTJIS_CHARSET. On the qualified
+Windows profile its Arial request actually maps to MS PGothic, so simply choosing
+Arial in Qt is incorrect. The Windows frontend resolves that original font request
+in a memory DC once per font profile; painting reuses cached Qt font values and
+retains no native font/DC. Non-Windows profiles prefer the measured family with
+explicit installed-font fallbacks. No proprietary fonts are copied or shipped.
+
+The Windows Qt platform test (windows never shown) exactly matched GDI cell
+height, ascent, descent and all 95 printable ASCII advances for English/Japanese
+controls, the System font and 11/12-pixel static glyphs. Offscreen FreeType differs
+from GDI for nine Tahoma advances by one pixel and is not substituted as that
+oracle. Three-language replacement retains document/physics counters and panel
+geometry. This does not assert identical glyph antialiasing on every OS or
+font-fallback installation, or close the remaining native IME/per-monitor gates.
+
+Local ALL_BUILD passed. The control-font revision passed all 67 P4 regressions;
+after separating glyph fonts, all 27 affected Qt P4 regressions passed (including
+DPI and combined C1 export). The complete new DPI and combined-workflow profiles
+at de78145 passed Windows, macOS and Linux in
+[editor run 41601514221](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41601514221);
+formats, rendering and Bullet workflows also passed at that revision.

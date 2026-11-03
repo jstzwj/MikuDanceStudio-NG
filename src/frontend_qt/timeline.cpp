@@ -1,5 +1,6 @@
 #include "timeline.hpp"
 #include "model_labels.hpp"
+#include "editor_font.hpp"
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/mmd_editor_chrome.hpp"
 #include <QPainter>
@@ -168,9 +169,7 @@ void Timeline::paintEvent(QPaintEvent*) {
         p.setPen(color(24));
         p.drawLine(91, y, width() - 1, y);
     }
-    QFont font = this->font();
-    font.setPixelSize(12);
-    p.setFont(font);
+    p.setFont(GlyphFont(language_.Code(), 12));
     for (int i = 0; i < int(rows_.size()) - rowScroll_ && 16 + i * 14 < height(); ++i) {
         const auto& row = rows_[rowScroll_ + i];
         const auto y = 16 + i * 14;

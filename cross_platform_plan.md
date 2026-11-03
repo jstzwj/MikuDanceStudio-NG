@@ -412,3 +412,13 @@ profiles disabled. Native command comparison and three-language dispatch pass;
 the menu implements 94/103 commands (the remaining nine belong to later media
 and Kinect phases). P4/C1 remains in progress pending the complete scene and
 input/layout exit gates. See docs/CROSS_PLATFORM_P4.md for qualified profiles.
+
+
+2026-11-03 P4 DPI / C1 workflow increment: physical-pixel pointer conversion,
+125%/150%/200% interaction profiles and the combined PMD/PMX/accessory/screen/WAV/
+physics/save/reopen/export workflow passed on Windows, macOS and Linux at de78145.
+Default-AA GPU timing now includes native resolves. Child controls, class-default
+frame controls and static labels use separate measured font profiles. The strict
+original composite diagnostic passes all 24 PMD cases; 24 PMX coplanar grid/shadow
+cases remain outside tolerance. Native IME/per-monitor and complete UI/output
+qualification remain open; P4/C1 is not yet accepted. See the P4 evidence record.
