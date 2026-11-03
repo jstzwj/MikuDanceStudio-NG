@@ -395,3 +395,11 @@ main 的兼容修复通过共享层传播到 next 和各前端；固定兼容基
 2026-11-03 P4 toon 扩展编辑增量：已接通共享状态、原版三语言对话框、纹理缓存与 PMD 保存。原版 16 组完整命令对照通过，DX11／DX12／Vulkan 离屏渲染与设备替换图像严格比较通过。菜单实现 91／103 项；物理扩展编辑、组合场景及完整输入验收继续推进，P4/C1 仍未完成验收。
 
 2026-11-03 P4 物理编辑增量：原版三语言无模态窗口、共享暂存表及单模型刚体替换已接入，100 个原版状态记录已通过 Qt 逐位重放比较。菜单实现 92／103 项；物理调试绘制、抗锯齿和组合场景／完整输入验收继续推进，P4/C1 保持未验收。
+
+2026-11-03 P4 physics overlay increment: command 264 and D, live Bullet bodies,
+model-physics staging previews and axis gestures use shared RHI/Qt. Original
+indexed geometry, draw order, persistent colors and bone/joint transforms have
+independent no-window observations. All 54 local P4 gates passed; drag float/text
+checks cover 600 original cases. Menu coverage is 93/103. Antialiasing,
+combined-scene GPU and full input/layout acceptance remain open; P4/C1 is not yet
+accepted. See the P4 evidence record for precise scope and current validation.

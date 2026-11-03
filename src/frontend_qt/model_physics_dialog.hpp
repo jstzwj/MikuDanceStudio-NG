@@ -14,6 +14,8 @@ public:
     const editor::ModelPhysicsEdit& State() const { return edit_; }
     int SelectedBody() const { return body_; }
     int SelectedJoint() const { return joint_; }
+    bool JointPage() const { return !Radio(800)->isChecked(); }
+    bool Drag(unsigned mode, int dy, bool shift);
     QWidget* Control(int id) const;
     std::function<void()> changed, preserve;
     std::function<void(const std::string&)> failed;

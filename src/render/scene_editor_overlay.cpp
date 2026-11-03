@@ -100,6 +100,9 @@ bool SceneEditorOverlay::Load(const rhi::AssetSource& source, std::string& reaso
     axisIndices_.key.id = base + 4;
     axisIndices_.kind = rhi::ReplayResourceKind::Indices;
     axisIndices_.indexFormat = rhi::IndexFormat::UInt32;
+    physicsVertices_.key = {base + 5, 1};
+    physicsIndices_.key = {base + 6, 1};
+    PhysicsGizmoGeometry(physicsVertices_, physicsIndices_, physicsRanges_);
     std::vector<SpriteVertex> vertices;
     for (const auto& v : axis->Vertices())
         vertices.push_back({v.position[0], v.position[1], v.position[2], v.normal[0], v.normal[1],
@@ -126,6 +129,13 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
     std::vector<SpriteVertex> sprites;
     FramePass axisPass;
     auto toolState = tools ? *tools : ViewportTools{};
+    const bool physicsEditing = toolState.physicsEdit.edit != nullptr;
+    std::vector<PhysicsGizmoDraw> gizmos;
+    pendingDebugColor_ = debugColor_;
+    if ((settings.display.physicsBodies || physicsEditing) &&
+        !PhysicsGizmoDraws(scene, toolState.physicsEdit, debugColor_, gizmos, pendingDebugColor_,
+                           reason))
+        return false;
     const auto appendLine = [&](float x, float y, float ex, float ey, std::uint32_t argb) {
         // Model vertex colors have an explicit RGBA8 boundary; native lines are ARGB.
         const auto rgba = (argb & 0xff00ff00u) | ((argb & 255) << 16) | ((argb >> 16) & 255);
@@ -209,7 +219,7 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
             if (model->selection.selectedBone == int(i))
                 active = index;
         }
-        if (tools && active >= 0 &&
+        if (tools && !physicsEditing && active >= 0 &&
             cpu_bone::OperationAxisActive(bones[std::size_t(active)].type,
                                           bones[std::size_t(active)].flags, toolState.operation,
                                           toolState.dragMode)) {
@@ -339,7 +349,7 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
     }
     // The replay contract requires a pure clear to have no upload resources.
     // Drop leases only for that case and publish fresh versions on revival.
-    if (lines.empty() && sprites.empty() && axisPass.draws.empty() &&
+    if (lines.empty() && sprites.empty() && axisPass.draws.empty() && gizmos.empty() &&
         std::none_of(frame.passes.begin(), frame.passes.end(),
                      [](const auto& p) { return !p.draws.empty(); })) {
         retired_ = true;
@@ -350,7 +360,8 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
         return true;
     }
     if (retired_) {
-        for (auto* resource : {&texture_, &lines_, &sprites_, &axisVertices_, &axisIndices_})
+        for (auto* resource : {&texture_, &lines_, &sprites_, &axisVertices_, &axisIndices_,
+                               &physicsVertices_, &physicsIndices_})
             if (resource->key.version == UINT64_MAX)
                 return Fail(reason, "editor_overlay_version_exhausted");
         ++texture_.key.version;
@@ -360,6 +371,8 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
             ++sprites_.key.version;
         ++axisVertices_.key.version;
         ++axisIndices_.key.version;
+        ++physicsVertices_.key.version;
+        ++physicsIndices_.key.version;
         retired_ = false;
     }
     if (!Publish(lines_, lines) || !Publish(sprites_, sprites))
@@ -409,6 +422,77 @@ bool SceneEditorOverlay::Append(const runtime::SceneRuntime& scene,
         frame.resources.push_back(sprites_);
     frame.resources.push_back(axisVertices_);
     frame.resources.push_back(axisIndices_);
+    frame.resources.push_back(physicsVertices_);
+    frame.resources.push_back(physicsIndices_);
+    if (!gizmos.empty()) {
+        ModelFrameInputs inputs;
+        ModelPipeline view;
+        if (!SceneViewInputs(scene, settings, inputs, reason) ||
+            !BuildModelInputs(inputs, {}, {}, view))
+            return Fail(reason, "editor_physics_projection_invalid");
+        FramePass physics;
+        const auto begin = [&] {
+            physics = {};
+            physics.name = "editor_physics_overlay";
+            physics.color = FrameAttachment{frame.finalColor, AttachmentLoad::Load};
+        };
+        begin();
+        for (const auto& gizmo : gizmos) {
+            if (gizmo.mesh == PhysicsGizmoMesh::Axis) {
+                if (!physics.draws.empty())
+                    frame.passes.push_back(std::move(physics));
+                begin();
+                constexpr std::uint64_t depth = 0x7000000000000011ull;
+                frame.targets.push_back({depth,
+                                         {width, height, TextureFormat::DepthStencil,
+                                          std::uint32_t(TextureAccess::DepthStencilAttachment)}});
+                physics.depthStencil = FrameAttachment{depth};
+                auto local = inputs;
+                local.world = Multiply(gizmo.world, inputs.world);
+                for (const auto& subset : axis_->Subsets()) {
+                    const auto& m = axis_->Materials()[subset.material];
+                    ModelMaterialInputs material;
+                    material.diffuse = m.diffuse;
+                    material.ambient = m.ambient;
+                    std::copy_n(m.specular.data(), 3, material.specular.begin());
+                    std::copy_n(m.emissive.data(), 3, material.emissive.begin());
+                    material.shininess = m.shininess;
+                    ModelReplayDraw draw;
+                    draw.vertices = axisVertices_.key;
+                    draw.indices = axisIndices_.key;
+                    draw.firstIndex = subset.firstIndex;
+                    draw.indexCount = subset.indexCount;
+                    draw.vertexCount = std::uint32_t(axis_->Vertices().size());
+                    if (!BuildModelInputs(local, material, {}, draw.pipeline))
+                        return Fail(reason, "editor_physics_axis_invalid");
+                    draw.pipeline.shader.layout = {};
+                    draw.pipeline.shader.normalizeNormals = true;
+                    physics.draws.push_back(std::move(draw));
+                }
+                frame.passes.push_back(std::move(physics));
+                begin();
+            } else {
+                const auto range = physicsRanges_[PhysicsGizmoRangeIndex(gizmo.mesh, gizmo.argb)];
+                ModelReplayDraw draw;
+                draw.vertices = physicsVertices_.key;
+                draw.indices = physicsIndices_.key;
+                draw.firstIndex = range.first;
+                draw.indexCount = range.count;
+                draw.vertexCount = std::uint32_t(physicsVertices_.bytes.size() / 16);
+                draw.pipeline = Pipeline(width, height);
+                draw.pipeline.vertexLayout = VertexLayout::PositionColor;
+                draw.pipeline.topology = gizmo.mesh == PhysicsGizmoMesh::Joint
+                                             ? PrimitiveTopology::TriangleList
+                                             : PrimitiveTopology::LineList;
+                draw.pipeline.shader.world = Multiply(gizmo.world, inputs.world);
+                draw.pipeline.shader.view = view.shader.view;
+                draw.pipeline.shader.projection = view.shader.projection;
+                physics.draws.push_back(std::move(draw));
+            }
+        }
+        if (!physics.draws.empty())
+            frame.passes.push_back(std::move(physics));
+    }
     if (!axisPass.draws.empty())
         frame.passes.push_back(std::move(axisPass));
     if (!pass.draws.empty())

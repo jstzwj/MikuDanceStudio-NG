@@ -131,8 +131,11 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         reason = controller_.Reason();
         return false;
     }
-    if (Submissions() > submissions && producer_.Commit())
-        frameCached_ = false;
+    if (Submissions() > submissions) {
+        const bool material = producer_.Commit(), overlay = overlay_.Commit();
+        if (material || overlay)
+            frameCached_ = false;
+    }
     reason.clear();
     return true;
 }
@@ -180,10 +183,11 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
     settings.display = session_.DisplayOptions();
     const auto revision = session_.Revision(), updates = session_.Runtime().Counters().frames;
     const bool history = session_.Document().view.captureMode != 0;
-    if (!frameCached_ || history || cachedRevision_ != revision || cachedUpdates_ != updates ||
-        cachedWidth_ != w || cachedHeight_ != h || cachedModel_ != session_.Selected().model ||
-        cachedBone_ != ActiveBone() || cachedPlaying_ != session_.Playing() ||
-        cachedSelectedBones_ != session_.Selected().bones ||
+    const auto physics = physicsEdit ? physicsEdit() : render::PhysicsEditView{};
+    if (!frameCached_ || history || physics.edit || cachedRevision_ != revision ||
+        cachedUpdates_ != updates || cachedWidth_ != w || cachedHeight_ != h ||
+        cachedModel_ != session_.Selected().model || cachedBone_ != ActiveBone() ||
+        cachedPlaying_ != session_.Playing() || cachedSelectedBones_ != session_.Selected().bones ||
         cachedEditMode_ != session_.Document().timeline.editMode ||
         cachedCoordinateSystem_ != session_.CoordinateSystem() ||
         cachedToolOperation_ != toolOperation_ ||
@@ -193,6 +197,7 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
             return false;
         cpuTimings_.scene = elapsed();
         render::ViewportTools tools;
+        tools.physicsEdit = physics;
         tools.coordinateSystem = int(session_.CoordinateSystem());
         tools.operation = toolOperation_;
         tools.dragMode = int(session_.BoneDragMode());
@@ -335,10 +340,12 @@ bool Viewport::BeginCenteredCursor(int operation, QWindow* inputSurface) {
     return true;
 }
 void Viewport::FinishToolDrag(bool restorePosition) {
-    if (!boneDragMode_ && !sceneDragMode_ && !headerDragOperation_)
+    if (!boneDragMode_ && !physicsDragMode_ && !sceneDragMode_ && !headerDragOperation_)
         return;
-    session_.EndBoneDrag();
+    if (boneDragMode_)
+        session_.EndBoneDrag();
     boneDragMode_ = 0;
+    physicsDragMode_ = 0;
     sceneDragMode_ = 0;
     headerDragOperation_ = 0;
     dragResource_.reset();
@@ -358,7 +365,7 @@ void Viewport::FinishToolDrag(bool restorePosition) {
 }
 bool Viewport::BeginHeaderDrag(unsigned operation, QPoint position, QPoint restore,
                                QWindow* inputSurface) {
-    if ((operation != 1 && operation != 2) || boneDragMode_ || sceneDragMode_ ||
+    if ((operation != 1 && operation != 2) || boneDragMode_ || physicsDragMode_ || sceneDragMode_ ||
         headerDragOperation_ || box_)
         return false;
     headerDragOperation_ = operation;
@@ -374,7 +381,8 @@ bool Viewport::BeginHeaderDrag(unsigned operation, QPoint position, QPoint resto
     return true;
 }
 void Viewport::CancelInput() {
-    const bool active = boneDragMode_ || sceneDragMode_ || headerDragOperation_ || box_;
+    const bool active =
+        boneDragMode_ || physicsDragMode_ || sceneDragMode_ || headerDragOperation_ || box_;
     FinishToolDrag();
     FinishBoxSelection();
     pressed_ = false;
@@ -399,7 +407,7 @@ bool Viewport::event(QEvent* event) {
     return QWindow::event(event);
 }
 void Viewport::mousePressEvent(QMouseEvent* e) {
-    if (boneDragMode_ || sceneDragMode_ || headerDragOperation_)
+    if (boneDragMode_ || physicsDragMode_ || sceneDragMode_ || headerDragOperation_)
         return;
     pressed_ = true;
     previous_ = e->position().toPoint();
@@ -414,6 +422,24 @@ void Viewport::mousePressEvent(QMouseEvent* e) {
         !session_.Playing()) {
         sceneDragMode_ = unsigned(operation - 2);
         toolOperation_ = operation;
+        if (!BeginCenteredCursor(operation))
+            return;
+        if (isExposed() && !QGuiApplication::platformName().startsWith("wayland"))
+            setMouseGrabEnabled(true);
+        if (changed)
+            changed(true, {});
+        return;
+    }
+    const auto physics = physicsEdit ? physicsEdit() : render::PhysicsEditView{};
+    if (physics.edit && operation >= 3 && operation <= 5)
+        return; // Native physics editor consumes these rotation modes without editing bones.
+    if (physics.edit && physicsDrag && operation >= 9 && operation <= 14 && !session_.Playing()) {
+        static constexpr unsigned modes[]{4, 5, 6, 10, 11, 12};
+        physicsDragMode_ = modes[operation - 9];
+        dragModel_ = physics.slot;
+        dragResource_ = session_.Runtime().Resource(dragModel_);
+        toolOperation_ = operation;
+        toolPrevious_ = DevicePoint(previous_);
         if (!BeginCenteredCursor(operation))
             return;
         if (isExposed() && !QGuiApplication::platformName().startsWith("wayland"))
@@ -515,7 +541,7 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
     }
     auto point = e->position().toPoint();
     const auto delta = DevicePoint(point) - DevicePoint(previous_);
-    if (headerDragOperation_ || sceneDragMode_ || boneDragMode_) {
+    if (headerDragOperation_ || sceneDragMode_ || boneDragMode_ || physicsDragMode_) {
         if (!(e->buttons() & Qt::LeftButton)) {
             CancelInput();
             return;
@@ -579,6 +605,16 @@ void Viewport::ToolMotion(QPoint point, Qt::KeyboardModifiers modifiers) {
             changed(ok, reason);
         return;
     }
+    if (physicsDragMode_) {
+        const auto physics = physicsEdit ? physicsEdit() : render::PhysicsEditView{};
+        if (!physics.edit || physics.slot != dragModel_ || session_.Playing() ||
+            session_.Runtime().Resource(dragModel_) != dragResource_ || !physicsDrag ||
+            !physicsDrag(physicsDragMode_, motion.y(), modifiers & Qt::ShiftModifier))
+            FinishToolDrag();
+        if (changed)
+            changed(true, {});
+        return;
+    }
     if (boneDragMode_) {
         std::string reason;
         if (session_.BoneDragMode() != unsigned(boneDragMode_) ||
@@ -615,7 +651,7 @@ void Viewport::ToolMotion(QPoint point, Qt::KeyboardModifiers modifiers) {
     }
 }
 void Viewport::mouseReleaseEvent(QMouseEvent* e) {
-    if ((boneDragMode_ || sceneDragMode_ || headerDragOperation_) &&
+    if ((boneDragMode_ || physicsDragMode_ || sceneDragMode_ || headerDragOperation_) &&
         e->button() == Qt::LeftButton) {
         FinishToolDrag(true);
         if (changed)

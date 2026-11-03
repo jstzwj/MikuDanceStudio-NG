@@ -4,6 +4,7 @@
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/vmd_scene_tracks.hpp"
 #include "model_timeline.hpp"
+#include "btBulletDynamicsCommon.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -36,6 +37,8 @@ struct SceneRuntime::Impl {
     int constraintId = 0;
     std::uint32_t frame = 0, randomState = 1;
     bool playing = false, failed = false;
+    std::uint8_t physicsEditSlot = 255;
+    std::shared_ptr<const ModelResource> physicsEditResource;
     std::optional<int> savedPlaybackPhysicsMode;
     std::string failure;
     Impl() { CreatePhysicsWorld(world); }
@@ -397,6 +400,8 @@ struct SceneRuntime::Impl {
         CpuSimulationFrame frame;
         frame.deltaSeconds = delta;
         frame.playbackActive = playing;
+        frame.frameCopyPending = physicsEditResource && items.count(physicsEditSlot) &&
+                                 items.at(physicsEditSlot).resource == physicsEditResource;
         if (failed || !RunCpuSimulationFrame(simulation, Context(), frame) || failed) {
             reason = failure.empty() ? "scene-simulation-failed" : failure;
             failed = true;
@@ -677,6 +682,12 @@ bool SceneRuntime::Tick(float delta, std::string& reason) {
     }
     impl_->simulation.remainingSeconds = delta;
     return impl_->Frame(delta, reason);
+}
+void SceneRuntime::SetPhysicsEditModel(std::uint8_t slot, bool active) {
+    if (impl_) {
+        impl_->physicsEditSlot = active ? slot : 255;
+        impl_->physicsEditResource = active ? Resource(slot) : nullptr;
+    }
 }
 void SceneRuntime::RequestPhysicsReset() {
     if (impl_ && !impl_->failed)
@@ -1187,6 +1198,36 @@ std::shared_ptr<const ModelResource> SceneRuntime::Resource(std::uint8_t slot) c
 std::vector<std::array<float, 38>> SceneRuntime::Bodies(std::uint8_t slot) const {
     return impl_ && impl_->items.count(slot) ? impl_->items.at(slot).physics->Snapshot()
                                              : std::vector<std::array<float, 38>>{};
+}
+std::vector<PhysicsDebugBody> SceneRuntime::PhysicsDebugBodies() const {
+    std::vector<PhysicsDebugBody> result;
+    if (!impl_)
+        return result;
+    const auto& objects = impl_->world.world->getCollisionObjectArray();
+    for (int i = 0; i < objects.size(); ++i) {
+        const auto* body = btRigidBody::upcast(objects[i]);
+        if (!body)
+            continue;
+        const auto* shape = body->getCollisionShape();
+        PhysicsDebugBody item;
+        item.dynamic = body->getInvMass() != 0;
+        if (shape->getShapeType() == SPHERE_SHAPE_PROXYTYPE)
+            item.size[0] = static_cast<const btSphereShape*>(shape)->getRadius();
+        else if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
+            item.shape = 1;
+            const auto size = static_cast<const btBoxShape*>(shape)->getHalfExtentsWithMargin();
+            for (unsigned axis = 0; axis < 3; ++axis)
+                item.size[axis] = size[axis];
+        } else if (shape->getShapeType() == CAPSULE_SHAPE_PROXYTYPE) {
+            item.shape = 2;
+            const auto* capsule = static_cast<const btCapsuleShape*>(shape);
+            item.size = {capsule->getRadius(), capsule->getHalfHeight(), 0};
+        } else
+            continue; // Includes the infinite floor plane.
+        body->getWorldTransform().getOpenGLMatrix(item.world.data());
+        result.push_back(item);
+    }
+    return result;
 }
 const format::SceneSession* SceneRuntime::Session() const {
     return impl_ && impl_->session ? &*impl_->session : nullptr;

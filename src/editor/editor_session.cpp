@@ -464,6 +464,12 @@ void EditorSession::SetWireframe(bool value) {
         ++appearanceRevision_;
     }
 }
+void EditorSession::SetPhysicsBodiesVisible(bool value) {
+    if (display_.physicsBodies != value) {
+        display_.physicsBodies = value;
+        ++appearanceRevision_;
+    }
+}
 void EditorSession::SetPhysicsFloor(bool enabled) {
     runtime_->SetPhysicsFloor(enabled);
 }

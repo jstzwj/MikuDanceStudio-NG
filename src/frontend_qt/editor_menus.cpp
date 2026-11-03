@@ -148,6 +148,7 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_PREVIOUS_FOLDER:
     case MDS_CMD_TOGGLE_MIPMAP:
     case MDS_CMD_TOGGLE_WIREFRAME:
+    case MDS_CMD_TOGGLE_PHYSICS_BODIES:
     case MDS_CMD_ABOUT:
     case MDS_CMD_ABOUT_PHYSICS:
     case MDS_CMD_RESTORE_TEXTURES:
@@ -312,6 +313,7 @@ void EditorWindow::RefreshMenus() {
     check(MDS_CMD_TOGGLE_PREVIOUS_FOLDER, fileHistory_.enabled);
     check(MDS_CMD_TOGGLE_MIPMAP, session_.DisplayOptions().mipmaps);
     check(MDS_CMD_TOGGLE_WIREFRAME, session_.DisplayOptions().wireframe);
+    check(MDS_CMD_TOGGLE_PHYSICS_BODIES, session_.DisplayOptions().physicsBodies);
     check(MDS_CMD_TOGGLE_PLAYBACK_PHYSICS_ON_OFF, session_.PlaybackPhysicsOnOff());
     check(MDS_CMD_TOGGLE_MODEL_TRANSPARENCY, session_.DisplayOptions().transparentModels);
     check(MDS_CMD_TOGGLE_MODEL_NON_DISPLAY, session_.DisplayOptions().hideModels);
@@ -369,6 +371,12 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_TOGGLE_WIREFRAME) {
         session_.SetWireframe(!session_.DisplayOptions().wireframe);
+        RefreshMenus();
+        UpdateFrame();
+        return;
+    }
+    if (command == MDS_CMD_TOGGLE_PHYSICS_BODIES) {
+        session_.SetPhysicsBodiesVisible(!session_.DisplayOptions().physicsBodies);
         RefreshMenus();
         UpdateFrame();
         return;

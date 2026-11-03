@@ -1,9 +1,11 @@
 #pragma once
 #include <cstdint>
 #include <array>
+#include "physics_debug_geometry.hpp"
 
 namespace mikudancestudio::render {
 struct ViewportTools {
+    PhysicsEditView physicsEdit;
     bool camera = true, playing = false;
     int coordinateSystem = 0, boneMode = 0, operation = 0, editMode = 0, dragMode = 0;
     int centerX = 393939, centerY = 393939;

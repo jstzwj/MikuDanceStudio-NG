@@ -76,9 +76,19 @@ bool ModelPhysicsDialog::Body() const {
 bool ModelPhysicsDialog::Joint() const {
     return joint_ >= 0 && std::size_t(joint_) < edit_.joints.size();
 }
+bool ModelPhysicsDialog::Drag(unsigned mode, int dy, bool shift) {
+    if (!Active())
+        return false;
+    const bool jointPage = JointPage();
+    const auto echo = edit_.Drag(jointPage, jointPage ? joint_ : body_, mode, dy, shift);
+    if (echo.control)
+        Edit(echo.control)->setText(Number(echo.format, echo.value));
+    return true;
+}
 void ModelPhysicsDialog::Invalidate() {
     if (closing_)
         return;
+    session_.AbandonModelPhysicsEdit(slot_);
     closing_ = true;
     done(QDialog::Rejected);
 }

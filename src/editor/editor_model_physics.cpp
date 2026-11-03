@@ -1,5 +1,8 @@
 #include "mikudancestudio/editor_session.hpp"
 namespace mikudancestudio::editor {
+void EditorSession::AbandonModelPhysicsEdit(std::uint8_t slot) {
+    runtime_->SetPhysicsEditModel(slot, false);
+}
 bool EditorSession::BeginModelPhysicsEdit(std::uint8_t slot, ModelPhysicsEdit& edit,
                                           std::string& reason) {
     const auto resource = runtime_->Resource(slot);
@@ -13,6 +16,7 @@ bool EditorSession::BeginModelPhysicsEdit(std::uint8_t slot, ModelPhysicsEdit& e
     if (!runtime_->PhysicsEditPose(slot, false, reason))
         return false;
     edit = std::move(next);
+    runtime_->SetPhysicsEditModel(slot, true);
     reason.clear();
     return true;
 }
@@ -38,6 +42,7 @@ bool EditorSession::FinishModelPhysicsEdit(std::uint8_t slot, const ModelPhysics
         return false;
     }
     ++appearanceRevision_;
+    runtime_->SetPhysicsEditModel(slot, false);
     reason.clear();
     return true;
 }

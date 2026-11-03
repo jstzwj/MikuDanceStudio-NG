@@ -399,6 +399,20 @@ void EditorWindow::CreateViewport(const rhi::BackendOptions& options) {
         Result(ok, reason);
         Refresh();
     };
+    viewport_->physicsEdit = [this] {
+        render::PhysicsEditView view;
+        if (physicsDialog_ && physicsDialog_->Active()) {
+            view.edit = &physicsDialog_->State();
+            view.slot = session_.Selected().model;
+            view.body = physicsDialog_->SelectedBody();
+            view.joint = physicsDialog_->SelectedJoint();
+            view.jointPage = physicsDialog_->JointPage();
+        }
+        return view;
+    };
+    viewport_->physicsDrag = [this](unsigned mode, int dy, bool shift) {
+        return physicsDialog_ && physicsDialog_->Drag(mode, dy, shift);
+    };
     viewport_->zoom = [this](int delta) {
         std::string r;
         Result(session_.WheelView(delta, r), r);
@@ -2222,6 +2236,12 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
         }
         if (key->key() == Qt::Key_Space) {
             Dispatch(kPlayButton);
+            return true;
+        }
+        if (key->key() == Qt::Key_D &&
+            !(key->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
+            if (!key->isAutoRepeat())
+                MenuCommand(MDS_CMD_TOGGLE_PHYSICS_BODIES);
             return true;
         }
         if (key->key() == Qt::Key_P &&

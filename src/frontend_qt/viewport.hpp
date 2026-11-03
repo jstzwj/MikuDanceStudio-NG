@@ -32,6 +32,8 @@ public:
     std::function<void(QPoint, Qt::MouseButtons, Qt::KeyboardModifiers)> drag;
     std::function<void(int)> zoom;
     std::function<void(bool, const std::string&)> changed;
+    std::function<render::PhysicsEditView()> physicsEdit;
+    std::function<bool(unsigned, int, bool)> physicsDrag;
     std::uint64_t Submissions() const;
     std::uint64_t FrameBuilds() const { return frameBuilds_; }
     bool BeginHeaderDrag(unsigned operation, QPoint position, QPoint restore,
@@ -72,6 +74,7 @@ private:
     FrameCpuTimings cpuTimings_;
     bool loadedAssets_ = false, pressed_ = false;
     int boneDragMode_ = 0;
+    unsigned physicsDragMode_ = 0;
     unsigned sceneDragMode_ = 0;
     unsigned headerDragOperation_ = 0;
     std::uint8_t dragModel_ = 255;

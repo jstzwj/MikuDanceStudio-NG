@@ -3698,3 +3698,55 @@ Validation: local `ALL_BUILD` and all **54 P4 gates passed (193.72 seconds)**.
 The application and optional native observer were rebuilt after formatting;
 100 original snapshots and the Qt physics test passed again, including the
 disabled-playback keyboard dispatch guard. Tests created no visible windows.
+
+
+## Physics overlays and staging drags (2026-11-03)
+
+Command 264 and the D shortcut now toggle Bullet collision-shape overlays in
+stopped and playing frames. The shared geometry uses the original sphere, box,
+hemisphere, cylinder and joint-marker data. It preserves the native dynamic/static
+ordering, persistent red/green/pink color state, bone attachments, capsule half
+height and selected-joint depth clear/axis draw. The modeless physics dialog
+supplies a synchronous borrowed staging view; no GPU or dialog pointers enter the
+scene document or undo history. Successful submissions alone commit persistent
+color state. Staging forces frame preparation without advancing the CPU scene.
+
+The physical world stops stepping while the physics editor is open, using the
+same simulation scheduler gate as the original frame-copy/physics dialog. Its
+resource lease is checked against the live selected owner. CPU regression checks
+60 paused edit frames and resumed stepping after cancel. The scratch viewport
+axis gestures edit body/joint rotation and position, or Shift body size; focus
+loss, replacement and close terminate the drag. Bone poses, undo history and PMM
+revision remain unchanged. The x64 executable uses float multiply/subtract for
+these gestures, unlike the old reconstructed Win32 helper's double arithmetic.
+
+The optional physics_debug_oracle_test runs the hash-verified original geometry
+constructor and staging-preview routine without a window or GPU. Indexed vertex
+positions and index ordering match bit-for-bit; joint-marker colors match after
+ARGB/RGBA conversion. It compares 108 independent draw-order/color/transform
+cases across shape, bone attachment, selection and persistent initial color.
+Transform tolerance is 2e-5. A separate original frame-driver slice checks 600 drag cases, comparing
+float bits and control/text echoes exactly. These CPU observations do not replace the
+remaining independent combined-scene GPU acceptance gate. Public offscreen GPU
+checks cover staging, selected joint axes, live body overlays and strict repeat
+submission. Qt replays the original 100-state dialog corpus in all three
+languages with staging frame preparation, and exercises synthetic axis gestures
+without creating a surface or moving the desktop cursor. Menu coverage is 93/103.
+
+The preceding physics-staging commit 9eb1e00 passed Windows/macOS/Linux Portable
+editor CI [41584999752](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41584999752),
+plus Portable formats, Portable render and Bullet workflows. Antialiasing,
+combined-scene GPU and full input/layout/C1 acceptance continue; P4 remains open.
+
+The staging drag integration exposed a rejected ordinary dialog result: Add Joint
+initializes both ends to body zero. The runtime now accepts this reference pair
+while retaining range/nonfinite checks. The observer separately calls the original
+x64 joint constructor (RVA 5B80, pointer-vector ABI) on its own native world with
+equal body pointers, then destroys the native world successfully. Portable checks
+run static/dynamic modes 0/1/2 for 120 frames, verify finite body snapshots, save,
+reopen and unload; the Qt gesture scenario accepts the same newly added joint.
+
+Validation: local ALL_BUILD passed and all 54 P4 gates passed (190.06 seconds).
+The new overlay checks also passed explicitly on DX12 WARP and hardware Vulkan.
+The 600-case drag, 108-case preview, geometry and six-command native observers
+passed without original UI/device creation. Desktop input was never used.

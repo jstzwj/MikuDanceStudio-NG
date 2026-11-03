@@ -9,6 +9,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTest>
+#include <QMouseEvent>
+#include <QFocusEvent>
+#include "mikudancestudio/background_placement.hpp"
 #include <QSignalBlocker>
 #include <fstream>
 #include <iostream>
@@ -185,9 +188,19 @@ int main(int argc, char** argv) {
                 }
             }
             CHECK(session.Revision() == revision && !session.EnhancedModelDirty());
+            const auto frames = session.Runtime().Counters().frames;
+            const auto builds = window.RenderWindow()->FrameBuilds();
+            CHECK(window.RenderWindow()->PrepareFrame(640, 480, reason));
+            CHECK(window.RenderWindow()->PrepareFrame(640, 480, reason));
+            CHECK(window.RenderWindow()->FrameBuilds() == builds + 2 &&
+                  session.Runtime().Counters().frames == frames);
         }
         dialog->reject();
         CHECK(!dialog->Active());
+        CHECK(window.RenderWindow()->PrepareFrame(640, 480, reason));
+        const auto& restored = window.RenderWindow()->PreparedFrame();
+        CHECK(std::none_of(restored.passes.begin(), restored.passes.end(),
+                           [](const auto& p) { return p.name == "editor_physics_overlay"; }));
         CHECK(window.Control(panel::kMainComboModel)->isEnabled() &&
               window.Control(panel::kPlayButton)->isEnabled());
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
@@ -196,6 +209,73 @@ int main(int argc, char** argv) {
             dynamic_cast<qt::ModelPhysicsDialog*>(window.findChild<QDialog*>("mmd.modelPhysics"));
         CHECK(dialog);
         static_cast<QAbstractButton*>(dialog->Control(685))->click();
+        auto& viewport = *window.RenderWindow();
+        viewport.resize(640, 480);
+        const auto poses = session.Document().models[0].bonePose;
+        const bool undo = session.CanUndo();
+        const auto dragRevision = session.Revision();
+        const auto mouse = [&](QEvent::Type type, QPointF p, Qt::MouseButton button,
+                               Qt::MouseButtons buttons,
+                               Qt::KeyboardModifiers mods = Qt::NoModifier) {
+            QMouseEvent event(type, p, p, p, button, buttons, mods);
+            QCoreApplication::sendEvent(&viewport, &event);
+        };
+        for (bool jointPage : {false, true}) {
+            if (jointPage) {
+                static_cast<QAbstractButton*>(dialog->Control(735))->click();
+                static_cast<QAbstractButton*>(dialog->Control(801))->click();
+            }
+            for (bool upper : {false, true})
+                for (int axis = 0; axis < 3; ++axis)
+                    for (bool shift : {false, true}) {
+                        // The never-shown host has no laid-out canvas. Its
+                        // refresh can shrink the child; restore test geometry.
+                        viewport.resize(640, 480);
+                        const auto ratio = viewport.devicePixelRatio();
+                        const int w = qRound(viewport.width() * ratio),
+                                  h = qRound(viewport.height() * ratio);
+                        const auto scale = render::BackgroundViewScale(w);
+                        const QPointF point((w - (110 - 40 * axis) * scale) / ratio,
+                                            (h - (upper ? 65 : 25) * scale) / ratio);
+                        const auto start = point.toPoint();
+                        const auto finish = start - QPoint(0, 10);
+                        const int dy = qRound(finish.y() * ratio) - qRound(start.y() * ratio);
+                        auto expected = dialog->State();
+                        const unsigned mode = unsigned((upper ? 4 : 10) + axis);
+                        const auto echo = expected.Drag(jointPage, 0, mode, dy, shift);
+                        mouse(QEvent::MouseButtonPress, start, Qt::LeftButton, Qt::LeftButton);
+                        if (viewport.cursor().shape() != Qt::BlankCursor)
+                            std::cerr << "drag page=" << jointPage << " upper=" << upper
+                                      << " axis=" << axis << " shift=" << shift
+                                      << " model=" << int(session.Selected().model)
+                                      << " point=" << start.x() << ',' << start.y()
+                                      << " size=" << viewport.width() << ',' << viewport.height()
+                                      << " active=" << dialog->Active() << '\n';
+                        CHECK(viewport.cursor().shape() == Qt::BlankCursor);
+                        mouse(QEvent::MouseMove, finish, Qt::NoButton, Qt::LeftButton,
+                              shift ? Qt::ShiftModifier : Qt::ControlModifier);
+                        QFocusEvent focus(QEvent::FocusOut);
+                        QCoreApplication::sendEvent(&viewport, &focus);
+                        CHECK(viewport.cursor().shape() != Qt::BlankCursor);
+                        CHECK(!std::memcmp(&expected.bodies[0], &dialog->State().bodies[0],
+                                           sizeof(format::RigidData)));
+                        if (jointPage)
+                            CHECK(!std::memcmp(&expected.joints[0], &dialog->State().joints[0],
+                                               sizeof(format::JointData)));
+                        char text[256];
+                        std::snprintf(text, sizeof text, echo.format, double(echo.value));
+                        CHECK(static_cast<QLineEdit*>(dialog->Control(echo.control))->text() ==
+                              QString::fromLatin1(text));
+                        mouse(QEvent::MouseMove, finish - QPoint(0, 20), Qt::NoButton,
+                              Qt::LeftButton);
+                        CHECK(session.Revision() == dragRevision && session.CanUndo() == undo);
+                        CHECK(session.Document().models[0].bonePose.size() == poses.size());
+                        for (unsigned i = 0; i < poses.size(); ++i)
+                            CHECK(session.Document().models[0].bonePose[i].components ==
+                                  poses[i].components);
+                    }
+        }
+        CHECK(!viewport.isVisible() && viewport.Submissions() == 0);
         dialog->accept();
         CHECK(session.EnhancedModelDirty() &&
               session.Runtime().Resource(0)->PmdSource()->rigids.size() == 1);

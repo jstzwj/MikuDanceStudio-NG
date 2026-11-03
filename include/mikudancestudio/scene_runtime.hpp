@@ -9,6 +9,12 @@ struct SceneCounters {
     std::uint64_t frames = 0, preparedModels = 0, publishedModels = 0;
     std::uint64_t editorUpdates = 0;
 };
+struct PhysicsDebugBody {
+    std::uint8_t shape = 0; // PMD sphere/box/capsule convention.
+    bool dynamic = false;
+    std::array<float, 3> size{}; // Capsule: radius, half height.
+    cpu_math::Matrix world;
+};
 class SceneRuntime final {
 public:
     SceneRuntime();
@@ -52,6 +58,7 @@ public:
     bool ApplyEditorDocument(format::SceneSession, std::string&,
                              std::optional<std::uint8_t> forcePose = {});
     bool PhysicsEditPose(std::uint8_t, bool fromTracks, std::string&);
+    void SetPhysicsEditModel(std::uint8_t, bool active);
     bool ReplacePmdPhysics(std::uint8_t, const std::vector<format::RigidData>&,
                            const std::vector<format::JointData>&, std::string&);
     void SetPanelExpanded(unsigned option, bool expanded);
@@ -86,6 +93,8 @@ public:
     const ModelSnapshot* Snapshot(std::uint8_t) const;
     std::shared_ptr<const ModelResource> Resource(std::uint8_t) const;
     std::vector<std::array<float, 38>> Bodies(std::uint8_t) const;
+    // Bullet collision-object order, without borrowing world/shape pointers.
+    std::vector<PhysicsDebugBody> PhysicsDebugBodies() const;
     const format::SceneSession* Session() const;
     const CpuSimulationState& Simulation() const;
     const SceneCounters& Counters() const;

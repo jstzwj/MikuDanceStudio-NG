@@ -183,6 +183,8 @@ int main(int argc, char** argv) {
             options.backend = rhi::Backend::D3D11;
         if (std::string(value) == "d3d12")
             options.backend = rhi::Backend::D3D12;
+        if (std::string(value) == "vulkan")
+            options.backend = rhi::Backend::Vulkan;
     }
     if (const auto* value = std::getenv("MDS_GPU_DRIVER"))
         if (std::string(value) == "software")
@@ -309,6 +311,67 @@ int main(int argc, char** argv) {
         CHECK(std::any_of(dragged.passes.begin(), dragged.passes.end(),
                           [](const auto& p) { return p.name == "editor_operation_axis"; }));
         CHECK(submit(dragged, actual));
+        if (session.Runtime().Resource(0)->PmdSource()) {
+            // Independent synthetic staging data: every shape, an unselected
+            // joint marker, the selected joint axis, and live body snapshots.
+            editor::ModelPhysicsEdit edit;
+            for (unsigned shape = 0; shape < 3; ++shape) {
+                const int body = edit.AddBody();
+                edit.bodies[body].shape = std::uint8_t(shape);
+                edit.bodies[body].size[0] = .8f;
+                edit.bodies[body].size[1] = 2;
+                edit.bodies[body].size[2] = 1;
+                edit.bodies[body].position[0] = (float(shape) - 1) * 3;
+                edit.bodies[body].position[1] = 10;
+            }
+            const int joint = edit.AddJoint();
+            edit.joints[joint].position[1] = 10;
+            edit.joints[joint].rigidA = 1;
+            edit.joints[joint].rigidB = 2;
+            tools.physicsEdit = {&edit, 0, 1, joint, false};
+            std::vector<render::PhysicsGizmoDraw> draws;
+            std::uint32_t next;
+            CHECK(render::PhysicsGizmoDraws(session.Runtime(), tools.physicsEdit, 0xffff0000, draws,
+                                            next, reason));
+            CHECK(draws.size() == 6 && draws[0].argb == 0xffff0000 &&
+                  draws[1].mesh == render::PhysicsGizmoMesh::Joint && draws[2].argb == 0xffff0000 &&
+                  draws[3].argb == 0xff9bff00);
+            for (bool jointPage : {false, true}) {
+                tools.physicsEdit.jointPage = jointPage;
+                auto preview = scene;
+                CHECK(overlay.Append(session.Runtime(), settings, session.Selected().bones, false,
+                                     preview, reason, &tools));
+                CHECK(std::none_of(preview.passes.begin(), preview.passes.end(), [](const auto& p) {
+                    return p.name == "editor_operation_axis";
+                }));
+                CHECK(submit(preview, actual) && submit(preview, repeat) &&
+                      actual.bytes == repeat.bytes);
+                preview.passes.erase(std::remove_if(preview.passes.begin(), preview.passes.end(),
+                                                    [](const auto& p) {
+                                                        return p.name == "editor_physics_overlay";
+                                                    }),
+                                     preview.passes.end());
+                CHECK(submit(preview, repeat) && actual.bytes != repeat.bytes);
+                CHECK(overlay.Commit() == !jointPage);
+                auto repeated = scene;
+                CHECK(overlay.Append(session.Runtime(), settings, session.Selected().bones, false,
+                                     repeated, reason, &tools));
+                CHECK(submit(repeated, repeat));
+                CHECK(!overlay.Commit());
+                ++cases;
+            }
+            tools.physicsEdit = {};
+            if (!session.Runtime().PhysicsDebugBodies().empty()) {
+                settings.display.physicsBodies = true;
+                auto live = scene;
+                CHECK(overlay.Append(session.Runtime(), settings, {}, true, live, reason, &tools));
+                CHECK(std::any_of(live.passes.begin(), live.passes.end(), [](const auto& p) {
+                    return p.name == "editor_physics_overlay";
+                }));
+                CHECK(submit(live, actual));
+                settings.display.physicsBodies = false;
+            }
+        }
         CHECK(session.Runtime().Counters().frames == frames);
         CHECK(session.SelectModel(255, reason));
         settings.editorModel = 255;

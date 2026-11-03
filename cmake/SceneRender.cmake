@@ -4,7 +4,8 @@ function(mds_add_scene_render)
     endif()
     get_filename_component(mds_root "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/.." ABSOLUTE)
     add_library(mikudancestudio_scene_render STATIC "${mds_root}/src/render/scene_frame_producer.cpp"
-        "${mds_root}/src/render/scene_editor_overlay.cpp")
+        "${mds_root}/src/render/scene_editor_overlay.cpp"
+        "${mds_root}/src/render/physics_debug_geometry.cpp")
     target_link_libraries(mikudancestudio_scene_render PUBLIC mikudancestudio_scene_runtime mikudancestudio_rhi)
     if(MSVC)
         target_compile_options(mikudancestudio_scene_render PRIVATE /fp:precise /utf-8)

@@ -98,6 +98,7 @@ public:
                            std::vector<unsigned>& missing, std::string&);
     void RefreshModelToons();
     bool BeginModelPhysicsEdit(std::uint8_t, ModelPhysicsEdit&, std::string&);
+    void AbandonModelPhysicsEdit(std::uint8_t);
     bool FinishModelPhysicsEdit(std::uint8_t, const ModelPhysicsEdit* accepted, std::string&);
     ModelPhysicsClipboard& PhysicsClipboard() { return physicsClipboard_; }
     bool ImportPicture(const std::filesystem::path&, unsigned viewWidth, unsigned viewHeight,
@@ -206,6 +207,7 @@ public:
     void SetHiddenModels(bool);
     void SetMipmaps(bool);
     void SetWireframe(bool);
+    void SetPhysicsBodiesVisible(bool);
     bool SetOutlineColor(const std::array<std::uint8_t, 3>& rgb);
     // Invalidate visual changes which preserve the document's dirty revision.
     std::uint64_t AppearanceRevision() const { return appearanceRevision_; }

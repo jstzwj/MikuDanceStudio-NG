@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cstring>
 #include <limits>
+#include <cmath>
 using namespace mikudancestudio;
 using namespace editor;
 std::string reason;
@@ -152,6 +153,48 @@ int main(int argc, char** argv) {
         (void)undo;
     }
     EditorSession clipboardSession;
+    {
+        EditorSession session;
+        CHECK(session.ImportModel(root / "articulated.pmd", reason));
+        CHECK(session.Play(reason));
+        for (unsigned i = 0; i < 30; ++i)
+            CHECK(session.Advance(1. / 30, reason));
+        session.Pause();
+        const auto before = session.Runtime().Bodies(0);
+        ModelPhysicsEdit edit;
+        CHECK(session.BeginModelPhysicsEdit(0, edit, reason));
+        for (unsigned i = 0; i < 60; ++i)
+            CHECK(session.TickIdle(1. / 30, reason));
+        CHECK(session.Runtime().Bodies(0) == before);
+        CHECK(session.FinishModelPhysicsEdit(0, nullptr, reason));
+        CHECK(session.TickIdle(1. / 30, reason));
+        CHECK(session.Runtime().Bodies(0) != before);
+    }
+    // The native Add Joint default binds both ends to scratch body zero.
+    // This is a valid dialog result, not a missing/out-of-range reference.
+    for (unsigned mode : {0u,1u,2u}) {
+        EditorSession session;
+        CHECK(session.ImportModel(root / "triangle.pmd", reason));
+        ModelPhysicsEdit edit;
+        CHECK(session.BeginModelPhysicsEdit(0,edit,reason));
+        const auto body = edit.AddBody();
+        edit.bodies[body].mode = std::uint8_t(mode);
+        const auto joint = edit.AddJoint();
+        CHECK(edit.joints[joint].rigidA == body && edit.joints[joint].rigidB == body);
+        CHECK(session.FinishModelPhysicsEdit(0,&edit,reason));
+        CHECK(session.Runtime().Resource(0)->PmdSource()->joints.size()==1);
+        CHECK(session.Play(reason));
+        for (unsigned frame=0;frame<120;++frame)
+            CHECK(session.Advance(1./30,reason));
+        session.Pause();
+        for (const auto& record : session.Runtime().Bodies(0))
+            for (float value : record)
+                CHECK(std::isfinite(value));
+        CHECK(session.SaveEnhancedModel(0,root/"self-joint.pmd",Write,reason));
+        EditorSession reopened;
+        CHECK(reopened.ImportModel(root/"self-joint.pmd",reason));
+        CHECK(reopened.UnloadModel(0,reason));
+    }
     clipboardSession.PhysicsClipboard().body.mass = 17;
     CHECK(clipboardSession.New(reason) && clipboardSession.PhysicsClipboard().body.mass == 17);
     std::cout

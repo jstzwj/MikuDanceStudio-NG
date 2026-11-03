@@ -13,9 +13,18 @@ public:
     bool Append(const runtime::SceneRuntime&, const SceneRenderSettings&,
                 const std::vector<std::uint32_t>& selected, bool playing, rhi::RenderFrame&,
                 std::string&, const ViewportTools* tools = nullptr);
+    // Commit native gizmo color history only after successful submission.
+    bool Commit() {
+        const bool changed = debugColor_ != pendingDebugColor_;
+        debugColor_ = pendingDebugColor_;
+        return changed;
+    }
 
 private:
     rhi::ModelReplayResource texture_, lines_, sprites_, axisVertices_, axisIndices_;
+    rhi::ModelReplayResource physicsVertices_, physicsIndices_;
+    PhysicsGizmoRanges physicsRanges_{};
+    std::uint32_t debugColor_ = 0xffff0000, pendingDebugColor_ = 0xffff0000;
     std::shared_ptr<const runtime::AccessoryResource> axis_;
     bool loaded_ = false;
     bool retired_ = false;

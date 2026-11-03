@@ -18,6 +18,40 @@ struct ModelPhysicsClipboard {
 // at the import/export boundaries. No Bullet or UI objects are retained here.
 class ModelPhysicsEdit {
 public:
+    struct DragEcho {
+        int control = 0;
+        float value = 0;
+        const char* format = "%3.2f";
+    };
+    // Frame-driver modes 4..6 and 10..12 edit the selected scratch record,
+    // including a deleted slot still selected by the native dialog. Keep the
+    // x64 float multiply/subtract; modifiers do not scale precision.
+    DragEcho Drag(bool jointPage, int index, unsigned mode, int dy, bool shift) {
+        if (index < 0 ||
+            (jointPage ? std::size_t(index) >= joints.size() : std::size_t(index) >= bodies.size()))
+            return {};
+        if (mode >= 4 && mode <= 6) {
+            const auto axis = mode - 4;
+            float& value = jointPage ? joints[index].rotation[axis] : bodies[index].rotation[axis];
+            value = value - float(dy) * .01f;
+            return {int((jointPage ? 754 : 715) + axis), value / 3.141592f * 180.f};
+        }
+        if (mode >= 10 && mode <= 12) {
+            const auto axis = mode - 10;
+            float& value = jointPage ? joints[index].position[axis]
+                           : shift   ? bodies[index].size[axis]
+                                     : bodies[index].position[axis];
+            value = value - float(dy) * .05f;
+            if (!jointPage && shift && value < .1f)
+                value = .1f;
+            return {int((jointPage ? 744
+                         : shift   ? 709
+                                   : 712) +
+                        axis),
+                    value, jointPage ? "%5.4f" : "%3.2f"};
+        }
+        return {};
+    }
     static constexpr unsigned Capacity = 100000;
     std::vector<format::RigidData> bodies;
     std::vector<format::JointData> joints;

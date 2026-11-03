@@ -181,6 +181,29 @@ int main(int argc, char** argv) {
               session.CanRedo() == redo);
     }
     CHECK(window.SetLanguage("en"));
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        CHECK(window.SetLanguage(language));
+        const auto revision = session.Revision(), appearance = session.AppearanceRevision();
+        const auto frames = session.Runtime().Counters().frames;
+        auto* bodies = command(MDS_CMD_TOGGLE_PHYSICS_BODIES);
+        CHECK(bodies->isEnabled() && !bodies->isChecked());
+        bodies->trigger();
+        CHECK(bodies->isChecked() && session.DisplayOptions().physicsBodies);
+        CHECK(session.AppearanceRevision() == appearance + 1);
+        CHECK(session.Play(reason));
+        window.Refresh();
+        const auto playingFrames = session.Runtime().Counters().frames;
+        QKeyEvent key(QEvent::KeyPress, Qt::Key_D, Qt::NoModifier);
+        QApplication::sendEvent(window.RenderWindow(), &key);
+        CHECK(session.Playing() && !session.DisplayOptions().physicsBodies);
+        QKeyEvent repeat(QEvent::KeyPress, Qt::Key_D, Qt::NoModifier, "d", true);
+        QApplication::sendEvent(window.RenderWindow(), &repeat);
+        CHECK(!session.DisplayOptions().physicsBodies);
+        session.Pause();
+        CHECK(session.Revision() == revision &&
+              session.Runtime().Counters().frames == playingFrames && playingFrames >= frames);
+    }
+    CHECK(window.SetLanguage("en"));
     command(MDS_CMD_TOGGLE_UI_LANGUAGE)->trigger();
     CHECK(window.CurrentLanguage() == "ja");
     command(MDS_CMD_TOGGLE_UI_LANGUAGE)->trigger();
@@ -475,7 +498,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 92);
+    CHECK(implemented == 93);
     for (const char* language : {"en", "ja", "zh_CN"}) {
         qt::EditorWindow about(std::filesystem::absolute(argv[2]), true);
         CHECK(about.SetLanguage(language));

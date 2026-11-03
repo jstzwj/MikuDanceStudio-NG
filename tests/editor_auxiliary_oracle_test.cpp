@@ -682,8 +682,8 @@ unsigned AboutCommands(OriginalPhysicsModule& original) {
                 }
     return cases;
 }
-unsigned WireframeCommands(OriginalPhysicsModule& original) {
-    switchMenuCommand = MDS_CMD_TOGGLE_WIREFRAME;
+unsigned DisplayFlagCommands(OriginalPhysicsModule& original, bool physicsBodies = false) {
+    switchMenuCommand = physicsBodies ? MDS_CMD_TOGGLE_PHYSICS_BODIES : MDS_CMD_TOGGLE_WIREFRAME;
     auto menu = &ShadowMenu;
     auto check = &ShadowMenuCheck;
     Patch a(original.Function<void*>(0x1286a0), &menu, sizeof menu);
@@ -695,21 +695,28 @@ unsigned WireframeCommands(OriginalPhysicsModule& original) {
     for (unsigned raw : {0u, 1u, 7u})
         for (bool playing : {false, true}) {
             std::memset(app.get(), 0, sizeof(*app));
-            app->wireframeRenderingEnabled = static_cast<unsigned char>(raw);
+            (physicsBodies ? app->rigidBodyDisplayEnabled : app->wireframeRenderingEnabled) =
+                static_cast<unsigned char>(raw);
             app->playbackActive = playing;
             app->sceneModified = 0x7d;
             app->physicsResetPending = 1;
             app->currentFrame = 123;
             auto expected = std::make_unique<MMDAppState>(*app);
-            expected->wireframeRenderingEnabled = !raw;
+            (physicsBodies ? expected->rigidBodyDisplayEnabled
+                           : expected->wireframeRenderingEnabled) = !raw;
+            if (physicsBodies)
+                expected->letterKeyState[5] = 1;
             shadowMenuChecked = raw != 0;
             shadowMenuWrites = 0;
-            original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, MDS_CMD_TOGGLE_WIREFRAME);
+            original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, switchMenuCommand);
             Check(shadowMenuWrites == 1 && !std::memcmp(app.get(), expected.get(), sizeof(*app)),
-                  "original wireframe switch changes only its display byte and menu");
+                  "original display switch and D-key latch");
             ++cases;
         }
     return cases;
+}
+unsigned WireframeCommands(OriginalPhysicsModule& original) {
+    return DisplayFlagCommands(original);
 }
 unsigned MipmapCommands(OriginalPhysicsModule& original) {
     switchMenuCommand = MDS_CMD_TOGGLE_MIPMAP;
@@ -3374,6 +3381,11 @@ int wmain(int argc, wchar_t** argv) try {
         if (std::wcscmp(argv[3], L"--wireframe") == 0) {
             std::printf("%u original wireframe command comparisons passed\n",
                         WireframeCommands(original));
+            return 0;
+        }
+        if (std::wcscmp(argv[3], L"--debug-bodies") == 0) {
+            std::printf("%u original body-display command comparisons passed\n",
+                        DisplayFlagCommands(original, true));
             return 0;
         }
         if (std::wcscmp(argv[3], L"--file-folders") == 0) {

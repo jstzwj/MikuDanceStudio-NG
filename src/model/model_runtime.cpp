@@ -103,8 +103,10 @@ bool ModelResource::Create(const format::ModelDocument& source,
     }
     for (std::size_t n = 0; n < model.joints.size(); ++n) {
         const auto& j = model.joints[n].fields;
+        // MMD's Add Joint defaults both ends to body zero. Bullet supports
+        // that constraint; validate references without rejecting this UI state.
         if (j.rigidA < 0 || j.rigidB < 0 || j.rigidA >= std::int64_t(model.rigids.size()) ||
-            j.rigidB >= std::int64_t(model.rigids.size()) || j.rigidA == j.rigidB ||
+            j.rigidB >= std::int64_t(model.rigids.size()) ||
             !Finite(j.position) || !Finite(j.rotation) || !Finite(j.limits) || !Finite(j.springs))
             return Fail(reason, "invalid-joint", n);
     }
