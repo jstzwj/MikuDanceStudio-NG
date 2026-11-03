@@ -3223,6 +3223,14 @@ passed the focused rerun, retaining their strict history/pixel assertions.
 P4/C1 remains in progress; these checks do not close the remaining input,
 combined-scene output, layout and command gates.
 
+The first VAC CI revision exposed an existing shared-editor path-decoder
+override: it decoded CP932 but left PMM's backslashes literal on Unix. Windows
+passed while macOS/Linux failed the new Save As/reopen case. The editor now
+retains `SceneResourceResolver`'s standard separator normalization and control
+character validation. Unresolved accessories also report their slot explicitly.
+The same correction applies to referenced model paths. The failure was not
+reclassified as an unavailable platform or removed from the gate.
+
 ## About dialogs and modal ownership (2026-11-03)
 
 Commands 201 and 267 are connected, bringing implemented original-menu entries

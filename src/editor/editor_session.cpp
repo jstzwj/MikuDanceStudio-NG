@@ -632,12 +632,6 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     EndGesture();
     const auto absolute = std::filesystem::absolute(path).lexically_normal();
     SceneResourceResolver resolver(absolute);
-    resolver.SetPathDecoder([](const std::string& bytes) -> std::optional<std::filesystem::path> {
-        std::string utf8;
-        if (!text::DecodeCp932(bytes, utf8))
-            return {};
-        return std::filesystem::u8path(utf8);
-    });
     std::ifstream f(absolute, std::ios::binary);
     SceneSession session;
     if (!f || !SceneSession::Load(Read, &f, SceneResourceResolver::Resolve, &resolver, session)) {
@@ -698,8 +692,11 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     }
     for (const auto& a : next.document.accessories) {
         std::filesystem::path source;
-        if (!resolver.ResolveAccessory(a.slot, a.path, source) ||
-            !ReadAccessory(source, next.assets.accessories[a.slot], reason))
+        if (!resolver.ResolveAccessory(a.slot, a.path, source)) {
+            reason = "accessory-resource-resolution-failed:" + std::to_string(a.slot);
+            return false;
+        }
+        if (!ReadAccessory(source, next.assets.accessories[a.slot], reason))
             return false;
         next.assets.accessoryPaths[a.slot] = source;
     }
