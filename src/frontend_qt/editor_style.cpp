@@ -82,11 +82,17 @@ public:
             return;
         }
         // DS_3DLOOK turns the resource EDIT's WS_BORDER into CLIENTEDGE.
-        // Only the hidden classic edge is handled here; shown controls use
-        // the native Vista edit theme, including its normal focus/disable state.
+        // USER32 retains the white inner CLIENTEDGE even when disabled. Qt's
+        // default edit frame instead fills it with the disabled background.
         if (element == PE_FrameLineEdit && widget &&
-            widget->property("mmdNativeSunkenEdit").toBool() && !widget->isVisible() &&
+            widget->property("mmdNativeSunkenEdit").toBool() &&
             baseStyle()->objectName() == "windowsvista") {
+            if (widget->isVisible() && DrawWindowsEditBorder(*painter, option->rect, option->state))
+                return;
+            if (widget->isVisible()) {
+                QProxyStyle::drawPrimitive(element, option, painter, widget);
+                return;
+            }
             DrawWindowsSunkenBorder(*painter, option->rect);
             return;
         }

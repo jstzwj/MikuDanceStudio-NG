@@ -2909,14 +2909,87 @@
       "followup_raw_artifact": "out/p4-ime-windows2025-ci/windows/system-ime-ms-ime.json and system-ime-ms-ime.en.log"
     },
     "current_followup": {
-      "status": "pending consolidated isolated qualification",
+      "status": "failed natural exit in consolidated isolated qualification",
+      "run": 41704895198,
+      "revision": "0af9e3019797e802dc85c5adb2485afe88bb47df",
+      "accepted": false,
       "production_manifest": true,
       "startup_diagnostic_through_first_status": true,
       "ci_text_input_services_recorded_and_started": true,
+      "input_service": {
+        "Name": "TabletInputService",
+        "Status": 4,
+        "StartType": 3
+      },
       "language_install_reboot_required_rejected": true,
       "reset_commit_cancellation_protected": true,
+      "completed_scenarios": [
+        "en"
+      ],
+      "shutdown_finishing": true,
+      "finding": "Input scenario passes; event loop returns 0 and observer/dialog/session destructors complete. QApplication helper-window destruction still blocks in MSCTF/imjpapi. Manifest and service preparation did not fix it.",
       "natural_client_exit_required": true,
-      "forced_exit_is_failure": true
+      "forced_exit_is_failure": true,
+      "raw_report": "out/p4-consolidated-41704895198/windows/system-ime-ms-ime.json",
+      "raw_diagnostics": "system-ime-ms-ime.en.log and system-ime-ms-ime.en.hang.dmp in p4-windows artifact",
+      "independent_windows_client_environment": "Requested; no Windows 10/11 isolated environment confirmed yet. Current user desktop is not used."
     }
+  },
+  "consolidated_followup": {
+    "run": 41704895198,
+    "revision": "0af9e3019797e802dc85c5adb2485afe88bb47df",
+    "linux": [
+      {
+        "engine": "libpinyin",
+        "accepted": true,
+        "completed_scenarios": [
+          "en",
+          "ja",
+          "zh_CN"
+        ],
+        "natural_exit": "passed for all three languages",
+        "report": "out/p4-consolidated-41704895198/linux/system-ime.json",
+        "sha256": "da487f6c18911be143984796fe552a183b5545c50df1b070f48224203c25fa68"
+      },
+      {
+        "engine": "anthy",
+        "accepted": true,
+        "completed_scenarios": [
+          "en",
+          "ja",
+          "zh_CN"
+        ],
+        "natural_exit": "passed for all three languages",
+        "report": "out/p4-consolidated-41704895198/linux/system-ime-anthy.json",
+        "sha256": "3d2749d316bbd06c19e51ca899251ef3d8eb6338db5118407b2cda2607f326c5"
+      }
+    ],
+    "macos": [
+      {
+        "engine": "Kotoeri",
+        "accepted": true,
+        "completed_scenarios": [
+          "en",
+          "ja",
+          "zh_CN"
+        ],
+        "natural_exit": "passed for all three languages",
+        "report": "out/p4-consolidated-41704895198/macos/system-ime-kotoeri.json",
+        "sha256": "d7dd65d46effb58fbcda73b7fd19caae48d7c84066cec525280b0a59f63a41ed"
+      }
+    ],
+    "windows": [
+      {
+        "engine": "Microsoft Japanese IME",
+        "accepted": false,
+        "completed_scenarios": [
+          "en"
+        ],
+        "natural_exit": "blocked",
+        "report": "out/p4-consolidated-41704895198/windows/system-ime-ms-ime.json",
+        "sha256": "3a105d10a6852e12850de0467537577053d6dbf842df4f2fe0fc7d4c12cff1bd"
+      }
+    ],
+    "p4_c1_accepted": false
   }
 }

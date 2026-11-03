@@ -81,9 +81,44 @@ including newline undo.
 
 ## Remaining qualification
 
+Consolidated run [41704895198](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41704895198)
+at `0af9e30` passed 74 Windows, 70 Linux and 65 macOS ordinary P4 tests.
+Linux libpinyin/Anthy and macOS Kotoeri again completed all three UI languages
+and natural client exit. Linux/macOS native silent audio and package relocation
+also passed. Windows Japanese input passed the English scenario but still hung
+in Microsoft IME during `QApplication` native-window destruction. The production
+manifest and input-service preparation did not resolve that failure.
+
+The corrected resource-based **visible** Windows gate did not pass. Native
+dialog-show processing restored focus to its initial EDIT, including a caret,
+while Qt was explicitly inactive. Whole-dialog `PrintWindow` also included
+overlapping body/joint controls over independently rendered Qt controls. The
+observer now explicitly clears native focus for inactive profiles and excludes
+intersecting siblings during capture; actual-focus profiles remain separate.
+These observer changes need isolated visible requalification.
+
+The disabled EDIT border has a genuine production difference: USER32 retains
+a white inner client-edge pixel, whereas Qt fills that pixel with the disabled
+background. Shown dialog edits now share the native theme-color border drawing
+helper with listboxes, using the Edit theme's own part/state. Hidden classic
+client-edge tests remain separate; the shown repair is not yet qualified.
+
+Ctrl+Delete now removes the remainder of a single-line edit, while an existing
+selection deletes only that range. Native fit-to-field inputs have **1,610**
+text/selection/undo/redo comparisons across 230 controls; both the public resource
+gate and actual original-resource observer pass without showing a window.
+The Qt regression repeats seven independently observed selections, both writable
+and read-only, in three languages for dialog and main-window fields, preserving
+scene state and undo/redo. Native read-only key rejection can emit `MessageBeep`,
+so that part runs only through Qt's offscreen regression. Overflowing native
+no-autoscroll `WM_SETTEXT` can have virtual display rows; it is not qualified by
+the fitting-value deletion corpus. Word navigation, Ctrl+A and Ctrl+Backspace
+also require separate legacy behavior work; Qt's Unicode line boundaries are
+not a general replacement for native EDIT word boundaries.
+
 Focused and horizontally scrolled EDIT rendering, multiline appearance, hover
 transitions, physical DPI changes and non-Windows glyph/theme parity remain open.
 The Windows native input client now uses the production application manifest.
 Its isolated runner also records/enables the native text-input services and
-records whether language installation needs a reboot. These changes require real
-native-IME validation; successful synthetic tests alone cannot accept that gate.
+records whether language installation needs a reboot. That isolated Server 2022
+profile still fails natural exit; successful synthetic tests cannot accept it.

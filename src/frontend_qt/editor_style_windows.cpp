@@ -112,16 +112,17 @@ bool DrawWindowsEditText(QPainter& painter, const QRect& rect, const QFont& font
     DeleteObject(nativeFont);
     return painted;
 }
-bool DrawWindowsListBorder(QPainter& painter, const QRect& rect, QStyle::State state) {
+namespace {
+bool DrawControlBorder(QPainter& painter, const QRect& rect, QStyle::State state,
+                       const wchar_t* themeClass, int part) {
     const auto ratio = painter.device()->devicePixelRatioF();
-    const auto theme = OpenThemeDataForDpi(nullptr, L"ListBox", UINT(qRound(96 * ratio)));
+    const auto theme = OpenThemeDataForDpi(nullptr, themeClass, UINT(qRound(96 * ratio)));
     if (!theme)
         return false;
     const int partState = !(state & QStyle::State_Enabled) ? LBPSN_DISABLED
                           : state & QStyle::State_HasFocus ? LBPSN_FOCUSED : LBPSN_NORMAL;
     COLORREF color{};
-    const bool painted = SUCCEEDED(GetThemeColor(theme, LBCP_BORDER_NOSCROLL, partState,
-                                                 TMT_BORDERCOLOR, &color));
+    const bool painted = SUCCEEDED(GetThemeColor(theme, part, partState, TMT_BORDERCOLOR, &color));
     CloseThemeData(theme);
     if (painted) {
         // USER32's nonclient edge uses the theme color, not the client part's
@@ -138,6 +139,13 @@ bool DrawWindowsListBorder(QPainter& painter, const QRect& rect, QStyle::State s
         painter.restore();
     }
     return painted;
+}
+}
+bool DrawWindowsListBorder(QPainter& painter, const QRect& rect, QStyle::State state) {
+    return DrawControlBorder(painter, rect, state, L"ListBox", LBCP_BORDER_NOSCROLL);
+}
+bool DrawWindowsEditBorder(QPainter& painter, const QRect& rect, QStyle::State state) {
+    return DrawControlBorder(painter, rect, state, L"Edit", EP_EDITBORDER_NOSCROLL);
 }
 bool DrawWindowsComboText(QImage& background, const QRect& rect, const QFont& font,
                           const QString& text, bool enabled, bool keyboardFocus) {

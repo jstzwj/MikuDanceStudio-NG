@@ -10,6 +10,7 @@
 #include "editor_font.hpp"
 #include "editor_style.hpp"
 #include "edit_composition.hpp"
+#include "edit_navigation.hpp"
 #include "mikudancestudio/editor_numeric.hpp"
 #include "mikudancestudio/mmd_control_specs.hpp"
 #include "mikudancestudio/text_encoding.hpp"
@@ -2081,7 +2082,7 @@ void EditorWindow::FinishSidebarDrag() {
     canvas_->setCursor(sidebarCursor_);
 }
 bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
-    if (HandleEditComposition(object, event)) {
+    if (HandleEditComposition(object, event) || HandleEditDeleteTail(object, event)) {
         idleRenderState_ = 1;
         return true;
     }

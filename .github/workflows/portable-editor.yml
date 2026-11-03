@@ -156,7 +156,7 @@ jobs:
             @('--isolated-content-focus', 'out/p4/control-content-focus')
           )
           $results = foreach ($profile in $profiles) {
-            & out/p4/qt_control_style_test.exe $profile[0] $profile[1]
+            & out/p4/qt_control_style_test.exe $profile[0] $profile[1] | Out-Host
             [PSCustomObject]@{ profile = $profile[0]; exitCode = $LASTEXITCODE }
           }
           $results | ConvertTo-Json | Set-Content out/p4/control-qualification.json -Encoding UTF8

@@ -1,0 +1,253 @@
+{
+  "date": "2026-11-04",
+  "p4_c1_accepted": false,
+  "run": 41704895198,
+  "revision": "0af9e3019797e802dc85c5adb2485afe88bb47df",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41704895198",
+  "workflow_conclusion": "failure",
+  "dispatches_this_continuation": 1,
+  "profiles": {
+    "windows": {
+      "ordinary_p4": {
+        "tests": 74,
+        "failures": 0,
+        "skipped": 0,
+        "junit": "out/p4-consolidated-41704895198/windows/p4.xml",
+        "sha256": "d684a7a087bb48c2655c506f4bdec2d21cb7aae0b6125d778dd5e95a808f8eeb"
+      },
+      "job_conclusion": "failure",
+      "native_silent_audio": {
+        "status": "unavailable",
+        "detail": "No native audio output device",
+        "seconds": 120,
+        "silent": true
+      },
+      "distribution_relocation": "not run after qualification failure",
+      "native_ime": [
+        {
+          "engine": "Microsoft Japanese IME",
+          "accepted": false,
+          "completed_scenarios": [
+            "en"
+          ],
+          "natural_exit": "blocked",
+          "report": "out/p4-consolidated-41704895198/windows/system-ime-ms-ime.json",
+          "sha256": "3a105d10a6852e12850de0467537577053d6dbf842df4f2fe0fc7d4c12cff1bd"
+        }
+      ]
+    },
+    "linux": {
+      "ordinary_p4": {
+        "tests": 70,
+        "failures": 0,
+        "skipped": 0,
+        "junit": "out/p4-consolidated-41704895198/linux/p4.xml",
+        "sha256": "7b4b74dd17bd801d7b224d6dab4bbcc6e1c28fd0fb4711b2f289ffb779b2eebe"
+      },
+      "job_conclusion": "success",
+      "native_silent_audio": {
+        "status": "passed",
+        "detail": "Native silent PCM, processed clock, stop, seek/restart and EOF passed",
+        "seconds": 120,
+        "silent": true,
+        "device": "Null Output"
+      },
+      "distribution_relocation": {
+        "passed": true,
+        "sha256": "09b2ff4fbd1fbb915592337b84115f7025b614c45adba61345a04b31219751a5"
+      },
+      "native_ime": [
+        {
+          "engine": "libpinyin",
+          "accepted": true,
+          "completed_scenarios": [
+            "en",
+            "ja",
+            "zh_CN"
+          ],
+          "natural_exit": "passed for all three languages",
+          "report": "out/p4-consolidated-41704895198/linux/system-ime.json",
+          "sha256": "da487f6c18911be143984796fe552a183b5545c50df1b070f48224203c25fa68"
+        },
+        {
+          "engine": "anthy",
+          "accepted": true,
+          "completed_scenarios": [
+            "en",
+            "ja",
+            "zh_CN"
+          ],
+          "natural_exit": "passed for all three languages",
+          "report": "out/p4-consolidated-41704895198/linux/system-ime-anthy.json",
+          "sha256": "3d2749d316bbd06c19e51ca899251ef3d8eb6338db5118407b2cda2607f326c5"
+        }
+      ]
+    },
+    "macos": {
+      "ordinary_p4": {
+        "tests": 65,
+        "failures": 0,
+        "skipped": 0,
+        "junit": "out/p4-consolidated-41704895198/macos/p4.xml",
+        "sha256": "c8cd81377b067fda75d76ba50cc000e02b2e557fffc1c8375853c56bd34639a4"
+      },
+      "job_conclusion": "success",
+      "native_silent_audio": {
+        "status": "passed",
+        "detail": "Native silent PCM, processed clock, stop, seek/restart and EOF passed",
+        "seconds": 120,
+        "silent": true,
+        "device": "Apple Virtual Sound Device"
+      },
+      "distribution_relocation": {
+        "passed": true,
+        "sha256": "75537ef3c99e1918d2e707e9a121ff4979e7c372beedadc709e253c600675c36"
+      },
+      "native_ime": [
+        {
+          "engine": "Kotoeri",
+          "accepted": true,
+          "completed_scenarios": [
+            "en",
+            "ja",
+            "zh_CN"
+          ],
+          "natural_exit": "passed for all three languages",
+          "report": "out/p4-consolidated-41704895198/macos/system-ime-kotoeri.json",
+          "sha256": "d7dd65d46effb58fbcda73b7fd19caae48d7c84066cec525280b0a59f63a41ed"
+        }
+      ],
+      "metal_only_distribution": {
+        "passed": true,
+        "sha256": "5d7a92df248083d93699e446a34edc11560bfcc55039fb889caf090db9370293"
+      }
+    }
+  },
+  "windows_visible_controls_before_followup": {
+    "control-style-nonclient": {
+      "report": "out/p4-consolidated-41704895198/windows/control-style-nonclient/report.json",
+      "sha256": "36f27e70704475fffeade3cbb040432853f4b3a71156f8c334883bbdd80bcb92",
+      "cases": 460,
+      "mismatches": 291,
+      "editClientCases": 0,
+      "editClientMismatches": 0,
+      "editCursorMismatches": 0,
+      "windowsShown": true
+    },
+    "control-edit-visible": {
+      "report": "out/p4-consolidated-41704895198/windows/control-edit-visible/report.json",
+      "sha256": "452405f3b986caba04e2080a369e8c042721b37fdce0ef4efebba27a92e384cc",
+      "cases": 4600,
+      "mismatches": 2683,
+      "editClientCases": 0,
+      "editClientMismatches": 0,
+      "editCursorMismatches": 0,
+      "windowsShown": true
+    },
+    "control-content-visible": {
+      "report": "out/p4-consolidated-41704895198/windows/control-content-visible/report.json",
+      "sha256": "23fc49ab81cb2ea8329beafc297f988924181ef13b04bdb46e542ab4ee162ff7",
+      "cases": 68,
+      "mismatches": 8,
+      "editClientCases": 0,
+      "editClientMismatches": 0,
+      "editCursorMismatches": 0,
+      "windowsShown": true
+    },
+    "control-list-focus": {
+      "report": "out/p4-consolidated-41704895198/windows/control-list-focus/report.json",
+      "sha256": "daa9d3b441a9a1cb1fef9d4b3c2d235f3104c345240582d97ab15bcccfc3cd07",
+      "cases": 6,
+      "mismatches": 0,
+      "editClientCases": 0,
+      "editClientMismatches": 0,
+      "editCursorMismatches": 0,
+      "windowsShown": true
+    },
+    "control-content-focus": {
+      "report": "out/p4-consolidated-41704895198/windows/control-content-focus/report.json",
+      "sha256": "995ec4271adfdee15f94b294fca6e33d99d7df184f185f793ff7ac54509bccc6",
+      "cases": 28,
+      "mismatches": 4,
+      "editClientCases": 0,
+      "editClientMismatches": 0,
+      "editCursorMismatches": 0,
+      "windowsShown": true
+    }
+  },
+  "followup_changes": {
+    "native_reference_focus": "Clear dialog-manager-restored focus for explicitly inactive profiles; actual-focus profiles remain separate.",
+    "native_reference_overlaps": "Exclude intersecting siblings during a single-control whole-dialog PrintWindow capture; actual original initialization changes their visibility.",
+    "real_disabled_edit_border": "Use the Edit theme border color and retain the white inner client edge.",
+    "ctrl_delete": "Preserve selected-range deletion; otherwise delete the remaining text as one undoable edit. Fitting single-line values qualified, overflowing no-auto-scroll display rows remain open.",
+    "ci_aggregation": "Pipe executable stdout to Out-Host so the result array contains only profile/exitCode records.",
+    "visible_followup_qualified": false
+  },
+  "local_followup": {
+    "source": "working tree on the CI source revision; production file hashes below",
+    "all_build_and_dist": true,
+    "build_log": "out/p4-edit-compat-final-build.log",
+    "ordinary_p4_initial": {
+      "tests": 74,
+      "failures": 1,
+      "skipped": 0,
+      "junit": "out/p4/p4-edit-compat.xml",
+      "sha256": "737e2e55d9e127ea986391b2e5fd763919991bb750a8584a1582b7a96f29b126"
+    },
+    "initial_failure": "New Ctrl+Delete native corpus used artificial WM_SETTEXT overflow in no-auto-scroll EDIT; these controls have virtual display rows. The original 73 other tests passed.",
+    "fixture_correction": "Use fitting 1.5 in the seven-range native deletion corpus. This does not qualify overflowing no-auto-scroll deletion.",
+    "affected_tests_recheck": {
+      "tests": 5,
+      "failures": 0,
+      "skipped": 0,
+      "junit": "out/p4/p4-edit-compat-recheck.xml",
+      "sha256": "d677eee3a7d3f3bf17cc6900cc1198aba72609ad5cb888e54817426c94dda743"
+    },
+    "latest_result": "All 74 test names have passing results after the fixture correction: original 73 unaffected passes plus all five affected control/numeric/DPI tests rechecked. This is not one all-green 74-test JUnit.",
+    "public_resource_controls": {
+      "report": "out/p4/control-style/report.json",
+      "sha256": "9310b8cb9b23768f71043cf6abe591384fb9c6b0dd8a8ec3587b0998319b226c",
+      "cases": 574,
+      "mismatches": 0,
+      "editClientCases": 460,
+      "editClientMismatches": 0,
+      "editCursorMismatches": 0,
+      "editDeleteCases": 1610,
+      "windowsShown": false
+    },
+    "actual_original_resource_controls": {
+      "report": "out/p4/control-original-resource/report.json",
+      "sha256": "24a70e3101dc64f384eac2d03c15c320c7f8f9e16bf7ee02b2044eb24ede813c",
+      "cases": 574,
+      "mismatches": 0,
+      "editClientCases": 460,
+      "editClientMismatches": 0,
+      "editCursorMismatches": 0,
+      "editDeleteCases": 1610,
+      "windowsShown": false
+    },
+    "distribution_relocation": {
+      "passed": true,
+      "report": "out/p4/edit-compat-distribution.json",
+      "sha256": "53fc7071268f616aa2b0add6f999a46108f789283904b84389ae5764534ab0c8",
+      "visible": false
+    },
+    "archive": "out/p4/MikuDanceStudio-NG-10.15-windows-x64.zip",
+    "archive_sha256": "d37b0ce7bda3faf2acb1f6fd6642350c24b280761762a948097fc7ae65427f4f",
+    "production_sha256": {
+      "src/frontend_qt/edit_navigation.hpp": "5558b067e28be90a59c741830ef8a80ee211a5f0c2ad816a0451ed18b39fb329",
+      "src/frontend_qt/editor_style.cpp": "83d2007c55a0e42a1b425714221ab7f92725e50d31a6c2760aa2046637a04724",
+      "src/frontend_qt/editor_style_windows.cpp": "e464416a639c98c5dc4bff2b65b61f3349b953e032e7a9906c1dbd942365fe4a",
+      "src/frontend_qt/editor_style_windows.hpp": "9f2a18fa3fbdb46ea5096245880f0a25fbb37ee3efe5db8d8414ce66c9e327ef",
+      "src/frontend_qt/editor_window.cpp": "3fc16f7519464bf49c11c9bd789b83e732084eeb5fddbeaf94068a77c514a2d9",
+      "src/frontend_qt/numeric_dialog.cpp": "943de060991e4c82e88e59dd366d7653d32ce8ce1fb2a355219e12b886c92b4d"
+    }
+  },
+  "remaining": [
+    "Isolated shown-control requalification after the capture and border corrections.",
+    "Windows native IME in all three UI languages with natural process exit; Server 2022 still blocks inside MSCTF/imjpapi despite production manifest and running TabletInputService.",
+    "Focused/scrolled/multiline text appearance, remaining legacy text key behavior, native hover/physical DPI and non-Windows font/theme qualification.",
+    "Unchanged strict original-reference composite failures in WARP, Metal and software Vulkan; default-VS position diagnostic is separately scoped in p4-position-transport.json."
+  ],
+  "isolation": "Local tests are offscreen or never shown. Only the one guarded isolated Actions batch showed windows or delivered native input. No current-user desktop interaction."
+}

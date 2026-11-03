@@ -18,6 +18,7 @@ bool DrawWindowsEditText(QPainter&, const QRect&, const QFont&, const QString&, 
 bool DrawWindowsListRow(QPainter&, const QRect&, const QFont&, const QString&, bool selected,
                         bool enabled, bool keyboardFocus);
 bool DrawWindowsListBorder(QPainter&, const QRect&, QStyle::State);
+bool DrawWindowsEditBorder(QPainter&, const QRect&, QStyle::State);
 bool DrawWindowsComboText(QImage&, const QRect&, const QFont&, const QString&, bool enabled,
                           bool keyboardFocus);
 bool DrawWindowsButton(QPainter&, const QStyleOptionButton&, const QFont&,

@@ -54,6 +54,54 @@ int main(int argc, char** argv) {
     CHECK(file.open(QIODevice::ReadOnly));
     const auto reference = QJsonDocument::fromJson(file.readAll()).object();
     qt::Language language;
+    const auto deleteTail = [](QLineEdit& field) {
+        // Frozen native EDIT observations: selected ranges delete only that
+        // range; an empty selection deletes to the end, as one undoable edit.
+        struct Case {
+            int first, last;
+            const char* result;
+        };
+        const Case cases[]{{0, 0, ""},  {1, 1, "1"}, {3, 3, "1.5"}, {0, 2, "5"},
+                           {2, 0, "5"}, {1, 3, "1"}, {3, 1, "1"}};
+        for (const bool readOnly : {false, true})
+            for (const auto& c : cases) {
+                const QString before = "1.5";
+                field.setReadOnly(readOnly);
+                field.setText(before);
+                field.setSelection(c.first, c.last - c.first);
+                const auto selection = field.selectedText();
+                const auto cursor = field.cursorPosition();
+                QTest::keyClick(&field, Qt::Key_Delete, Qt::ControlModifier);
+                const auto expected = readOnly ? before : QString(c.result);
+                if (field.text() != expected)
+                    return false;
+                if (readOnly &&
+                    (field.selectedText() != selection || field.cursorPosition() != cursor))
+                    return false;
+                if (!readOnly && expected != before) {
+                    field.undo();
+                    if (field.text() != before)
+                        return false;
+                    field.redo();
+                    if (field.text() != expected)
+                        return false;
+                }
+            }
+        field.setReadOnly(false);
+        return true;
+    };
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(language.Set(code));
+        qt::NumericDialog dialog(false, language, {});
+        CHECK(deleteTail(*dialog.Field(0)));
+        qt::EditorWindow owner(std::filesystem::absolute(argv[2]), true);
+        CHECK(owner.SetLanguage(code));
+        auto* field = qobject_cast<QLineEdit*>(owner.Control(panel::kCurrentFrameEdit));
+        CHECK(field);
+        const auto revision = owner.Session().Revision();
+        CHECK(deleteTail(*field));
+        CHECK(owner.Session().Revision() == revision && !owner.isVisible());
+    }
     // Match actual no-ES_AUTOHSCROLL EDIT replacement/typing, not just the
     // initial formatted prefill. Programmatic WM_SETTEXT remains unrestricted.
     for (const char* code : {"en", "ja", "zh_CN"}) {

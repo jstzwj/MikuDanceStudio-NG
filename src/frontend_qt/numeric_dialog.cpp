@@ -5,6 +5,7 @@
 #endif
 #include <QApplication>
 #include "edit_composition.hpp"
+#include "edit_navigation.hpp"
 #include "mikudancestudio/mmd_dialog_edit_metrics.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
 #include <QLabel>
@@ -421,7 +422,7 @@ void TemplateDialog::Prefill(int id, const QString& text) {
     field->setText(text.left(qsizetype(length)));
 }
 bool TemplateDialog::eventFilter(QObject* object, QEvent* event) {
-    if (HandleEditComposition(object, event))
+    if (HandleEditComposition(object, event) || HandleEditDeleteTail(object, event))
         return true;
     if (auto* edit = qobject_cast<QPlainTextEdit*>(object))
         if (event->type() == QEvent::KeyPress) {

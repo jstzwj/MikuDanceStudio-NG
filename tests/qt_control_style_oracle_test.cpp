@@ -36,6 +36,7 @@ static void Check(bool value, const char* reason) {
 #include <QJsonArray>
 #include <QStyleOptionComboBox>
 #include <QSysInfo>
+#include <QKeyEvent>
 namespace {
 class ResourceDialog final : public mikudancestudio::qt::TemplateDialog {
 public:
@@ -86,6 +87,20 @@ QImage NativeImage(HWND control, bool visible, bool clientOnly = false) {
     Check(GetWindowRect(capture, &rectangle), "native capture window rectangle");
     const QRect crop(child.left - rectangle.left, child.top - rectangle.top,
                      child.right - child.left, child.bottom - child.top);
+    // Original resources include overlapping body/joint controls whose real
+    // dialog procedure normally switches visibility. A whole-dialog capture
+    // must not compare those siblings over this independently rendered widget.
+    std::vector<HWND> overlaps;
+    if (visible)
+        for (auto sibling = GetTopWindow(capture); sibling;
+             sibling = GetWindow(sibling, GW_HWNDNEXT)) {
+            RECT bounds{}, intersection{};
+            if (sibling != control && IsWindowVisible(sibling) && GetWindowRect(sibling, &bounds) &&
+                IntersectRect(&intersection, &child, &bounds)) {
+                overlaps.push_back(sibling);
+                ShowWindow(sibling, SW_HIDE);
+            }
+        }
     if (clientOnly)
         Check(GetClientRect(control, &rectangle), "native control client rectangle");
     const int width = rectangle.right - rectangle.left, height = rectangle.bottom - rectangle.top;
@@ -116,6 +131,8 @@ QImage NativeImage(HWND control, bool visible, bool clientOnly = false) {
     QImage image(static_cast<unsigned char*>(bits), width, height, width * 4, QImage::Format_RGB32);
     Check(clientOnly || image.rect().contains(crop), "control is inside native dialog capture");
     auto copy = clientOnly ? image.copy() : image.copy(crop);
+    for (const auto sibling : overlaps)
+        ShowWindow(sibling, SW_SHOWNOACTIVATE);
     SelectObject(dc, previous);
     DeleteObject(bitmap);
     DeleteDC(dc);
@@ -347,6 +364,7 @@ int main(int argc, char** argv) try {
     unsigned editCursorMismatches = 0;
     QJsonArray editReference;
     QJsonArray multilineReturn;
+    unsigned editDeleteCases = 0;
     if (editText) {
         QFile file(QString::fromUtf8(MDS_EDIT_LAYOUT_REFERENCE));
         Check(file.open(QIODevice::ReadOnly), "open independent original EDIT layouts");
@@ -382,6 +400,77 @@ int main(int argc, char** argv) try {
         if (!visible && !text && !content && !editText) {
             for (std::size_t index = 0; index < description->count; ++index) {
                 const auto& entry = description->controls[index];
+                if (entry.kind == NumericControlKind::Edit) {
+                    const auto control = GetDlgItem(native, entry.id);
+                    auto* field = qobject_cast<QLineEdit*>(
+                        dialog.findChild<QWidget*>(QString("numeric.control.%1").arg(index)));
+                    Check(control && field && !IsWindowVisible(control),
+                          "hidden EDIT deletion controls");
+                    const bool enabled = field->isEnabled();
+                    EnableWindow(control, TRUE);
+                    field->setEnabled(true);
+                    const auto foreground = GetForegroundWindow(), focus = GetFocus();
+                    ThreadKeyboardState keyboard(true);
+                    // Read-only key rejection can invoke USER32 MessageBeep.
+                    // Keep that check in the Qt offscreen regression instead.
+                    SendMessageW(control, EM_SETREADONLY, FALSE, 0);
+                    field->setReadOnly(false);
+                    for (const auto range :
+                         {std::pair{0, 0}, {1, 1}, {3, 3}, {0, 2}, {2, 0}, {1, 3}, {3, 1}}) {
+                        // Fit the actual native no-autoscroll field, as
+                        // MMD's numeric EM_REPLACESEL prefill does. Native
+                        // overflowing WM_SETTEXT has distinct virtual rows.
+                        constexpr auto before = L"1.5";
+                        SetWindowTextW(control, before);
+                        SendMessageW(control, EM_SETSEL, range.first, range.second);
+                        field->setText(QString::fromWCharArray(before));
+                        field->setSelection(range.first, range.second - range.first);
+                        SendMessageW(control, WM_KEYDOWN, VK_DELETE, 1);
+                        SendMessageW(control, WM_KEYUP, VK_DELETE, LPARAM(0xc0000001u));
+                        QKeyEvent key(QEvent::KeyPress, Qt::Key_Delete, Qt::ControlModifier);
+                        QCoreApplication::sendEvent(field, &key);
+                        wchar_t value[32]{};
+                        GetWindowTextW(control, value, 32);
+                        DWORD first = 0, last = 0;
+                        SendMessageW(control, EM_GETSEL, reinterpret_cast<WPARAM>(&first),
+                                     reinterpret_cast<LPARAM>(&last));
+                        const auto qtFirst = field->hasSelectedText() ? field->selectionStart()
+                                                                      : field->cursorPosition();
+                        if (field->text() != QString::fromWCharArray(value) ||
+                            qtFirst != int(first) ||
+                            qtFirst + field->selectedText().size() != int(last))
+                            std::fprintf(
+                                stderr,
+                                "EDIT delete template=%d control=%d range=%d,%d native=%lu,%lu:'%ls' Qt=%d,%d:'%s'\n",
+                                description->id, entry.id, range.first, range.second, first, last,
+                                value, qtFirst, int(qtFirst + field->selectedText().size()),
+                                field->text().toUtf8().constData());
+                        Check(field->text() == QString::fromWCharArray(value) &&
+                                  qtFirst == int(first) &&
+                                  qtFirst + field->selectedText().size() == int(last),
+                              "native EDIT Ctrl+Delete text and selection");
+                        if (std::wstring(value) != before) {
+                            Check(SendMessageW(control, EM_UNDO, 0, 0), "native delete undo");
+                            field->undo();
+                            GetWindowTextW(control, value, 32);
+                            Check(field->text() == QString::fromWCharArray(value) &&
+                                      std::wstring(value) == before,
+                                  "native EDIT delete undo payload");
+                            Check(SendMessageW(control, EM_UNDO, 0, 0), "native delete redo");
+                            field->redo();
+                            GetWindowTextW(control, value, 32);
+                            Check(field->text() == QString::fromWCharArray(value),
+                                  "native EDIT delete redo payload");
+                        }
+                        ++editDeleteCases;
+                    }
+                    Check(GetForegroundWindow() == foreground && GetFocus() == focus,
+                          "hidden EDIT deletion changed native focus/activation");
+                    SendMessageW(control, EM_SETREADONLY, (entry.style & ES_READONLY) != 0, 0);
+                    field->setReadOnly((entry.style & ES_READONLY) != 0);
+                    EnableWindow(control, enabled);
+                    field->setEnabled(enabled);
+                }
                 if (entry.kind != NumericControlKind::Multiline)
                     continue;
                 const auto control = GetDlgItem(native, entry.id);
@@ -716,7 +805,11 @@ int main(int argc, char** argv) try {
                                   "native control owns actual keyboard focus");
                             SendMessageW(control, WM_UPDATEUISTATE,
                                          MAKEWPARAM(UIS_CLEAR, UISF_HIDEFOCUS), 0);
-                        }
+                        } else
+                            // DefDlgProc restores its first EDIT's focus on
+                            // show, even with SW_SHOWNOACTIVATE. This profile
+                            // compares inactive controls, including no caret.
+                            SetFocus(nullptr);
                         RedrawWindow(native, nullptr, nullptr,
                                      RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN |
                                          RDW_UPDATENOW);
@@ -725,6 +818,9 @@ int main(int argc, char** argv) try {
                         if (focused)
                             Check(GetFocus() == control,
                                   "native control retains focus before capture");
+                        else
+                            Check(GetFocus() == nullptr,
+                                  "inactive native control has no keyboard focus");
                     }
                     const auto expected = NativeImage(control, visible, editClientOnly);
                     if (focused) {
@@ -810,7 +906,10 @@ int main(int argc, char** argv) try {
         {"editCursorLayouts", editCursorLayouts},
         {"editCursorMismatches", int(editCursorMismatches)},
         {"multilineReturn", multilineReturn},
+        {"editDeleteCases", int(editDeleteCases)},
         {"windowsShown", visible}};
+    report.insert("capture",
+                  "own dialog PrintWindow; overlapping siblings excluded; explicit focus state");
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
     report.insert("reference", "compiled byte-verified original RT_DIALOG resources");
 #else

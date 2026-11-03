@@ -103,6 +103,79 @@
         "log": "out/p4-edit-cursor-qt-tests.log",
         "junit": "out/p4/p4-edit-cursor-qt.xml"
       }
+    },
+    "consolidated_ci": {
+      "run": 41704895198,
+      "revision": "0af9e3019797e802dc85c5adb2485afe88bb47df",
+      "workflow_conclusion": "failure",
+      "ordinary_passed": {
+        "windows": 74,
+        "linux": 70,
+        "macos": 65
+      },
+      "ordinary_failed": 0,
+      "qualification_note": "Windows visible controls and native IME failed separately; ordinary CTest success does not accept either gate.",
+      "evidence": "p4-consolidated-41704895198.json"
+    },
+    "latest_local_followup": {
+      "source": "working tree on the CI source revision; production file hashes below",
+      "all_build_and_dist": true,
+      "build_log": "out/p4-edit-compat-final-build.log",
+      "ordinary_p4_initial": {
+        "tests": 74,
+        "failures": 1,
+        "skipped": 0,
+        "junit": "out/p4/p4-edit-compat.xml",
+        "sha256": "737e2e55d9e127ea986391b2e5fd763919991bb750a8584a1582b7a96f29b126"
+      },
+      "initial_failure": "New Ctrl+Delete native corpus used artificial WM_SETTEXT overflow in no-auto-scroll EDIT; these controls have virtual display rows. The original 73 other tests passed.",
+      "fixture_correction": "Use fitting 1.5 in the seven-range native deletion corpus. This does not qualify overflowing no-auto-scroll deletion.",
+      "affected_tests_recheck": {
+        "tests": 5,
+        "failures": 0,
+        "skipped": 0,
+        "junit": "out/p4/p4-edit-compat-recheck.xml",
+        "sha256": "d677eee3a7d3f3bf17cc6900cc1198aba72609ad5cb888e54817426c94dda743"
+      },
+      "latest_result": "All 74 test names have passing results after the fixture correction: original 73 unaffected passes plus all five affected control/numeric/DPI tests rechecked. This is not one all-green 74-test JUnit.",
+      "public_resource_controls": {
+        "report": "out/p4/control-style/report.json",
+        "sha256": "9310b8cb9b23768f71043cf6abe591384fb9c6b0dd8a8ec3587b0998319b226c",
+        "cases": 574,
+        "mismatches": 0,
+        "editClientCases": 460,
+        "editClientMismatches": 0,
+        "editCursorMismatches": 0,
+        "editDeleteCases": 1610,
+        "windowsShown": false
+      },
+      "actual_original_resource_controls": {
+        "report": "out/p4/control-original-resource/report.json",
+        "sha256": "24a70e3101dc64f384eac2d03c15c320c7f8f9e16bf7ee02b2044eb24ede813c",
+        "cases": 574,
+        "mismatches": 0,
+        "editClientCases": 460,
+        "editClientMismatches": 0,
+        "editCursorMismatches": 0,
+        "editDeleteCases": 1610,
+        "windowsShown": false
+      },
+      "distribution_relocation": {
+        "passed": true,
+        "report": "out/p4/edit-compat-distribution.json",
+        "sha256": "53fc7071268f616aa2b0add6f999a46108f789283904b84389ae5764534ab0c8",
+        "visible": false
+      },
+      "archive": "out/p4/MikuDanceStudio-NG-10.15-windows-x64.zip",
+      "archive_sha256": "d37b0ce7bda3faf2acb1f6fd6642350c24b280761762a948097fc7ae65427f4f",
+      "production_sha256": {
+        "src/frontend_qt/edit_navigation.hpp": "5558b067e28be90a59c741830ef8a80ee211a5f0c2ad816a0451ed18b39fb329",
+        "src/frontend_qt/editor_style.cpp": "83d2007c55a0e42a1b425714221ab7f92725e50d31a6c2760aa2046637a04724",
+        "src/frontend_qt/editor_style_windows.cpp": "e464416a639c98c5dc4bff2b65b61f3349b953e032e7a9906c1dbd942365fe4a",
+        "src/frontend_qt/editor_style_windows.hpp": "9f2a18fa3fbdb46ea5096245880f0a25fbb37ee3efe5db8d8414ce66c9e327ef",
+        "src/frontend_qt/editor_window.cpp": "3fc16f7519464bf49c11c9bd789b83e732084eeb5fddbeaf94068a77c514a2d9",
+        "src/frontend_qt/numeric_dialog.cpp": "943de060991e4c82e88e59dd366d7653d32ce8ce1fb2a355219e12b886c92b4d"
+      }
     }
   },
   "relocated_package": {
@@ -115,7 +188,7 @@
       "ja",
       "zh_CN"
     ],
-    "libraries": ".",
+    "libraries": "C:/Users/jstzw/AppData/Local/Temp/mds-relocated-package-ihpeh4sv/package with spaces",
     "metal": false,
     "nativeMetal": false,
     "platform": "windows",
@@ -684,13 +757,13 @@
     "scope": "Actual keyboard focus and visible focus cues on six enabled selected native/Qt lists. Only test-owned windows on isolated hosted Windows CI."
   },
   "relocated_package_build": {
-    "commit": "0608cd30762536fa0d66327c3a4a771063c90ba0",
-    "modified": false,
-    "archive": "MikuDanceStudio-NG-10.15-windows-x64.zip",
-    "sha256": "1324a89abe987ca2ca78954c639193e43e31bda7af84891331ec89a64f3834bf",
-    "build_log": "out/p4-final-native-controls-dist-build.log",
-    "test_log": "out/p4-final-native-controls-dist-test.log",
-    "scope": "Development package; successful relocation is not P4/C1 acceptance"
+    "source_base": "0af9e3019797e802dc85c5adb2485afe88bb47df",
+    "modified": true,
+    "archive": "out/p4/MikuDanceStudio-NG-10.15-windows-x64.zip",
+    "sha256": "d37b0ce7bda3faf2acb1f6fd6642350c24b280761762a948097fc7ae65427f4f",
+    "build_log": "out/p4-edit-compat-final-build.log",
+    "test_log": "out/p4-edit-compat-distribution.log",
+    "scope": "Local never-shown/offscreen relocated Windows development package; full P4 remains unaccepted."
   },
   "displayed_combo_focus": {
     "run": 41680950630,
@@ -1079,11 +1152,14 @@
     }
   },
   "original_resources_corrected": {
+    "capture": "own dialog PrintWindow; overlapping siblings excluded; explicit focus state",
     "cases": 574,
     "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
     "editClientCases": 460,
     "editClientMismatches": 0,
     "editClientText": false,
+    "editCursorMismatches": 0,
+    "editDeleteCases": 1610,
     "editTextVariants": 0,
     "inactiveEditSelection": false,
     "keyboardFocusCues": false,
@@ -1138,14 +1214,18 @@
     "textGeometryKeyboardFocus": false,
     "textGlyphs": false,
     "trackbarGeometryCases": 864,
-    "windowsShown": false
+    "windowsShown": false,
+    "raw_report_sha256": "24a70e3101dc64f384eac2d03c15c320c7f8f9e16bf7ee02b2044eb24ede813c"
   },
   "public_regression_corrected": {
+    "capture": "own dialog PrintWindow; overlapping siblings excluded; explicit focus state",
     "cases": 574,
     "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
     "editClientCases": 460,
     "editClientMismatches": 0,
     "editClientText": false,
+    "editCursorMismatches": 0,
+    "editDeleteCases": 1610,
     "editTextVariants": 0,
     "inactiveEditSelection": false,
     "keyboardFocusCues": false,
@@ -1200,7 +1280,8 @@
     "textGeometryKeyboardFocus": false,
     "textGlyphs": false,
     "trackbarGeometryCases": 864,
-    "windowsShown": false
+    "windowsShown": false,
+    "raw_report_sha256": "9310b8cb9b23768f71043cf6abe591384fb9c6b0dd8a8ec3587b0998319b226c"
   },
   "edit_client_content": {
     "date": "2026-11-04",
@@ -1212,7 +1293,65 @@
     "public_resource_source": "res/templates/dialog/dialogs.rc, independently byte-checked against frozen original resources",
     "correction": "docs/P4_EDIT_CLIENT_PARITY.md",
     "complete_visible_control_accepted": false,
-    "visible_qualification": "Pending isolated runner with corrected actual dialog resources",
+    "visible_qualification": {
+      "run": 41704895198,
+      "revision": "0af9e3019797e802dc85c5adb2485afe88bb47df",
+      "accepted": false,
+      "reports": {
+        "control-style-nonclient": {
+          "report": "out/p4-consolidated-41704895198/windows/control-style-nonclient/report.json",
+          "sha256": "36f27e70704475fffeade3cbb040432853f4b3a71156f8c334883bbdd80bcb92",
+          "cases": 460,
+          "mismatches": 291,
+          "editClientCases": 0,
+          "editClientMismatches": 0,
+          "editCursorMismatches": 0,
+          "windowsShown": true
+        },
+        "control-edit-visible": {
+          "report": "out/p4-consolidated-41704895198/windows/control-edit-visible/report.json",
+          "sha256": "452405f3b986caba04e2080a369e8c042721b37fdce0ef4efebba27a92e384cc",
+          "cases": 4600,
+          "mismatches": 2683,
+          "editClientCases": 0,
+          "editClientMismatches": 0,
+          "editCursorMismatches": 0,
+          "windowsShown": true
+        },
+        "control-content-visible": {
+          "report": "out/p4-consolidated-41704895198/windows/control-content-visible/report.json",
+          "sha256": "23fc49ab81cb2ea8329beafc297f988924181ef13b04bdb46e542ab4ee162ff7",
+          "cases": 68,
+          "mismatches": 8,
+          "editClientCases": 0,
+          "editClientMismatches": 0,
+          "editCursorMismatches": 0,
+          "windowsShown": true
+        },
+        "control-list-focus": {
+          "report": "out/p4-consolidated-41704895198/windows/control-list-focus/report.json",
+          "sha256": "daa9d3b441a9a1cb1fef9d4b3c2d235f3104c345240582d97ab15bcccfc3cd07",
+          "cases": 6,
+          "mismatches": 0,
+          "editClientCases": 0,
+          "editClientMismatches": 0,
+          "editCursorMismatches": 0,
+          "windowsShown": true
+        },
+        "control-content-focus": {
+          "report": "out/p4-consolidated-41704895198/windows/control-content-focus/report.json",
+          "sha256": "995ec4271adfdee15f94b294fca6e33d99d7df184f185f793ff7ac54509bccc6",
+          "cases": 28,
+          "mismatches": 4,
+          "editClientCases": 0,
+          "editClientMismatches": 0,
+          "editCursorMismatches": 0,
+          "windowsShown": true
+        }
+      },
+      "capture_correction": "Inactive focus and overlapping sibling reference corrections implemented locally; isolated shown requalification pending.",
+      "production_border_correction": "Disabled inner client edge now white; isolated shown requalification pending."
+    },
     "original_resources": {
       "cases": 4600,
       "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
@@ -1279,5 +1418,24 @@
     "text_cursor_selection_undo_redo_preserved": true,
     "target_deleted_during_reset": true,
     "native_ime_shutdown_accepted": false
+  },
+  "edit_delete_tail": {
+    "accepted_for_scope": true,
+    "scope": "Fitting single-line values; native writable EDIT text, selection and undo/redo, no shown window or desktop input.",
+    "native_cases_per_observer": 1610,
+    "original_controls": 230,
+    "range_cases": 7,
+    "qt_cases": 84,
+    "qt_languages": [
+      "en",
+      "ja",
+      "zh_CN"
+    ],
+    "qt_scope": "Dialog/main fields, writable/read-only, scene state, undo/redo; DPI profiles also repeated.",
+    "exclusions": [
+      "Overflowing no-auto-scroll virtual display rows",
+      "Native read-only rejection, which can MessageBeep",
+      "Word navigation, Ctrl+A and Ctrl+Backspace"
+    ]
   }
 }

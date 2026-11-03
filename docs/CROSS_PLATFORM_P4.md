@@ -4,6 +4,16 @@ Status: **in progress**. P4 and C1 have not been accepted. The current work also
 includes strict MMD v9.32 layout/behavior parity and multilingual UI, as requested
 on 2026-11-01. These are acceptance requirements, not claims about this revision.
 
+Latest consolidated run [41704895198](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41704895198)
+passed 74 Windows, 70 Linux and 65 macOS ordinary P4 tests. Linux/macOS real IME,
+silent audio and relocated packages also passed. Windows native IME still blocks
+on natural exit, and the full visible-control qualification failed. Reference
+focus/occlusion fixes, a disabled EDIT inner-border repair and 1,610 never-shown
+native Ctrl+Delete comparisons have since been added locally. Their precise
+scope, split local rechecks and pending visible qualification are recorded in
+[consolidated evidence](evidence/p4-consolidated-41704895198.json). The unchanged
+strict software/Metal composite failures also remain open.
+
 2026-11-04 GPU isolation: the unchanged production default vertex shader produces
 bit-identical `SV_POSITION` for 117 assembled vertices in each public composite
 frame on local DX11 hardware and WARP. Strict full-frame WARP differences remain;
