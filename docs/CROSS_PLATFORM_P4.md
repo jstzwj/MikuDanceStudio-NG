@@ -4,6 +4,12 @@ Status: **in progress**. P4 and C1 have not been accepted. The current work also
 includes strict MMD v9.32 layout/behavior parity and multilingual UI, as requested
 on 2026-11-01. These are acceptance requirements, not claims about this revision.
 
+2026-11-04 GPU isolation: the unchanged production default vertex shader produces
+bit-identical `SV_POSITION` for 117 assembled vertices in each public composite
+frame on local DX11 hardware and WARP. Strict full-frame WARP differences remain;
+this bounded measurement does not qualify other shaders or backends. See the
+[position isolation record](P4_POSITION_TRANSPORT.md).
+
 2026-11-04 reference correction: the former public EDIT oracle did not reproduce
 the dialog manager's client-edge conversion. Its complete empty-EDIT results are
 withdrawn as original-MMD parity evidence. Public tests now instantiate the

@@ -3,7 +3,9 @@
 #include "mikudancestudio/rhi_backend.hpp"
 #include "mikudancestudio/rhi_scene_renderer.hpp"
 #include "self_shadow_compare.hpp"
+#include "../src/render/rhi_model_constants.hpp"
 #include <cmath>
+#include <cstring>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -136,11 +138,95 @@ int main(int argc, char** argv) try {
             // never changes the final image/reference or its acceptance rule.
             auto partial = frame;
             const auto directory = std::filesystem::u8path(argv[3]);
+            const std::string stem = posed ? "posed" : "rest";
+            std::ofstream positions(directory / (stem + "-positions.tsv"));
+            Require(bool(positions), "write position probe manifest");
             for (auto& pass : partial.passes) {
                 if (!pass.color || pass.color->target != frame.finalColor)
                     continue;
                 const auto draws = pass.draws;
                 for (std::size_t n = 1; n <= draws.size(); ++n) {
+                    const auto& draw = draws[n - 1];
+                    const auto& pipeline = draw.pipeline;
+                    // Export only the actual default model VS path. Screen,
+                    // self-shadow/outline and generic programs have distinct
+                    // vertex shaders and must not be described by this probe.
+                    if (!draw.shader && pipeline.shadow.mode == rhi::BuiltinShadowMode::None &&
+                        pipeline.postProcess.mode == rhi::PostProcessMode::None &&
+                        (pipeline.vertexLayout == rhi::VertexLayout::PositionColor ||
+                         pipeline.vertexLayout == rhi::VertexLayout::PositionNormalUv ||
+                         rhi::AdditionalVertexUvs(pipeline.vertexLayout))) {
+                        rhi::detail::ModelConstants constants;
+                        const auto viewport =
+                            pipeline.viewport.value_or(rhi::ModelViewport{0, 0, size, size, 0, 1});
+                        Require(
+                            rhi::detail::BuildModelConstants(pipeline, viewport, false, constants),
+                            "prepare actual vertex constants for probe");
+                        for (const auto& resource : frame.resources)
+                            if (resource.key.id == draw.vertices.id &&
+                                resource.key.version == draw.vertices.version &&
+                                resource.kind == rhi::ReplayResourceKind::Vertices) {
+                                // Preserve the actual primitive order, including
+                                // indexed and nonzero-start draws. SO captures
+                                // an assembled list, not unused resource bytes.
+                                const auto stride = rhi::ModelVertexStride(pipeline.vertexLayout);
+                                std::vector<char> ordered;
+                                const auto appendVertex = [&](std::uint32_t index) {
+                                    Require(index < resource.bytes.size() / stride,
+                                            "position probe vertex range");
+                                    const auto* begin =
+                                        reinterpret_cast<const char*>(resource.bytes.data()) +
+                                        std::size_t(index) * stride;
+                                    ordered.insert(ordered.end(), begin, begin + stride);
+                                };
+                                if (draw.indexed) {
+                                    const rhi::ModelReplayResource* indices = nullptr;
+                                    for (const auto& candidate : frame.resources)
+                                        if (candidate.key.id == draw.indices.id &&
+                                            candidate.key.version == draw.indices.version &&
+                                            candidate.kind == rhi::ReplayResourceKind::Indices)
+                                            indices = &candidate;
+                                    Require(indices, "position probe index resource");
+                                    const auto width =
+                                        indices->indexFormat == rhi::IndexFormat::UInt16 ? 2u : 4u;
+                                    Require(draw.firstIndex <= indices->bytes.size() / width &&
+                                                draw.indexCount <=
+                                                    indices->bytes.size() / width - draw.firstIndex,
+                                            "position probe index range");
+                                    for (std::uint32_t i = 0; i < draw.indexCount; ++i) {
+                                        std::uint32_t index = 0;
+                                        std::memcpy(&index,
+                                                    indices->bytes.data() +
+                                                        std::size_t(draw.firstIndex + i) * width,
+                                                    width);
+                                        Require(index < draw.vertexCount,
+                                                "position probe index bound");
+                                        appendVertex(index);
+                                    }
+                                } else {
+                                    Require(draw.firstVertex <= resource.bytes.size() / stride &&
+                                                draw.drawVertexCount <=
+                                                    resource.bytes.size() / stride -
+                                                        draw.firstVertex,
+                                            "position probe nonindexed range");
+                                    for (std::uint32_t i = 0; i < draw.drawVertexCount; ++i)
+                                        appendVertex(draw.firstVertex + i);
+                                }
+                                const auto prefix = stem + "-draw-" + std::to_string(n);
+                                std::ofstream vertices(directory / (prefix + ".vertices"),
+                                                       std::ios::binary);
+                                vertices.write(ordered.data(), ordered.size());
+                                std::ofstream buffer(directory / (prefix + ".constants"),
+                                                     std::ios::binary);
+                                buffer.write(reinterpret_cast<const char*>(&constants.vertex),
+                                             sizeof(constants.vertex));
+                                Require(bool(vertices) && bool(buffer),
+                                        "write position probe inputs");
+                                positions << prefix << '\t' << unsigned(pipeline.vertexLayout)
+                                          << '\t' << unsigned(pipeline.topology) << '\n';
+                                break;
+                            }
+                    }
                     pass.draws.assign(draws.begin(), draws.begin() + n);
                     rhi::PreparedModelFrame prefix;
                     result = renderer.Prepare(1, partial, prefix);
@@ -157,6 +243,8 @@ int main(int argc, char** argv) try {
                     Require(bool(dump), "write draw prefix");
                 }
             }
+            positions.flush();
+            Require(bool(positions), "complete position probe manifest");
         }
     }
     Require(accepted, "original composite pixels differ");

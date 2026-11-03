@@ -287,6 +287,13 @@ function(mds_add_qt_editor)
         target_link_libraries(qt_presentation_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
             if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+                add_executable(d3d11_position_transport_probe EXCLUDE_FROM_ALL
+                    "${root}/tests/d3d11_position_transport_probe.cpp")
+                target_compile_features(d3d11_position_transport_probe PRIVATE cxx_std_17)
+                target_compile_definitions(d3d11_position_transport_probe PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN
+                    MDS_MODEL_VERTEX_SOURCE="${root}/src/render/shaders/model_material_vertex.hlsl")
+                target_include_directories(d3d11_position_transport_probe PRIVATE "${root}/include")
+                target_link_libraries(d3d11_position_transport_probe PRIVATE d3d11 d3dcompiler dxgi)
                 qt_add_executable(qt_control_style_oracle_test EXCLUDE_FROM_ALL "${root}/tests/qt_control_style_oracle_test.cpp"
                     "${root}/res/frontend_qt/windows.manifest")
                 target_compile_definitions(qt_control_style_oracle_test PRIVATE

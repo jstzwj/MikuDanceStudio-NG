@@ -1,0 +1,344 @@
+{
+  "schema": 1,
+  "date": "2026-11-04",
+  "base_revision": "76c6c48",
+  "diagnostic_only": true,
+  "p4_accepted": false,
+  "policy": "unchanged default model VS; D3DCOMPILE_IEEE_STRICTNESS; passthrough SO from VS bytecode; original primitive order/topology",
+  "captures_per_device": 2,
+  "repeat_exact": true,
+  "all_components_finite": true,
+  "stream_output_statistics_checked": true,
+  "adapters": [
+    {
+      "driver": "hardware",
+      "vendor_id": "4318",
+      "device_id": "6914",
+      "description": "NVIDIA TITAN Xp"
+    },
+    {
+      "driver": "warp",
+      "vendor_id": "5140",
+      "device_id": "140",
+      "description": "Microsoft Basic Render Driver"
+    }
+  ],
+  "source_sha256": {
+    "src/render/shaders/model_material_vertex.hlsl": "39abcec551e155dd77a43d1c11d28bf20c203730a0f006f9f7b7a4bb9d1ca48c",
+    "tests/d3d11_position_transport_probe.cpp": "dc3c2c9d3af8d5104094bf50f531d5e9d554e5fab358cf227436d5ee34c95982",
+    "tests/editor_composite_render_test.cpp": "65931f0d0dc46cd5fcddb9f14b196bd5b454d3864d210a69457d56c3dd1e5053"
+  },
+  "excluded": [
+    "other VS outputs",
+    "built-in self-shadow and outline shaders",
+    "generic and screen shaders",
+    "viewport and rasterization",
+    "pixel shader",
+    "depth/stencil/blend",
+    "Metal",
+    "Vulkan",
+    "other drivers and scenes"
+  ],
+  "frames": [
+    {
+      "name": "rest",
+      "size": [
+        512,
+        512
+      ],
+      "draws": [
+        {
+          "draw": "rest-draw-1",
+          "vertices": 6,
+          "changed_components": 0,
+          "input_sha256": {
+            ".vertices": "5f3f33d4f6e27331b0573e2b53229ec13c9cd1545e002efa75057f85f2b2cabf",
+            ".constants": "ad9d041f424ff7a63e09cd57d651e62ca0c4a4ded6cd2f0a7595976fe7ee5620"
+          },
+          "hardware_and_warp_position_sha256": "54f9a1795920d87032eb9f7aae984a02cf3f23d9348dbeff586307a4cc81ca1f"
+        },
+        {
+          "draw": "rest-draw-2",
+          "vertices": 90,
+          "changed_components": 0,
+          "input_sha256": {
+            ".vertices": "df99bc4247a5bda8e71eb44722d2cf0d411645b915400f4d8d8781588efadb67",
+            ".constants": "e635ed8d447bb0c044ddf1b3272e009db29a37e39b6eb9e26c122623fa471968"
+          },
+          "hardware_and_warp_position_sha256": "96d9166d46151bbf7514a0e89ee3bbcf5ce25b10c6ec00c6fcb855e77c0a5e4b"
+        },
+        {
+          "draw": "rest-draw-3",
+          "vertices": 6,
+          "changed_components": 0,
+          "input_sha256": {
+            ".vertices": "7ebd99a980c615b67e4ea6155afd260e100b183b5cd77a5cb5385c46906b0666",
+            ".constants": "e635ed8d447bb0c044ddf1b3272e009db29a37e39b6eb9e26c122623fa471968"
+          },
+          "hardware_and_warp_position_sha256": "9352f38ec39ad87a6b1ad610d0e8487c2b9fdb32b0fcc6919c0afd259f1d66f4"
+        },
+        {
+          "draw": "rest-draw-5",
+          "vertices": 6,
+          "changed_components": 0,
+          "input_sha256": {
+            ".vertices": "f0c91c2b515b09beb54d75df919217c04064c9318895bdc05211a4055556a0b3",
+            ".constants": "4b8a077ad3635016cf848ac386d3bedd5ac3eb9271d072970cad171d60586a36"
+          },
+          "hardware_and_warp_position_sha256": "00d0197b221f4e6203974e869e87ee7679a5c97ddf97d83a0ba940b7089ca8c2"
+        },
+        {
+          "draw": "rest-draw-6",
+          "vertices": 6,
+          "changed_components": 0,
+          "input_sha256": {
+            ".vertices": "f0c91c2b515b09beb54d75df919217c04064c9318895bdc05211a4055556a0b3",
+            ".constants": "accddbaf44f89b399ff93691078f95889af37062f3ab1606a33f7b72cfcac233"
+          },
+          "hardware_and_warp_position_sha256": "7ce83c6e93f594c590ba08eb235da19178e1a5344e1aba6cdb33f193be62ab7c"
+        },
+        {
+          "draw": "rest-draw-7",
+          "vertices": 3,
+          "changed_components": 0,
+          "input_sha256": {
+            ".vertices": "0a3e57ba9466a4db889a69253bfdb3cf2a33ea56fe8b69e1f577c3f2fcdfe39f",
+            ".constants": "d000a944f039e1423eba075a04fc414fb4960fd21ec93c488335bef45cfea73c"
+          },
+          "hardware_and_warp_position_sha256": "452990618ae6254fdf776c1624a8cd4ef1eca02466e4d230ab913e8aeef74349"
+        }
+      ],
+      "vertices": 117,
+      "float_components": 468,
+      "hardware_full_image_accepted": true,
+      "warp_full_image_accepted": false,
+      "warp_vs_original": {
+        "components_outside_tolerance": 141,
+        "coverage_differences": 5,
+        "maximum_component_error": 255
+      },
+      "hardware_vs_warp_prefixes": [
+        {
+          "draw": 1,
+          "pixels_outside_tolerance": 0,
+          "components_outside_tolerance": 0,
+          "alpha_differences": 0,
+          "coverage_differences": 0
+        },
+        {
+          "draw": 2,
+          "pixels_outside_tolerance": 7,
+          "components_outside_tolerance": 27,
+          "alpha_differences": 7,
+          "coverage_differences": 7
+        },
+        {
+          "draw": 3,
+          "pixels_outside_tolerance": 7,
+          "components_outside_tolerance": 27,
+          "alpha_differences": 7,
+          "coverage_differences": 7
+        },
+        {
+          "draw": 4,
+          "pixels_outside_tolerance": 7,
+          "components_outside_tolerance": 27,
+          "alpha_differences": 7,
+          "coverage_differences": 7
+        },
+        {
+          "draw": 5,
+          "pixels_outside_tolerance": 14,
+          "components_outside_tolerance": 49,
+          "alpha_differences": 8,
+          "coverage_differences": 6
+        },
+        {
+          "draw": 6,
+          "pixels_outside_tolerance": 43,
+          "components_outside_tolerance": 135,
+          "alpha_differences": 7,
+          "coverage_differences": 5
+        },
+        {
+          "draw": 7,
+          "pixels_outside_tolerance": 45,
+          "components_outside_tolerance": 141,
+          "alpha_differences": 7,
+          "coverage_differences": 5
+        },
+        {
+          "draw": 8,
+          "pixels_outside_tolerance": 45,
+          "components_outside_tolerance": 141,
+          "alpha_differences": 7,
+          "coverage_differences": 5
+        },
+        {
+          "draw": 9,
+          "pixels_outside_tolerance": 45,
+          "components_outside_tolerance": 141,
+          "alpha_differences": 7,
+          "coverage_differences": 5
+        },
+        {
+          "draw": 10,
+          "pixels_outside_tolerance": 45,
+          "components_outside_tolerance": 141,
+          "alpha_differences": 7,
+          "coverage_differences": 5
+        }
+      ]
+    },
+    {
+      "name": "posed",
+      "size": [
+        257,
+        257
+      ],
+      "draws": [
+        {
+          "draw": "posed-draw-1",
+          "vertices": 6,
+          "changed_components": 0,
+          "input_sha256": {
+            ".vertices": "c514651bcd4f174455c939241a29aaff3b98699e1f676492ef118e8dca7f2049",
+            ".constants": "93dffa4374b3aad5c66da46bc899ed8f199d2124371c6051c50153071ded975a"
+          },
+          "hardware_and_warp_position_sha256": "b82adb2db36d75f42343accdadbeb67d2e2dd5599ba5601983e0b9d2059247d2"
+        },
+        {
+          "draw": "posed-draw-2",
+          "vertices": 90,
+          "changed_components": 0,
+          "input_sha256": {
+            ".vertices": "df99bc4247a5bda8e71eb44722d2cf0d411645b915400f4d8d8781588efadb67",
+            ".constants": "9221f7befa933b5689490bec0ac5444c07d8c2e47ef4b0a3f146cdaae721f634"
+          },
+          "hardware_and_warp_position_sha256": "66595ec10501b64986539525464939e5debc66c15e2c3a53e3d0ed0eaa1e89d0"
+        },
+        {
+          "draw": "posed-draw-3",
+          "vertices": 6,
+          "changed_components": 0,
+          "input_sha256": {
+            ".vertices": "7ebd99a980c615b67e4ea6155afd260e100b183b5cd77a5cb5385c46906b0666",
+            ".constants": "9221f7befa933b5689490bec0ac5444c07d8c2e47ef4b0a3f146cdaae721f634"
+          },
+          "hardware_and_warp_position_sha256": "73d44572984a65f0bdd0de02a8621cbe58d2bfa480de9be335fea75ef5449181"
+        },
+        {
+          "draw": "posed-draw-5",
+          "vertices": 6,
+          "changed_components": 0,
+          "input_sha256": {
+            ".vertices": "f0c91c2b515b09beb54d75df919217c04064c9318895bdc05211a4055556a0b3",
+            ".constants": "d308958bb4f3cdd9162fcaf7e97c2f9c9ab58f899060b75ba863468910fa58eb"
+          },
+          "hardware_and_warp_position_sha256": "96ccd969595632034004db7404c169dbcd8ddfff0ab3efb13754078b34b9efdb"
+        },
+        {
+          "draw": "posed-draw-6",
+          "vertices": 6,
+          "changed_components": 0,
+          "input_sha256": {
+            ".vertices": "f0c91c2b515b09beb54d75df919217c04064c9318895bdc05211a4055556a0b3",
+            ".constants": "66ec50a07668c97164964927643794eb0f68f9cb5e462f44f2f7003c4bc065f9"
+          },
+          "hardware_and_warp_position_sha256": "9f5e29d4a95062248842b5e46a9c357cf47a4a24f6506d0a9379c1270a55dd73"
+        },
+        {
+          "draw": "posed-draw-7",
+          "vertices": 3,
+          "changed_components": 0,
+          "input_sha256": {
+            ".vertices": "80529ef8eaef86be4cdf282e19a5e5e1351050b5013e9a04ba42471b833f5522",
+            ".constants": "01fde324e44a5519cf2a220da6baac0a5f287d37b23f1de2c7f742cc5ef57f23"
+          },
+          "hardware_and_warp_position_sha256": "0ecbf99e42beba9c0fb0b040a4618ac188eff2972cda43c93bc8e3af6cf02309"
+        }
+      ],
+      "vertices": 117,
+      "float_components": 468,
+      "hardware_full_image_accepted": true,
+      "warp_full_image_accepted": false,
+      "warp_vs_original": {
+        "components_outside_tolerance": 24,
+        "coverage_differences": 0,
+        "maximum_component_error": 86
+      },
+      "hardware_vs_warp_prefixes": [
+        {
+          "draw": 1,
+          "pixels_outside_tolerance": 0,
+          "components_outside_tolerance": 0,
+          "alpha_differences": 0,
+          "coverage_differences": 0
+        },
+        {
+          "draw": 2,
+          "pixels_outside_tolerance": 0,
+          "components_outside_tolerance": 0,
+          "alpha_differences": 0,
+          "coverage_differences": 0
+        },
+        {
+          "draw": 3,
+          "pixels_outside_tolerance": 0,
+          "components_outside_tolerance": 0,
+          "alpha_differences": 0,
+          "coverage_differences": 0
+        },
+        {
+          "draw": 4,
+          "pixels_outside_tolerance": 0,
+          "components_outside_tolerance": 0,
+          "alpha_differences": 0,
+          "coverage_differences": 0
+        },
+        {
+          "draw": 5,
+          "pixels_outside_tolerance": 16,
+          "components_outside_tolerance": 49,
+          "alpha_differences": 1,
+          "coverage_differences": 1
+        },
+        {
+          "draw": 6,
+          "pixels_outside_tolerance": 8,
+          "components_outside_tolerance": 24,
+          "alpha_differences": 0,
+          "coverage_differences": 0
+        },
+        {
+          "draw": 7,
+          "pixels_outside_tolerance": 8,
+          "components_outside_tolerance": 24,
+          "alpha_differences": 0,
+          "coverage_differences": 0
+        },
+        {
+          "draw": 8,
+          "pixels_outside_tolerance": 8,
+          "components_outside_tolerance": 24,
+          "alpha_differences": 0,
+          "coverage_differences": 0
+        },
+        {
+          "draw": 9,
+          "pixels_outside_tolerance": 8,
+          "components_outside_tolerance": 24,
+          "alpha_differences": 0,
+          "coverage_differences": 0
+        },
+        {
+          "draw": 10,
+          "pixels_outside_tolerance": 8,
+          "components_outside_tolerance": 24,
+          "alpha_differences": 0,
+          "coverage_differences": 0
+        }
+      ]
+    }
+  ]
+}

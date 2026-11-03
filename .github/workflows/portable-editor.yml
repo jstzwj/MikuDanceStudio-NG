@@ -139,20 +139,29 @@ jobs:
         run: python tests/test_native_audio.py --test out/p4/qt_native_audio_test.exe --report out/p4/native-audio.json --allow-unavailable
       - name: Qualify native EDIT nonclient paint
         if: inputs.native_controls
+        timeout-minutes: 10
         shell: pwsh
         env:
           QT_QPA_PLATFORM: windows
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: |
-          out/p4/qt_control_style_test.exe --isolated-nonclient out/p4/control-style-nonclient
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          out/p4/qt_control_style_test.exe --isolated-edit-text out/p4/control-edit-visible
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          out/p4/qt_control_style_test.exe --isolated-content out/p4/control-content-visible
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          out/p4/qt_control_style_test.exe --isolated-list-focus out/p4/control-list-focus
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          out/p4/qt_control_style_test.exe --isolated-content-focus out/p4/control-content-focus
+          # Collect all independent families in one qualification batch, while
+          # retaining failure for any family. An early failure must not force
+          # another dispatch just to obtain the remaining diagnostics.
+          $profiles = @(
+            @('--isolated-nonclient', 'out/p4/control-style-nonclient'),
+            @('--isolated-edit-text', 'out/p4/control-edit-visible'),
+            @('--isolated-content', 'out/p4/control-content-visible'),
+            @('--isolated-list-focus', 'out/p4/control-list-focus'),
+            @('--isolated-content-focus', 'out/p4/control-content-focus')
+          )
+          $results = foreach ($profile in $profiles) {
+            & out/p4/qt_control_style_test.exe $profile[0] $profile[1]
+            [PSCustomObject]@{ profile = $profile[0]; exitCode = $LASTEXITCODE }
+          }
+          $results | ConvertTo-Json | Set-Content out/p4/control-qualification.json -Encoding UTF8
+          if (@($results | Where-Object exitCode -ne 0).Count) { exit 1 }
+          exit 0
       - name: Qualify native Japanese input and command ordering
         if: ${{ !cancelled() && inputs.system_ime }}
         timeout-minutes: 15
@@ -219,6 +228,7 @@ jobs:
             out/p4/native-reference/
             out/p4/system-ime*
             out/p4/control-style/
+            out/p4/control-qualification.json
             out/p4/control-style-nonclient/
             out/p4/control-edit-visible/
             out/p4/edit-content/
