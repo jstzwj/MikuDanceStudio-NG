@@ -2172,6 +2172,82 @@
       "followup_run": 41678409123,
       "followup_revision": "207d8ad",
       "followup": "Use normal focus/window destruction for FORPROCESS input-context ownership; do not activate another profile while shutting down. Natural process exit is still required."
+    },
+    "composition_profile_followup": {
+      "run": 41678409123,
+      "revision": "207d8ad",
+      "accepted": false,
+      "failure": "Phrase prediction finalized Hiragana during typing, before candidate conversion and before shutdown could be exercised. No scenario is accepted from this run.",
+      "lastStatus": {
+        "active": true,
+        "command": 2,
+        "commits": 1,
+        "committed": "にほん",
+        "error": "",
+        "events": [
+          {
+            "commit": "",
+            "preedit": "ｎ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "に",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "に",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にｈ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほｎ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほん",
+            "type": "input"
+          },
+          {
+            "commit": "にほん",
+            "preedit": "",
+            "type": "input"
+          }
+        ],
+        "field": "にほん",
+        "finishing": false,
+        "focus": true,
+        "language": "en",
+        "name": "before",
+        "nativeIme": {
+          "conversion": 25,
+          "keyboardLayout": "4110411",
+          "open": true,
+          "sentence": 8
+        },
+        "platform": "windows",
+        "preedit": "",
+        "preedits": 7,
+        "publicationRetries": 1,
+        "qt": "6.8.3",
+        "sceneUnchanged": true,
+        "windowActive": true
+      },
+      "followup_run": 41681020356,
+      "followup_revision": "9f80bd5",
+      "followup": "Activate TSF only on the GUI thread, with IME_SMODE_NONE rather than phrase prediction. Actual mode, native input events and natural client exit remain checked."
     }
   }
 }

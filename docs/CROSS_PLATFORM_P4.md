@@ -136,13 +136,19 @@ and does not replace other applications' profiles. Revision `207d8ad` therefore
 uses normal focus/window destruction and delivers those notifications before
 quitting, while still requiring natural client shutdown. Qualification of that
 change is pending; the diagnostic does not itself accept the Windows profile.
+That run subsequently stopped earlier in the scenario: phrase prediction
+finalized Hiragana during typing, before conversion and before shutdown was
+exercised. Revision `9f80bd5` selects ordinary composition (`IME_SMODE_NONE`) and
+activates TSF only on the GUI thread. Native mode values, event ordering and
+natural exit remain required; the phrase-prediction observation is retained
+separately, not counted as a passing composition scenario.
 
 Windows run **41671549143** at `830201b` passed all **73 P4 regressions**, all 460
 complete empty EDIT comparisons and all **68 displayed populated list/combobox
-states** with exact RGB equality. The new six actual keyboard-focus list cases
-failed. Revision `625f5db` replaces the focused Qt delegate with native GDI text
-and XOR focus painting; its isolated qualification is pending. The earlier 24
-hidden populated-list comparisons remain separate evidence.
+states** with exact RGB equality. Run **41677249943** at `68493ae` subsequently
+passed all those gates and all **six actual keyboard-focus list cases**, with
+successful package relocation and a successful complete workflow. The earlier
+24 hidden populated-list comparisons remain separate evidence.
 
 The selected-target clipboard command (250, F) is now connected to the shared
 session and all three Qt languages. It pastes only copied bone/accessory keys
@@ -4344,12 +4350,18 @@ and 44 populated combo states. The displayed list edge uses the theme's native
 nonclient border color. Combo text uses GDI and the exact `COMBOBOXINFO::rcItem`
 geometry, including its one-pixel left text inset and unchanged right clip edge.
 All 22 combo item rectangles independently match USER32. Run **41671549143**
-at `830201b` retains the complete images and report. Its additional six focused
-list cases failed; `68493ae` completes their native text/XOR focus path, including
-the monochrome brush colors and item-view focus state. The oracle also asserts
-focus ownership immediately before capture. Qualification remains
-pending. Focused combos, populated EDIT glyphs and non-Windows appearance remain
+at `830201b` retains the complete images and report. Run **41677249943** at
+`68493ae` additionally passes all six focused-list cases, using native text/XOR
+focus paint with its monochrome brush colors and item-view focus state. The
+oracle asserts actual focus ownership immediately before capture. Focused combos,
+populated EDIT glyphs and non-Windows appearance remain
 outside this accepted corpus.
+
+Run **41679356903** adds real combo keyboard focus: all six list cases still
+pass, while all 22 focused combos expose the remaining Qt text/focus path.
+Revision `04077f8` uses the same GDI label path while focused and paints the
+native XOR rectangle over the unadjusted `rcItem`. Its 28-case isolated
+qualification is pending in run **41680950630**.
 
 ALL_BUILD and all **31 affected Qt gates passed (152.61 seconds)**. The preceding
 button-text revision `b1eed84` passed ordinary Windows/macOS/Linux editor CI

@@ -37,7 +37,7 @@
     "windowsShown": false
   },
   "exclusions": [
-    "Text/focus outside the qualified corpora, including populated EDIT and focused list/combo controls",
+    "Text/focus outside the qualified corpora, including populated EDIT and focused combo controls",
     "Animations",
     "macOS and Linux theme paint",
     "Physical monitor transitions"
@@ -55,8 +55,8 @@
     "final_control_seconds": 22.94,
     "final_control_log": "out/p4-list-focus-xor-tests.log",
     "windows_ci": {
-      "run": 41671549143,
-      "revision": "830201b",
+      "run": 41677249943,
+      "revision": "68493ae",
       "p4_passed": 73,
       "p4_failed": 0,
       "complete_edit_cases": 460,
@@ -65,9 +65,9 @@
       "displayed_populated_mismatches": 0,
       "accepted_displayed_content": true,
       "focused_list_cases": 6,
-      "focused_list_mismatches": 6,
-      "accepted_focused_lists": false,
-      "workflow_conclusion": "failure: focused-list qualification failed after all preceding gates passed"
+      "focused_list_mismatches": 0,
+      "accepted_focused_lists": true,
+      "workflow_conclusion": "success"
     }
   },
   "relocated_package": {
@@ -614,9 +614,9 @@
     }
   },
   "displayed_list_focus": {
-    "run": 41671549143,
-    "revision": "830201b",
-    "accepted": false,
+    "run": 41677249943,
+    "revision": "68493ae",
+    "accepted": true,
     "report": {
       "cases": 6,
       "comboLayouts": [],
@@ -625,7 +625,7 @@
       "gdiBorderMismatches": 0,
       "keyboardFocusCues": true,
       "listContent": true,
-      "mismatches": 6,
+      "mismatches": 0,
       "os": "Windows Server 2022 Version 21H2",
       "platform": "windows",
       "qt": "6.8.3",
@@ -638,9 +638,13 @@
       "trackbarGeometryCases": 0,
       "windowsShown": true
     },
-    "followup_revision": "68493ae",
-    "followup_run": 41677249943,
-    "followup_status": "pending isolated qualification"
+    "previous_failure": {
+      "run": 41671549143,
+      "revision": "830201b",
+      "cases": 6,
+      "mismatches": 6
+    },
+    "scope": "Actual keyboard focus and visible focus cues on six enabled selected native/Qt lists. Only test-owned windows on isolated hosted Windows CI."
   },
   "relocated_package_build": {
     "commit": "68493ae753c78316fc7409ebf0fb725650b73143",
@@ -650,5 +654,388 @@
     "build_log": "out/p4-keyboard-focus-dist-build.log",
     "test_log": "out/p4-keyboard-focus-dist-test.log",
     "scope": "Development package; successful relocation is not P4/C1 acceptance"
+  },
+  "displayed_combo_focus": {
+    "run": 41679356903,
+    "revision": "ff5f29d",
+    "accepted": false,
+    "report": {
+      "cases": 28,
+      "comboLayouts": [
+        {
+          "control": 669,
+          "native": [
+            3,
+            3,
+            85,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            85,
+            20
+          ],
+          "template": 813
+        },
+        {
+          "control": 669,
+          "native": [
+            3,
+            3,
+            59,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            59,
+            17
+          ],
+          "template": 812
+        },
+        {
+          "control": 669,
+          "native": [
+            3,
+            3,
+            89,
+            19
+          ],
+          "qt": [
+            3,
+            3,
+            89,
+            19
+          ],
+          "template": 666
+        },
+        {
+          "control": 673,
+          "native": [
+            3,
+            3,
+            89,
+            19
+          ],
+          "qt": [
+            3,
+            3,
+            89,
+            19
+          ],
+          "template": 666
+        },
+        {
+          "control": 677,
+          "native": [
+            3,
+            3,
+            89,
+            19
+          ],
+          "qt": [
+            3,
+            3,
+            89,
+            19
+          ],
+          "template": 666
+        },
+        {
+          "control": 669,
+          "native": [
+            3,
+            3,
+            89,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            89,
+            17
+          ],
+          "template": 665
+        },
+        {
+          "control": 673,
+          "native": [
+            3,
+            3,
+            89,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            89,
+            17
+          ],
+          "template": 665
+        },
+        {
+          "control": 677,
+          "native": [
+            3,
+            3,
+            89,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            89,
+            17
+          ],
+          "template": 665
+        },
+        {
+          "control": 704,
+          "native": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 707,
+          "native": [
+            3,
+            3,
+            76,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            76,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 708,
+          "native": [
+            3,
+            3,
+            24,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            24,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 736,
+          "native": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 741,
+          "native": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 742,
+          "native": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 743,
+          "native": [
+            3,
+            3,
+            62,
+            20
+          ],
+          "qt": [
+            3,
+            3,
+            62,
+            20
+          ],
+          "template": 684
+        },
+        {
+          "control": 704,
+          "native": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "template": 683
+        },
+        {
+          "control": 707,
+          "native": [
+            3,
+            3,
+            76,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            76,
+            17
+          ],
+          "template": 683
+        },
+        {
+          "control": 708,
+          "native": [
+            3,
+            3,
+            33,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            33,
+            17
+          ],
+          "template": 683
+        },
+        {
+          "control": 736,
+          "native": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "template": 683
+        },
+        {
+          "control": 741,
+          "native": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "template": 683
+        },
+        {
+          "control": 742,
+          "native": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            73,
+            17
+          ],
+          "template": 683
+        },
+        {
+          "control": 743,
+          "native": [
+            3,
+            3,
+            62,
+            17
+          ],
+          "qt": [
+            3,
+            3,
+            62,
+            17
+          ],
+          "template": 683
+        }
+      ],
+      "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+      "gdiBorderCases": 0,
+      "gdiBorderMismatches": 0,
+      "keyboardFocusCues": true,
+      "listContent": true,
+      "mismatches": 22,
+      "os": "Windows Server 2022 Version 21H2",
+      "platform": "windows",
+      "qt": "6.8.3",
+      "reference": "Win32 controls using frozen original resource styles",
+      "style": "windowsvista",
+      "templates": 38,
+      "textGeometryCases": 0,
+      "textGeometryKeyboardFocus": false,
+      "textGlyphs": true,
+      "trackbarGeometryCases": 0,
+      "windowsShown": true
+    },
+    "scope": "Six list cases pass; 22 focused combo cases fail. Real focus is asserted in isolated hosted Windows CI.",
+    "followup_run": 41680950630,
+    "followup_revision": "04077f8",
+    "followup_status": "pending isolated qualification of native GDI text and rcItem XOR focus paint"
   }
 }
