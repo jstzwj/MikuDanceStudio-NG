@@ -198,7 +198,7 @@ class WindowsInput:
             self.key(pid, code)
 
     def close(self):
-        pass  # The client activates TSF only for its own process.
+        pass  # The client activates TSF only on its own GUI thread.
 
 
 def main():

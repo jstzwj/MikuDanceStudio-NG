@@ -149,7 +149,7 @@ QString ActivateJapaneseIme(HWND window) {
         if (SUCCEEDED(result))
             result = manager->ActivateProfile(TF_PROFILETYPE_INPUTPROCESSOR, 0x411, profile.clsid,
                                               profile.guidProfile, nullptr,
-                                              TF_IPPMF_FORPROCESS | TF_IPPMF_ENABLEPROFILE |
+                                              TF_IPPMF_ENABLEPROFILE |
                                                   TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE);
         if (FAILED(result))
             return QString("TSF activation: 0x%1").arg(unsigned(result), 8, 16, QLatin1Char('0'));
@@ -159,7 +159,7 @@ QString ActivateJapaneseIme(HWND window) {
         const auto opened = ImmSetOpenStatus(context, TRUE);
         const auto converted = ImmSetConversionStatus(
             context, IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE | IME_CMODE_ROMAN,
-            IME_SMODE_PHRASEPREDICT);
+            IME_SMODE_NONE);
         DWORD conversion = 0, sentence = 0;
         ImmGetConversionStatus(context, &conversion, &sentence);
         std::fprintf(stderr, "Japanese IME conversion=0x%lx sentence=0x%lx open=%d\n", conversion,
@@ -356,8 +356,9 @@ int main(int argc, char** argv) {
 #ifdef _WIN32
             shutdownDiagnostic.Arm();
 #endif
-            // Activation was FORPROCESS, so it never replaced another app's
-            // profile. Let normal focus/window destruction release this input
+            // Activation belongs to this GUI thread, so it never replaced
+            // another app's profile or worker-thread input contexts. Let
+            // normal focus/window destruction release this input
             // context instead of synchronously switching layouts during TSF
             // teardown. Deliver the hide/focus notifications before quitting.
             field->clearFocus();
