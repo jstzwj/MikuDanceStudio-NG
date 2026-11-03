@@ -43,6 +43,9 @@ def main():
         # Bypass desktop/portal discovery. The daemon, engine selector and Qt
         # client must connect to this test's socket on the private session bus.
         env['IBUS_ADDRESS'] = 'unix:path=' + str(root / 'ibus.socket')
+        if args.engine == 'anthy':
+            run('gsettings', 'set', 'org.freedesktop.ibus.engine.anthy.common',
+                'input-mode', '0', env=env)  # Hiragana; the distro default is Latin.
         (root / 'english.pmd').write_bytes(cpu_import_fixture.pmd())
         with (report_path.with_suffix('.ibus.log')).open('w', encoding='utf-8') as log:
             daemon = subprocess.Popen(['ibus-daemon', '--replace', '--xim', '--panel=disable',
