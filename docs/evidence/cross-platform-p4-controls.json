@@ -1,0 +1,85 @@
+{
+  "date": "2026-11-03",
+  "accepted": true,
+  "scope": "Windows common-controls steady theme paint only; full P4 remains unaccepted",
+  "original_sha256": "07516fd3bf1e6b1339836b6773a156f61bdd6f848eeb621fdda012375df313a1",
+  "windows_build": "26100.9457",
+  "original_resources": {
+    "cases": 426,
+    "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+    "mismatches": 0,
+    "os": "Windows 11 Version 24H2",
+    "platform": "windows",
+    "qt": "6.8.3",
+    "reference": "actual hash-verified original dialog resources",
+    "style": "windowsvista",
+    "templates": 38,
+    "textAndKeyboardFocusCues": false,
+    "windowsShown": false
+  },
+  "public_regression": {
+    "cases": 426,
+    "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+    "mismatches": 0,
+    "os": "Windows 11 Version 24H2",
+    "platform": "windows",
+    "qt": "6.8.3",
+    "reference": "Win32 controls using frozen original resource styles",
+    "style": "windowsvista",
+    "templates": 38,
+    "textAndKeyboardFocusCues": false,
+    "windowsShown": false
+  },
+  "exclusions": [
+    "Text glyphs and keyboard-focus cues",
+    "Hidden EDIT nonclient borders",
+    "Animations",
+    "macOS and Linux theme paint",
+    "Physical monitor transitions"
+  ],
+  "validation": {
+    "all_build": true,
+    "p4_passed": 71,
+    "p4_failed": 0,
+    "seconds": 290.17,
+    "local_log": "out/p4-style-all-tests.log"
+  },
+  "relocated_package": {
+    "assets": "assets",
+    "audioDevices": 1,
+    "height": 64,
+    "languages": [
+      "en",
+      "ja",
+      "zh_CN"
+    ],
+    "libraries": ".",
+    "metal": false,
+    "nativeMetal": false,
+    "platform": "windows",
+    "plugins": "plugins",
+    "qt": "6.8.3",
+    "standardCancelLabels": [
+      "Cancel",
+      "\u30ad\u30e3\u30f3\u30bb\u30eb",
+      "\u53d6\u6d88"
+    ],
+    "styleBase": "windowsvista",
+    "translations": "translations",
+    "visible": false,
+    "vulkan": true,
+    "width": 96,
+    "profiles": [
+      {
+        "platform": "offscreen",
+        "styleBase": "fusion",
+        "visible": false
+      },
+      {
+        "platform": "windows",
+        "styleBase": "windowsvista",
+        "visible": false
+      }
+    ]
+  }
+}

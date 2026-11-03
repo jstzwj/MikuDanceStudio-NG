@@ -4131,3 +4131,56 @@ The preceding explicit native-reference CI runs recorded Metal failures of
 software-Vulkan failures of 8,658/957 elements (two/zero coverage differences).
 These are pre-Alpha-fix results and remain unaccepted until rerun and resolved.
 Ordinary P4 regression success is not a substitute for this separate comparison.
+
+## Native Windows button appearance
+
+The editor no longer forces Fusion under the Windows QPA. It installs a shared
+editor style based on the Windows common-controls theme, retaining the actual
+system palette. A common-controls v6 manifest is included in the Windows editor.
+Fusion remains the deterministic fallback on other QPAs; this does not qualify
+macOS/Linux controls as visually identical to Win32.
+
+Two native theme differences are corrected: Qt dropped the default-button
+outline on an inactive dialog, and clipped a full-height radio/check indicator
+inside short original resource rectangles. Inactive defaults now retain their
+outline without activating the window. Short indicators are painted through a
+small Windows adapter using the native theme at the target DPR, with normal Qt
+painting retained for full-size indicators and other platforms.
+
+`qt_control_style_oracle_test <original.exe> <output>` creates all **38 actual
+hash-verified original dialog resources**, never showing them. **426 states** of
+push buttons, checkboxes and radio buttons passed exact RGB comparison: normal,
+disabled, pressed and both check states. Text is blank and keyboard-focus cues
+are hidden on both sides; this qualifies steady theme paint, not font glyphs,
+focused text, animation or every control family. Hidden EDIT nonclient borders
+cannot be captured reliably with WM_PRINT, so those are explicitly excluded.
+An earlier margin-only capture is not counted as a border reference.
+
+The public `qt_control_style` gate creates independent Win32 controls from the
+frozen resource styles and also passed all **426 states**. The optional original
+oracle separately qualifies real dialog construction and native geometry. The
+public gate runs only under the Windows QPA with never-shown windows and uploads
+its JSON/raster evidence. Other QPAs verify style installation is idempotent and
+retain existing language/font/layout gates. No desktop focus, input or capture
+is requested.
+
+The Alpha correction `c8f1e35` passed ordinary editor, formats and rendering CI
+on all three platforms. Strict reference reruns still failed: Metal **24/21**
+and software Vulkan **29/54** channel elements at rest/posed, respectively, with
+zero/zero and two/zero coverage differences. These are recorded in
+[composite evidence](evidence/cross-platform-p4-composite.json). Each explicit
+reference run now retains every color-draw prefix, including failures, for
+cross-platform diagnosis. Local WARP prefix capture first differs on the grid
+lines, then on accessory projected shadows intersecting the grid. Thresholds
+and original images remain unchanged. P4/C1 is still in progress.
+
+Validation: local ALL_BUILD and **71 P4 gates passed (290.17 seconds)**; the final
+paired-language native/system theme checks passed after fixing the test's
+MS UI Gothic language classification. The relocated Windows distribution passed
+both `offscreen` and never-shown `windows` QPAs with an SDK-free PATH; its native
+style plugin, three languages, PMM loading and offscreen rendering all loaded
+from the package. Precise scope is retained in
+[control evidence](evidence/cross-platform-p4-controls.json). The opt-in
+`native_controls` workflow qualification uses actual windows only in the isolated
+GitHub Windows runner to investigate EDIT nonclient paint; local P4 labels never
+enable this path.

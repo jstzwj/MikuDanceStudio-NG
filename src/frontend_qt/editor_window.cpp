@@ -8,6 +8,7 @@
 #include "toon_dialog.hpp"
 #include "model_labels.hpp"
 #include "editor_font.hpp"
+#include "editor_style.hpp"
 #include "edit_composition.hpp"
 #include "mikudancestudio/editor_numeric.hpp"
 #include "mikudancestudio/mmd_control_specs.hpp"
@@ -166,6 +167,7 @@ private:
 EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
                            std::unique_ptr<AudioOutput> audio)
     : assets_(std::move(assets)), testing_(testing), audio_(std::move(audio), testing) {
+    InstallEditorStyle(*qApp);
     setObjectName("mmd.editor");
     setAcceptDrops(true);
     installEventFilter(this);

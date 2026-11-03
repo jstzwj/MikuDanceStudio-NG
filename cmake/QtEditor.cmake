@@ -29,6 +29,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/interpolation.cpp"
         "${root}/src/frontend_qt/editor_window.cpp"
         "${root}/src/frontend_qt/editor_font.cpp"
+        "${root}/src/frontend_qt/editor_style.cpp"
         "${root}/src/frontend_qt/editor_menus.cpp"
         "${root}/src/frontend_qt/editor_panels.cpp"
         "${root}/src/frontend_qt/numeric_dialog.cpp"
@@ -41,6 +42,10 @@ function(mds_add_qt_editor)
     target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/audio.cpp" "${root}/src/frontend_qt/export.cpp")
     target_include_directories(mikudancestudio_frontend_qt PUBLIC "${root}/src/frontend_qt")
     target_link_libraries(mikudancestudio_frontend_qt PUBLIC mikudancestudio_editor_core mikudancestudio_scene_render Qt6::Widgets Qt6::Multimedia)
+    if(WIN32)
+        target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/editor_style_windows.cpp")
+        target_link_libraries(mikudancestudio_frontend_qt PRIVATE gdi32 uxtheme user32)
+    endif()
     if(NOT MSVC)
         target_compile_options(mikudancestudio_frontend_qt PRIVATE -ffp-contract=off)
     endif()
@@ -84,6 +89,9 @@ function(mds_add_qt_editor)
         PREFIX "/i18n" BASE "${root}/res/i18n"
         FILES "${root}/res/i18n/en.json" "${root}/res/i18n/ja.json" "${root}/res/i18n/zh_CN.json")
     qt_add_executable(MikuDanceStudioNG "${root}/src/frontend_qt/main.cpp")
+    if(WIN32)
+        target_sources(MikuDanceStudioNG PRIVATE "${root}/res/frontend_qt/windows.manifest")
+    endif()
     target_link_libraries(MikuDanceStudioNG PRIVATE mikudancestudio_frontend_qt)
     add_custom_command(TARGET MikuDanceStudioNG POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${root}/res/assets" "$<TARGET_FILE_DIR:MikuDanceStudioNG>/assets")
@@ -92,6 +100,12 @@ function(mds_add_qt_editor)
         qt_add_executable(qt_editor_font_test "${root}/tests/qt_editor_font_test.cpp")
         target_link_libraries(qt_editor_font_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
+            qt_add_executable(qt_control_style_test "${root}/tests/qt_control_style_oracle_test.cpp"
+                "${root}/res/frontend_qt/windows.manifest")
+            target_compile_definitions(qt_control_style_test PRIVATE MDS_SYSTEM_CONTROL_REFERENCE)
+            target_link_libraries(qt_control_style_test PRIVATE mikudancestudio_frontend_qt gdi32 user32 comctl32 uxtheme)
+            add_test(NAME qt_control_style COMMAND qt_control_style_test "${CMAKE_BINARY_DIR}/control-style")
+            set_tests_properties(qt_control_style PROPERTIES LABELS "p4;hidden;qt;appearance" TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=windows")
             target_link_libraries(qt_editor_font_test PRIVATE gdi32)
             qt_add_executable(qt_native_input_test "${root}/tests/qt_native_input_test.cpp")
             target_link_libraries(qt_native_input_test PRIVATE mikudancestudio_frontend_qt user32)
@@ -203,7 +217,8 @@ function(mds_add_qt_editor)
         add_executable(editor_composite_render_test "${root}/tests/editor_composite_render_test.cpp")
         target_link_libraries(editor_composite_render_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render)
         add_test(NAME editor_composite_render COMMAND editor_composite_render_test
-            "${root}/tests/data/p4_composite" "${root}/res/assets")
+            "${root}/tests/data/p4_composite" "${root}/res/assets"
+            "${CMAKE_BINARY_DIR}/native-reference")
         # This frozen original reference qualifies the captured native HAL
         # profile. Software rasterizers have independently recorded blend/depth
         # differences; invoke this strict gate explicitly on qualified hardware.
@@ -253,6 +268,8 @@ function(mds_add_qt_editor)
         target_link_libraries(qt_presentation_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
             if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+                qt_add_executable(qt_control_style_oracle_test EXCLUDE_FROM_ALL "${root}/tests/qt_control_style_oracle_test.cpp")
+                target_link_libraries(qt_control_style_oracle_test PRIVATE mikudancestudio_frontend_qt bcrypt gdi32 user32 comctl32 uxtheme)
                 add_executable(editor_scene_gate_oracle_test EXCLUDE_FROM_ALL "${root}/tests/editor_scene_gate_test.cpp")
                 target_compile_definitions(editor_scene_gate_oracle_test PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN MDS_NATIVE_SCENE_GATE_ORACLE)
                 target_link_libraries(editor_scene_gate_oracle_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render bcrypt)

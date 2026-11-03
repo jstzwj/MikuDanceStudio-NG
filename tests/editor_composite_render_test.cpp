@@ -131,6 +131,33 @@ int main(int argc, char** argv) try {
         Require(bool(renderer.Submit(prepared, done)), "repeat composite submission");
         Require(renderer.ReadTarget(1, frame.finalColor, repeated), "repeat composite read");
         Require(actual.bytes == repeated.bytes, "repeat composite must be byte exact");
+        if (argc == 4) {
+            // Keep each actual draw prefix for diagnosis on another GPU. This
+            // never changes the final image/reference or its acceptance rule.
+            auto partial = frame;
+            const auto directory = std::filesystem::u8path(argv[3]);
+            for (auto& pass : partial.passes) {
+                if (!pass.color || pass.color->target != frame.finalColor)
+                    continue;
+                const auto draws = pass.draws;
+                for (std::size_t n = 1; n <= draws.size(); ++n) {
+                    pass.draws.assign(draws.begin(), draws.begin() + n);
+                    rhi::PreparedModelFrame prefix;
+                    result = renderer.Prepare(1, partial, prefix);
+                    Require(bool(result), result.reason);
+                    result = renderer.Submit(prefix, done);
+                    Require(bool(result), result.reason);
+                    rhi::AttachmentReadback pixels;
+                    Require(renderer.ReadTarget(1, frame.finalColor, pixels), "read draw prefix");
+                    const auto name =
+                        std::string(posed ? "posed" : "rest") + "-prefix-" + std::to_string(n);
+                    std::ofstream dump(directory / (name + ".rgba"), std::ios::binary);
+                    dump.write(reinterpret_cast<const char*>(pixels.bytes.data()),
+                               pixels.bytes.size());
+                    Require(bool(dump), "write draw prefix");
+                }
+            }
+        }
     }
     Require(accepted, "original composite pixels differ");
     return 0;

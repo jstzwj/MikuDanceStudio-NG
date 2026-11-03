@@ -1130,27 +1130,27 @@
     },
     "metal": {
       "accepted": false,
-      "run": 41618794476,
-      "revision": "d88adbe",
+      "run": 41622629997,
+      "revision": "c8f1e35",
       "rest_outside_tolerance_elements": 24,
       "posed_outside_tolerance_elements": 21,
       "coverage_differences": [
         0,
         0
       ],
-      "note": "Before uniform-Alpha correction; rerun required"
+      "note": "Uniform material Alpha correction applied; strict remaining line/depth differences still fail."
     },
     "software_vulkan": {
       "accepted": false,
-      "run": 41618786844,
-      "revision": "d88adbe",
-      "rest_outside_tolerance_elements": 8658,
-      "posed_outside_tolerance_elements": 957,
+      "run": 41622621722,
+      "revision": "c8f1e35",
+      "rest_outside_tolerance_elements": 29,
+      "posed_outside_tolerance_elements": 54,
       "coverage_differences": [
         2,
         0
       ],
-      "note": "Before uniform-Alpha correction; rerun required"
+      "note": "Uniform material Alpha correction applied; strict remaining line/depth differences still fail."
     }
   }
 }

@@ -1,4 +1,6 @@
 #include "numeric_dialog.hpp"
+#include "editor_style.hpp"
+#include <QApplication>
 #include "edit_composition.hpp"
 #include "mikudancestudio/mmd_dialog_edit_metrics.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
@@ -111,6 +113,7 @@ bool NativeDialogDoublePrefix(const QString& text, int limit, double& result) {
 TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Language& language,
                                QWidget* parent)
     : QDialog(parent), template_(description), english_(language.Code() == "en") {
+    InstallEditorStyle(*qApp);
     setWindowTitle(language.Text(template_.title));
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     QFont font;

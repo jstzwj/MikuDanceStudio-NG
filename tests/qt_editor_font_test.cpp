@@ -1,4 +1,5 @@
 #include "editor_font.hpp"
+#include "editor_style.hpp"
 #include "editor_window.hpp"
 #include "mikudancestudio/panel_controls.hpp"
 #include <QApplication>
@@ -6,6 +7,7 @@
 #include <QFontInfo>
 #include <QFontMetrics>
 #include <QMenuBar>
+#include <QStyle>
 #include <iostream>
 #include <string>
 #ifdef _WIN32
@@ -72,6 +74,10 @@ int main(int argc, char** argv) {
         QFontDatabase::addApplicationFont(qEnvironmentVariable("WINDIR") + "/Fonts/" + file);
 #endif
     qt::EditorWindow window(std::filesystem::absolute(argv[1]), true);
+    const auto style = app.style();
+    CHECK(style->objectName() == "mmd.editorStyle");
+    qt::InstallEditorStyle(app);
+    CHECK(app.style() == style);
     const auto menuFont = window.menuBar()->font();
     const auto revision = window.Session().Revision();
     const auto frames = window.Session().Runtime().Counters().frames;

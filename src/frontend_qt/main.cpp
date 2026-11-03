@@ -1,7 +1,8 @@
 #include "editor_window.hpp"
+#include "editor_style.hpp"
 #include <QApplication>
+#include <QProxyStyle>
 #include <QCommandLineParser>
-#include <QStyleFactory>
 #include <QDir>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -73,7 +74,11 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
     }
     if (window.isVisible() || image.isNull() || !image.save(report + ".png"))
         return 6;
+    const auto proxy = qobject_cast<QProxyStyle*>(qApp->style());
+    const auto styleBase = proxy ? proxy->baseStyle()->objectName() : qApp->style()->objectName();
     QJsonObject result{{"qt", qVersion()},
+                       {"platform", QGuiApplication::platformName()},
+                       {"styleBase", styleBase},
                        {"languages", languages},
                        {"standardCancelLabels", cancelLabels},
                        {"plugins", QLibraryInfo::path(QLibraryInfo::PluginsPath)},
@@ -102,7 +107,7 @@ int main(int argc, char** argv) {
     QCoreApplication::setOrganizationName("MikuDanceStudio");
     QCoreApplication::setApplicationName("MikuDanceStudio-NG");
     QCoreApplication::setApplicationVersion(MDS_PRODUCT_VERSION);
-    app.setStyle(QStyleFactory::create("Fusion"));
+    mikudancestudio::qt::InstallEditorStyle(app);
     QCommandLineParser parser;
     parser.addHelpOption();
     parser.addVersionOption();

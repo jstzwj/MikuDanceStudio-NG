@@ -50,9 +50,12 @@ def main():
             env['MDS_GPU_DRIVER'] = 'software'
         report = root / 'deployment.json'
         output = []
+        profiles = ['offscreen'] * 3 if system == 'Darwin' else (['offscreen', 'windows'] if system == 'Windows' else ['offscreen'])
+        profile_checks = []
         # Exercise actual process teardown repeatedly: Qt's Apple logging sink
         # previously failed intermittently while unloading plugins at exit.
-        for attempt in range(3 if system == 'Darwin' else 1):
+        for attempt, qpa in enumerate(profiles):
+            env['QT_QPA_PLATFORM'] = qpa
             result = subprocess.run([str(exe), '--deployment-check', str(report), str(fixtures / 'v2.pmm')],
                                     cwd=root, env=env, text=True, encoding='utf-8', errors='replace',
                                     capture_output=True, timeout=120,
@@ -60,6 +63,12 @@ def main():
             output.append(f'Process {attempt + 1}, exit {result.returncode}\n' + result.stdout + result.stderr)
             if result.returncode:
                 break
+            current = json.loads(report.read_text(encoding='utf-8'))
+            if current.get('platform') != qpa or current.get('visible'):
+                raise RuntimeError(f'Unexpected package platform/lifecycle: {current}')
+            if qpa == 'windows' and current.get('styleBase') != 'windowsvista':
+                raise RuntimeError('Relocated package did not load the native Windows control style')
+            profile_checks.append({key: current[key] for key in ('platform', 'styleBase', 'visible')})
         diagnostic = args.report or dist.parent / 'distribution-check.json'
         diagnostic.parent.mkdir(parents=True, exist_ok=True)
         diagnostic.with_suffix('.log').write_text('\n'.join(output), encoding='utf-8')
@@ -90,6 +99,7 @@ def main():
                                          f'{diagnostic.stem}.{crash.name}')
             raise RuntimeError(f'Relocated distribution failed ({result.returncode}); see {diagnostic.with_suffix(".log")}')
         evidence = json.loads(report.read_text(encoding='utf-8'))
+        evidence['profiles'] = profile_checks
         for key in ('plugins', 'translations', 'assets'):
             path = Path(evidence[key]).resolve()
             if not path.is_relative_to(package) or not path.is_dir():
