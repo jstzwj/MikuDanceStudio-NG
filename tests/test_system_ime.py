@@ -10,9 +10,9 @@ import time
 import cpu_import_fixture
 
 
-def run(*command):
+def run(*command, env=None):
     return subprocess.run(command, check=True, text=True, encoding='utf-8',
-                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15).stdout.strip()
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15, env=env).stdout.strip()
 
 
 def main():
@@ -25,26 +25,31 @@ def main():
             not os.environ.get('DISPLAY') or not os.environ.get('DBUS_SESSION_BUS_ADDRESS')):
         raise RuntimeError('Requires isolated CI Xvfb and private DBus; never uses a developer display')
     env = dict(os.environ, QT_QPA_PLATFORM='xcb', QT_IM_MODULE='ibus',
-               XMODIFIERS='@im=ibus', IBUS_USE_PORTAL='0')
+               XMODIFIERS='@im=ibus')
+    env.pop('IBUS_USE_PORTAL', None)
     report_path = args.report.resolve()
     report_path.parent.mkdir(parents=True, exist_ok=True)
     evidence = {'accepted': False, 'engine': 'libpinyin', 'profiles': []}
     with tempfile.TemporaryDirectory(prefix='mds-real-ime-') as temporary:
         root = Path(temporary)
+        # Bypass desktop/portal discovery. The daemon, engine selector and Qt
+        # client must connect to this test's socket on the private session bus.
+        env['IBUS_ADDRESS'] = 'unix:path=' + str(root / 'ibus.socket')
         (root / 'english.pmd').write_bytes(cpu_import_fixture.pmd())
         with (report_path.with_suffix('.ibus.log')).open('w', encoding='utf-8') as log:
-            daemon = subprocess.Popen(['ibus-daemon', '--replace', '--xim', '--panel=disable'],
+            daemon = subprocess.Popen(['ibus-daemon', '--replace', '--xim', '--panel=disable',
+                                       '--address=' + env['IBUS_ADDRESS']],
                                       env=env, stdout=log, stderr=subprocess.STDOUT)
             client = None
             try:
                 deadline = time.monotonic() + 15
                 while True:
-                    result = subprocess.run(['ibus', 'engine', 'libpinyin'], env=env,
+                    result = subprocess.run(['ibus', 'list-engine'], env=env,
                                             capture_output=True, text=True, timeout=5)
-                    if result.returncode == 0:
+                    if result.returncode == 0 and 'libpinyin' in result.stdout:
                         break
                     if time.monotonic() >= deadline or daemon.poll() is not None:
-                        raise RuntimeError(f'IBus/libpinyin unavailable: {result.stderr}')
+                        raise RuntimeError(f'IBus/libpinyin unavailable ({result.returncode}): {result.stdout} {result.stderr}')
                     time.sleep(.1)
                 for language in ('en', 'ja', 'zh_CN'):
                     status, request = root / 'status.json', root / 'command.json'
@@ -79,7 +84,7 @@ def main():
                         wait(lambda s: s['active'], 'dialog startup')
                         window = run('xdotool', 'search', '--onlyvisible', '--name', f'^MDS-IBus-{language}$').splitlines()[-1]
                         run('xdotool', 'windowfocus', '--sync', window)
-                        run('ibus', 'engine', 'libpinyin')
+                        run('ibus', 'engine', 'libpinyin', env=env)
                         command('select')
                         wait(lambda s: s['focus'] and s['command'] == sequence, 'native focus')
                         run('xdotool', 'type', '--clearmodifiers', '--delay', '100', 'riben')
