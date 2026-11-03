@@ -4,6 +4,7 @@
 #include <QProxyStyle>
 #include <QStyleFactory>
 #include <QStyleOptionButton>
+#include <QVariant>
 #include <QWidget>
 #ifdef _WIN32
 #include "editor_style_windows.hpp"
@@ -19,6 +20,15 @@ public:
     void drawPrimitive(PrimitiveElement element, const QStyleOption* option, QPainter* painter,
                        const QWidget* widget) const override {
 #ifdef _WIN32
+        // Original EDIT controls use WS_BORDER, not WS_EX_CLIENTEDGE. Qt's
+        // themed frame changes color on focus/disable; the native plain border
+        // consistently uses COLOR_WINDOWFRAME in these states.
+        if (element == PE_FrameLineEdit && widget &&
+            widget->property("mmdNativeWindowBorder").toBool() &&
+            baseStyle()->objectName() == "windowsvista") {
+            DrawWindowsWindowBorder(*painter, option->rect);
+            return;
+        }
         if ((element == PE_IndicatorRadioButton || element == PE_IndicatorCheckBox) && widget &&
             baseStyle()->objectName() == "windowsvista") {
             // Qt's theme cache keeps the full-size image even when given a

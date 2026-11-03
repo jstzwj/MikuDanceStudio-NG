@@ -212,6 +212,9 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
                     [this, id = spec.id] { Dispatch(id); });
         } else if (cls == "EDIT") {
             auto* edit = new QLineEdit(canvas_);
+            edit->setFrame((spec.style & 0x00800000u) != 0);
+            edit->setProperty("mmdNativeWindowBorder",
+                              (spec.style & 0x00800000u) && !(spec.ex & 0x00000200u));
             edit->setAlignment(Qt::AlignCenter);
             widget = edit;
             connect(edit, &QLineEdit::editingFinished, this, [this, edit, id = spec.id] {

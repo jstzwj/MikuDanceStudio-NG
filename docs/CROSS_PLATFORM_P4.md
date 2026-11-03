@@ -4202,3 +4202,18 @@ from the package. Precise scope is retained in
 `native_controls` workflow qualification uses actual windows only in the isolated
 GitHub Windows runner to investigate EDIT nonclient paint; local P4 labels never
 enable this path.
+
+The complete EDIT capture in isolated Windows run **41633026492** established
+that original `WS_BORDER` controls use `COLOR_WINDOWFRAME` in both enabled and
+disabled states; Qt's Vista frame used different normal/disabled theme colors.
+The adapter now paints the plain border only for controls whose original styles
+request it and preserves `WS_EX_CLIENTEDGE` as a distinct style. Native-resource
+and public hidden regressions retain all 426 button cases and add **460 exact
+GDI FrameRect comparisons** across the 38 templates. Those frame-only checks do
+not replace complete EDIT/text/focus qualification. Four affected editor/font/
+numeric/theme checks passed; the complete isolated EDIT rerun remains pending.
+
+Font deployment validation passed local ALL_BUILD, all **71 P4 gates (331.50
+seconds)**, then the relocated Windows package in offscreen and never-shown
+Windows QPAs. Both JP/SC font faces loaded from the package with the frozen hash
+and OFL notice. No proprietary system fonts were copied.

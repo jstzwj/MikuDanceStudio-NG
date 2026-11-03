@@ -8,6 +8,14 @@
 #include <vssym32.h>
 
 namespace mikudancestudio::qt {
+void DrawWindowsWindowBorder(QPainter& painter, const QRect& rectangle) {
+    const auto color = GetSysColor(COLOR_WINDOWFRAME);
+    const QColor border(GetRValue(color), GetGValue(color), GetBValue(color));
+    painter.fillRect(QRect(rectangle.left(), rectangle.top(), rectangle.width(), 1), border);
+    painter.fillRect(QRect(rectangle.left(), rectangle.bottom(), rectangle.width(), 1), border);
+    painter.fillRect(QRect(rectangle.left(), rectangle.top(), 1, rectangle.height()), border);
+    painter.fillRect(QRect(rectangle.right(), rectangle.top(), 1, rectangle.height()), border);
+}
 bool DrawWindowsButtonIndicator(QPainter& painter, const QRect& logical, const QColor& background,
                                 QStyle::State flags, bool radio) {
     const qreal ratio = painter.device()->devicePixelRatioF();

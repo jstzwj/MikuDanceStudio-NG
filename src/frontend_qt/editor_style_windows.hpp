@@ -5,4 +5,5 @@
 class QPainter;
 namespace mikudancestudio::qt {
 bool DrawWindowsButtonIndicator(QPainter&, const QRect&, const QColor&, QStyle::State, bool radio);
+void DrawWindowsWindowBorder(QPainter&, const QRect&);
 }

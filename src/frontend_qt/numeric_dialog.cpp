@@ -141,6 +141,8 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
         QWidget* widget = nullptr;
         if (control.kind == ui::NumericControlKind::Edit) {
             auto* field = new QLineEdit(this);
+            field->setFrame((control.style & 0x00800000u) != 0);
+            field->setProperty("mmdNativeWindowBorder", (control.style & 0x00800000u) != 0);
             edits_[control.id] = field;
             field->installEventFilter(this);
             widget = field;

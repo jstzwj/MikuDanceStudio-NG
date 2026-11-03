@@ -19,8 +19,10 @@ static void Check(bool value, const char* reason) {
 #include "editor_style.hpp"
 #include <QApplication>
 #include <QImage>
+#include <QPainter>
 #include <QPushButton>
 #include <QStyle>
+#include <QStyleOptionFrame>
 #include <QProxyStyle>
 #include <QFile>
 #include <QJsonDocument>
@@ -36,7 +38,7 @@ public:
 INT_PTR CALLBACK HiddenDialog(HWND, UINT, WPARAM, LPARAM) {
     return FALSE;
 }
-QImage NativeImage(HWND control, bool visible) {
+QImage NativeImage(HWND control, bool visible, bool borderOnly = false) {
     RECT rectangle{}, child{};
     Check(GetWindowRect(control, &child), "native control window rectangle");
     // EDIT does not implement PrintWindow on every Windows version. Ask the
@@ -62,8 +64,10 @@ QImage NativeImage(HWND control, bool visible) {
     Check(bitmap && bits, "memory control bitmap");
     const auto previous = SelectObject(dc, bitmap);
     FillRect(dc, &rectangle, GetSysColorBrush(COLOR_BTNFACE));
-    if (visible)
-        Check(PrintWindow(capture, dc, 2), "capture our dialog in the isolated runner");
+    if (borderOnly)
+        FrameRect(dc, &rectangle, GetSysColorBrush(COLOR_WINDOWFRAME));
+    else if (visible)
+        Check(PrintWindow(capture, dc, 0), "capture our dialog in the isolated runner");
     else
         SendMessageW(control, WM_PRINT, reinterpret_cast<WPARAM>(dc),
                      PRF_CLIENT | PRF_NONCLIENT | PRF_ERASEBKGND);
@@ -151,7 +155,7 @@ int main(int argc, char** argv) try {
         &kNumericModelPhysicsEn,
         &kNumericModelPhysicsJa,
     };
-    unsigned mismatches = 0, cases = 0, templates = 0;
+    unsigned mismatches = 0, cases = 0, templates = 0, borderCases = 0, borderMismatches = 0;
     for (std::size_t templateIndex = 0; templateIndex < sizeof descriptions / sizeof *descriptions;
          ++templateIndex) {
         const auto* description = descriptions[templateIndex];
@@ -201,12 +205,17 @@ int main(int argc, char** argv) try {
         }
         for (std::size_t index = 0; index < description->count; ++index) {
             const auto& entry = description->controls[index];
-            // WM_PRINT does not capture hidden EDIT nonclient theme borders.
-            // Do not count an empty memory-DC margin as an independent oracle.
+            // WM_PRINT omits hidden EDIT nonclient paint. The hidden border
+            // regression therefore compares only the GDI WS_BORDER primitive;
+            // complete EDIT painting is qualified separately in isolated CI.
+            const bool borderOnly = !visible && entry.kind == NumericControlKind::Edit;
             if (visible ? entry.kind != NumericControlKind::Edit
-                        : (entry.kind != NumericControlKind::Button &&
+                        : (entry.kind != NumericControlKind::Edit &&
+                           entry.kind != NumericControlKind::Button &&
                            entry.kind != NumericControlKind::Checkbox &&
                            entry.kind != NumericControlKind::Radio))
+                continue;
+            if (borderOnly && !(entry.style & 0x00800000u))
                 continue;
             const int id = entry.id;
             if (!entry.width || !entry.height)
@@ -221,8 +230,8 @@ int main(int argc, char** argv) try {
             // independently painted Win32 controls. Full resource creation is
             // separately checked by the optional original-executable oracle.
             const auto control = CreateWindowExW(
-                0, visible ? L"EDIT" : L"BUTTON", L"", entry.style, widget->x(), widget->y(),
-                widget->width(), widget->height(), native,
+                0, entry.kind == NumericControlKind::Edit ? L"EDIT" : L"BUTTON", L"", entry.style,
+                widget->x(), widget->y(), widget->width(), widget->height(), native,
                 reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), instance, nullptr);
             if (control)
                 SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), FALSE);
@@ -250,14 +259,24 @@ int main(int argc, char** argv) try {
                     button->setChecked(checked);
                 }
                 if (visible) {
+                    RedrawWindow(native, nullptr, nullptr,
+                                 RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN |
+                                     RDW_UPDATENOW);
                     UpdateWindow(control);
                     QCoreApplication::processEvents();
                 }
-                const auto expected = NativeImage(control, visible);
+                const auto expected = NativeImage(control, visible, borderOnly);
                 widget->resize(expected.size());
                 QImage actual(expected.size(), QImage::Format_RGB32);
                 actual.fill(app.palette().window().color());
-                widget->render(&actual);
+                if (borderOnly) {
+                    QStyleOptionFrame option;
+                    option.initFrom(widget);
+                    QPainter painter(&actual);
+                    widget->style()->drawPrimitive(QStyle::PE_FrameLineEdit, &option, &painter,
+                                                   widget);
+                } else
+                    widget->render(&actual);
                 const auto difference = Difference(actual, expected);
                 const auto prefix =
                     QString("%1-%2-%3-%4").arg(description->id).arg(code).arg(id).arg(state);
@@ -269,8 +288,13 @@ int main(int argc, char** argv) try {
                       "save Qt control raster");
                 std::printf("%d %s control=%d state=%u size=%dx%d different=%u\n", description->id,
                             code, id, state, actual.width(), actual.height(), difference);
-                mismatches += difference != 0;
-                ++cases;
+                if (borderOnly) {
+                    borderMismatches += difference != 0;
+                    ++borderCases;
+                } else {
+                    mismatches += difference != 0;
+                    ++cases;
+                }
             }
         }
         Check(visible || (!IsWindowVisible(native) && !dialog.isVisible()),
@@ -282,17 +306,20 @@ int main(int argc, char** argv) try {
     }
     std::printf("%u native control-theme cases; %u mismatches; no desktop input\n", cases,
                 mismatches);
-    QJsonObject report{{"qt", qVersion()},
-                       {"platform", QGuiApplication::platformName()},
-                       {"os", QSysInfo::prettyProductName()},
-                       {"style", static_cast<QProxyStyle*>(app.style())->baseStyle()->objectName()},
-                       {"templates", int(templates)},
-                       {"cases", int(cases)},
-                       {"mismatches", int(mismatches)},
-                       {"comparison", visible ? "exact RGB, EDIT normal/disabled including nonclient"
-                                               : "exact RGB, normal/disabled/pressed, checked/unchecked"},
-                       {"textAndKeyboardFocusCues", false},
-                       {"windowsShown", visible}};
+    QJsonObject report{
+        {"qt", qVersion()},
+        {"platform", QGuiApplication::platformName()},
+        {"os", QSysInfo::prettyProductName()},
+        {"style", static_cast<QProxyStyle*>(app.style())->baseStyle()->objectName()},
+        {"templates", int(templates)},
+        {"cases", int(cases)},
+        {"mismatches", int(mismatches)},
+        {"gdiBorderCases", int(borderCases)},
+        {"gdiBorderMismatches", int(borderMismatches)},
+        {"comparison", visible ? "exact RGB, EDIT normal/disabled including nonclient"
+                               : "exact RGB, normal/disabled/pressed, checked/unchecked"},
+        {"textAndKeyboardFocusCues", false},
+        {"windowsShown", visible}};
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
     report.insert("reference", "Win32 controls using frozen original resource styles");
 #else
@@ -301,7 +328,7 @@ int main(int argc, char** argv) try {
     QFile file(QString::fromStdWString((output / "report.json").wstring()));
     Check(file.open(QIODevice::WriteOnly) && file.write(QJsonDocument(report).toJson()) > 0,
           "write native control qualification");
-    return mismatches ? 1 : 0;
+    return mismatches || borderMismatches ? 1 : 0;
 } catch (const std::exception& error) {
     std::fprintf(stderr, "%s\n", error.what());
     return 1;
