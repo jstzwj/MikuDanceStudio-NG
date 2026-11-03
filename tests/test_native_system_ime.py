@@ -20,6 +20,13 @@ class MacInput:
         self.cg = c.CDLL('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics')
         self.appkit = c.CDLL('/System/Library/Frameworks/AppKit.framework/AppKit')
         self.objc = c.CDLL('/usr/lib/libobjc.A.dylib')
+        self.process = c.CDLL('/System/Library/Frameworks/ApplicationServices.framework/'
+                              'Frameworks/HIServices.framework/HIServices')
+        class ProcessSerialNumber(c.Structure):
+            _fields_ = [('high', c.c_uint32), ('low', c.c_uint32)]
+        self.ProcessSerialNumber = ProcessSerialNumber
+        self.process.GetFrontProcess.argtypes = [c.POINTER(ProcessSerialNumber)]
+        self.process.GetProcessPID.argtypes = [c.POINTER(ProcessSerialNumber), c.POINTER(c.c_int)]
         self.objc.objc_getClass.argtypes, self.objc.objc_getClass.restype = [c.c_char_p], c.c_void_p
         self.objc.sel_registerName.argtypes, self.objc.sel_registerName.restype = [c.c_char_p], c.c_void_p
         self.send_object = c.CFUNCTYPE(c.c_void_p, c.c_void_p, c.c_void_p)(('objc_msgSend', self.objc))
@@ -79,10 +86,15 @@ class MacInput:
             raise RuntimeError('The isolated runner has no macOS event-posting permission')
         deadline = time.monotonic() + 2
         while True:
-            workspace = self.send_object(self.objc.objc_getClass(b'NSWorkspace'),
-                                         self.objc.sel_registerName(b'sharedWorkspace'))
-            application = self.send_object(workspace, self.objc.sel_registerName(b'frontmostApplication'))
-            foreground = self.send_pid(application, self.objc.sel_registerName(b'processIdentifier'))
+            # NSWorkspace caches launch/activation notifications on its run loop;
+            # this Python driver has no AppKit event loop between client launches.
+            # Query the live process manager instead of retaining an old client PID.
+            serial = self.ProcessSerialNumber()
+            current = c.c_int()
+            if (self.process.GetFrontProcess(c.byref(serial)) or
+                    self.process.GetProcessPID(c.byref(serial), c.byref(current))):
+                raise RuntimeError('Cannot verify native foreground process ownership')
+            foreground = current.value
             if foreground == pid or time.monotonic() >= deadline:
                 break
             time.sleep(.025)
