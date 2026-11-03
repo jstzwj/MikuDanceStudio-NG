@@ -235,6 +235,7 @@ def main():
                 sequence = 0
                 env = dict(os.environ, QT_QPA_PLATFORM='cocoa' if sys.platform == 'darwin' else 'windows',
                            MDS_SYSTEM_IME='kotoeri' if sys.platform == 'darwin' else 'ms-ime',
+                           MDS_IME_DIAGNOSTIC_PATH=str(args.report.with_suffix(f'.{language}.hang.dmp').resolve()),
                            QT_LOGGING_RULES='qt.qpa.input.methods=true;qt.qpa.input.keys=true')
                 with args.report.with_suffix(f'.{language}.log').open('w', encoding='utf-8') as log:
                     client = subprocess.Popen([str(args.test.resolve()), str(root / 'english.pmd'),

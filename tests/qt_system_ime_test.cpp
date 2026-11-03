@@ -6,6 +6,8 @@
 #include <msctf.h>
 #include <imm.h>
 #include <wrl/client.h>
+#include <DbgHelp.h>
+#include <thread>
 #endif
 #include "english_name_dialog.hpp"
 #include "mikudancestudio/english_name_edit.hpp"
@@ -34,6 +36,99 @@ struct LifetimeTrace {
     }
 };
 #ifdef _WIN32
+class ShutdownDiagnostic {
+public:
+    ShutdownDiagnostic() : done_(CreateEventW(nullptr, TRUE, FALSE, nullptr)) {
+        DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), &main_,
+                        THREAD_GET_CONTEXT | THREAD_SUSPEND_RESUME | THREAD_QUERY_INFORMATION,
+                        FALSE, 0);
+    }
+    ~ShutdownDiagnostic() {
+        if (done_)
+            SetEvent(done_);
+        if (worker_.joinable())
+            worker_.join();
+        if (done_)
+            CloseHandle(done_);
+        if (main_)
+            CloseHandle(main_);
+    }
+    void Arm() {
+        const auto path = qEnvironmentVariable("MDS_IME_DIAGNOSTIC_PATH").toStdWString();
+        if (!done_ || path.empty())
+            return;
+        // Capture only this generated-fixture client, from a separate thread:
+        // a blocked IMM/TSF call cannot service a GUI-thread diagnostic timer.
+        worker_ = std::thread([this, path] {
+            if (WaitForSingleObject(done_, 5000) != WAIT_TIMEOUT)
+                return;
+            const auto process = GetCurrentProcess();
+            SymSetOptions(SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME);
+            if (main_ && SymInitialize(process, "", TRUE)) {
+                DWORD64 addresses[64]{};
+                unsigned count = 0;
+                if (SuspendThread(main_) != DWORD(-1)) {
+                    CONTEXT context{};
+                    context.ContextFlags = CONTEXT_FULL;
+                    if (GetThreadContext(main_, &context)) {
+                        STACKFRAME64 frame{};
+#ifdef _WIN64
+                        constexpr DWORD machine = IMAGE_FILE_MACHINE_AMD64;
+                        frame.AddrPC.Offset = context.Rip;
+                        frame.AddrStack.Offset = context.Rsp;
+                        frame.AddrFrame.Offset = context.Rbp;
+#else
+                        constexpr DWORD machine = IMAGE_FILE_MACHINE_I386;
+                        frame.AddrPC.Offset = context.Eip;
+                        frame.AddrStack.Offset = context.Esp;
+                        frame.AddrFrame.Offset = context.Ebp;
+#endif
+                        frame.AddrPC.Mode = frame.AddrStack.Mode = frame.AddrFrame.Mode =
+                            AddrModeFlat;
+                        while (count < 64 &&
+                               StackWalk64(machine, process, main_, &frame, &context, nullptr,
+                                           SymFunctionTableAccess64, SymGetModuleBase64, nullptr) &&
+                               frame.AddrPC.Offset)
+                            addresses[count++] = frame.AddrPC.Offset;
+                    }
+                    ResumeThread(main_);
+                }
+                for (unsigned index = 0; index < count; ++index) {
+                    IMAGEHLP_MODULE64 module{};
+                    module.SizeOfStruct = sizeof(module);
+                    SymGetModuleInfo64(process, addresses[index], &module);
+                    alignas(SYMBOL_INFO) char storage[sizeof(SYMBOL_INFO) + MAX_SYM_NAME]{};
+                    auto* symbol = reinterpret_cast<SYMBOL_INFO*>(storage);
+                    symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+                    symbol->MaxNameLen = MAX_SYM_NAME;
+                    DWORD64 displacement = 0;
+                    SymFromAddr(process, addresses[index], &displacement, symbol);
+                    std::fprintf(stderr, "IME shutdown frame %u: %s+0x%llx %s+0x%llx\n", index,
+                                 module.ModuleName, addresses[index] - module.BaseOfImage,
+                                 symbol->Name, displacement);
+                }
+                SymCleanup(process);
+                std::fflush(stderr);
+            }
+            const auto output = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr,
+                                            CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+            if (output != INVALID_HANDLE_VALUE) {
+                const auto written =
+                    MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), output,
+                                      MiniDumpNormal, nullptr, nullptr, nullptr);
+                std::fprintf(stderr, "IME shutdown diagnostic dump=%d error=%lu\n", written,
+                             written ? 0ul : GetLastError());
+                std::fflush(stderr);
+                CloseHandle(output);
+            }
+        });
+    }
+
+private:
+    HANDLE done_;
+    HANDLE main_ = nullptr;
+    std::thread worker_;
+};
 QString ActivateJapaneseIme(HWND window, std::optional<TF_INPUTPROCESSORPROFILE>& previous) {
     using Microsoft::WRL::ComPtr;
     ComPtr<ITfInputProcessorProfiles> profiles;
@@ -85,13 +180,21 @@ void RestoreInputProfile(HWND window, const std::optional<TF_INPUTPROCESSORPROFI
     std::fprintf(stderr, "IME restoring input context\n");
     std::fflush(stderr);
     if (const auto context = ImmGetContext(window)) {
+        std::fprintf(stderr, "IME closing native input context\n");
+        std::fflush(stderr);
         ImmSetOpenStatus(context, FALSE);
+        std::fprintf(stderr, "IME native input context closed\n");
+        std::fflush(stderr);
         ImmReleaseContext(window, context);
     }
     if (previous) {
         Microsoft::WRL::ComPtr<ITfInputProcessorProfileMgr> manager;
+        std::fprintf(stderr, "IME creating profile manager for restoration\n");
+        std::fflush(stderr);
         auto result = CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr, CLSCTX_INPROC_SERVER,
                                        IID_PPV_ARGS(&manager));
+        std::fprintf(stderr, "IME activating original TSF profile\n");
+        std::fflush(stderr);
         if (SUCCEEDED(result))
             result = manager->ActivateProfile(previous->dwProfileType, previous->langid,
                                                previous->clsid, previous->guidProfile, previous->hkl,
@@ -134,6 +237,9 @@ public:
 }
 int main(int argc, char** argv) {
     LifetimeTrace applicationTrace{"application"};
+#ifdef _WIN32
+    ShutdownDiagnostic shutdownDiagnostic;
+#endif
     qInstallMessageHandler(
         [](QtMsgType, const QMessageLogContext& context, const QString& message) {
             std::fprintf(stderr, "%s: %s\n", context.category, message.toUtf8().constData());
@@ -287,6 +393,7 @@ int main(int argc, char** argv) {
             timer.stop();
             const auto result = unchanged && dialog.Active() && reason.empty() ? 0 : 1;
 #ifdef _WIN32
+            shutdownDiagnostic.Arm();
             RestoreInputProfile(reinterpret_cast<HWND>(dialog.winId()), previousProfile);
 #endif
             field->clearFocus();

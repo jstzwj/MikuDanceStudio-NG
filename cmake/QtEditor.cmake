@@ -108,7 +108,7 @@ function(mds_add_qt_editor)
             target_link_libraries(qt_system_ime_test PRIVATE "-framework AppKit" "-framework Carbon")
         endif()
         if(WIN32)
-            target_link_libraries(qt_system_ime_test PRIVATE ole32 uuid imm32)
+            target_link_libraries(qt_system_ime_test PRIVATE ole32 uuid imm32 dbghelp)
             qt_add_executable(qt_control_style_test "${root}/tests/qt_control_style_oracle_test.cpp"
                 "${root}/res/frontend_qt/windows.manifest")
             target_compile_definitions(qt_control_style_test PRIVATE MDS_SYSTEM_CONTROL_REFERENCE)
