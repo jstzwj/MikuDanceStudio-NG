@@ -1,6 +1,7 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "bone_clipboard_fixture.hpp"
 #include "editor_clipboard_chain_fixture.hpp"
+#include "editor_model_clipboard_chain_fixture.hpp"
 #include <fstream>
 #include <iostream>
 using namespace mikudancestudio;
@@ -63,6 +64,17 @@ int main(int argc, char** argv) {
         CHECK(std::abs(rotation[3] - .75 / length) <= 2e-6);
     }
     const auto root = std::filesystem::absolute(argv[1]);
+    std::uint64_t modelChainHash = 14695981039346656037ull;
+    for (const char* file : {"facial.pmd", "tint-morph.pmx", "articulated.pmd", "articulated.pmx"})
+        for (bool reversed : {false, true}) {
+            EditorSession chain;
+            CHECK(model_clipboard_chain_fixture::Initialize(chain, root, file, reversed, reason));
+            for (const auto& command : clipboard_chain_fixture::Commands()) {
+                CHECK(model_clipboard_chain_fixture::Execute(chain, command, reason));
+                model_clipboard_chain_fixture::Hash(modelChainHash, chain.Document().models[0]);
+            }
+        }
+    CHECK(modelChainHash == 0x88478b1f491ed0bfull);
     std::uint64_t chainHash = 14695981039346656037ull;
     for (unsigned accessories : {0u, 1u, 2u})
         for (bool reversed : {false, true}) {

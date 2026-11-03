@@ -82,13 +82,13 @@ This closes that command's integration gap, not the complete clipboard/input gat
 
 | Gate | Current state |
 |---|---|
-| Shared editing and serialization | First local regression passed; full command/compatibility coverage pending |
+| Shared editing and serialization | Generated roundtrips, independent command/kernel gates, 84 global and 112 model clipboard-chain checkpoints passed; public frozen chain regression included |
 | Qt original layout and multilingual interface | Initial three-platform command/language regression passed; full original parity pending |
 | C1 scene rendering | Independent original baseline and composite each pass 48 explicit native-hardware cases on DX11/DX12/Vulkan; WARP frozen-reference Alpha/depth differences remain open; broader device qualification pending |
 | WAV and synchronization | Qualified Windows silent profile and new CoreAudio/PulseAudio 120-second runs passed; latest Windows hosted runner has no audio device and reports unavailable; Linux uses an explicit 50 ms virtual queue; physical speaker latency and the default two-second cold null-sink profile are unqualified |
 | Fixed-step image sequence export and cancellation | Generated 30fps sequence, strict repeat and cancellation passed on three platforms |
 | Three-platform open/edit/play/save/reopen/export | Combined PMD/PMX, accessory/screen, WAV, physics, all-key-pool edit/save/reopen/export workflow passed at c097942; independent output qualification remains separate |
-| MMD v9.32 independent geometry, behavior and output comparison | Command, geometry and explicit hardware-output subsets passed; complete native input/control appearance and chained model commands pending |
+| MMD v9.32 independent geometry, behavior and output comparison | Command, chained clipboard, geometry and explicit hardware-output subsets passed; complete native input/control appearance and wider output profiles pending |
 | Input, IME, DPI, font metrics and lifecycle acceptance | Native surface lifecycle passed on all platforms; full input/IME/DPI/font acceptance pending |
 | CPU frame-production performance | Local Sour Miku complete offscreen CPU/GPU budget passed on DX11/DX12/Vulkan; generated three-platform CPU/GPU qualification passed at 6dbc9cf; physical presentation latency is separate |
 
@@ -4076,3 +4076,32 @@ strict qualification as a failing gate on any mismatch and uploads its JUnit
 result. Ordinary software-device CI does not claim that distinct hardware-native
 qualification. The latest preceding editor, renderer and formats workflows at
 `18ea63f` all passed; new cross-platform evidence will be recorded after execution.
+
+
+## Chained model clipboard dispatcher qualification
+
+The original x64 dispatcher now executes the same 14-command copy/paste chain for
+four generated models (`facial.pmd`, `tint-morph.pmx`, `articulated.pmd` and
+`articulated.pmx`) in both key-allocation orders: **112 checkpoints**. Each
+checkpoint compares the complete **600,000 bone / 20,000 Morph / 1,000 display**
+record pools, including links, selection marks, retired payload and model frame
+watermark. Display IK arrays and the implicit native root selector remain valid.
+Native copied counts, clipboard identities/payload (including nested arrays) and
+valid-input paste immutability are checked. This supplements the earlier 84 global
+chain checkpoints and independent fixed-axis, capacity, mirror and history gates.
+
+The native loader's implicit root selector requires both its per-key data and
+relationship table. An initial incomplete oracle fixture was rejected and fixed;
+no product behavior was changed to accommodate it. Only native presentation and
+pose-evaluation tails are isolated; actual command dispatch, copying, allocation
+and all registrars run. No window or GPU is created. The original-executable
+fixture yields frozen hash **88478b1f491ed0bf**, now required by the portable
+`editor_clipboard` regression. It does not claim native OS event delivery or
+qualify every possible mixed-model/invalid-parent sequence.
+
+P4/C1 remains open for complete native input/control appearance and the separately
+failing hardware-reference portability profiles. The preceding `d88adbe` ordinary
+editor workflow [41618771314](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41618771314)
+passed all three platforms. Its explicit Metal and software Vulkan reference
+qualifications were run separately and failed strict comparison; those failures
+remain visible and are not replaced by the ordinary editor-suite result.
