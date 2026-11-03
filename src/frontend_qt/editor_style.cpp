@@ -20,6 +20,11 @@ public:
     void drawPrimitive(PrimitiveElement element, const QStyleOption* option, QPainter* painter,
                        const QWidget* widget) const override {
 #ifdef _WIN32
+        if (element == PE_Frame && widget && widget->property("mmdNativeSunkenBorder").toBool() &&
+            baseStyle()->objectName() == "windowsvista") {
+            DrawWindowsSunkenBorder(*painter, option->rect);
+            return;
+        }
         // Original EDIT controls use WS_BORDER, not WS_EX_CLIENTEDGE. Qt's
         // themed frame changes color on focus/disable; the native plain border
         // consistently uses COLOR_WINDOWFRAME in these states.

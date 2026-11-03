@@ -5,8 +5,10 @@
   "original_sha256": "07516fd3bf1e6b1339836b6773a156f61bdd6f848eeb621fdda012375df313a1",
   "windows_build": "26100.9457",
   "original_resources": {
-    "cases": 426,
+    "cases": 494,
     "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+    "gdiBorderCases": 460,
+    "gdiBorderMismatches": 0,
     "mismatches": 0,
     "os": "Windows 11 Version 24H2",
     "platform": "windows",
@@ -18,8 +20,10 @@
     "windowsShown": false
   },
   "public_regression": {
-    "cases": 426,
+    "cases": 494,
     "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+    "gdiBorderCases": 460,
+    "gdiBorderMismatches": 0,
     "mismatches": 0,
     "os": "Windows 11 Version 24H2",
     "platform": "windows",
@@ -32,7 +36,6 @@
   },
   "exclusions": [
     "Text glyphs and keyboard-focus cues",
-    "Hidden EDIT nonclient borders",
     "Animations",
     "macOS and Linux theme paint",
     "Physical monitor transitions"
@@ -42,11 +45,15 @@
     "p4_passed": 71,
     "p4_failed": 0,
     "seconds": 290.17,
-    "local_log": "out/p4-style-all-tests.log"
+    "local_log": "out/p4-style-all-tests.log",
+    "final_qt_passed": 29,
+    "final_qt_seconds": 141.23,
+    "final_qt_log": "out/p4-list-final-tests.log"
   },
   "relocated_package": {
     "assets": "assets",
     "audioDevices": 1,
+    "bundledFonts": true,
     "height": 64,
     "languages": [
       "en",
@@ -61,8 +68,8 @@
     "qt": "6.8.3",
     "standardCancelLabels": [
       "Cancel",
-      "\u30ad\u30e3\u30f3\u30bb\u30eb",
-      "\u53d6\u6d88"
+      "キャンセル",
+      "取消"
     ],
     "styleBase": "windowsvista",
     "translations": "translations",
@@ -81,5 +88,38 @@
         "visible": false
       }
     ]
+  },
+  "gdi_plain_border_regression": {
+    "original_resources": 460,
+    "public_regression": 460,
+    "mismatches": 0,
+    "comparison": "GDI FrameRect with COLOR_WINDOWFRAME, normal/disabled",
+    "windowsShown": false,
+    "scope": "Border primitive only; complete control capture is separately qualified in isolated CI"
+  },
+  "complete_edit_control": {
+    "run": 41637849989,
+    "revision": "0984b62",
+    "isolation": "Test-owned shown windows only on isolated GitHub Windows runner; no desktop input",
+    "report": {
+      "cases": 460,
+      "comparison": "exact RGB, EDIT normal/disabled including nonclient",
+      "gdiBorderCases": 0,
+      "gdiBorderMismatches": 0,
+      "mismatches": 0,
+      "os": "Windows Server 2022 Version 21H2",
+      "platform": "windows",
+      "qt": "6.8.3",
+      "reference": "Win32 controls using frozen original resource styles",
+      "style": "windowsvista",
+      "templates": 38,
+      "textAndKeyboardFocusCues": false,
+      "windowsShown": true
+    }
+  },
+  "control_states": {
+    "button_checkbox_radio": 426,
+    "empty_combobox": 44,
+    "listbox_empty_and_selected_textless_row": 24
   }
 }

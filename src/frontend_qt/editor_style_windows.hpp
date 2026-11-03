@@ -1,9 +1,12 @@
 #pragma once
 #include <QColor>
+#include <QPalette>
 #include <QRect>
 #include <QStyle>
 class QPainter;
 namespace mikudancestudio::qt {
+void ConfigureWindowsListPalette(QPalette& palette);
 bool DrawWindowsButtonIndicator(QPainter&, const QRect&, const QColor&, QStyle::State, bool radio);
 void DrawWindowsWindowBorder(QPainter&, const QRect&);
+void DrawWindowsSunkenBorder(QPainter&, const QRect&);
 }

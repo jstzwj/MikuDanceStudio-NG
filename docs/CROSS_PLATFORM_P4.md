@@ -73,6 +73,18 @@ behavior and all frame-line operations require further implementation/comparison
 
 ## Remaining exit gates
 
+Windows control appearance now covers 494 exact RGB states from all 38 original
+English/Japanese dialog resources: 426 button/checkbox/radio states, 44 empty
+combobox states, and 24 empty/selected textless listbox states. Listboxes preserve
+the native sunken border, white disabled background and flat system selection
+color while inactive/disabled. The public Win32 regression models the dialog
+manager's `DS_3DLOOK` conversion to `WS_EX_CLIENTEDGE` and its font-dependent
+integral row height. Both the actual original-resource oracle and public gate
+pass. Separately, isolated Windows CI run **41637849989** qualifies 460 complete
+empty EDIT normal/disabled captures, including nonclient paint. These results
+exclude text glyphs, focus cues, slider geometry and non-Windows theme paint;
+see [control evidence](evidence/cross-platform-p4-controls.json).
+
 Real Linux IME qualification is available explicitly with the `system_ime`
 workflow input. It creates a private Xvfb display and DBus session, starts the
 distribution's IBus/libpinyin engine, and sends native X11 keyboard events to the

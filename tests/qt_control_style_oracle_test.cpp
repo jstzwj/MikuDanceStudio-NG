@@ -207,11 +207,13 @@ int main(int argc, char** argv) try {
             // regression therefore compares only the GDI WS_BORDER primitive;
             // complete EDIT painting is qualified separately in isolated CI.
             const bool borderOnly = !visible && entry.kind == NumericControlKind::Edit;
+            const bool other = entry.kind == NumericControlKind::Combobox ||
+                               entry.kind == NumericControlKind::Listbox;
             if (visible ? entry.kind != NumericControlKind::Edit
                         : (entry.kind != NumericControlKind::Edit &&
                            entry.kind != NumericControlKind::Button &&
                            entry.kind != NumericControlKind::Checkbox &&
-                           entry.kind != NumericControlKind::Radio))
+                           entry.kind != NumericControlKind::Radio && !other))
                 continue;
             if (borderOnly && !(entry.style & 0x00800000u))
                 continue;
@@ -228,11 +230,23 @@ int main(int argc, char** argv) try {
             // independently painted Win32 controls. Full resource creation is
             // separately checked by the optional original-executable oracle.
             const auto control = CreateWindowExW(
-                0, entry.kind == NumericControlKind::Edit ? L"EDIT" : L"BUTTON", L"", entry.style,
+                // DS_3DLOOK dialog creation converts a listbox's WS_BORDER to
+                // WS_EX_CLIENTEDGE. CreateWindowEx alone does not do that.
+                entry.kind == NumericControlKind::Listbox ? WS_EX_CLIENTEDGE : 0,
+                entry.kind == NumericControlKind::Edit       ? L"EDIT"
+                : entry.kind == NumericControlKind::Combobox ? L"COMBOBOX"
+                : entry.kind == NumericControlKind::Listbox  ? L"LISTBOX"
+                : entry.kind == NumericControlKind::Slider   ? TRACKBAR_CLASSW
+                                                             : L"BUTTON",
+                L"",
+                entry.kind == NumericControlKind::Listbox ? entry.style & ~WS_BORDER : entry.style,
                 widget->x(), widget->y(), widget->width(), widget->height(), native,
                 reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), instance, nullptr);
             if (control)
                 SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), FALSE);
+            if (control && entry.kind == NumericControlKind::Listbox)
+                SetWindowPos(control, nullptr, 0, 0, widget->width(), widget->height(),
+                             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
 #else
             const auto control = GetDlgItem(native, id);
 #endif
@@ -243,13 +257,34 @@ int main(int argc, char** argv) try {
                 button->setText({});
             if (auto* edit = qobject_cast<QLineEdit*>(widget))
                 edit->clear();
-            for (unsigned state = 0; state < (!button                 ? 2u
-                                              : button->isCheckable() ? 6u
-                                                                      : 3u);
+            if (auto* combo = qobject_cast<QComboBox*>(widget)) {
+                combo->clear();
+                SendMessageW(control, CB_RESETCONTENT, 0, 0);
+            }
+            if (auto* list = qobject_cast<QListWidget*>(widget)) {
+                list->clear();
+                SendMessageW(control, LB_RESETCONTENT, 0, 0);
+            }
+            for (unsigned state = 0; state < (entry.kind == NumericControlKind::Listbox ? 4u
+                                              : !button                                 ? 2u
+                                              : button->isCheckable()                   ? 6u
+                                                                                        : 3u);
                  ++state) {
                 const bool enabled = state % 3 != 1, pressed = state % 3 == 2, checked = state >= 3;
                 EnableWindow(control, enabled);
                 widget->setEnabled(enabled);
+                if (auto* list = qobject_cast<QListWidget*>(widget)) {
+                    if (state == 2) {
+                        list->addItem(QString());
+                        list->setCurrentRow(0);
+                        SendMessageW(control, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L""));
+                        SendMessageW(control, LB_SETCURSEL, 0, 0);
+                    }
+                    // List states 2/3 check the same selected, textless row.
+                    const bool listEnabled = state % 2 == 0;
+                    list->setEnabled(listEnabled);
+                    EnableWindow(control, listEnabled);
+                }
                 if (button) {
                     SendMessageW(control, BM_SETSTATE, pressed, 0);
                     SendMessageW(control, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);

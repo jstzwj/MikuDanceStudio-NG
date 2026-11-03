@@ -1,5 +1,8 @@
 #include "numeric_dialog.hpp"
 #include "editor_style.hpp"
+#ifdef _WIN32
+#include "editor_style_windows.hpp"
+#endif
 #include <QApplication>
 #include "edit_composition.hpp"
 #include "mikudancestudio/mmd_dialog_edit_metrics.hpp"
@@ -14,6 +17,7 @@
 #include <QCloseEvent>
 #include <QWheelEvent>
 #include <QStyledItemDelegate>
+#include <QPainter>
 #include <QValidator>
 #include <charconv>
 #include <climits>
@@ -93,6 +97,19 @@ private:
 class OrderRowDelegate final : public QStyledItemDelegate {
 public:
     OrderRowDelegate(int height, QObject* parent) : QStyledItemDelegate(parent), height_(height) {}
+    void paint(QPainter* painter, const QStyleOptionViewItem& option,
+               const QModelIndex& index) const override {
+        auto row = option;
+        if (row.state & QStyle::State_Selected) {
+            // The original LISTBOX retains its flat system highlight even
+            // when the dialog is inactive or the control is disabled.
+            painter->fillRect(row.rect, row.palette.color(QPalette::Active, QPalette::Highlight));
+            row.palette.setColor(QPalette::Text,
+                                 row.palette.color(QPalette::Active, QPalette::HighlightedText));
+        }
+        row.state &= ~(QStyle::State_Selected | QStyle::State_MouseOver);
+        QStyledItemDelegate::paint(painter, row, index);
+    }
     QSize sizeHint(const QStyleOptionViewItem& option, const QModelIndex& index) const override {
         auto size = QStyledItemDelegate::sizeHint(option, index);
         size.setHeight(height_);
@@ -248,6 +265,15 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
             widget = combo;
         } else if (control.kind == ui::NumericControlKind::Listbox) {
             auto* list = new QListWidget(this);
+            list->setProperty("mmdNativeSunkenBorder", true);
+            auto colors = list->palette();
+#ifdef _WIN32
+            if (QGuiApplication::platformName() == "windows")
+                ConfigureWindowsListPalette(colors);
+#endif
+            colors.setColor(QPalette::Disabled, QPalette::Base,
+                            colors.color(QPalette::Active, QPalette::Base));
+            list->setPalette(colors);
             list->setFocusPolicy(Qt::ClickFocus);
             list->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
             list->setSelectionMode(QAbstractItemView::SingleSelection);
