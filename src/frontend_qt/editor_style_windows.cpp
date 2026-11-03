@@ -154,6 +154,8 @@ bool DrawWindowsListRow(QPainter& painter, const QRect& rect, const QFont& font,
             // item, including text at the top edge. Keep the native XOR phase
             // and colors rather than painting a Qt focus panel over the row.
             RECT focus{0, 0, width, height};
+            SetTextColor(dc, RGB(0, 0, 0));
+            SetBkColor(dc, RGB(255, 255, 255));
             DrawFocusRect(dc, &focus);
         }
         GdiFlush();
