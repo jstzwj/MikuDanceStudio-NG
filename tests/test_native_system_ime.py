@@ -18,6 +18,11 @@ class MacInput:
         self.cf = c.CDLL('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation')
         self.tis = c.CDLL('/System/Library/Frameworks/Carbon.framework/Frameworks/HIToolbox.framework/HIToolbox')
         self.cg = c.CDLL('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics')
+        self.objc = c.CDLL('/usr/lib/libobjc.A.dylib')
+        self.objc.objc_getClass.argtypes, self.objc.objc_getClass.restype = [c.c_char_p], c.c_void_p
+        self.objc.sel_registerName.argtypes, self.objc.sel_registerName.restype = [c.c_char_p], c.c_void_p
+        self.send_object = c.CFUNCTYPE(c.c_void_p, c.c_void_p, c.c_void_p)(('objc_msgSend', self.objc))
+        self.send_pid = c.CFUNCTYPE(c.c_int, c.c_void_p, c.c_void_p)(('objc_msgSend', self.objc))
         signatures = [
             (self.cf, 'CFArrayGetCount', c.c_long, [c.c_void_p]),
             (self.cf, 'CFArrayGetValueAtIndex', c.c_void_p, [c.c_void_p, c.c_long]),
@@ -30,7 +35,7 @@ class MacInput:
             (self.tis, 'TISSelectInputSource', c.c_int, [c.c_void_p]),
             (self.cg, 'CGPreflightPostEventAccess', c.c_bool, []),
             (self.cg, 'CGEventCreateKeyboardEvent', c.c_void_p, [c.c_void_p, c.c_ushort, c.c_bool]),
-            (self.cg, 'CGEventPostToPid', None, [c.c_int, c.c_void_p]),
+            (self.cg, 'CGEventPost', None, [c.c_uint, c.c_void_p]),
             (self.cg, 'CGEventSetFlags', None, [c.c_void_p, c.c_uint64]),
             (self.cg, 'CGEventKeyboardSetUnicodeString', None,
              [c.c_void_p, c.c_ulong, c.POINTER(c.c_uint16)]),
@@ -73,6 +78,12 @@ class MacInput:
     def key(self, pid, code):
         if not self.cg.CGPreflightPostEventAccess():
             raise RuntimeError('The isolated runner has no macOS event-posting permission')
+        workspace = self.send_object(self.objc.objc_getClass(b'NSWorkspace'),
+                                     self.objc.sel_registerName(b'sharedWorkspace'))
+        application = self.send_object(workspace, self.objc.sel_registerName(b'frontmostApplication'))
+        foreground = self.send_pid(application, self.objc.sel_registerName(b'processIdentifier'))
+        if foreground != pid:
+            raise RuntimeError('Input refused: the test client is not the active macOS application')
         for down in (True, False):
             event = self.cg.CGEventCreateKeyboardEvent(None, code, down)
             if not event:
@@ -81,7 +92,9 @@ class MacInput:
             if code in (36, 49, 53):
                 character = c.c_uint16({36: 13, 49: 32, 53: 27}[code])
                 self.cg.CGEventKeyboardSetUnicodeString(event, 1, c.byref(character))
-            self.cg.CGEventPostToPid(pid, event)
+            # Candidate panels are owned by the native IME service. HID delivery
+            # must let that service route keys instead of bypassing it by PID.
+            self.cg.CGEventPost(0, event)
             self.cf.CFRelease(event)
             time.sleep(.025)
         time.sleep(.12)
@@ -190,7 +203,7 @@ def main():
                 sequence = 0
                 env = dict(os.environ, QT_QPA_PLATFORM='cocoa' if sys.platform == 'darwin' else 'windows',
                            MDS_SYSTEM_IME='kotoeri' if sys.platform == 'darwin' else 'ms-ime',
-                           QT_LOGGING_RULES='qt.qpa.input.methods=true;qt.qpa.events.keys=true')
+                           QT_LOGGING_RULES='qt.qpa.input.methods=true;qt.qpa.input.keys=true')
                 with args.report.with_suffix(f'.{language}.log').open('w', encoding='utf-8') as log:
                     client = subprocess.Popen([str(args.test.resolve()), str(root / 'english.pmd'),
                                                language, str(status), str(request)], env=env,
