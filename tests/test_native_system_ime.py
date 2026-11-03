@@ -30,6 +30,7 @@ class MacInput:
             (self.cg, 'CGPreflightPostEventAccess', c.c_bool, []),
             (self.cg, 'CGEventCreateKeyboardEvent', c.c_void_p, [c.c_void_p, c.c_ushort, c.c_bool]),
             (self.cg, 'CGEventPostToPid', None, [c.c_int, c.c_void_p]),
+            (self.cg, 'CGEventSetFlags', None, [c.c_void_p, c.c_uint64]),
         ]
         for library, name, result, arguments in signatures:
             function = getattr(library, name)
@@ -73,8 +74,10 @@ class MacInput:
             event = self.cg.CGEventCreateKeyboardEvent(None, code, down)
             if not event:
                 raise RuntimeError('Cannot create a native keyboard event')
+            self.cg.CGEventSetFlags(event, 0)
             self.cg.CGEventPostToPid(pid, event)
             self.cf.CFRelease(event)
+            time.sleep(.025)
         time.sleep(.12)
 
     def type_japanese(self, pid):
@@ -136,6 +139,7 @@ class WindowsInput:
             event.data.keyboard.flags = 8 | (0 if down else 2)
             if self.user.SendInput(1, c.byref(event), c.sizeof(event)) != 1:
                 raise RuntimeError(f'Native key input failed: {c.get_last_error()}')
+            time.sleep(.025)
         time.sleep(.12)
 
     def type_japanese(self, pid):
@@ -170,7 +174,8 @@ def main():
                 request.unlink(missing_ok=True)
                 sequence = 0
                 env = dict(os.environ, QT_QPA_PLATFORM='cocoa' if sys.platform == 'darwin' else 'windows',
-                           MDS_SYSTEM_IME='kotoeri' if sys.platform == 'darwin' else 'ms-ime')
+                           MDS_SYSTEM_IME='kotoeri' if sys.platform == 'darwin' else 'ms-ime',
+                           QT_LOGGING_RULES='qt.qpa.input.methods=true;qt.qpa.keys=true')
                 with args.report.with_suffix(f'.{language}.log').open('w', encoding='utf-8') as log:
                     client = subprocess.Popen([str(args.test.resolve()), str(root / 'english.pmd'),
                                                language, str(status), str(request)], env=env,

@@ -14,6 +14,7 @@
 #include <QInputMethodEvent>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QSaveFile>
 #include <QTimer>
 #include <cstdio>
@@ -54,8 +55,8 @@ QString ActivateJapaneseIme(HWND window) {
         if (!context)
             return "Japanese IME has no native input context";
         const auto opened = ImmSetOpenStatus(context, TRUE);
-        const auto converted =
-            ImmSetConversionStatus(context, IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE, IME_SMODE_NONE);
+        const auto converted = ImmSetConversionStatus(
+            context, IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE | IME_CMODE_ROMAN, IME_SMODE_NONE);
         ImmReleaseContext(window, context);
         return opened && converted ? QString() : QString("Cannot select native Hiragana mode");
     }
@@ -66,6 +67,7 @@ class InputObserver final : public QObject {
 public:
     unsigned preedits = 0, commits = 0;
     QString preedit, committed;
+    QJsonArray events;
     bool eventFilter(QObject*, QEvent* event) override {
         if (event->type() == QEvent::InputMethod) {
             const auto* input = static_cast<QInputMethodEvent*>(event);
@@ -76,6 +78,15 @@ public:
                 ++commits;
                 committed = input->commitString();
             }
+            events.append(QJsonObject{
+                {"type", "input"}, {"preedit", preedit}, {"commit", input->commitString()}});
+        }
+        if (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease) {
+            const auto* key = static_cast<QKeyEvent*>(event);
+            events.append(QJsonObject{{"type", event->type() == QEvent::KeyPress ? "down" : "up"},
+                                      {"key", key->key()},
+                                      {"text", key->text()},
+                                      {"scan", int(key->nativeScanCode())}});
         }
         return false;
     }
@@ -173,6 +184,7 @@ int main(int argc, char** argv) {
             {"preedits", int(observer.preedits)},
             {"commits", int(observer.commits)},
             {"committed", observer.committed},
+            {"events", observer.events},
             {"field", field->text()},
             {"name", QString::fromUtf8(editor::EnglishNameDisplay(names.name).c_str())},
             {"sceneUnchanged", unchanged},
