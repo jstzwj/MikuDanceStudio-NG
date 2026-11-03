@@ -159,8 +159,6 @@ int main(int argc, char** argv) try {
     for (std::size_t templateIndex = 0; templateIndex < sizeof descriptions / sizeof *descriptions;
          ++templateIndex) {
         const auto* description = descriptions[templateIndex];
-        if (visible && description != &kNumericCameraEn && description != &kNumericCameraJa)
-            continue;
         ++templates;
         const char* code = templateIndex % 2 ? "ja" : "en";
         mikudancestudio::qt::Language language;
