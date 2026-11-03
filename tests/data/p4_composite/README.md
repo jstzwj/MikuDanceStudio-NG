@@ -19,8 +19,22 @@ are exact, repeated submissions are byte exact. Live original comparison also
 checks floating shadow output separately; the frozen PNGs qualify color only.
 
 This strict reference currently passes the Windows DX11, DX12 and Vulkan
-hardware profiles. WARP fails independently (Alpha blend rounding and coplanar
-depth/line ties); Metal and software Vulkan have not been qualified against this
-capture. The `editor_composite_render` CTest has the `native-reference` label and
+hardware profiles. WARP, Metal and software Vulkan retain strict failures,
+principally at coplanar ground-shadow/grid overlaps and line boundaries. The
+uniform material-Alpha error was fixed separately. Exact remaining coordinates,
+RGBA values and input hashes are retained in the Metal/Linux composite-diff
+reports under `docs/evidence`. The `editor_composite_render` CTest has the `native-reference` label and
 must be invoked explicitly with the intended backend/driver. It does not form
 part of the software-device `p4` suite and does not accept P4/C1 by itself.
+
+To inspect a retained CI artifact without executing any UI or changing the
+comparison rules (requires Pillow):
+
+```text
+python tools/analyze_editor_composite.py --capture out/p4-metal-prefix-ci/native-reference --output out/p4-composite-metal-analysis
+```
+
+The command returns 1 while either frame fails the frozen color criteria. Its
+JSON includes every failing pixel and coverage/Alpha differences. Example PNGs
+only enlarge unmodified native/actual crops, with red outlines identifying the
+reported coordinates; they are diagnostic views, not replacement references.

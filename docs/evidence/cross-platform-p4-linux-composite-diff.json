@@ -1,0 +1,756 @@
+{
+  "schema": 1,
+  "thresholds": {
+    "rgb_code_values": 1,
+    "alpha_code_values": 0,
+    "coverage_differences": 0
+  },
+  "scope": "Public native color reference only; no floating shadow or repeat qualification",
+  "examples": "Nearest-neighbor crops; red outline identifies the reported pixel",
+  "frames": {
+    "rest": {
+      "size": [
+        512,
+        512
+      ],
+      "native_png_sha256": "7899cf6d9b9aea4c06069612f72e984ad369daf42b3392a34fa621d3d6b20ecc",
+      "native_rgba_sha256": "5a88e7f073c6e7186aa3a42a29c7e410d8b8f356b68c611de043ee320595d944",
+      "actual_rgba_sha256": "8bf220fb17471cc7bf43d055953a4e85119920166ec05083976747f7e6bfcd98",
+      "changed_elements": 84389,
+      "changed_pixels": 82641,
+      "maximum_code_error": 255,
+      "outside_tolerance_elements": 29,
+      "outside_tolerance_pixels": 9,
+      "alpha_differences": 2,
+      "coverage_differences": 2,
+      "accepted": false,
+      "failed_pixels": [
+        {
+          "xy": [
+            3,
+            357
+          ],
+          "native": [
+            255,
+            255,
+            255,
+            0
+          ],
+          "actual": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "absolute_error": [
+            75,
+            75,
+            75,
+            255
+          ],
+          "outside_tolerance_elements": 4,
+          "coverage_differs": true
+        },
+        {
+          "xy": [
+            0,
+            358
+          ],
+          "native": [
+            255,
+            255,
+            255,
+            0
+          ],
+          "actual": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "absolute_error": [
+            75,
+            75,
+            75,
+            255
+          ],
+          "outside_tolerance_elements": 4,
+          "coverage_differs": true
+        },
+        {
+          "xy": [
+            179,
+            408
+          ],
+          "native": [
+            95,
+            95,
+            95,
+            255
+          ],
+          "actual": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "absolute_error": [
+            85,
+            85,
+            85,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            178,
+            410
+          ],
+          "native": [
+            95,
+            95,
+            95,
+            255
+          ],
+          "actual": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "absolute_error": [
+            85,
+            85,
+            85,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            178,
+            411
+          ],
+          "native": [
+            95,
+            95,
+            95,
+            255
+          ],
+          "actual": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "absolute_error": [
+            85,
+            85,
+            85,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            176,
+            414
+          ],
+          "native": [
+            95,
+            95,
+            95,
+            255
+          ],
+          "actual": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "absolute_error": [
+            85,
+            85,
+            85,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            176,
+            415
+          ],
+          "native": [
+            95,
+            95,
+            95,
+            255
+          ],
+          "actual": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "absolute_error": [
+            85,
+            85,
+            85,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            174,
+            419
+          ],
+          "native": [
+            95,
+            95,
+            95,
+            255
+          ],
+          "actual": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "absolute_error": [
+            85,
+            85,
+            85,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            338,
+            419
+          ],
+          "native": [
+            95,
+            95,
+            95,
+            255
+          ],
+          "actual": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "absolute_error": [
+            85,
+            85,
+            85,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        }
+      ]
+    },
+    "posed": {
+      "size": [
+        257,
+        257
+      ],
+      "native_png_sha256": "1cfcdcd62f8ffed4731d63fb6abf83dd50f7c8854e4b9db52ad47b6e593bed20",
+      "native_rgba_sha256": "ff949e5d6435a2bea0eef980893df78b1c9ec70c97a74de1bbc79d58ecda7369",
+      "actual_rgba_sha256": "3a2c3799e7f6cfe958e85a5fe65449ad5d6c3228afde27c0433e29ec91c4c485",
+      "changed_elements": 22007,
+      "changed_pixels": 21077,
+      "maximum_code_error": 86,
+      "outside_tolerance_elements": 54,
+      "outside_tolerance_pixels": 18,
+      "alpha_differences": 0,
+      "coverage_differences": 0,
+      "accepted": false,
+      "failed_pixels": [
+        {
+          "xy": [
+            170,
+            210
+          ],
+          "native": [
+            95,
+            95,
+            95,
+            255
+          ],
+          "actual": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "absolute_error": [
+            85,
+            85,
+            85,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            86,
+            213
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            171,
+            213
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            85,
+            215
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            172,
+            215
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            84,
+            216
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            173,
+            216
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            84,
+            217
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            173,
+            217
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            83,
+            218
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            174,
+            218
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            83,
+            219
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            174,
+            219
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            82,
+            220
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            82,
+            221
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            81,
+            222
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            80,
+            224
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        },
+        {
+          "xy": [
+            80,
+            225
+          ],
+          "native": [
+            180,
+            180,
+            180,
+            255
+          ],
+          "actual": [
+            94,
+            94,
+            94,
+            255
+          ],
+          "absolute_error": [
+            86,
+            86,
+            86,
+            0
+          ],
+          "outside_tolerance_elements": 3,
+          "coverage_differs": false
+        }
+      ]
+    }
+  },
+  "accepted": false,
+  "run": 41631432925,
+  "revision": "fb8c1e8",
+  "platform": "linux"
+}
