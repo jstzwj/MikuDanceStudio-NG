@@ -137,6 +137,7 @@ int main(int argc, char** argv) {
         QFile input(QString::fromLocal8Bit(argv[4]));
         if (input.open(QIODevice::ReadOnly)) {
             const auto request = QJsonDocument::fromJson(input.readAll()).object();
+            input.close(); // Do not retain a Windows rename lock while publishing status.
             const auto sequence = unsigned(request["sequence"].toInt());
             if (sequence > command) {
                 command = sequence;

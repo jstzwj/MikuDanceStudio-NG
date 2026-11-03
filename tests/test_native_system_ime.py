@@ -1,5 +1,6 @@
 """Qualify native Japanese input in test-owned windows on isolated CI runners."""
 import argparse
+import contextlib
 import ctypes as c
 import json
 import os
@@ -168,9 +169,18 @@ def main():
     args.report.parent.mkdir(parents=True, exist_ok=True)
     native = MacInput() if sys.platform == 'darwin' else WindowsInput()
     client = None
+
+    def stop_client():
+        if client is not None and client.poll() is None:
+            client.terminate()
+            client.wait(timeout=10)
+
     try:
         report['availableSources'] = native.available
-        with tempfile.TemporaryDirectory(prefix='mds-kotoeri-') as temporary:
+        with tempfile.TemporaryDirectory(prefix='mds-native-ime-') as temporary, contextlib.ExitStack() as lifetime:
+            # Terminate the reader before TemporaryDirectory removes Windows
+            # files. A failed assertion must still leave usable diagnostics.
+            lifetime.callback(stop_client)
             root = Path(temporary)
             (root / 'english.pmd').write_bytes(cpu_import_fixture.pmd())
             for language in ('en', 'ja', 'zh_CN'):
@@ -198,6 +208,7 @@ def main():
                                     # Windows reader can race its brief rename lock.
                                     time.sleep(.025)
                                     continue
+                                report['lastStatus'] = latest
                                 if latest.get('error') or not latest['sceneUnchanged']:
                                     raise RuntimeError(f'{language}: scene changed: {latest}')
                                 if predicate(latest):
@@ -210,7 +221,15 @@ def main():
                         sequence += 1
                         staged = request.with_suffix('.tmp')
                         staged.write_text(json.dumps({'sequence': sequence, 'action': action}), encoding='utf-8')
-                        staged.replace(request)
+                        deadline = time.monotonic() + 3
+                        while True:
+                            try:
+                                staged.replace(request)
+                                break
+                            except PermissionError:
+                                if time.monotonic() >= deadline:
+                                    raise
+                                time.sleep(.025)
                         return sequence
 
                     wait(lambda s: s['active'], 'startup')
@@ -256,14 +275,7 @@ def main():
                     client = None
             report['accepted'] = True
     finally:
-        if client is not None and client.poll() is None:
-            if status.exists():
-                try:
-                    report['lastStatus'] = json.loads(status.read_text(encoding='utf-8'))
-                except OSError:
-                    pass
-            client.terminate()
-            client.wait(timeout=10)
+        stop_client()
         native.close()
         args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
     print(f'Native {engine} preedit, conversion, commit and cancellation passed in three UI languages')
