@@ -36,6 +36,11 @@ public:
     ~SceneFrameProducer();
     bool Load(const runtime::SceneRuntime&, const SceneRenderSources&, const rhi::AssetSource&,
               std::string& reason);
+    // Re-read material/toon files while retaining live geometry, GPU identities
+    // and successful screen/material history. Missing files become unbound, as
+    // in DX9; a structural/preparation failure preserves the current set.
+    bool ReloadTextures(const runtime::SceneRuntime&, const SceneRenderSources&,
+                        const rhi::AssetSource&, std::string& reason);
     bool Build(const runtime::SceneRuntime&, const SceneRenderSettings&, rhi::RenderFrame&,
                std::string& reason);
     // Advance screen.bmp and stock-effect state only after successful submission.

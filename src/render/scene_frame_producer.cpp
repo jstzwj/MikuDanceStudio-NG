@@ -198,8 +198,12 @@ bool Texture(const std::filesystem::path& directory, std::filesystem::path& refe
     if (reference.empty())
         return true;
     MaterialTextureAsset asset;
-    if (LoadMaterialTexture(directory, reference, asset) != MaterialResourceStatus::Ready)
-        return Fail(reason, "texture_missing_or_unsupported:" + reference.generic_u8string());
+    if (LoadMaterialTexture(directory, reference, asset) != MaterialResourceStatus::Ready) {
+        // DX9's named cache retains the path, but clears a texture that could
+        // not be decoded. Keep the reference so a subsequent reload can recover.
+        output.reset();
+        return true;
+    }
     if (!PrepareMaterialMipChain(asset, MipPreparationPolicy::BoxLinear))
         return Fail(reason, "texture_mip_preparation");
     output = std::make_shared<const MaterialTextureAsset>(std::move(asset));
@@ -436,19 +440,25 @@ bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRen
                     request.path = TexturePath(doc, m.toonIndex);
                 }
                 MaterialTextureAsset toon;
-                if (!toons.Load(request, toon))
+                const bool toonReady = toons.Load(request, toon);
+                if (!toonReady && (request.kind != ToonKind::ModelFile ||
+                                   request.missing != MissingToonPolicy::Unbound))
                     return Fail(reason, "toon_missing_or_unsupported");
+                if (!toonReady)
+                    saved.toonColor = {0, 0, 0, 1};
                 if (request.kind == ToonKind::Shared && toon.origin == TextureOrigin::Builtin)
                     for (unsigned c = 0; c < 3; ++c)
                         saved.toonColor[c] =
                             DefaultToonShadowColors[3 * (request.sharedSlot - 1) + c];
-                else if (request.kind != ToonKind::Default && !toon.fallback) {
+                else if (toonReady && request.kind != ToonKind::Default && !toon.fallback) {
                     const auto& image = toon.content.image;
                     const auto at = std::size_t(image.height - 1) * image.width * 4;
                     for (unsigned c = 0; c < 3; ++c)
                         saved.toonColor[c] = image.pixels[at + c] * (1.f / 256);
                 }
-                saved.textures[0] = std::make_shared<const MaterialTextureAsset>(std::move(toon));
+                if (toonReady)
+                    saved.textures[0] =
+                        std::make_shared<const MaterialTextureAsset>(std::move(toon));
                 if (!Texture(directory, saved.base, saved.textures[1], reason) ||
                     !Texture(directory, saved.sphere, saved.textures[2], reason))
                     return false;
@@ -509,6 +519,41 @@ bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRen
     return true;
 } catch (const std::exception& e) {
     return Fail(reason, e.what());
+}
+
+bool SceneFrameProducer::ReloadTextures(const runtime::SceneRuntime& scene,
+                                        const SceneRenderSources& sources,
+                                        const AssetSource& builtins, std::string& reason) {
+    if (!impl_)
+        return Load(scene, sources, builtins, reason);
+    SceneFrameProducer candidate;
+    candidate.nextId_ = nextId_;
+    if (!candidate.Load(scene, sources, builtins, reason))
+        return false;
+    if (candidate.impl_->models.size() != impl_->models.size() ||
+        candidate.impl_->accessories.size() != impl_->accessories.size())
+        return Fail(reason, "texture_reload_scene_changed");
+    for (const auto& [slot, model] : impl_->models) {
+        const auto replacement = candidate.impl_->models.find(slot);
+        if (replacement == candidate.impl_->models.end() ||
+            replacement->second->resource != model->resource)
+            return Fail(reason, "texture_reload_model_changed");
+    }
+    for (const auto& [slot, accessory] : impl_->accessories) {
+        const auto replacement = candidate.impl_->accessories.find(slot);
+        if (replacement == candidate.impl_->accessories.end() ||
+            replacement->second->resource != accessory->resource)
+            return Fail(reason, "texture_reload_accessory_changed");
+    }
+    for (auto& [slot, model] : impl_->models)
+        model->materials.swap(candidate.impl_->models.at(slot)->materials);
+    for (auto& [slot, accessory] : impl_->accessories)
+        accessory->materials.swap(candidate.impl_->accessories.at(slot)->materials);
+    // No frame was submitted by reload. Abandon only an unsubmitted Build;
+    // preserve the previous successful screen.bmp and stock-effect state.
+    impl_->pending = false;
+    reason.clear();
+    return true;
 }
 
 bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
@@ -839,6 +884,21 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 packet.indexCount = unsigned(count);
                 auto material = Inputs(
                     pose.material, model.resource->SourceKind() == format::ModelKind::Pmd, saved);
+                if (mode && modelShadow) {
+                    // FX9 selects shader techniques using resident textures.
+                    // PMX can promote a surviving sphere; PMD requires its main
+                    // texture and ignores a second sphere for a lone .sph/.spa.
+                    if (!saved.textures[1])
+                        material.base.clear();
+                    if (!saved.textures[2] ||
+                        (material.pmd &&
+                         (material.base.empty() ||
+                          material.base.generic_u8string().find(".sph") != std::string::npos ||
+                          material.base.generic_u8string().find(".SPH") != std::string::npos ||
+                          material.base.generic_u8string().find(".spa") != std::string::npos ||
+                          material.base.generic_u8string().find(".SPA") != std::string::npos)))
+                        material.sphere.clear();
+                }
                 if (settings.display.Transparent(slot) && (!mode || !modelShadow))
                     material.diffuse[3] = .5f;
                 if (!BuildModelInputs(frame, material, {}, packet.pipeline))
@@ -860,17 +920,30 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 if (additive)
                     packet.pipeline.raster.destinationBlend = BlendFactor::One;
                 packet.pipeline.raster.wireframe = settings.display.wireframe;
+                bool cascadeEnded = false;
+                auto& layout = packet.pipeline.shader.layout;
                 for (unsigned stage = 0; stage < 3; ++stage) {
-                    const auto role = packet.pipeline.shader.layout.stages[stage].role;
-                    if (role == MaterialTextureRole::None)
-                        continue;
-                    packet.textureResources[stage] =
-                        saved
-                            .textures[role == MaterialTextureRole::Toon ? 0
-                                      : role == MaterialTextureRole::Sphere && !saved.sphere.empty()
-                                          ? 2
-                                          : 1];
+                    auto& input = layout.stages[stage];
+                    const auto texture =
+                        saved.textures[input.role == MaterialTextureRole::Toon ? 0
+                                       : input.role == MaterialTextureRole::Sphere &&
+                                               !material.sphere.empty()
+                                           ? 2
+                                           : 1];
+                    if (input.role == MaterialTextureRole::None || !texture)
+                        cascadeEnded = true;
+                    // Fixed-function TEXTURE+NULL ends the entire cascade.
+                    // FX9's shadow shader does not sample its logical toon slot.
+                    if (input.role == MaterialTextureRole::None || !texture ||
+                        (!(mode && modelShadow) && cascadeEnded))
+                        input = {};
+                    else
+                        packet.textureResources[stage] = texture;
                 }
+                if (std::none_of(layout.stages.begin(), layout.stages.end(), [](const auto& input) {
+                        return input.role == MaterialTextureRole::Sphere;
+                    }))
+                    layout.sphere = SphereOperation::Disabled;
                 packets.push_back(std::move(packet));
             }
             first += unsigned(count);

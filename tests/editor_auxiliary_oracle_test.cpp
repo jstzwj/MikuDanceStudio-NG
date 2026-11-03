@@ -455,6 +455,165 @@ struct NativeSamplerDevice : SnapshotDeviceFixture {
         return S_OK;
     }
 };
+std::vector<std::pair<unsigned, void*>> reloadCalls;
+bool ObserveToonReload(void* app) {
+    reloadCalls.emplace_back(1, app);
+    return true;
+}
+void ObserveTextureReload(void* renderer) {
+    reloadCalls.emplace_back(2, renderer);
+}
+struct ReloadTextureFixture {
+    void** table = nullptr;
+    std::array<unsigned char, 16> pixels{};
+    unsigned releases = 0, locks = 0, unlocks = 0;
+};
+ULONG STDMETHODCALLTYPE ReloadRelease(ReloadTextureFixture* self) {
+    ++self->releases;
+    return 0;
+}
+HRESULT STDMETHODCALLTYPE ReloadLock(ReloadTextureFixture* self, UINT level, D3DLOCKED_RECT* rect,
+                                     const RECT* bounds, DWORD flags) {
+    Check(level == 0 && !bounds && flags == D3DLOCK_READONLY, "native reload lock contract");
+    ++self->locks;
+    rect->Pitch = 8;
+    rect->pBits = self->pixels.data();
+    return S_OK;
+}
+HRESULT STDMETHODCALLTYPE ReloadUnlock(ReloadTextureFixture* self, UINT level) {
+    Check(level == 0, "native reload unlock level");
+    ++self->unlocks;
+    return S_OK;
+}
+struct ReloadAttempt {
+    HRESULT result;
+    UINT width, height;
+};
+struct ReloadImageInfo {
+    UINT Width, Height, Depth, MipLevels;
+    D3DFORMAT Format;
+    UINT ResourceType, ImageFileFormat;
+};
+std::vector<ReloadAttempt> reloadAttempts;
+std::vector<DWORD> reloadUsages;
+std::array<ReloadTextureFixture, 3> reloadCreated;
+HRESULT WINAPI ReloadFile(IDirect3DDevice9* device, LPCWSTR name, UINT width, UINT height,
+                          UINT mips, DWORD usage, D3DFORMAT format, D3DPOOL pool, DWORD filter,
+                          DWORD mipFilter, D3DCOLOR key, ReloadImageInfo* info,
+                          PALETTEENTRY* palette, IDirect3DTexture9** texture) {
+    Check(device == reinterpret_cast<IDirect3DDevice9*>(0x12345678) &&
+              !std::wcscmp(name, L"fixture.bmp") && width == UINT(-1) && height == UINT(-1) &&
+              mips == 1 && format == D3DFMT_A8R8G8B8 && pool == D3DPOOL_MANAGED &&
+              filter == DWORD(-1) && mipFilter == DWORD(-1) && key == 0 && !palette,
+          "native reload D3DX arguments");
+    const auto index = reloadUsages.size();
+    Check(index < reloadAttempts.size(), "native reload attempt bound");
+    reloadUsages.push_back(usage);
+    const auto attempt = reloadAttempts[index];
+    info->Width = attempt.width;
+    info->Height = attempt.height;
+    *texture = attempt.result == S_OK ? reinterpret_cast<IDirect3DTexture9*>(&reloadCreated[index])
+                                      : nullptr;
+    return attempt.result;
+}
+unsigned TextureReloadCache(OriginalPhysicsModule& original) {
+    auto file = &ReloadFile;
+    Patch import(original.Function<void*>(0x1288e8), &file, sizeof file);
+    std::array<void*, 22> table{};
+    table[2] = reinterpret_cast<void*>(&ReloadRelease);
+    table[19] = reinterpret_cast<void*>(&ReloadLock);
+    table[20] = reinterpret_cast<void*>(&ReloadUnlock);
+    const std::vector<std::vector<ReloadAttempt>> profiles{
+        {{S_OK, 2, 2}},
+        {{E_FAIL, 0, 0}, {S_OK, 2, 2}},
+        {{E_FAIL, 0, 0}, {E_FAIL, 0, 0}},
+        {{S_OK, 1, 1}, {S_OK, 2, 2}},
+        {{S_OK, 1, 1}, {E_FAIL, 0, 0}, {S_OK, 2, 2}},
+        {{S_OK, 1, 1}, {E_FAIL, 0, 0}, {E_FAIL, 0, 0}}};
+    unsigned cases = 0;
+    for (const auto& profile : profiles) {
+        std::vector<unsigned char> renderer(0x3ab00);
+        const wchar_t name[] = L"fixture.bmp";
+        const auto* path = name;
+        ReloadTextureFixture old;
+        old.table = table.data();
+        auto* prior = &old;
+        void* device = reinterpret_cast<void*>(0x12345678);
+        const DWORD tag = 0xa5123456;
+        std::memcpy(renderer.data() + 8, &path, sizeof path);
+        std::memcpy(renderer.data() + 16, &prior, sizeof prior);
+        std::memcpy(renderer.data() + 24, &tag, sizeof tag);
+        std::memcpy(renderer.data() + 0x3a9c0, &device, sizeof device);
+        const auto before = renderer;
+        reloadAttempts = profile;
+        reloadUsages.clear();
+        reloadCreated = {};
+        for (auto& texture : reloadCreated) {
+            texture.table = table.data();
+            texture.pixels[8] = 20;
+            texture.pixels[9] = 40;
+            texture.pixels[10] = 60;
+        }
+        original.Function<void (*)(void*)>(0x8f30)(renderer.data());
+        Check(old.releases == 1 && reloadUsages.size() == profile.size() && reloadUsages[0] == 1024,
+              "native reload releases old entry and performs expected attempts");
+        for (std::size_t n = 1; n < reloadUsages.size(); ++n)
+            Check(reloadUsages[n] == 0, "native reload fallback usage");
+        const bool ready = profile.back().result == S_OK;
+        ReloadTextureFixture* actual = nullptr;
+        DWORD actualTag = 0;
+        std::memcpy(&actual, renderer.data() + 16, sizeof actual);
+        std::memcpy(&actualTag, renderer.data() + 24, sizeof actualTag);
+        Check(actual == (ready ? &reloadCreated[profile.size() - 1] : nullptr) &&
+                  actualTag == (ready ? 0xa514283c : 0xa5000000),
+              "native reload failure unbinds/zeros RGB, success samples bottom-left BGR");
+        if (ready)
+            Check(actual->locks == 1 && actual->unlocks == 1, "native reload samples once");
+        if (profile[0].result == S_OK && profile[0].width == 1)
+            Check(reloadCreated[0].releases == 1, "native reload releases 1x1 autogen retry");
+        std::copy(before.begin() + 16, before.begin() + 28, renderer.begin() + 16);
+        Check(renderer == before, "native reload changes only texture pointer and RGB tag");
+        ++cases;
+    }
+    return cases;
+}
+unsigned TextureReloadCommands(OriginalPhysicsModule& original) {
+    const auto jump = [](auto function) {
+        std::array<unsigned char, 12> bytes{0x48, 0xb8};
+        std::memcpy(bytes.data() + 2, &function, sizeof function);
+        bytes[10] = 0xff;
+        bytes[11] = 0xe0;
+        return bytes;
+    };
+    const auto toon = jump(&ObserveToonReload), texture = jump(&ObserveTextureReload);
+    Patch a(original.Function<void*>(0x9a130), toon.data(), toon.size());
+    Patch b(original.Function<void*>(0x8f30), texture.data(), texture.size());
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    unsigned cases = 0;
+    for (bool playing : {false, true})
+        for (bool camera : {false, true}) {
+            std::memset(app.get(), 0, sizeof(*app));
+            auto* raw = reinterpret_cast<unsigned char*>(app.get());
+            auto* renderer = reinterpret_cast<void*>(0x12345678);
+            std::memcpy(raw + 0xa16e0, &renderer, sizeof renderer);
+            app->playbackActive = playing;
+            app->optflag[0] = camera;
+            app->currentFrame = 123;
+            app->sceneModified = 0x7d;
+            app->physicsResetPending = 1;
+            auto expected = std::make_unique<MMDAppState>(*app);
+            reloadCalls.clear();
+            original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, MDS_CMD_RESTORE_TEXTURES);
+            Check(reloadCalls == (std::vector<std::pair<unsigned, void*>>{{1, app.get()},
+                                                                          {2, renderer}}) &&
+                      !std::memcmp(app.get(), expected.get(), sizeof(*app)),
+                  "original texture reload: toon then shared cache, no document/input changes");
+            ++cases;
+        }
+    return cases;
+}
 struct AboutObservation {
     HWND owner = nullptr;
     std::string text, title;
@@ -2208,6 +2367,13 @@ int wmain(int argc, wchar_t** argv) try {
           "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
     if (argc == 4) {
+        if (std::wcscmp(argv[3], L"--texture-reload") == 0) {
+            std::printf("%u original texture reload commands passed\n",
+                        TextureReloadCommands(original));
+            std::printf("%u original texture reload cache profiles passed\n",
+                        TextureReloadCache(original));
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--about") == 0) {
             std::printf("%u original about command comparisons passed\n", AboutCommands(original));
             return 0;
@@ -2272,6 +2438,8 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf("%u original mipmap command comparisons passed\n", MipmapCommands(original));
     std::printf("%u original wireframe command comparisons passed\n", WireframeCommands(original));
     std::printf("%u original about command comparisons passed\n", AboutCommands(original));
+    std::printf("%u original texture reload commands passed\n", TextureReloadCommands(original));
+    std::printf("%u original texture reload cache profiles passed\n", TextureReloadCache(original));
     unsigned count = 0;
     for (const char* file : {"articulated.pmd", "articulated.pmx", "facial.pmd"}) {
         EditorSession session;

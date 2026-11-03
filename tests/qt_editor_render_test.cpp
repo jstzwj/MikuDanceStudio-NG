@@ -620,6 +620,10 @@ int main(int argc, char** argv) {
     CHECK(producer.Build(session.Runtime(), settings, after, reason));
     CHECK(after.passes[0].draws[0].targetTextures[0].target ==
           rhi::ScreenTextureHistory::FirstTarget + 1);
+    const auto retainedCapture = after.passes[0].draws[0].targetTextures[0];
+    CHECK(producer.ReloadTextures(session.Runtime(), sources, builtin, reason));
+    CHECK(producer.Build(session.Runtime(), settings, after, reason));
+    CHECK(after.passes[0].draws[0].targetTextures[0].target == retainedCapture.target);
     CHECK(historyRenderer.Prepare(1, after, historyFrame) &&
           historyRenderer.Submit(historyFrame, historyToken));
     CHECK(historyRenderer.ReadTarget(1, after.finalColor, nestedScreen));

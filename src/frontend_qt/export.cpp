@@ -53,10 +53,7 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
     }
     rhi::FileAssetSource files(builtins);
     render::SceneFrameProducer producer;
-    render::SceneRenderSources sources;
-    sources.models = editor.Assets().modelPaths;
-    sources.accessories = editor.Assets().accessoryPaths;
-    sources.picture = editor.Assets().picture;
+    const auto sources = EditorRenderSources(editor.Assets());
     if (!producer.Load(scene, sources, files, reason))
         return false;
     render::SceneRenderSettings settings;

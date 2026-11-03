@@ -8,6 +8,7 @@
 #include <QImage>
 #include <functional>
 namespace mikudancestudio::qt {
+render::SceneRenderSources EditorRenderSources(const editor::EditorAssets&);
 std::shared_ptr<const rhi::WindowSurfaceSource> QtSurface(QWindow&, std::string&);
 struct FrameCpuTimings {
     double view = 0, assets = 0, scene = 0, overlay = 0;
@@ -26,6 +27,7 @@ public:
     void SetOptions(const rhi::BackendOptions&);
     const rhi::BackendOptions& Options() const { return options_; }
     bool Reset(std::string&);
+    bool ReloadTextures(std::string&);
     bool OutputLimits(QSize&, std::string&) const;
     std::function<void(QPoint, Qt::MouseButtons, Qt::KeyboardModifiers)> drag;
     std::function<void(int)> zoom;

@@ -140,6 +140,7 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_WIREFRAME:
     case MDS_CMD_ABOUT:
     case MDS_CMD_ABOUT_PHYSICS:
+    case MDS_CMD_RESTORE_TEXTURES:
         return true;
     default:
         return false;
@@ -310,6 +311,12 @@ void EditorWindow::MenuCommand(int command) {
     if (found == menuActions_.end() || !found->second->isEnabled())
         return;
     idleRenderState_ = 1;
+    if (command == MDS_CMD_RESTORE_TEXTURES) {
+        std::string reason;
+        if (Result(viewport_->ReloadTextures(reason), reason))
+            UpdateFrame();
+        return;
+    }
     if (command == MDS_CMD_ABOUT || command == MDS_CMD_ABOUT_PHYSICS) {
         const bool physics = command == MDS_CMD_ABOUT_PHYSICS;
         const auto title =
@@ -321,14 +328,17 @@ void EditorWindow::MenuCommand(int command) {
                            !physics && separate_ ? separate_ : this);
         dialog.setObjectName(physics ? "mmd.aboutPhysics" : "mmd.about");
         dialog.setTextFormat(Qt::PlainText);
+        dialog.setOption(QMessageBox::Option::DontUseNativeDialog);
         if (physics)
             dialog.setWindowFlag(Qt::WindowStaysOnTopHint);
         const bool running = timer_.isActive();
         timer_.stop();
         dialog.exec();
         clock_.restart();
-        if (running)
+        if (running) {
             RefreshFrameTimer();
+            timer_.start();
+        }
         return;
     }
     if (command == MDS_CMD_TOGGLE_WIREFRAME) {

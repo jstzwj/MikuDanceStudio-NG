@@ -5,17 +5,19 @@
 #include <QWheelEvent>
 #include <QGuiApplication>
 #include <QCursor>
+#include <QCoreApplication>
 #include <cmath>
 #include <chrono>
 namespace mikudancestudio::qt {
-namespace {
-render::SceneRenderSources Sources(const editor::EditorAssets& assets) {
+render::SceneRenderSources EditorRenderSources(const editor::EditorAssets& assets) {
     render::SceneRenderSources out;
     out.models = assets.modelPaths;
     out.accessories = assets.accessoryPaths;
     out.picture = assets.picture;
+    out.sharedToons =
+        std::filesystem::u8path(QCoreApplication::applicationDirPath().toUtf8().constData()) /
+        "data";
     return out;
-}
 }
 Viewport::Viewport(editor::EditorSession& session, const std::filesystem::path& assets)
     : session_(session), builtins_(assets) {
@@ -78,6 +80,21 @@ bool Viewport::OutputLimits(QSize& output, std::string& reason) const {
     reason.clear();
     return true;
 }
+bool Viewport::ReloadTextures(std::string& reason) {
+    const auto& assets = session_.Assets();
+    if (loadedAssets_ && assets.models == loaded_.models &&
+        assets.accessories == loaded_.accessories && assets.modelPaths == loaded_.modelPaths &&
+        assets.accessoryPaths == loaded_.accessoryPaths && assets.picture == loaded_.picture) {
+        if (!producer_.ReloadTextures(session_.Runtime(), EditorRenderSources(assets), builtins_,
+                                      reason))
+            return false;
+    } else if (!producer_.Load(session_.Runtime(), EditorRenderSources(assets), builtins_, reason))
+        return false;
+    loaded_ = assets;
+    loadedAssets_ = true;
+    frameCached_ = false;
+    return true;
+}
 bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
     if ((!isExposed() && !hiddenAcceptance) || width() < 1 || height() < 1)
         return true;
@@ -137,7 +154,7 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
     if (!loadedAssets_ || assets.models != loaded_.models ||
         assets.accessories != loaded_.accessories || assets.modelPaths != loaded_.modelPaths ||
         assets.accessoryPaths != loaded_.accessoryPaths || assets.picture != loaded_.picture) {
-        if (!producer_.Load(session_.Runtime(), Sources(assets), builtins_, reason))
+        if (!producer_.Load(session_.Runtime(), EditorRenderSources(assets), builtins_, reason))
             return false;
         loaded_ = assets;
         loadedAssets_ = true;
@@ -615,7 +632,7 @@ bool RenderImage(const runtime::SceneRuntime& scene, const editor::EditorAssets&
     }
     rhi::FileAssetSource files(builtins);
     render::SceneFrameProducer producer;
-    if (!producer.Load(scene, Sources(assets), files, reason))
+    if (!producer.Load(scene, EditorRenderSources(assets), files, reason))
         return false;
     render::SceneRenderSettings settings;
     settings.width = width;

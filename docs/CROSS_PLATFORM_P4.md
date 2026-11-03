@@ -3249,3 +3249,48 @@ Qt's matching offscreen gate checks all three translations and the same
 ownership/playback combinations, with unchanged document, appearance and CPU
 update count. No local window is shown. Native system message-box geometry is
 not inferred from this behavior check; broader layout/font gates remain open.
+
+## Material reload and missing texture residency (2026-11-03)
+
+Command 278 now reloads model/accessory textures and shared/model toon files,
+bringing implemented menu entries to **86/103**. The editor and image exporter
+resolve shared toon overrides from the application's `data` directory. Reload
+retains the live CPU scene, geometry resource identities, undo state, current
+pose, physics world and successful screen/material history. Content changes
+increment texture versions; repeating an unchanged reload does not upload new
+geometry or change resource versions. Structural/preparation failure leaves the
+previous material set intact.
+
+Missing or undecodable named textures become unbound, retaining their paths for
+later recovery. This matches the native cache rather than silently retaining a
+stale image. Fixed-function texture cascades terminate at the first missing
+texture. The self-shadow shader follows native PMD/PMX residency selection:
+PMX can promote a surviving sphere, whereas PMD requires its primary texture.
+A missing PMD custom toon remains unbound with a zero RGB shadow tag; a shared
+toon override falls back to the corresponding embedded image.
+
+The optional auxiliary oracle's `--texture-reload` filter passed **4 original
+command cases** and **6 original cache profiles**, without a GPU or window.
+The command cases check toon-before-cache dispatch and unchanged application
+state while paused/playing. Cache profiles execute the actual original reload
+loop with observed D3DX/COM boundaries: old texture release, autogen usage 1024,
+usage-zero retries, 1x1 retry/release, missing-file unbinding and bottom-left BGR
+sampling into the RGB tag. These are cache/dispatch checks, not an independent
+missing-texture whole-scene image qualification.
+
+The Qt offscreen gate passed **18 language/model/shadow profiles** on local
+DX11 WARP: disk edits remain invisible until reload; changed images affect final
+pixels; repeat reloads retain exact pixels and versions; removing/restoring a
+file unbinds and recovers it. Shared toon changes update shadow colors using the
+native 1/256 conversion. The existing screen-history gate additionally reloads
+between successful captures and verifies that the preceding target survives.
+
+CI at `b0d6e05` passed Windows/Linux, including the VAC Save As path fix. macOS
+passed that fix but failed the new about-dialog contract. Message boxes now
+explicitly use Qt's widget implementation and the test reports each observed
+field on failure. The frame timer also restarts after a modal dialog when it
+was previously active. Three-platform requalification is required for this
+revision. P4/C1 remains in progress.
+
+Local `ALL_BUILD` and the complete **44-test P4 label passed (142.55 seconds)**
+after this change; the run uses Qt offscreen and contains no desktop interaction.

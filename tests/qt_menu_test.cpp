@@ -466,7 +466,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 85);
+    CHECK(implemented == 86);
     for (const char* language : {"en", "ja", "zh_CN"}) {
         qt::EditorWindow about(std::filesystem::absolute(argv[2]), true);
         CHECK(about.SetLanguage(language));
@@ -517,10 +517,29 @@ int main(int argc, char** argv) {
                                 : dialog->text().startsWith(
                                       "MikuDanceStudio-NG Ver." MDS_PRODUCT_VERSION "\n") &&
                                       dialog->text().contains("MikuMikuDance Ver.9.32");
+                        if (!visited)
+                            std::cerr << "about contract " << language << " separate=" << separate
+                                      << " playing=" << playing << " command=" << id
+                                      << " flags=" << int(dialog->windowFlags())
+                                      << " parent=" << dialog->parentWidget() << " expected="
+                                      << (!physics && separate ? about.SeparateWindow() : &about)
+                                      << " title=" << dialog->windowTitle().toStdString()
+                                      << " text=" << dialog->text().toStdString() << '\n';
                         dialog->done(QMessageBox::Ok);
                     });
                     CHECK(action(id)->isEnabled());
                     action(id)->trigger();
+                    if (about.Session().Revision() != revision ||
+                        about.Session().Runtime().Counters().frames != updates ||
+                        about.Session().AppearanceRevision() != appearance ||
+                        about.Session().Playing() != playing)
+                        std::cerr << "about state " << language << " command=" << id
+                                  << " revision=" << revision << '/' << about.Session().Revision()
+                                  << " updates=" << updates << '/'
+                                  << about.Session().Runtime().Counters().frames
+                                  << " appearance=" << appearance << '/'
+                                  << about.Session().AppearanceRevision() << " playing=" << playing
+                                  << '/' << about.Session().Playing() << '\n';
                     CHECK(visited && about.Session().Revision() == revision &&
                           about.Session().Runtime().Counters().frames == updates &&
                           about.Session().AppearanceRevision() == appearance &&
