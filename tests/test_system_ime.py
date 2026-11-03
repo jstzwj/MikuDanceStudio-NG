@@ -43,7 +43,7 @@ def main():
         (root / 'english.pmd').write_bytes(cpu_import_fixture.pmd())
         with (report_path.with_suffix('.ibus.log')).open('w', encoding='utf-8') as log:
             daemon = subprocess.Popen(['ibus-daemon', '--replace', '--xim', '--panel=disable',
-                                       '--address=' + env['IBUS_ADDRESS']],
+                                       '--cache=none', '--address=' + env['IBUS_ADDRESS']],
                                       env=env, stdout=log, stderr=subprocess.STDOUT)
             client = None
             try:
