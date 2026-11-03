@@ -151,6 +151,13 @@ editor regression. This remains an unresolved Windows qualification.
 The first multi-clause dispatch stopped before publishing startup status; it
 did not exercise the input scenario. Revision `b600413` also arms the guarded
 own-process stack/minidump diagnostic around `QApplication` initialization.
+Run **41683817570** then passed startup and the complete English composition
+scenario with native sentence mode 1. Its event loop returned 0 and the
+observer, dialog and session destructors completed. `QApplication` native window
+destruction subsequently blocked in `NtUserDestroyWindow` → MSCTF → `imjpapi`
+waiting on an internal event. No forced exit is accepted. Windows Server 2025
+is now a separately identified opt-in runner profile; run **41684538568** checks
+its newer native IME. The Server 2022 shutdown failure remains open.
 
 Windows run **41671549143** at `830201b` passed all **73 P4 regressions**, all 460
 complete empty EDIT comparisons and all **68 displayed populated list/combobox
@@ -4387,6 +4394,9 @@ PMM, language, multimedia and offscreen/native-hidden rendering checks with an
 SDK-free PATH. Its SHA-256 is
 `1324a89abe987ca2ca78954c639193e43e31bda7af84891331ec89a64f3834bf`.
 Build identity and precise test scope are retained in the control evidence.
+Ordinary editor run **41681014398** at `9f80bd5` passed Windows, Linux and macOS,
+including the relocated native Metal package without MoltenVK. That three-job
+result remains separate from the explicit native-control and IME qualifications.
 
 ## Reproducible strict color diagnostics
 

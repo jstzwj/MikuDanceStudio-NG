@@ -2323,6 +2323,588 @@
       "followup_run": 41683817570,
       "followup_revision": "b600413",
       "followup": "Arm own-process stack/minidump diagnostics around QApplication initialization, before native input activation."
+    },
+    "multi_clause_shutdown_diagnostic": {
+      "run": 41683817570,
+      "revision": "b600413",
+      "accepted": false,
+      "host": "windows-2022",
+      "result": {
+        "profiles": [
+          {
+            "language": "en",
+            "preedit": {
+              "active": true,
+              "command": 2,
+              "commits": 0,
+              "committed": "",
+              "error": "",
+              "field": "",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "before",
+              "nativeIme": {
+                "conversion": 25,
+                "keyboardLayout": "4110411",
+                "open": true,
+                "sentence": 1
+              },
+              "platform": "windows",
+              "preedit": "にほん",
+              "preedits": 9,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            },
+            "conversion": {
+              "active": true,
+              "command": 2,
+              "commits": 0,
+              "committed": "",
+              "error": "",
+              "field": "",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "before",
+              "nativeIme": {
+                "conversion": 25,
+                "keyboardLayout": "4110411",
+                "open": true,
+                "sentence": 1
+              },
+              "platform": "windows",
+              "preedit": "日本",
+              "preedits": 10,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            },
+            "commit": {
+              "active": true,
+              "command": 2,
+              "commits": 1,
+              "committed": "日本",
+              "error": "",
+              "field": "日本",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "before",
+              "nativeIme": {
+                "conversion": 25,
+                "keyboardLayout": "4110411",
+                "open": true,
+                "sentence": 1
+              },
+              "platform": "windows",
+              "preedit": "",
+              "preedits": 10,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            },
+            "apply": {
+              "active": true,
+              "command": 2,
+              "commits": 1,
+              "committed": "日本",
+              "error": "",
+              "field": "日本",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "日本",
+              "nativeIme": {
+                "conversion": 25,
+                "keyboardLayout": "4110411",
+                "open": true,
+                "sentence": 1
+              },
+              "platform": "windows",
+              "preedit": "",
+              "preedits": 10,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            },
+            "imeReturn": {
+              "active": true,
+              "command": 3,
+              "commits": 2,
+              "committed": "にほん",
+              "error": "",
+              "field": "にほん",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "日本",
+              "nativeIme": {
+                "conversion": 25,
+                "keyboardLayout": "4110411",
+                "open": true,
+                "sentence": 1
+              },
+              "platform": "windows",
+              "preedit": "",
+              "preedits": 23,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            },
+            "cancel": {
+              "active": true,
+              "command": 4,
+              "commits": 2,
+              "committed": "にほん",
+              "error": "",
+              "field": "",
+              "finishing": false,
+              "focus": true,
+              "language": "en",
+              "name": "日本",
+              "nativeIme": {
+                "conversion": 25,
+                "keyboardLayout": "4110411",
+                "open": true,
+                "sentence": 1
+              },
+              "platform": "windows",
+              "preedit": "",
+              "preedits": 37,
+              "publicationRetries": 0,
+              "qt": "6.8.3",
+              "sceneUnchanged": true,
+              "windowActive": true
+            },
+            "candidateKeys": [
+              {
+                "active": true,
+                "command": 2,
+                "commits": 1,
+                "committed": "日本",
+                "error": "",
+                "field": "日本",
+                "finishing": false,
+                "focus": true,
+                "language": "en",
+                "name": "before",
+                "nativeIme": {
+                  "conversion": 25,
+                  "keyboardLayout": "4110411",
+                  "open": true,
+                  "sentence": 1
+                },
+                "platform": "windows",
+                "preedit": "",
+                "preedits": 10,
+                "publicationRetries": 0,
+                "qt": "6.8.3",
+                "sceneUnchanged": true,
+                "windowActive": true
+              }
+            ],
+            "conversionMode": "henkan",
+            "candidateCommitKey": "return",
+            "returnKeys": [
+              {
+                "active": true,
+                "command": 3,
+                "commits": 2,
+                "committed": "にほん",
+                "error": "",
+                "field": "にほん",
+                "finishing": false,
+                "focus": true,
+                "language": "en",
+                "name": "日本",
+                "nativeIme": {
+                  "conversion": 25,
+                  "keyboardLayout": "4110411",
+                  "open": true,
+                  "sentence": 1
+                },
+                "platform": "windows",
+                "preedit": "",
+                "preedits": 23,
+                "publicationRetries": 0,
+                "qt": "6.8.3",
+                "sceneUnchanged": true,
+                "windowActive": true
+              }
+            ],
+            "cancelKeys": [
+              {
+                "active": true,
+                "command": 4,
+                "commits": 2,
+                "committed": "にほん",
+                "error": "",
+                "field": "",
+                "finishing": false,
+                "focus": true,
+                "language": "en",
+                "name": "日本",
+                "nativeIme": {
+                  "conversion": 25,
+                  "keyboardLayout": "4110411",
+                  "open": true,
+                  "sentence": 1
+                },
+                "platform": "windows",
+                "preedit": "にほん",
+                "preedits": 37,
+                "publicationRetries": 0,
+                "qt": "6.8.3",
+                "sceneUnchanged": true,
+                "windowActive": true
+              },
+              {
+                "active": true,
+                "command": 4,
+                "commits": 2,
+                "committed": "にほん",
+                "error": "",
+                "field": "",
+                "finishing": false,
+                "focus": true,
+                "language": "en",
+                "name": "日本",
+                "nativeIme": {
+                  "conversion": 25,
+                  "keyboardLayout": "4110411",
+                  "open": true,
+                  "sentence": 1
+                },
+                "platform": "windows",
+                "preedit": "",
+                "preedits": 37,
+                "publicationRetries": 0,
+                "qt": "6.8.3",
+                "sceneUnchanged": true,
+                "windowActive": true
+              }
+            ]
+          }
+        ],
+        "nativeEvents": [
+          {
+            "commit": "",
+            "preedit": "ｎ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "ｎ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "に",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "に",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にｈ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほｎ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほん",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほん",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "日本",
+            "type": "input"
+          },
+          {
+            "commit": "日本",
+            "preedit": "",
+            "type": "input"
+          },
+          {
+            "key": 16777220,
+            "scan": 28,
+            "text": "\r",
+            "type": "down"
+          },
+          {
+            "key": 16777220,
+            "scan": 28,
+            "text": "\r",
+            "type": "up"
+          },
+          {
+            "commit": "",
+            "preedit": "ｎ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "ｎ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "に",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "に",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "に",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にｈ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にｈ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほｎ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほｎ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほん",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほん",
+            "type": "input"
+          },
+          {
+            "commit": "にほん",
+            "preedit": "",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "ｎ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "ｎ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "に",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "に",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "に",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にｈ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にｈ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほｎ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほｎ",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほん",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほん",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "にほん",
+            "type": "input"
+          },
+          {
+            "commit": "",
+            "preedit": "",
+            "type": "input"
+          }
+        ],
+        "shutdownStatus": {
+          "active": true,
+          "command": 5,
+          "commits": 2,
+          "committed": "にほん",
+          "error": "",
+          "field": "",
+          "finishing": true,
+          "focus": true,
+          "language": "en",
+          "name": "日本",
+          "nativeIme": {
+            "conversion": 25,
+            "keyboardLayout": "4110411",
+            "open": true,
+            "sentence": 1
+          },
+          "platform": "windows",
+          "preedit": "",
+          "preedits": 37,
+          "publicationRetries": 0,
+          "qt": "6.8.3",
+          "sceneUnchanged": true,
+          "windowActive": true
+        }
+      },
+      "finding": "Full English composition scenario passes with native sentence mode 1; event loop returns 0 and observer/dialog/session destructors complete. QApplication native window destruction blocks in NtUserDestroyWindow -> MSCTF -> imjpapi WaitForSingleObjectEx.",
+      "frames": [
+        "IME shutdown frame 0: ntdll+0xa03f4 ZwWaitForSingleObject+0x14",
+        "IME shutdown frame 1: KERNELBASE+0x3d7fe WaitForSingleObjectEx+0x8e",
+        "IME shutdown frame 2: imjpapi+0x246f8 +0x0",
+        "IME shutdown frame 3: imjpapi+0x24691 +0x0",
+        "IME shutdown frame 4: imjpapi+0x24654 +0x0",
+        "IME shutdown frame 5: imjpapi+0x324fc DllGetClassObject+0x359c",
+        "IME shutdown frame 6: imjpapi+0x1b955 +0x0",
+        "IME shutdown frame 7: imjpapi+0x195a4 +0x0",
+        "IME shutdown frame 8: imjpapi+0x2cb5c +0x0",
+        "IME shutdown frame 9: imjpapi+0x1fde4 +0x0",
+        "IME shutdown frame 10: imjpapi+0x2aebe +0x0",
+        "IME shutdown frame 11: imjpapi+0x2ae84 +0x0",
+        "IME shutdown frame 12: imjpapi+0x2bb58 +0x0",
+        "IME shutdown frame 13: imjpapi+0xb960 +0x0",
+        "IME shutdown frame 14: imjpapi+0x1ebfe +0x0",
+        "IME shutdown frame 15: imjpapi+0x1ce1e +0x0",
+        "IME shutdown frame 16: imjpapi+0x25104 +0x0",
+        "IME shutdown frame 17: imjpapi+0x30998 DllGetClassObject+0x1a38",
+        "IME shutdown frame 18: imjpapi+0x2ba0e +0x0",
+        "IME shutdown frame 19: imjpapi+0x26894 +0x0",
+        "IME shutdown frame 20: imjpapi+0x33fc8 DllGetClassObject+0x5068",
+        "IME shutdown frame 21: imjpapi+0xb960 +0x0",
+        "IME shutdown frame 22: imjpapi+0x18a87 +0x0",
+        "IME shutdown frame 23: imjpapi+0x18945 +0x0",
+        "IME shutdown frame 24: imjpapi+0x18804 +0x0",
+        "IME shutdown frame 25: imjpapi+0x2e871 +0x0",
+        "IME shutdown frame 26: imjpapi+0x1f1b3 +0x0",
+        "IME shutdown frame 27: imjpapi+0xf25f +0x0",
+        "IME shutdown frame 28: imjpapi+0x27a05 +0x0",
+        "IME shutdown frame 29: imjpapi+0x26ee4 +0x0",
+        "IME shutdown frame 30: imjpapi+0x2bd5c +0x0",
+        "IME shutdown frame 31: imjkapi+0x4462 +0x0",
+        "IME shutdown frame 32: imjptip+0x191db +0x0",
+        "IME shutdown frame 33: imjptip+0x341b8 DllGetClassObject+0xaf8",
+        "IME shutdown frame 34: imjptip+0xd901 +0x0",
+        "IME shutdown frame 35: imjptip+0x2ff2b +0x0",
+        "IME shutdown frame 36: imjptip+0x33658 +0x0",
+        "IME shutdown frame 37: imetip+0x37d78 +0x0",
+        "IME shutdown frame 38: imetip+0x44efe DllUnregisterServer+0xcfde",
+        "IME shutdown frame 39: imetip+0x47325 DllUnregisterServer+0xf405",
+        "IME shutdown frame 40: imetip+0x4bbe5 DllUnregisterServer+0x13cc5",
+        "IME shutdown frame 41: imetip+0x46431 DllUnregisterServer+0xe511",
+        "IME shutdown frame 42: imetip+0x46fce DllUnregisterServer+0xf0ae",
+        "IME shutdown frame 43: imetip+0x74d13 DllUnregisterServer+0x3cdf3",
+        "IME shutdown frame 44: imetip+0x43b86 DllUnregisterServer+0xbc66",
+        "IME shutdown frame 45: imetip+0x438ef DllUnregisterServer+0xb9cf",
+        "IME shutdown frame 46: imetip+0x4421c DllUnregisterServer+0xc2fc",
+        "IME shutdown frame 47: imetip+0x41b53 DllUnregisterServer+0x9c33",
+        "IME shutdown frame 48: imetip+0x42291 DllUnregisterServer+0xa371",
+        "IME shutdown frame 49: imetip+0x42222 DllUnregisterServer+0xa302",
+        "IME shutdown frame 50: MSCTF+0x6ec10 TF_SetThreadFlags+0x8ea0",
+        "IME shutdown frame 51: MSCTF+0x201c4 CtfImeCreateThreadMgr+0x1764",
+        "IME shutdown frame 52: MSCTF+0x2763d TF_GetAppCompatFlags+0x307d",
+        "IME shutdown frame 53: MSCTF+0x2754c TF_GetAppCompatFlags+0x2f8c",
+        "IME shutdown frame 54: MSCTF+0x276d1 TF_GetAppCompatFlags+0x3111",
+        "IME shutdown frame 55: MSCTF+0x244b8 CtfImeDestroyInputContext+0xaf8",
+        "IME shutdown frame 56: MSCTF+0x157c4 TF_Notify+0x714",
+        "IME shutdown frame 57: USER32+0x27d7a TranslateAcceleratorW+0x6a",
+        "IME shutdown frame 58: USER32+0x25273 Ordinal2555+0x423",
+        "IME shutdown frame 59: USER32+0x2515e Ordinal2555+0x30e",
+        "IME shutdown frame 60: ntdll+0xa4274 KiUserCallbackDispatcher+0x24",
+        "IME shutdown frame 61: win32u+0x2384 NtUserDestroyWindow+0x14",
+        "IME shutdown frame 62: qwindows+0x4b15c qt_plugin_query_metadata_v2+0x494ec",
+        "IME shutdown frame 63: qwindows+0x5155 qt_plugin_query_metadata_v2+0x34e5"
+      ],
+      "raw_artifact": "p4-windows/system-ime-ms-ime.en.log and system-ime-ms-ime.en.hang.dmp",
+      "followup_run": 41684538568,
+      "followup_revision": "6fcf893",
+      "followup_host": "windows-2025",
+      "followup": "Qualify newer Microsoft IME separately. Server 2022 shutdown failure remains unaccepted."
     }
   }
 }

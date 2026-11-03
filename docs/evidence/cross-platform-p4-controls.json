@@ -71,6 +71,14 @@
       "focused_combo_cases": 22,
       "focused_combo_mismatches": 0,
       "accepted_focused_combos": true
+    },
+    "ordinary_editor_ci": {
+      "run": 41681014398,
+      "revision": "9f80bd5",
+      "windows": "success",
+      "linux": "success",
+      "macos": "success",
+      "scope": "Complete ordinary editor gates and relocated packages, including native Metal without MoltenVK. Native IME/focused-control qualification remains separately recorded."
     }
   },
   "relocated_package": {
