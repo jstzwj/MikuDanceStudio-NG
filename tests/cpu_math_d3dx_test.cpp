@@ -1,6 +1,7 @@
 // Independent Windows CPU reference. No HWND or D3D device is created.
 #include "mikudancestudio/cpu_math.hpp"
 #include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/render_model_inputs.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -17,6 +18,31 @@ bool Equal(const float* a,const float* b,unsigned count,float tolerance=4e-6f) {
     return true;
 }
 int main() {
+    unsigned cameras = 0;
+    for (float distance : {-5.f, -45.f, -100.f})
+        for (const Vec3& eye :
+             {Vec3{0, 0, distance}, Vec3{2, 3, distance}, Vec3{-12.5f, 7.25f, distance}})
+            for (float fov : {1.f, 30.f, 45.f, 60.f, 120.f, 179.f})
+                for (float aspect : {.5f, 1.f, 16.f / 9}) {
+                    render::ModelFrameInputs frame;
+                    frame.world = frame.lightRotation = Identity();
+                    frame.scene.lightState = {.6f, .6f, .6f, -.5f, -1, .5f};
+                    frame.view.editorNavigation = true;
+                    frame.view.editorEye = eye;
+                    frame.view.editorFov = fov;
+                    frame.view.aspect = aspect;
+                    frame.view.viewport = {0, 0, 512, 512, 0, 1};
+                    rhi::ModelPipeline pipeline;
+                    CHECK(render::BuildModelInputs(frame, {}, {}, pipeline));
+                    const Vec3 at{eye[0], eye[1], eye[2] + 80}, up{0, 1, 0};
+                    d3dx::D3DXMATRIXF view, projection;
+                    d3dx::Get().lookAtLH(&view, eye.data(), at.data(), up.data());
+                    d3dx::Get().perspectiveFovLH(&projection, fov * .01745329238474369f, aspect, 1,
+                                                 100000);
+                    CHECK(Equal(pipeline.shader.view.data(), &view.m[0][0], 16, 0));
+                    CHECK(Equal(pipeline.shader.projection.data(), &projection.m[0][0], 16, 0));
+                    ++cameras;
+                }
     for (int sample=0;sample<64;++sample) {
         Quaternion q; CHECK(Normalize(Quaternion{.01f*sample,.2f,-.3f,1},q));
         auto rotation=RotationQuaternion(q);
@@ -54,5 +80,7 @@ int main() {
     d3dx::Get().quatFromMatrix(nativeZero.data(),&zero);
     CHECK(Equal(QuaternionFromMatrix(Matrix{}).data(),nativeZero.data(),4));
     std::puts("64 portable matrix/quaternion cases agree with independent D3DX CPU imports");
+    std::printf("%u exact fixed-axis editor view/projection comparisons against D3DX CPU imports\n",
+                cameras);
     return 0;
 }

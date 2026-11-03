@@ -154,13 +154,20 @@ void RotateX(ModelMatrix& m, float angle) {
 }
 void LookAt(ModelMatrix& m, const std::array<float, 3>& eye) {
     m = Identity();
-    m[12] = -eye[0];
-    m[13] = -eye[1];
+    // MMD always looks 80 units along +Z. D3DX normalizes the unit
+    // right vector, yielding the float immediately below one; the cross
+    // product retains that scale in up. Preserve the measured x64 basis.
+    constexpr float right = 0x1.fffffep-1f;
+    m[0] = m[5] = right;
+    m[12] = -eye[0] * right;
+    m[13] = -eye[1] * right;
     m[14] = -eye[2];
 }
 void Perspective(ModelMatrix& m, float fov, float aspect, float nearPlane, float farPlane) {
     m = {};
-    m[5] = 1 / std::tan(fov * .5f);
+    // D3DX forms cotangent from separately rounded sin/cos.
+    const float half = fov * .5f;
+    m[5] = std::cos(half) / std::sin(half);
     m[0] = m[5] / aspect;
     m[10] = farPlane / (farPlane - nearPlane);
     m[11] = 1;

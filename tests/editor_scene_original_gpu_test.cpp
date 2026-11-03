@@ -8,6 +8,7 @@
 #include "d3d9_device_fixture.hpp"
 #include "original_accessory_fixture.hpp"
 #include "../src/render/background_quad.hpp"
+#include <functional>
 
 namespace {
 // Explicit test profile only: the ordinary D3D9 path remains the default.
@@ -44,6 +45,21 @@ struct NativeApi {
 };
 struct ExPoolDevice : SnapshotDeviceFixture {
     using SnapshotDeviceFixture::SnapshotDeviceFixture;
+    std::function<void(D3DPRIMITIVETYPE, UINT)> afterDraw;
+    HRESULT STDMETHODCALLTYPE DrawPrimitive(D3DPRIMITIVETYPE type, UINT first,
+                                            UINT count) override {
+        const auto result = real->DrawPrimitive(type, first, count);
+        if (SUCCEEDED(result) && afterDraw)
+            afterDraw(type, count);
+        return result;
+    }
+    HRESULT STDMETHODCALLTYPE DrawIndexedPrimitive(D3DPRIMITIVETYPE type, INT base, UINT minimum,
+                                                   UINT vertices, UINT first, UINT count) override {
+        const auto result = real->DrawIndexedPrimitive(type, base, minimum, vertices, first, count);
+        if (SUCCEEDED(result) && afterDraw)
+            afterDraw(type, count);
+        return result;
+    }
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void** output) override {
         if (iid == __uuidof(IUnknown) || iid == __uuidof(IDirect3DDevice9)) {
             *output = this;
@@ -218,9 +234,11 @@ rhi::AttachmentReadback NativeColor(const std::vector<DWORD>& pixels, unsigned d
 }
 // The oracle loads, poses, skins and draws through the original executable.
 // No RHI packet, CPU snapshot, material constants or geometry feed this path.
-std::array<rhi::AttachmentReadback, 2>
-NativeFrame(Fixture& fixture, OriginalModel& model, StandardEffect& effect, const D3DXMATRIX& world,
-            const D3DXMATRIX& view, const D3DXMATRIX& projection, unsigned dimension) {
+std::array<rhi::AttachmentReadback, 2> NativeFrame(Fixture& fixture, OriginalModel& model,
+                                                   StandardEffect& effect, const D3DXMATRIX& world,
+                                                   const D3DXMATRIX& view,
+                                                   const D3DXMATRIX& projection, unsigned dimension,
+                                                   const std::filesystem::path& prefixOutput = {}) {
     auto& app = *fixture.app;
     auto& renderer = effect.renderer;
     RenderTarget target(fixture.device, dimension);
@@ -254,10 +272,39 @@ NativeFrame(Fixture& fixture, OriginalModel& model, StandardEffect& effect, cons
     OriginalFrameGeometry geometry(model, originalApp.State(), dimension);
     Hr(fixture.device->BeginScene(), "native begin");
     originalApp.Shadow(model, view, world);
+    auto* observer = dynamic_cast<ExPoolDevice*>(fixture.device);
+    unsigned drawNumber = 0;
+    if (!prefixOutput.empty()) {
+        Check(observer != nullptr, "prefix observation requires explicit allocation adapter");
+        observer->afterDraw = [&](D3DPRIMITIVETYPE type, UINT count) {
+            const auto color = NativeColor(target.Pixels(), dimension);
+            SaveRenderBytes(prefixOutput, "native-prefix-" + std::to_string(++drawNumber) + ".rgba",
+                            color.bytes.data(), color.bytes.size());
+            DWORD fvf = 0, depth = 0, write = 0, reference = 0, stencil = 0;
+            fixture.device->GetFVF(&fvf);
+            fixture.device->GetRenderState(D3DRS_ZFUNC, &depth);
+            fixture.device->GetRenderState(D3DRS_ZWRITEENABLE, &write);
+            fixture.device->GetRenderState(D3DRS_STENCILREF, &reference);
+            fixture.device->GetRenderState(D3DRS_STENCILENABLE, &stencil);
+            std::printf(
+                "native prefix %u topology=%u count=%u fvf=%x depth=%u write=%u stencil=%u ref=%u\n",
+                drawNumber, unsigned(type), count, fvf, depth, write, stencil, reference);
+            for (auto transform : {D3DTS_WORLD, D3DTS_VIEW, D3DTS_PROJECTION}) {
+                D3DXMATRIX matrix;
+                Hr(fixture.device->GetTransform(transform, &matrix), "prefix transform");
+                SaveRenderBytes(prefixOutput,
+                                "native-" + std::to_string(drawNumber) + "-matrix-" +
+                                    std::to_string(unsigned(transform)) + ".f32",
+                                &matrix, sizeof matrix);
+            }
+        };
+    }
     // The original frame loop decrements the retired ABI workspace, rather
     // than the portable runtime field which happens to have the same purpose.
     *reinterpret_cast<int*>(reinterpret_cast<unsigned char*>(originalApp.State()) + 0xA11E0) = 0;
     originalApp.Frame(model, world);
+    if (observer)
+        observer->afterDraw = {};
     Hr(fixture.device->EndScene(), "native end");
     std::array<rhi::AttachmentReadback, 2> result;
     const auto pixels = target.Pixels();
@@ -302,14 +349,25 @@ int wmain(int argc, wchar_t** argv) try {
     rhi::FileAssetSource files(assets);
     const bool wireframe = std::getenv("MDS_TEST_WIREFRAME") != nullptr;
     const bool composite = std::getenv("MDS_TEST_COMPOSITE") != nullptr;
+    const bool prefixes = std::getenv("MDS_TEST_PREFIX") != nullptr;
+    Check(!prefixes || (composite && !output.empty()),
+          "prefix diagnostic requires composite profile and output directory");
+    const bool softwareVertices = std::getenv("MDS_TEST_SOFTWARE_VP") != nullptr;
+    if (softwareVertices)
+        std::puts("Original vertex profile: software vertex processing (explicit diagnostic)");
     if (composite)
         std::puts("Composite profile: portable trilinear on original background input");
     NativeApi nativeApi;
     unsigned cases = 0, failures = 0;
     for (bool pmx : {false, true})
         for (bool translucent : {false, true}) {
+            if (prefixes && (!pmx || translucent))
+                continue;
             std::unique_ptr<ExPoolDevice> allocationAdapter;
-            Fixture fixture(false, D3DCREATE_HARDWARE_VERTEXPROCESSING | D3DCREATE_FPU_PRESERVE,
+            Fixture fixture(false,
+                            (softwareVertices ? D3DCREATE_SOFTWARE_VERTEXPROCESSING
+                                              : D3DCREATE_HARDWARE_VERTEXPROCESSING) |
+                                D3DCREATE_FPU_PRESERVE,
                             nativeApi.api.p, [&](auto* device) -> IDirect3DDevice9* {
                                 if (!nativeApi.api.p)
                                     return device;
@@ -367,10 +425,13 @@ int wmain(int argc, wchar_t** argv) try {
             D3DXMatrixIdentity(&identity);
             std::memcpy(&app.ViewRotationTransform(), &identity, sizeof identity);
             D3DXMatrixTranslation(&world, -focus.x, -focus.y, -focus.z);
-            const D3DXVECTOR3 eye(0, 0, app.CameraDistance()), target(0, 0, 0), up(0, 1, 0);
+            // MMD looks 80 units ahead; using the origin changes D3DX's
+            // normalized basis rounding even for this axis-aligned camera.
+            const D3DXVECTOR3 eye(0, 0, app.CameraDistance()),
+                target(0, 0, app.CameraDistance() + 80), up(0, 1, 0);
             D3DXMatrixLookAtLH(&view, &eye, &target, &up);
-            D3DXMatrixPerspectiveFovLH(&projection, app.CameraFov() * .01745329238474369f, 1, .1f,
-                                       1000);
+            D3DXMatrixPerspectiveFovLH(&projection, app.CameraFov() * .01745329238474369f, 1, 1.f,
+                                       100000);
             original.Skin(app, world);
             editor::EditorSession session;
             std::string reason;
@@ -415,6 +476,8 @@ int wmain(int argc, wchar_t** argv) try {
             if (composite)
                 original.renderer->d3dInitialized = 1;
             for (bool posed : {false, true}) {
+                if (prefixes && posed)
+                    continue;
                 const unsigned dimension = posed ? 257 : 512;
                 app.RenderWidth() = app.RenderHeight() = dimension;
                 settings.width = settings.height = dimension;
@@ -438,9 +501,12 @@ int wmain(int argc, wchar_t** argv) try {
                     original.Skin(app, world);
                 }
                 for (int mode : {1, 2}) {
+                    if (prefixes && mode != 1)
+                        continue;
                     app.ShadowMode() = settings.shadow.mode = mode;
                     const auto expected =
-                        NativeFrame(fixture, original, effect, world, view, projection, dimension);
+                        NativeFrame(fixture, original, effect, world, view, projection, dimension,
+                                    prefixes ? output : std::filesystem::path{});
                     const std::string prefix =
                         std::string(pmx ? "pmx" : "pmd") + (translucent ? "-alpha" : "-opaque") +
                         (posed ? "-posed" : "-rest") + "-" + std::to_string(mode);
@@ -452,6 +518,8 @@ int wmain(int argc, wchar_t** argv) try {
                           reason.c_str());
                     for (auto backend :
                          {rhi::Backend::D3D11, rhi::Backend::D3D12, rhi::Backend::Vulkan}) {
+                        if (prefixes && backend != rhi::Backend::D3D11)
+                            continue;
                         if (!rhi::BackendAvailable(backend))
                             continue;
                         rhi::BackendOptions options;
@@ -460,6 +528,40 @@ int wmain(int argc, wchar_t** argv) try {
                             rhi::CreateOffscreenBackendDevice(dimension, dimension, options);
                         Check(bool(device), device.reason.c_str());
                         rhi::SceneRenderer renderer(*device.device);
+                        if (prefixes) {
+                            auto partial = frame;
+                            for (auto& pass : partial.passes) {
+                                if (!pass.color || pass.color->target != frame.finalColor)
+                                    continue;
+                                const auto draws = pass.draws;
+                                for (unsigned n = 1; n <= draws.size(); ++n) {
+                                    pass.draws.assign(draws.begin(), draws.begin() + n);
+                                    rhi::PreparedModelFrame prefixFrame;
+                                    const auto preparation =
+                                        renderer.Prepare(1, partial, prefixFrame);
+                                    Check(bool(preparation), preparation.reason.c_str());
+                                    rhi::CompletionToken done;
+                                    const auto submission = renderer.Submit(prefixFrame, done);
+                                    Check(bool(submission), submission.reason.c_str());
+                                    rhi::AttachmentReadback color;
+                                    Check(renderer.ReadTarget(1, frame.finalColor, color),
+                                          "prefix readback");
+                                    SaveRenderBytes(
+                                        output, "portable-prefix-" + std::to_string(n) + ".rgba",
+                                        color.bytes.data(), color.bytes.size());
+                                    unsigned transform = 0;
+                                    const auto& shader = draws[n - 1].pipeline.shader;
+                                    for (const auto* matrix :
+                                         {&shader.world, &shader.view, &shader.projection})
+                                        SaveRenderBytes(
+                                            output,
+                                            "portable-" + std::to_string(n) + "-matrix-" +
+                                                std::to_string(++transform) + ".f32",
+                                            matrix->data(), sizeof(float) * matrix->size());
+                                    std::printf("portable prefix %u\n", n);
+                                }
+                            }
+                        }
                         rhi::PreparedModelFrame prepared;
                         auto preparedResult = renderer.Prepare(1, frame, prepared);
                         Check(bool(preparedResult), preparedResult.reason.c_str());

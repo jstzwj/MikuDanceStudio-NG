@@ -3926,3 +3926,50 @@ preceding font-profile revision c097942, including
 [editor run 41604019926](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41604019926).
 P4/C1 remains open for the independent composite output and complete native
 input/layout qualifications described above.
+
+
+## Fixed-axis camera arithmetic and independent prefix diagnosis
+
+Draw-by-draw observation found that the composite's first three native/portable
+outputs (picture, grid and ground plane) match byte for byte. The first accessory
+material stays within one code value. The first out-of-tolerance pixels
+appear in its projected-shadow draw (51 pixels); the next accessory shadow
+adds three, for 54 in the corrected 512-pixel profile. The optional `MDS_TEST_PREFIX=1` diagnostic
+requires the composite profile and a dump directory, records real native draws
+without replacing them, and renders each portable prefix from the same frozen
+CPU snapshot. It neither skips failing comparisons nor changes their thresholds.
+
+The observer also exposed an oracle setup error: its fixed-function projection
+used near/far 0.1/1000 instead of MMD's 1/100000. Its view now explicitly looks
+80 units along +Z, as the original camera does. These are corrected independently
+from the portable implementation. Matching input matrices then identified two
+portable CPU differences: the D3DX fixed-axis right/up basis is the float below
+one, and its cotangent uses separately rounded sin/cos rather than reciprocal
+tangent. The shared producer now preserves those arithmetic boundaries.
+
+The Windows CPU oracle checks 162 view/projection combinations against actual
+D3DX imports, with zero component tolerance and no device/window. Frozen FOV
+observations also guard the public portable input regression. Matrix corrections
+do not resolve hardware coplanar depth ties: the corrected composite still has
+24 failing PMX comparisons out of 48. At 512 pixels there are 54 bad pixels
+(162 RGB components), maximum 86; at 257 there are 16 (48 components), maximum 86.
+Alpha, coverage, shadow maps and exact repeated submissions retain their gates.
+The prior 15/eight-pixel counts above describe the earlier mismatched projection
+profile and must not be used as the current qualification result.
+
+The separate original model/self-shadow baseline passed all 48 comparisons
+after the corrected camera inputs, on DX11/DX12/Vulkan. No projected-shadow
+depth bias, draw reorder or image tolerance workaround was introduced.
+A measured fused-transform experiment improved some coplanar pixels but still
+failed; that experiment was discarded. Original software vertex processing is
+available only as an explicit diagnostic, not an accepted substitute baseline.
+
+The composition revision 7bbdf3d passed all three editor jobs in
+[run 41607410472](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41607410472),
+including the new Windows hidden native-message test.
+
+Local ALL_BUILD and all 68 then-labelled P4 regressions passed (281.31 seconds).
+The additional public camera-input gate passed and is now labelled P3/P4 and
+built by each editor CI job. The machine-readable
+[composite evidence](evidence/cross-platform-p4-composite.json) deliberately
+records `accepted: false` and all 96 color/shadow results.

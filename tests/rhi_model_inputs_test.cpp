@@ -28,6 +28,23 @@ int main() {
     // Independent geometric facts: fixed +Z view translates by the opposite
     // eye, LH near maps to zero and far to W, aspect scales X only.
     CHECK(pipeline.shader.view[14]==10);
+    // Frozen Microsoft D3DX9_43 x64 CPU observations, not a recomputation of
+    // the implementation. The camera always looks 80 units along +Z.
+    const std::array<float, 6> nativeFov{114.58865356445312f, 3.732050657272339f,
+                                         2.4142134189605713f, 1.7320507764816284f,
+                                         .5773501992225647f,  .008726893924176693f};
+    unsigned fovIndex = 0;
+    for (float degrees : {1.f, 30.f, 45.f, 60.f, 120.f, 179.f}) {
+        auto observed = frame;
+        observed.scene.camera.fov = degrees;
+        rhi::ModelPipeline camera;
+        CHECK(render::BuildModelInputs(observed, material, {}, camera));
+        CHECK(camera.shader.view[0] == 0x1.fffffep-1f && camera.shader.view[5] == 0x1.fffffep-1f);
+        CHECK(std::abs(camera.shader.projection[5] - nativeFov[fovIndex]) <=
+              std::abs(nativeFov[fovIndex]) * 1.2e-7f);
+        ++fovIndex;
+    }
+
     CHECK(std::abs(pipeline.shader.projection[5]/pipeline.shader.projection[0]-2)<1e-6f);
     auto near=rhi::TransformShaderVector({0,0,1,1},pipeline.shader.projection);
     auto far=rhi::TransformShaderVector({0,0,100000,1},pipeline.shader.projection);
@@ -49,7 +66,10 @@ int main() {
     // Scene camera and editor navigation must not accidentally share distance
     // or FOV. Orthographic depth is independent of perspective near/far.
     frame.view.editorNavigation=true;frame.view.editorEye={2,3,-20};frame.view.editorFov=45;frame.view.editorPerspective=1;
-    CHECK(render::BuildModelInputs(frame,material,{},changed));CHECK(changed.shader.view[12]==-2 && changed.shader.projection[0]==.1f && changed.shader.projection[10]==.0013f);
+    CHECK(render::BuildModelInputs(frame, material, {}, changed));
+    CHECK(changed.shader.view[12] == -2 * 0x1.fffffep-1f &&
+          changed.shader.view[13] == -3 * 0x1.fffffep-1f && changed.shader.projection[0] == .1f &&
+          changed.shader.projection[10] == .0013f);
     frame.view.editorEye[2]=0;CHECK(!render::BuildModelInputs(frame,material,{},changed));frame.view.editorNavigation=false;
     material.diffuse[3]=.5f;material.base="base.png";material.sphere="reflection.spa";
     CHECK(render::BuildModelInputs(frame,material,{},changed));CHECK(changed.raster.cull==rhi::BatchCull::None);
