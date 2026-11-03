@@ -141,6 +141,7 @@ int main(int argc, char** argv) {
     const auto revision = session.Revision(), frames = session.Runtime().Counters().frames;
     const auto resource = session.Runtime().Resource(0);
     unsigned command = 0;
+    unsigned publicationFailures = 0, publicationRetries = 0;
     bool finishing = false;
     QTimer timer;
     QObject::connect(&timer, &QTimer::timeout, [&] {
@@ -192,6 +193,7 @@ int main(int argc, char** argv) {
             {"qt", qVersion()},
             {"command", int(command)},
             {"finishing", finishing},
+            {"publicationRetries", int(publicationRetries)},
             {"focus", field->hasFocus()},
             {"windowActive", dialog.isActiveWindow()},
             {"active", dialog.Active()},
@@ -206,10 +208,28 @@ int main(int argc, char** argv) {
             {"error", QString::fromStdString(reason)}};
         QSaveFile output(QString::fromLocal8Bit(argv[3]));
         if (!output.open(QIODevice::WriteOnly) ||
-            output.write(QJsonDocument(report).toJson()) < 0 || !output.commit()) {
+            output.write(QJsonDocument(report).toJson()) < 0) {
+            std::fprintf(stderr, "IME status write failed: %s\n",
+                         output.errorString().toUtf8().constData());
+            std::fflush(stderr);
             app.exit(1);
             return;
         }
+        if (!output.commit()) {
+            // Python's Windows read handle can briefly deny replacement of the
+            // previous snapshot. Retry on the next tick, without blocking IME
+            // delivery or quitting before the driver observes the actual error.
+            ++publicationRetries;
+            if (!publicationFailures++) {
+                std::fprintf(stderr, "IME status replacement retry: %s\n",
+                             output.errorString().toUtf8().constData());
+                std::fflush(stderr);
+            }
+            if (publicationFailures >= 80)
+                app.exit(1);
+            return;
+        }
+        publicationFailures = 0;
         if (finishing) {
             timer.stop();
             std::fprintf(stderr, "IME finish snapshot published; leaving event loop\n");
