@@ -18,6 +18,7 @@
 #include <QWheelEvent>
 #include <QStyledItemDelegate>
 #include <QPainter>
+#include <QStyleOptionFrame>
 #include <QValidator>
 #include <charconv>
 #include <climits>
@@ -44,6 +45,40 @@ public:
     }
 
 protected:
+    void paintEvent(QPaintEvent* event) override {
+        // Keep Qt's text layout, scroll offsets and cursor/IME geometry current
+        // even when native inactive glyphs are painted over its raster below.
+        QLineEdit::paintEvent(event);
+#ifdef _WIN32
+        if (QGuiApplication::platformName() == "windows" && !hasFocus() &&
+            !property("_mmdImePreedit").toBool() &&
+            (alignment() & Qt::AlignHorizontal_Mask) == Qt::AlignLeft &&
+            echoMode() == QLineEdit::Normal && !text().isEmpty()) {
+            bool nativeText = true;
+            for (const auto c : text()) {
+                const auto value = c.unicode();
+                nativeText &=
+                    (value >= 32 && value <= 126) || (value >= 0x3400 && value <= 0x9fff) ||
+                    (value >= 0x3000 && value <= 0x30ff && c.category() != QChar::Mark_NonSpacing &&
+                     c.category() != QChar::Mark_SpacingCombining);
+            }
+            if (nativeText) {
+                // The original dialog edits do not set ES_NOHIDESEL. Retain
+                // Qt's selection for copy/undo, but hide its inactive highlight.
+                QPainter painter(this);
+                if (DrawWindowsEditText(painter, rect(), font(), text(), english_, hasFrame(),
+                                        isEnabled(), isReadOnly(), autoScroll_)) {
+                    if (hasFrame()) {
+                        QStyleOptionFrame frame;
+                        initStyleOption(&frame);
+                        style()->drawPrimitive(QStyle::PE_FrameLineEdit, &frame, &painter, this);
+                    }
+                    return;
+                }
+            }
+        }
+#endif
+    }
     bool event(QEvent* event) override {
         const bool insertion =
             event->type() == QEvent::KeyPress || event->type() == QEvent::InputMethod ||
@@ -240,8 +275,18 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
         QWidget* widget = nullptr;
         if (control.kind == ui::NumericControlKind::Edit) {
             auto* field = new DialogLineEdit(english_, (control.style & 0x80u) != 0, this);
+            field->setReadOnly((control.style & 0x800u) != 0);
             field->setFrame((control.style & 0x00800000u) != 0);
-            field->setProperty("mmdNativeWindowBorder", (control.style & 0x00800000u) != 0);
+            field->setProperty("mmdNativeSunkenEdit", (control.style & 0x00800000u) != 0);
+            // Share the original logical text origin with Qt's cursor, hit
+            // testing and IME layout on every platform. EditorStyle supplies
+            // the same two-pixel dialog client edge independently of the theme.
+            field->setAlignment(Qt::AlignLeft | Qt::AlignTop);
+            const int margin =
+                (english_ ? 3 : 1) + (field->hasFrame() ? 3 : 0) - (field->hasFrame() ? 2 : 0) - 2;
+            // Native EM_POSFROMCHAR starts at the client edge's top; Qt's
+            // line control otherwise adds a further one-pixel vertical margin.
+            field->setTextMargins(margin, -1, margin, 0);
             edits_[control.id] = field;
             field->installEventFilter(this);
             widget = field;
@@ -255,6 +300,7 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
             field->setHorizontalScrollBarPolicy(control.style & 0x100000u ? Qt::ScrollBarAsNeeded
                                                                           : Qt::ScrollBarAlwaysOff);
             field->setTabChangesFocus(true);
+            field->setProperty("mmdWantReturn", (control.style & 0x1000u) != 0);
             multiline_[control.id] = field;
             field->installEventFilter(this);
             widget = field;
@@ -375,7 +421,27 @@ void TemplateDialog::Prefill(int id, const QString& text) {
     field->setText(text.left(qsizetype(length)));
 }
 bool TemplateDialog::eventFilter(QObject* object, QEvent* event) {
-    return HandleEditComposition(object, event) || QDialog::eventFilter(object, event);
+    if (HandleEditComposition(object, event))
+        return true;
+    if (auto* edit = qobject_cast<QPlainTextEdit*>(object))
+        if (event->type() == QEvent::KeyPress) {
+            auto* key = static_cast<QKeyEvent*>(event);
+            if ((key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter) &&
+                !(key->modifiers() & (Qt::AltModifier | Qt::MetaModifier))) {
+                if (key->modifiers() & Qt::ControlModifier) {
+                    if (!edit->isReadOnly())
+                        edit->insertPlainText("\n");
+                    key->accept();
+                    return true;
+                }
+                if (!edit->property("mmdWantReturn").toBool()) {
+                    key->accept();
+                    accept();
+                    return true;
+                }
+            }
+        }
+    return QDialog::eventFilter(object, event);
 }
 AccessoryOrderDialog::AccessoryOrderDialog(
     const Language& language, const std::vector<std::pair<std::uint8_t, QString>>& rows, int split,

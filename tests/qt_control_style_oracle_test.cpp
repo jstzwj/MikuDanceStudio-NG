@@ -43,10 +43,40 @@ public:
                    const mikudancestudio::qt::Language& language)
         : TemplateDialog(description, language, nullptr) {}
 };
-INT_PTR CALLBACK HiddenDialog(HWND, UINT, WPARAM, LPARAM) {
+struct DialogCommands {
+    unsigned last = 0;
+};
+INT_PTR CALLBACK HiddenDialog(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
+    if (message == WM_INITDIALOG)
+        SetWindowLongPtrW(window, DWLP_USER, lParam);
+    // Native multiline Return posts a default-button command via
+    // WM_NEXTDLGCTL. Preserve its command/text processing while preventing
+    // any hidden-window focus/activation, including indirect SetFocus calls.
+    if (message == WM_NEXTDLGCTL && !IsWindowVisible(window))
+        return TRUE;
+    if (message == WM_COMMAND && LOWORD(wParam) == IDOK && HIWORD(wParam) == BN_CLICKED)
+        if (auto* commands =
+                reinterpret_cast<DialogCommands*>(GetWindowLongPtrW(window, DWLP_USER))) {
+            commands->last = LOWORD(wParam);
+            return TRUE;
+        }
     return FALSE;
 }
-QImage NativeImage(HWND control, bool visible, bool borderOnly = false) {
+class ThreadKeyboardState {
+public:
+    explicit ThreadKeyboardState(bool control) {
+        Check(GetKeyboardState(previous_), "read this test thread's keyboard table");
+        BYTE state[256]{};
+        if (control)
+            state[VK_CONTROL] = 0x80;
+        Check(SetKeyboardState(state), "set only this test thread's keyboard table");
+    }
+    ~ThreadKeyboardState() { SetKeyboardState(previous_); }
+
+private:
+    BYTE previous_[256]{};
+};
+QImage NativeImage(HWND control, bool visible, bool clientOnly = false) {
     RECT rectangle{}, child{};
     Check(GetWindowRect(control, &child), "native control window rectangle");
     // EDIT does not implement PrintWindow on every Windows version. Ask the
@@ -56,6 +86,8 @@ QImage NativeImage(HWND control, bool visible, bool borderOnly = false) {
     Check(GetWindowRect(capture, &rectangle), "native capture window rectangle");
     const QRect crop(child.left - rectangle.left, child.top - rectangle.top,
                      child.right - child.left, child.bottom - child.top);
+    if (clientOnly)
+        Check(GetClientRect(control, &rectangle), "native control client rectangle");
     const int width = rectangle.right - rectangle.left, height = rectangle.bottom - rectangle.top;
     rectangle = {0, 0, width, height};
     auto dc = CreateCompatibleDC(nullptr);
@@ -72,8 +104,9 @@ QImage NativeImage(HWND control, bool visible, bool borderOnly = false) {
     Check(bitmap && bits, "memory control bitmap");
     const auto previous = SelectObject(dc, bitmap);
     FillRect(dc, &rectangle, GetSysColorBrush(COLOR_BTNFACE));
-    if (borderOnly)
-        FrameRect(dc, &rectangle, GetSysColorBrush(COLOR_WINDOWFRAME));
+    if (clientOnly)
+        SendMessageW(control, WM_PRINTCLIENT, reinterpret_cast<WPARAM>(dc),
+                     PRF_CLIENT | PRF_ERASEBKGND);
     else if (visible)
         Check(PrintWindow(capture, dc, 0), "capture our dialog in the isolated runner");
     else
@@ -81,8 +114,8 @@ QImage NativeImage(HWND control, bool visible, bool borderOnly = false) {
                      PRF_CLIENT | PRF_NONCLIENT | PRF_ERASEBKGND);
     GdiFlush();
     QImage image(static_cast<unsigned char*>(bits), width, height, width * 4, QImage::Format_RGB32);
-    Check(image.rect().contains(crop), "control is inside native dialog capture");
-    auto copy = image.copy(crop);
+    Check(clientOnly || image.rect().contains(crop), "control is inside native dialog capture");
+    auto copy = clientOnly ? image.copy() : image.copy(crop);
     SelectObject(dc, previous);
     DeleteObject(bitmap);
     DeleteDC(dc);
@@ -223,16 +256,20 @@ int main(int argc, char** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     QApplication app(argc, argv);
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
+    const bool editText = argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--edit-text" ||
+                                        QString::fromLocal8Bit(argv[1]) == "--isolated-edit-text");
     const bool comboFocus =
         argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-content-focus";
     const bool focused =
         comboFocus || (argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-list-focus");
-    const bool visible = argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--isolated-nonclient" ||
-                                      QString::fromLocal8Bit(argv[1]) == "--isolated-content" || focused);
+    const bool visible =
+        argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--isolated-edit-text" ||
+                      QString::fromLocal8Bit(argv[1]) == "--isolated-nonclient" ||
+                      QString::fromLocal8Bit(argv[1]) == "--isolated-content" || focused);
     const bool text = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--text";
     const bool content = argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--content" ||
                                       QString::fromLocal8Bit(argv[1]) == "--isolated-content" || focused);
-    Check(argc == 2 || visible || text || content,
+    Check(argc == 2 || visible || text || content || editText,
           "usage: [--isolated-nonclient|--text|--content] output-directory");
     Check(!visible || (qEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
                        qEnvironmentVariable("MDS_QT_ISOLATED_DISPLAY") == "1"),
@@ -241,15 +278,18 @@ int main(int argc, char** argv) try {
     constexpr bool visible = false;
     constexpr bool focused = false;
     constexpr bool comboFocus = false;
+    const bool editText = argc == 4 && QString::fromLocal8Bit(argv[1]) == "--edit-text";
     const bool text = argc == 4 && QString::fromLocal8Bit(argv[1]) == "--text";
     const bool content = argc == 4 && QString::fromLocal8Bit(argv[1]) == "--content";
-    Check(argc == 3 || text || content, "usage: [--text|--content] original.exe output-directory");
+    Check(argc == 3 || text || content || editText,
+          "usage: [--text|--content|--edit-text] original.exe output-directory");
 #endif
     Check(QGuiApplication::platformName() == "windows", "real Windows QPA required");
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
     const auto instance = GetModuleHandleW(nullptr);
 #else
-    OriginalPhysicsModule original(std::filesystem::u8path(argv[text || content ? 2 : 1]));
+    OriginalPhysicsModule original(
+        std::filesystem::u8path(argv[text || content || editText ? 2 : 1]));
     const auto instance = reinterpret_cast<HINSTANCE>(original.Function<void*>(0));
 #endif
     const auto output = std::filesystem::absolute(std::filesystem::u8path(argv[argc - 1]));
@@ -300,8 +340,19 @@ int main(int argc, char** argv) try {
         &kNumericModelPhysicsEn,
         &kNumericModelPhysicsJa,
     };
-    unsigned mismatches = 0, cases = 0, templates = 0, borderCases = 0, borderMismatches = 0;
+    unsigned mismatches = 0, cases = 0, templates = 0, clientCases = 0, clientMismatches = 0;
     QJsonArray comboLayouts;
+    QJsonArray editLayouts;
+    QJsonArray editCursorLayouts;
+    unsigned editCursorMismatches = 0;
+    QJsonArray editReference;
+    QJsonArray multilineReturn;
+    if (editText) {
+        QFile file(QString::fromUtf8(MDS_EDIT_LAYOUT_REFERENCE));
+        Check(file.open(QIODevice::ReadOnly), "open independent original EDIT layouts");
+        editReference = QJsonDocument::fromJson(file.readAll()).object()["controls"].toArray();
+        Check(editReference.size() == 230, "complete independent original EDIT layouts");
+    }
     for (std::size_t templateIndex = 0; templateIndex < sizeof descriptions / sizeof *descriptions;
          ++templateIndex) {
         const auto* description = descriptions[templateIndex];
@@ -311,15 +362,10 @@ int main(int argc, char** argv) try {
         Check(language.Set(code), "load UI language");
         ResourceDialog dialog(*description, language);
         dialog.winId(); // Create only our own never-shown native parent.
-#ifdef MDS_SYSTEM_CONTROL_REFERENCE
-        const auto native = CreateWindowExW(0, L"#32770", L"", WS_POPUP, 0, 0, dialog.width(),
-                                            dialog.height(), nullptr, nullptr, instance, nullptr);
-        const auto font = CreateFontW(
-            -description->pointSize * 96 / 72, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
-            DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
-            DEFAULT_PITCH, QString::fromUtf8(description->fontFamily).toStdWString().c_str());
-        Check(font != nullptr, "native reference control font");
-#else
+        // Both paths use actual dialog resources. The public executable links
+        // the byte-verified RC source; the optional oracle maps the original
+        // executable. Do not reconstruct CreateWindowEx styles here: the dialog
+        // manager also changes client edges, default buttons and fonts.
         const auto resource = FindResourceW(instance, MAKEINTRESOURCEW(description->id), RT_DIALOG);
         Check(resource != nullptr, "original dialog resource");
         const auto* bytes =
@@ -328,10 +374,63 @@ int main(int argc, char** argv) try {
         DWORD flags{};
         std::memcpy(&flags, bytes + (bytes[2] == 255 && bytes[3] == 255 ? 12 : 0), sizeof flags);
         Check(!(flags & WS_VISIBLE), "original resource must never show a window");
-        const auto native = CreateDialogParamW(instance, MAKEINTRESOURCEW(dialog.Template().id),
-                                               nullptr, HiddenDialog, 0);
-#endif
+        DialogCommands commands;
+        const auto native =
+            CreateDialogParamW(instance, MAKEINTRESOURCEW(dialog.Template().id), nullptr,
+                               HiddenDialog, reinterpret_cast<LPARAM>(&commands));
         Check(native && !IsWindowVisible(native), "create hidden original resource dialog");
+        if (!visible && !text && !content && !editText) {
+            for (std::size_t index = 0; index < description->count; ++index) {
+                const auto& entry = description->controls[index];
+                if (entry.kind != NumericControlKind::Multiline)
+                    continue;
+                const auto control = GetDlgItem(native, entry.id);
+                Check(control && !IsWindowVisible(control), "hidden original multiline edit");
+                for (const bool ctrl : {false, true}) {
+                    // This changes only the caller thread's input table. No
+                    // AttachThreadInput, hardware input, focus or activation.
+                    ThreadKeyboardState state(ctrl);
+                    SetWindowTextW(control, L"first");
+                    SendMessageW(control, EM_SETSEL, 5, 5);
+                    MSG message{};
+                    message.hwnd = control;
+                    message.message = WM_KEYDOWN;
+                    message.wParam = VK_RETURN;
+                    message.lParam = 1;
+                    const auto code = SendMessageW(control, WM_GETDLGCODE, message.wParam,
+                                                   reinterpret_cast<LPARAM>(&message));
+                    commands.last = 0;
+                    const auto foreground = GetForegroundWindow();
+                    const auto focus = GetFocus();
+                    const bool consumed = IsDialogMessageW(native, &message);
+                    unsigned pendingCount = 0;
+                    MSG pending{};
+                    while (PeekMessageW(&pending, native, 0, 0, PM_REMOVE)) {
+                        Check(++pendingCount < 128, "bounded hidden dialog command queue");
+                        if (!IsDialogMessageW(native, &pending)) {
+                            TranslateMessage(&pending);
+                            DispatchMessageW(&pending);
+                        }
+                    }
+                    Check(GetForegroundWindow() == foreground && GetFocus() == focus,
+                          "hidden multiline command changed native focus/activation");
+                    const bool inserts = ctrl || (entry.style & ES_WANTRETURN);
+                    wchar_t value[32]{};
+                    GetWindowTextW(control, value, 32);
+                    multilineReturn.append(QJsonObject{{"template", description->id},
+                                                       {"control", entry.id},
+                                                       {"ctrl", ctrl},
+                                                       {"dialogCode", int(code)},
+                                                       {"consumedByDialog", consumed},
+                                                       {"command", int(commands.last)},
+                                                       {"text", QString::fromWCharArray(value)}});
+                    Check(bool(code & DLGC_WANTALLKEYS) && consumed &&
+                              commands.last == (inserts ? 0u : IDOK) &&
+                              std::wstring(value) == (inserts ? L"first\r\n" : L"first"),
+                          "original multiline Enter/Ctrl+Enter default command");
+                }
+            }
+        }
         // Compare states without keyboard-focus cues. DefDlgProc can retain
         // its initial button focus internally even while never shown; Qt's
         // hidden controls have no active focus. Focused text/glyphs are separate.
@@ -349,15 +448,20 @@ int main(int argc, char** argv) try {
             ShowWindow(native, SW_SHOWNOACTIVATE);
             QCoreApplication::processEvents();
         }
+        bool savedEditExample = false;
         for (std::size_t index = 0; index < description->count; ++index) {
             const auto& entry = description->controls[index];
+            if (editText && entry.kind != NumericControlKind::Edit)
+                continue;
+            const bool editExample = editText && !savedEditExample;
+            savedEditExample |= editText;
             if (focused && entry.kind != NumericControlKind::Listbox &&
                 !(comboFocus && entry.kind == NumericControlKind::Combobox))
                 continue;
-            // WM_PRINT omits hidden EDIT nonclient paint. The hidden border
-            // regression therefore compares only the GDI WS_BORDER primitive;
-            // complete EDIT painting is qualified separately in isolated CI.
-            const bool borderOnly = !visible && entry.kind == NumericControlKind::Edit;
+            // WM_PRINTCLIENT captures actual EDIT text/background without
+            // inventing a replacement for its unavailable hidden nonclient
+            // paint. Complete borders require isolated visible qualification.
+            const bool editClientOnly = !visible && entry.kind == NumericControlKind::Edit;
             const bool other = entry.kind == NumericControlKind::Combobox ||
                                entry.kind == NumericControlKind::Listbox ||
                                entry.kind == NumericControlKind::Slider;
@@ -374,8 +478,6 @@ int main(int argc, char** argv) try {
                            entry.kind != NumericControlKind::Checkbox &&
                            entry.kind != NumericControlKind::Radio && !other))
                 continue;
-            if (borderOnly && !(entry.style & 0x00800000u))
-                continue;
             const int id = entry.id;
             if (!entry.width || !entry.height)
                 continue;
@@ -384,38 +486,13 @@ int main(int argc, char** argv) try {
             // Qualify steady states, independently of the host's animation
             // accessibility preference and the time between memory captures.
             widget->setProperty("_q_no_animation", true);
-#ifdef MDS_SYSTEM_CONTROL_REFERENCE
-            // Public regression uses the frozen original resource styles and
-            // independently painted Win32 controls. Full resource creation is
-            // separately checked by the optional original-executable oracle.
-            const auto control = CreateWindowExW(
-                // DS_3DLOOK dialog creation converts a listbox's WS_BORDER to
-                // WS_EX_CLIENTEDGE. CreateWindowEx alone does not do that.
-                entry.kind == NumericControlKind::Listbox ? WS_EX_CLIENTEDGE : 0,
-                entry.kind == NumericControlKind::Edit       ? L"EDIT"
-                : entry.kind == NumericControlKind::Combobox ? L"COMBOBOX"
-                : entry.kind == NumericControlKind::Listbox  ? L"LISTBOX"
-                : entry.kind == NumericControlKind::Slider   ? TRACKBAR_CLASSW
-                                                             : L"BUTTON",
-                L"",
-                entry.kind == NumericControlKind::Listbox ? entry.style & ~WS_BORDER : entry.style,
-                widget->x(), widget->y(), widget->width(), widget->height(), native,
-                reinterpret_cast<HMENU>(static_cast<INT_PTR>(id)), instance, nullptr);
-            if (control)
-                SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), FALSE);
-            if (control && entry.kind == NumericControlKind::Listbox)
-                SetWindowPos(control, nullptr, 0, 0, widget->width(), widget->height(),
-                             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
-#else
             const auto control = GetDlgItem(native, id);
-#endif
             Check(control && (visible || !IsWindowVisible(control)), "native reference control");
             if (!text)
                 SetWindowTextW(control, L""); // Isolate theme paint from font qualification.
             auto* button = qobject_cast<QAbstractButton*>(widget);
             if (button) {
                 if (text) {
-#ifndef MDS_SYSTEM_CONTROL_REFERENCE
                     std::wstring caption(GetWindowTextLengthW(control) + 1, L'\0');
                     caption.resize(GetWindowTextW(control, caption.data(), int(caption.size())));
                     if (QString::fromStdWString(caption) != button->text())
@@ -423,15 +500,79 @@ int main(int argc, char** argv) try {
                                      description->id, id);
                     Check(QString::fromStdWString(caption) == button->text(),
                           "actual original caption");
-#endif
                     SetWindowTextW(control, button->text().toStdWString().c_str());
                     SendMessageW(control, WM_CHANGEUISTATE,
                                  MAKEWPARAM(UIS_SET, UISF_HIDEFOCUS | UISF_HIDEACCEL), 0);
                 } else
                     button->setText({});
             }
-            if (auto* edit = qobject_cast<QLineEdit*>(widget))
-                edit->clear();
+            if (auto* edit = qobject_cast<QLineEdit*>(widget)) {
+                if (editText) {
+                    // Qualify inactive unscrolled contents here. Narrow
+                    // ES_AUTOHSCROLL fields use a fitting value; native scroll
+                    // offsets/selection remain a separate focus qualification.
+                    const auto caption = QString(entry.style & 0x80u ? "1.5" : "-12.5");
+                    edit->setText(caption);
+                    edit->setCursorPosition(0);
+                    SetWindowTextW(control, caption.toStdWString().c_str());
+                    SendMessageW(control, EM_SETSEL, 0, 0);
+                    RECT formatting{}, client{}, outer{};
+                    SendMessageW(control, EM_GETRECT, 0, reinterpret_cast<LPARAM>(&formatting));
+                    GetClientRect(control, &client);
+                    GetWindowRect(control, &outer);
+                    const auto margins = SendMessageW(control, EM_GETMARGINS, 0, 0);
+                    POINT origin{0, 0};
+                    MapWindowPoints(control, nullptr, &origin, 1);
+                    const QJsonObject layout{
+                        {"template", description->id},
+                        {"control", id},
+                        {"style", double(DWORD(GetWindowLongPtrW(control, GWL_STYLE)))},
+                        {"extendedStyle", double(DWORD(GetWindowLongPtrW(control, GWL_EXSTYLE)))},
+                        {"window",
+                         QJsonArray{int(outer.right - outer.left), int(outer.bottom - outer.top)}},
+                        {"client", QJsonArray{int(client.right), int(client.bottom)}},
+                        {"clientOffset",
+                         QJsonArray{int(origin.x - outer.left), int(origin.y - outer.top)}},
+                        {"format", QJsonArray{int(formatting.left), int(formatting.top),
+                                              int(formatting.right), int(formatting.bottom)}},
+                        {"margins", QJsonArray{LOWORD(margins), HIWORD(margins)}}};
+                    Check(widget->size() ==
+                              QSize(outer.right - outer.left, outer.bottom - outer.top),
+                          "original EDIT outer geometry");
+                    QJsonObject reference;
+                    for (const auto& item : editReference) {
+                        const auto value = item.toObject();
+                        if (value["template"] == description->id && value["control"] == id)
+                            reference = value;
+                    }
+                    if (layout != reference) {
+                        std::fprintf(
+                            stderr, "EDIT layout actual=%s expected=%s\n",
+                            QJsonDocument(layout).toJson(QJsonDocument::Compact).constData(),
+                            QJsonDocument(reference).toJson(QJsonDocument::Compact).constData());
+                    }
+                    Check(layout == reference, "independent original EDIT styles/client/margins");
+                    editLayouts.append(layout);
+                    QImage layoutPaint(edit->size(), QImage::Format_RGB32);
+                    edit->render(&layoutPaint);
+                    const auto nativeCursor = SendMessageW(control, EM_POSFROMCHAR, 0, 0);
+                    Check(nativeCursor != -1, "native EDIT character position");
+                    const QPoint expectedCursor(
+                        int(origin.x - outer.left) + short(LOWORD(nativeCursor)),
+                        int(origin.y - outer.top) + short(HIWORD(nativeCursor)));
+                    const auto cursor = edit->inputMethodQuery(Qt::ImCursorRectangle).toRect();
+                    // Qt 6.8.3 QWidgetLineControl::rectForPos includes a five-
+                    // pixel repaint halo to the left of the actual caret.
+                    editCursorMismatches += cursor.topLeft() + QPoint(5, 0) != expectedCursor;
+                    editCursorLayouts.append(
+                        QJsonObject{{"template", description->id},
+                                    {"control", id},
+                                    {"native", QJsonArray{expectedCursor.x(), expectedCursor.y()}},
+                                    {"qt", QJsonArray{cursor.x(), cursor.y(), cursor.width(),
+                                                      cursor.height()}}});
+                } else
+                    edit->clear();
+            }
             if (auto* combo = qobject_cast<QComboBox*>(widget)) {
                 COMBOBOXINFO geometry{sizeof(COMBOBOXINFO)};
                 Check(GetComboBoxInfo(control, &geometry), "native combo geometry");
@@ -481,130 +622,163 @@ int main(int argc, char** argv) try {
                 SendMessageW(control, TBM_SETRANGE, FALSE, MAKELONG(0, 100));
                 SendMessageW(control, TBM_SETTICFREQ, 1000, 0);
             }
-            for (unsigned state = 0; state < (focused                                     ? 1u
-                                              : slider                                      ? 8u
-                                              : entry.kind == NumericControlKind::Listbox ? 4u
-                                              : !button                                   ? 2u
-                                              : button->isCheckable()                     ? 6u
-                                                                                          : 3u);
-                 ++state) {
-                const bool enabled = state % 3 != 1, pressed = state % 3 == 2, checked = state >= 3;
-                EnableWindow(control, enabled);
-                widget->setEnabled(enabled);
-                if (slider) {
-                    constexpr int positions[]{0, 37, 50, 100};
-                    slider->setEnabled(state % 2 == 0);
-                    EnableWindow(control, state % 2 == 0);
-                    slider->setValue(positions[state / 2]);
-                    SendMessageW(control, TBM_SETPOS, TRUE, positions[state / 2]);
-                    QStyleOptionSlider option;
-                    option.initFrom(slider);
-                    option.orientation = Qt::Horizontal;
-                    option.minimum = 0;
-                    option.maximum = 100;
-                    option.sliderPosition = slider->value();
-                    option.tickPosition = slider->tickPosition();
-                    for (const auto part : {QStyle::SC_SliderGroove, QStyle::SC_SliderHandle}) {
-                        RECT r{};
-                        SendMessageW(control,
-                                     part == QStyle::SC_SliderGroove ? TBM_GETCHANNELRECT
-                                                                     : TBM_GETTHUMBRECT,
-                                     0, reinterpret_cast<LPARAM>(&r));
-                        Check(slider->style()->subControlRect(QStyle::CC_Slider, &option, part,
-                                                              slider) ==
-                                  QRect(r.left, r.top, r.right - r.left, r.bottom - r.top),
-                              "native trackbar channel/thumb geometry");
+            for (unsigned variant = 0; variant < (editText ? 5u : 1u); ++variant) {
+                if (editText) {
+                    const QString captions[]{
+                        entry.style & ES_AUTOHSCROLL ? "1.5" : "-12.5", QStringLiteral("\u65e5"),
+                        QStringLiteral("\u4e2d"), QStringLiteral("A\u65e5"),
+                        entry.style & ES_AUTOHSCROLL ? "1.5" : "12345678901234567890"};
+                    auto* edit = qobject_cast<QLineEdit*>(widget);
+                    edit->setText(captions[variant]);
+                    edit->setCursorPosition(0);
+                    SetWindowTextW(control, captions[variant].toStdWString().c_str());
+                    SendMessageW(control, EM_SETSEL, 0, 0);
+                }
+                for (unsigned state = 0; state < (editText                                    ? 4u
+                                                  : focused                                   ? 1u
+                                                  : slider                                    ? 8u
+                                                  : entry.kind == NumericControlKind::Listbox ? 4u
+                                                  : !button                                   ? 2u
+                                                  : button->isCheckable()                     ? 6u
+                                                                                              : 3u);
+                     ++state) {
+                    const bool enabled = editText ? state % 2 == 0 : state % 3 != 1;
+                    const bool pressed = state % 3 == 2, checked = state >= 3;
+                    EnableWindow(control, enabled);
+                    widget->setEnabled(enabled);
+                    if (editText) {
+                        auto* edit = qobject_cast<QLineEdit*>(widget);
+                        if (state >= 2)
+                            edit->selectAll();
+                        else
+                            edit->setCursorPosition(0);
+                        SendMessageW(control, EM_SETSEL, 0, state >= 2 ? -1 : 0);
                     }
-                }
-                if (auto* list = qobject_cast<QListWidget*>(widget)) {
-                    if (state == 2) {
-                        if (!content)
-                            list->addItem(QString());
-                        list->setCurrentRow(0);
-                        if (!content)
-                            SendMessageW(control, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L""));
-                        SendMessageW(control, LB_SETCURSEL, 0, 0);
+                    if (slider) {
+                        constexpr int positions[]{0, 37, 50, 100};
+                        slider->setEnabled(state % 2 == 0);
+                        EnableWindow(control, state % 2 == 0);
+                        slider->setValue(positions[state / 2]);
+                        SendMessageW(control, TBM_SETPOS, TRUE, positions[state / 2]);
+                        QStyleOptionSlider option;
+                        option.initFrom(slider);
+                        option.orientation = Qt::Horizontal;
+                        option.minimum = 0;
+                        option.maximum = 100;
+                        option.sliderPosition = slider->value();
+                        option.tickPosition = slider->tickPosition();
+                        for (const auto part : {QStyle::SC_SliderGroove, QStyle::SC_SliderHandle}) {
+                            RECT r{};
+                            SendMessageW(control,
+                                         part == QStyle::SC_SliderGroove ? TBM_GETCHANNELRECT
+                                                                         : TBM_GETTHUMBRECT,
+                                         0, reinterpret_cast<LPARAM>(&r));
+                            Check(slider->style()->subControlRect(QStyle::CC_Slider, &option, part,
+                                                                  slider) ==
+                                      QRect(r.left, r.top, r.right - r.left, r.bottom - r.top),
+                                  "native trackbar channel/thumb geometry");
+                        }
                     }
-                    // List states 2/3 retain the same selection while toggling enabled.
-                    const bool listEnabled = state % 2 == 0;
-                    list->setEnabled(listEnabled);
-                    EnableWindow(control, listEnabled);
-                }
-                if (button) {
-                    SendMessageW(control, BM_SETSTATE, pressed, 0);
-                    SendMessageW(control, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED, 0);
-                    button->setDown(pressed);
-                    button->setChecked(checked);
-                }
-                if (visible) {
-                    if (focused) {
-                        auto* list = qobject_cast<QListWidget*>(widget);
-                        if (list) {
+                    if (auto* list = qobject_cast<QListWidget*>(widget)) {
+                        if (state == 2) {
+                            if (!content)
+                                list->addItem(QString());
                             list->setCurrentRow(0);
+                            if (!content)
+                                SendMessageW(control, LB_ADDSTRING, 0,
+                                             reinterpret_cast<LPARAM>(L""));
                             SendMessageW(control, LB_SETCURSEL, 0, 0);
-                        } else
-                            Check(qobject_cast<QComboBox*>(widget) != nullptr,
-                                  "focus qualification combo");
-                        SetActiveWindow(native);
-                        SetFocus(control);
-                        Check(GetFocus() == control, "native control owns actual keyboard focus");
-                        SendMessageW(control, WM_UPDATEUISTATE,
-                                     MAKEWPARAM(UIS_CLEAR, UISF_HIDEFOCUS), 0);
+                        }
+                        // List states 2/3 retain the same selection while toggling enabled.
+                        const bool listEnabled = state % 2 == 0;
+                        list->setEnabled(listEnabled);
+                        EnableWindow(control, listEnabled);
                     }
-                    RedrawWindow(native, nullptr, nullptr,
-                                 RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN |
-                                     RDW_UPDATENOW);
-                    UpdateWindow(control);
-                    QCoreApplication::processEvents();
-                    if (focused)
-                        Check(GetFocus() == control, "native control retains focus before capture");
-                }
-                const auto expected = NativeImage(control, visible, borderOnly);
-                if (focused) {
-                    dialog.activateWindow();
-                    SetActiveWindow(reinterpret_cast<HWND>(dialog.winId()));
-                    QApplication::setActiveWindow(&dialog);
-                    widget->setFocus(Qt::TabFocusReason);
-                    QCoreApplication::processEvents();
-                    Check(widget->hasFocus(), "Qt control owns actual keyboard focus");
-                }
-                widget->resize(expected.size());
-                QImage actual(expected.size(), QImage::Format_RGB32);
-                actual.fill(app.palette().window().color());
-                if (borderOnly) {
-                    QStyleOptionFrame option;
-                    option.initFrom(widget);
-                    QPainter painter(&actual);
-                    widget->style()->drawPrimitive(QStyle::PE_FrameLineEdit, &option, &painter,
-                                                   widget);
-                } else
+                    if (button) {
+                        SendMessageW(control, BM_SETSTATE, pressed, 0);
+                        SendMessageW(control, BM_SETCHECK, checked ? BST_CHECKED : BST_UNCHECKED,
+                                     0);
+                        button->setDown(pressed);
+                        button->setChecked(checked);
+                    }
+                    if (visible) {
+                        if (focused) {
+                            auto* list = qobject_cast<QListWidget*>(widget);
+                            if (list) {
+                                list->setCurrentRow(0);
+                                SendMessageW(control, LB_SETCURSEL, 0, 0);
+                            } else
+                                Check(qobject_cast<QComboBox*>(widget) != nullptr,
+                                      "focus qualification combo");
+                            SetActiveWindow(native);
+                            SetFocus(control);
+                            Check(GetFocus() == control,
+                                  "native control owns actual keyboard focus");
+                            SendMessageW(control, WM_UPDATEUISTATE,
+                                         MAKEWPARAM(UIS_CLEAR, UISF_HIDEFOCUS), 0);
+                        }
+                        RedrawWindow(native, nullptr, nullptr,
+                                     RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN |
+                                         RDW_UPDATENOW);
+                        UpdateWindow(control);
+                        QCoreApplication::processEvents();
+                        if (focused)
+                            Check(GetFocus() == control,
+                                  "native control retains focus before capture");
+                    }
+                    const auto expected = NativeImage(control, visible, editClientOnly);
+                    if (focused) {
+                        dialog.activateWindow();
+                        SetActiveWindow(reinterpret_cast<HWND>(dialog.winId()));
+                        QApplication::setActiveWindow(&dialog);
+                        widget->setFocus(Qt::TabFocusReason);
+                        QCoreApplication::processEvents();
+                        Check(widget->hasFocus(), "Qt control owns actual keyboard focus");
+                    }
+                    if (!editClientOnly)
+                        widget->resize(expected.size());
+                    QImage actual(widget->size(), QImage::Format_RGB32);
+                    actual.fill(app.palette().window().color());
                     widget->render(&actual);
-                const auto difference = Difference(actual, expected);
-                const auto prefix =
-                    QString("%1-%2-%3-%4").arg(description->id).arg(code).arg(id).arg(state);
-                Check(expected.save(QString::fromStdWString(
-                          (output / (prefix.toStdWString() + L"-native.png")).wstring())),
-                      "save original control raster");
-                Check(actual.save(QString::fromStdWString(
-                          (output / (prefix.toStdWString() + L"-qt.png")).wstring())),
-                      "save Qt control raster");
-                std::printf("%d %s control=%d state=%u size=%dx%d different=%u\n", description->id,
-                            code, id, state, actual.width(), actual.height(), difference);
-                if (borderOnly) {
-                    borderMismatches += difference != 0;
-                    ++borderCases;
-                } else {
-                    mismatches += difference != 0;
-                    ++cases;
+                    if (editClientOnly) {
+                        RECT client{};
+                        Check(GetClientRect(control, &client), "edit client geometry");
+                        POINT origin{0, 0};
+                        MapWindowPoints(control, nullptr, &origin, 1);
+                        RECT outer{};
+                        Check(GetWindowRect(control, &outer), "edit outer geometry");
+                        actual = actual.copy(origin.x - outer.left, origin.y - outer.top,
+                                             client.right, client.bottom);
+                    }
+                    const auto difference = Difference(actual, expected);
+                    auto prefix =
+                        QString("%1-%2-%3-%4").arg(description->id).arg(code).arg(id).arg(state);
+                    if (editText)
+                        prefix += QString("-text%1").arg(variant);
+                    if (!editText || editExample || difference) {
+                        Check(expected.save(QString::fromStdWString(
+                                  (output / (prefix.toStdWString() + L"-native.png")).wstring())),
+                              "save original control raster");
+                        Check(actual.save(QString::fromStdWString(
+                                  (output / (prefix.toStdWString() + L"-qt.png")).wstring())),
+                              "save Qt control raster");
+                    }
+                    std::printf("%d %s control=%d state=%u size=%dx%d different=%u\n",
+                                description->id, code, id, state, actual.width(), actual.height(),
+                                difference);
+                    if (editClientOnly && !editText) {
+                        clientMismatches += difference != 0;
+                        ++clientCases;
+                    } else {
+                        mismatches += difference != 0;
+                        ++cases;
+                    }
                 }
             }
         }
         Check(visible || (!IsWindowVisible(native) && !dialog.isVisible()),
               "control qualification exposed a window");
         DestroyWindow(native);
-#ifdef MDS_SYSTEM_CONTROL_REFERENCE
-        DeleteObject(font);
-#endif
     }
     std::printf("%u native control-theme cases; %u mismatches; no desktop input\n", cases,
                 mismatches);
@@ -616,8 +790,8 @@ int main(int argc, char** argv) try {
         {"templates", int(templates)},
         {"cases", int(cases)},
         {"mismatches", int(mismatches)},
-        {"gdiBorderCases", int(borderCases)},
-        {"gdiBorderMismatches", int(borderMismatches)},
+        {"editClientCases", int(clientCases)},
+        {"editClientMismatches", int(clientMismatches)},
         {"trackbarGeometryCases", int(geometryCases)},
         {"textGeometryCases", int(textGeometryCases)},
         {"textGeometryKeyboardFocus", text},
@@ -625,19 +799,27 @@ int main(int argc, char** argv) try {
                            ? "exact RGB, EDIT normal/disabled including nonclient"
                            : "exact RGB, normal/disabled/pressed, checked/unchecked"},
         {"keyboardFocusCues", focused},
-        {"textGlyphs", text || content},
+        {"textGlyphs", text || content || editText},
+        {"editClientText", editText},
+        {"editTextVariants", editText ? 5 : 0},
+        {"inactiveEditSelection", editText},
+        {"savedEditImages", "all mismatches; one passing control per template/content/state"},
         {"listContent", content},
         {"comboLayouts", comboLayouts},
+        {"editLayouts", editLayouts},
+        {"editCursorLayouts", editCursorLayouts},
+        {"editCursorMismatches", int(editCursorMismatches)},
+        {"multilineReturn", multilineReturn},
         {"windowsShown", visible}};
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
-    report.insert("reference", "Win32 controls using frozen original resource styles");
+    report.insert("reference", "compiled byte-verified original RT_DIALOG resources");
 #else
     report.insert("reference", "actual hash-verified original dialog resources");
 #endif
     QFile file(QString::fromStdWString((output / "report.json").wstring()));
     Check(file.open(QIODevice::WriteOnly) && file.write(QJsonDocument(report).toJson()) > 0,
           "write native control qualification");
-    return mismatches || borderMismatches ? 1 : 0;
+    return mismatches || clientMismatches || editCursorMismatches ? 1 : 0;
 } catch (const std::exception& error) {
     std::fprintf(stderr, "%s\n", error.what());
     return 1;

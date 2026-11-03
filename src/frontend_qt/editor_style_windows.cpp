@@ -55,6 +55,63 @@ private:
     HGDIOBJ previous_ = nullptr;
 };
 }
+bool DrawWindowsEditText(QPainter& painter, const QRect& rect, const QFont& font,
+                         const QString& text, bool english, bool border, bool enabled,
+                         bool readOnly, bool autoScroll) {
+    const auto ratio = painter.device()->devicePixelRatioF();
+    WindowsCanvas canvas(qRound(rect.width() * ratio), qRound(rect.height() * ratio));
+    if (canvas.image.isNull())
+        return false;
+    const auto family = QFontInfo(font).family().toStdWString();
+    const auto nativeFont = CreateFontW(
+        -qRound(QFontInfo(font).pixelSize() * ratio), 0, 0, 0, font.bold() ? FW_BOLD : FW_NORMAL,
+        font.italic(), font.underline(), font.strikeOut(), DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+        CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, family.c_str());
+    if (!nativeFont)
+        return false;
+    const auto previous = SelectObject(canvas.dc, nativeFont);
+    if (!previous || previous == HGDI_ERROR) {
+        DeleteObject(nativeFont);
+        return false;
+    }
+    TEXTMETRICW metrics{};
+    const auto caption = text.toStdWString();
+    SIZE extent{};
+    if (!GetTextMetricsW(canvas.dc, &metrics) ||
+        !GetTextExtentPoint32W(canvas.dc, caption.c_str(), int(caption.size()), &extent)) {
+        SelectObject(canvas.dc, previous);
+        DeleteObject(nativeFont);
+        return false;
+    }
+    // These are the original dialog EDIT's EM_GETRECT / EM_GETMARGINS,
+    // independently qualified against Arial/Tahoma and MS PGothic. Native
+    // single-line EDITs align to the top, rather than Qt's vertical center.
+    const auto inset = border ? 3 : 0; // two client-edge pixels plus EDIT's inner pixel
+    const int left = qRound((inset + (english ? 3 : 1)) * ratio);
+    const int top = qRound(inset * ratio);
+    RECT formatting{left, top, canvas.image.width() - left,
+                    std::min(canvas.image.height() - top, top + int(metrics.tmHeight))};
+    // Scrolled edits retain Qt's own layout/offset until that state is
+    // separately qualified; this path changes only inactive unscrolled text.
+    const bool painted = !autoScroll || extent.cx <= formatting.right - formatting.left;
+    if (painted) {
+        RECT bounds{0, 0, canvas.image.width(), canvas.image.height()};
+        FillRect(canvas.dc, &bounds,
+                 GetSysColorBrush(enabled && !readOnly ? COLOR_WINDOW : COLOR_BTNFACE));
+        SetBkMode(canvas.dc, TRANSPARENT);
+        SetTextColor(canvas.dc, GetSysColor(enabled ? COLOR_WINDOWTEXT : COLOR_GRAYTEXT));
+        const int edge = qRound(inset * ratio);
+        const RECT clip{edge, edge, canvas.image.width() - edge, canvas.image.height() - edge};
+        ExtTextOutW(canvas.dc, formatting.left, formatting.top, ETO_CLIPPED, &clip, caption.c_str(),
+                    UINT(caption.size()), nullptr);
+        GdiFlush();
+        canvas.image.setDevicePixelRatio(ratio);
+        painter.drawImage(rect.topLeft(), canvas.image);
+    }
+    SelectObject(canvas.dc, previous);
+    DeleteObject(nativeFont);
+    return painted;
+}
 bool DrawWindowsListBorder(QPainter& painter, const QRect& rect, QStyle::State state) {
     const auto ratio = painter.device()->devicePixelRatioF();
     const auto theme = OpenThemeDataForDpi(nullptr, L"ListBox", UINT(qRound(96 * ratio)));

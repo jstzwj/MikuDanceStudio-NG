@@ -10,6 +10,33 @@
 #include <QVariant>
 
 namespace mikudancestudio::qt {
+namespace detail {
+// Some input contexts (including Qt 6.8's Windows IMM implementation) commit
+// their cached preedit before cancelling the native composition in reset().
+// Escape must discard that synchronous commit without rewriting the edit's
+// text, selection or undo stack. Only the reset call owns this filter.
+class DiscardPreeditCommit final : public QObject {
+protected:
+    bool eventFilter(QObject*, QEvent* event) override {
+        if (event->type() == QEvent::InputMethod)
+            static_cast<QInputMethodEvent*>(event)->setCommitString({});
+        return false;
+    }
+};
+template <class Reset> void CancelEditPreedit(QObject* object, Reset&& reset) {
+    const QPointer<QObject> target(object);
+    DiscardPreeditCommit discard;
+    object->installEventFilter(&discard);
+    reset();
+    if (target) {
+        target->removeEventFilter(&discard);
+        // Clear synthetic/replaced-context preedit as well. No text setter:
+        // the edit retains the user's existing undo/redo history.
+        QInputMethodEvent cancel;
+        QCoreApplication::sendEvent(target, &cancel);
+    }
+}
+}
 // Call before application-specific Enter/Escape handling. Qt text edits own
 // the preedit, while MMD commands must see only the eventual committed text.
 inline bool HandleEditComposition(QObject* object, QEvent* event) {
@@ -28,13 +55,7 @@ inline bool HandleEditComposition(QObject* object, QEvent* event) {
             return false;
         if (event->type() == QEvent::KeyPress) {
             if (key == Qt::Key_Escape) {
-                const QPointer<QObject> target(object);
-                QGuiApplication::inputMethod()->reset();
-                // Clear the widget's preedit even for a context which did not
-                // originate it (e.g. offscreen input or a replaced context).
-                QInputMethodEvent cancel;
-                if (target)
-                    QCoreApplication::sendEvent(target, &cancel);
+                detail::CancelEditPreedit(object, [] { QGuiApplication::inputMethod()->reset(); });
             } else
                 QGuiApplication::inputMethod()->commit();
         }

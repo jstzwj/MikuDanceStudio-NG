@@ -2904,7 +2904,19 @@
       "followup_run": 41684538568,
       "followup_revision": "6fcf893",
       "followup_host": "windows-2025",
-      "followup": "Qualify newer Microsoft IME separately. Server 2022 shutdown failure remains unaccepted."
+      "followup": "Windows Server 2025 failed after QApplication initialized but before the first status; no native composition scenario or normal exit qualified. Server 2022 shutdown failure remains open.",
+      "followup_accepted": false,
+      "followup_raw_artifact": "out/p4-ime-windows2025-ci/windows/system-ime-ms-ime.json and system-ime-ms-ime.en.log"
+    },
+    "current_followup": {
+      "status": "pending consolidated isolated qualification",
+      "production_manifest": true,
+      "startup_diagnostic_through_first_status": true,
+      "ci_text_input_services_recorded_and_started": true,
+      "language_install_reboot_required_rejected": true,
+      "reset_commit_cancellation_protected": true,
+      "natural_client_exit_required": true,
+      "forced_exit_is_failure": true
     }
   }
 }

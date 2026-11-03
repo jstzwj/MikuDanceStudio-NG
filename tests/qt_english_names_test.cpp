@@ -1,6 +1,7 @@
 #include "english_name_dialog.hpp"
 #include "editor_window.hpp"
 #include "model_labels.hpp"
+#include "edit_composition.hpp"
 #include "mikudancestudio/menu_commands.h"
 #include "mikudancestudio/english_name_edit.hpp"
 #include <QApplication>
@@ -24,6 +25,62 @@ std::string reason;
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
     CHECK(argc == 4 && QGuiApplication::platformName() == "offscreen");
+    // Independently reproduce input contexts which synchronously commit their
+    // cached preedit during reset (Qt's Windows IMM context does this). Escape
+    // must not insert it, consume a selection, or discard existing edit history.
+    for (const bool selected : {false, true}) {
+        QLineEdit line;
+        line.setText("prefix suffix");
+        line.setCursorPosition(6);
+        line.insert("!");
+        if (selected)
+            line.setSelection(0, 3);
+        const auto text = line.text(), selection = line.selectedText();
+        const auto cursor = line.cursorPosition(), start = line.selectionStart();
+        const auto undo = line.isUndoAvailable(), redo = line.isRedoAvailable();
+        qt::detail::CancelEditPreedit(&line, [&] {
+            QInputMethodEvent commit;
+            commit.setCommitString(QStringLiteral("\u65e5\u672c"), -2, 4);
+            QCoreApplication::sendEvent(&line, &commit);
+        });
+        CHECK(line.text() == text && line.selectedText() == selection &&
+              line.cursorPosition() == cursor && line.selectionStart() == start &&
+              line.isUndoAvailable() == undo && line.isRedoAvailable() == redo);
+        line.undo();
+        CHECK(line.text() == "prefix suffix");
+        line.redo();
+        CHECK(line.text() == text);
+
+        QPlainTextEdit multiline;
+        multiline.setPlainText("prefix\nsuffix");
+        auto textCursor = multiline.textCursor();
+        textCursor.setPosition(6);
+        textCursor.insertText("!");
+        if (selected) {
+            textCursor.setPosition(0);
+            textCursor.setPosition(3, QTextCursor::KeepAnchor);
+        }
+        multiline.setTextCursor(textCursor);
+        const auto multilineText = multiline.toPlainText();
+        const auto multilineUndo = multiline.document()->isUndoAvailable();
+        const auto multilineRedo = multiline.document()->isRedoAvailable();
+        qt::detail::CancelEditPreedit(&multiline, [&] {
+            QInputMethodEvent commit;
+            commit.setCommitString(QStringLiteral("\u65e5\u672c"), -2, 4);
+            QCoreApplication::sendEvent(&multiline, &commit);
+        });
+        CHECK(multiline.toPlainText() == multilineText &&
+              multiline.textCursor().position() == textCursor.position() &&
+              multiline.textCursor().anchor() == textCursor.anchor() &&
+              multiline.document()->isUndoAvailable() == multilineUndo &&
+              multiline.document()->isRedoAvailable() == multilineRedo);
+        multiline.undo();
+        CHECK(multiline.toPlainText() == "prefix\nsuffix");
+        multiline.redo();
+        CHECK(multiline.toPlainText() == multilineText);
+    }
+    auto* removedEdit = new QLineEdit;
+    qt::detail::CancelEditPreedit(removedEdit, [&] { delete removedEdit; });
     const auto root = std::filesystem::absolute(argv[1]);
     QFile file(QString::fromLocal8Bit(argv[3]));
     CHECK(file.open(QIODevice::ReadOnly));
@@ -162,7 +219,18 @@ int main(int argc, char** argv) {
             dialog = dynamic_cast<qt::EnglishNameDialog*>(
                 window.findChild<QDialog*>("mmd.englishNames"));
             CHECK(dialog && dialog->Active());
-            dialog->accept();
+            auto* multiline = dialog->findChild<QPlainTextEdit*>();
+            CHECK(multiline);
+            multiline->setPlainText("first");
+            auto cursor = multiline->textCursor();
+            cursor.movePosition(QTextCursor::End);
+            multiline->setTextCursor(cursor);
+            QTest::keyClick(multiline, Qt::Key_Return, Qt::ControlModifier);
+            CHECK(dialog->Active() && multiline->toPlainText() == "first\n");
+            multiline->undo();
+            CHECK(multiline->toPlainText() == "first");
+            QTest::keyClick(multiline, Qt::Key_Return);
+            CHECK(!dialog->Active()); // Both original templates omit ES_WANTRETURN.
             QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
             CHECK(session.ModelEnglishNames(0, names, reason) && names.enhanced &&
                   session.EnhancedModelDirty());

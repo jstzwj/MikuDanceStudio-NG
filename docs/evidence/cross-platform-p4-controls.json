@@ -1,7 +1,7 @@
 {
   "date": "2026-11-04",
   "accepted": true,
-  "scope": "Windows common-control steady theme paint, qualified button text/focus and displayed populated list/combo states; full P4 remains unaccepted",
+  "scope": "Windows common-control steady theme paint, button text/focus, displayed list/combo states, and hidden inactive unscrolled dialog EDIT client text; full P4 remains unaccepted",
   "original_sha256": "07516fd3bf1e6b1339836b6773a156f61bdd6f848eeb621fdda012375df313a1",
   "windows_build": "26100.9457",
   "original_resources": {
@@ -18,7 +18,8 @@
     "templates": 38,
     "textAndKeyboardFocusCues": false,
     "trackbarGeometryCases": 864,
-    "windowsShown": false
+    "windowsShown": false,
+    "superseded_edit_border_note": "Historical gdiBorderCases compare an independent FrameRect, not original EDIT nonclient paint. Superseded by resource-created client observations."
   },
   "public_regression": {
     "cases": 574,
@@ -34,10 +35,11 @@
     "templates": 38,
     "textAndKeyboardFocusCues": false,
     "trackbarGeometryCases": 864,
-    "windowsShown": false
+    "windowsShown": false,
+    "superseded_edit_border_note": "Historical gdiBorderCases compare an independent FrameRect, not original EDIT nonclient paint. Superseded by resource-created client observations."
   },
   "exclusions": [
-    "Text/focus outside the qualified corpora, including populated EDIT glyphs and unmeasured native input/hover transitions",
+    "EDIT focused/scrolled/multiline appearance, text/focus outside qualified corpora, and unmeasured native input/hover transitions",
     "Animations",
     "macOS and Linux theme paint",
     "Physical monitor transitions"
@@ -70,7 +72,9 @@
       "workflow_conclusion": "success",
       "focused_combo_cases": 22,
       "focused_combo_mismatches": 0,
-      "accepted_focused_combos": true
+      "accepted_focused_combos": true,
+      "accepted_original_edit_parity": false,
+      "edit_note": "Historical complete_edit_cases use the superseded direct-created plain-border public reference; list/combo qualification is separate."
     },
     "ordinary_editor_ci": {
       "run": 41681014398,
@@ -79,6 +83,26 @@
       "linux": "success",
       "macos": "success",
       "scope": "Complete ordinary editor gates and relocated packages, including native Metal without MoltenVK. Native IME/focused-control qualification remains separately recorded."
+    },
+    "current_local": {
+      "all_build": true,
+      "p4_passed": 74,
+      "p4_failed": 0,
+      "seconds": 313.91,
+      "log": "out/p4-edit-final-tests.log",
+      "junit": "out/p4/p4-edit-final.xml",
+      "distribution_check": "out/p4-edit-final-dist-check.log",
+      "package_sha256": "2e3851cbaa79cfd0ebcb1aa27b8d9ed82cbc53a69980ddc4e43ecd60fa709e86",
+      "final_all_build_log": "out/p4-edit-cursor-final-build.log",
+      "final_distribution_check": "out/p4-edit-cursor-dist-check.log",
+      "final_package_sha256": "0f2ffc46df652f3f265f02c10fceaa0e0444582f87c49d829e4d237019264a29",
+      "final_qt": {
+        "passed": 32,
+        "failed": 0,
+        "seconds": 179.8,
+        "log": "out/p4-edit-cursor-qt-tests.log",
+        "junit": "out/p4/p4-edit-cursor-qt.xml"
+      }
     }
   },
   "relocated_package": {
@@ -126,7 +150,7 @@
     "mismatches": 0,
     "comparison": "GDI FrameRect with COLOR_WINDOWFRAME, normal/disabled",
     "windowsShown": false,
-    "scope": "Border primitive only; complete control capture is separately qualified in isolated CI"
+    "scope": "Independent FrameRect primitive only; superseded as original dialog EDIT parity evidence."
   },
   "complete_edit_control": {
     "run": 41637849989,
@@ -146,7 +170,9 @@
       "templates": 38,
       "textAndKeyboardFocusCues": false,
       "windowsShown": true
-    }
+    },
+    "accepted_original_parity": false,
+    "superseded_reason": "Public reference directly created WS_BORDER edits instead of original dialog-managed WS_EX_CLIENTEDGE edits. The 460 zero-difference results do not qualify original EDIT borders."
   },
   "control_states": {
     "button_checkbox_radio": 426,
@@ -1051,5 +1077,207 @@
       "cases": 28,
       "mismatches": 22
     }
+  },
+  "original_resources_corrected": {
+    "cases": 574,
+    "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+    "editClientCases": 460,
+    "editClientMismatches": 0,
+    "editClientText": false,
+    "editTextVariants": 0,
+    "inactiveEditSelection": false,
+    "keyboardFocusCues": false,
+    "listContent": false,
+    "mismatches": 0,
+    "multilineReturn": [
+      {
+        "command": 1,
+        "consumedByDialog": true,
+        "control": 668,
+        "ctrl": false,
+        "dialogCode": 141,
+        "template": 666,
+        "text": "first"
+      },
+      {
+        "command": 0,
+        "consumedByDialog": true,
+        "control": 668,
+        "ctrl": true,
+        "dialogCode": 141,
+        "template": 666,
+        "text": "first\r\n"
+      },
+      {
+        "command": 1,
+        "consumedByDialog": true,
+        "control": 668,
+        "ctrl": false,
+        "dialogCode": 141,
+        "template": 665,
+        "text": "first"
+      },
+      {
+        "command": 0,
+        "consumedByDialog": true,
+        "control": 668,
+        "ctrl": true,
+        "dialogCode": 141,
+        "template": 665,
+        "text": "first\r\n"
+      }
+    ],
+    "os": "Windows 11 Version 24H2",
+    "platform": "windows",
+    "qt": "6.8.3",
+    "reference": "actual hash-verified original dialog resources",
+    "savedEditImages": "all mismatches; one passing control per template/content/state",
+    "style": "windowsvista",
+    "templates": 38,
+    "textGeometryCases": 0,
+    "textGeometryKeyboardFocus": false,
+    "textGlyphs": false,
+    "trackbarGeometryCases": 864,
+    "windowsShown": false
+  },
+  "public_regression_corrected": {
+    "cases": 574,
+    "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+    "editClientCases": 460,
+    "editClientMismatches": 0,
+    "editClientText": false,
+    "editTextVariants": 0,
+    "inactiveEditSelection": false,
+    "keyboardFocusCues": false,
+    "listContent": false,
+    "mismatches": 0,
+    "multilineReturn": [
+      {
+        "command": 1,
+        "consumedByDialog": true,
+        "control": 668,
+        "ctrl": false,
+        "dialogCode": 141,
+        "template": 666,
+        "text": "first"
+      },
+      {
+        "command": 0,
+        "consumedByDialog": true,
+        "control": 668,
+        "ctrl": true,
+        "dialogCode": 141,
+        "template": 666,
+        "text": "first\r\n"
+      },
+      {
+        "command": 1,
+        "consumedByDialog": true,
+        "control": 668,
+        "ctrl": false,
+        "dialogCode": 141,
+        "template": 665,
+        "text": "first"
+      },
+      {
+        "command": 0,
+        "consumedByDialog": true,
+        "control": 668,
+        "ctrl": true,
+        "dialogCode": 141,
+        "template": 665,
+        "text": "first\r\n"
+      }
+    ],
+    "os": "Windows 11 Version 24H2",
+    "platform": "windows",
+    "qt": "6.8.3",
+    "reference": "compiled byte-verified original RT_DIALOG resources",
+    "savedEditImages": "all mismatches; one passing control per template/content/state",
+    "style": "windowsvista",
+    "templates": 38,
+    "textGeometryCases": 0,
+    "textGeometryKeyboardFocus": false,
+    "textGlyphs": false,
+    "trackbarGeometryCases": 864,
+    "windowsShown": false
+  },
+  "edit_client_content": {
+    "date": "2026-11-04",
+    "accepted_for_scope": true,
+    "scope": "Never-shown inactive single-line EDIT client areas at 96 DPI; five numeric/Latin/Japanese/Chinese/mixed/long-text variants, enabled/disabled, inactive selected/unselected. Auto-scroll variants remain unscrolled.",
+    "original_controls": 230,
+    "templates": 38,
+    "frozen_native_layouts": "tests/reference/original-edit-layouts.json",
+    "public_resource_source": "res/templates/dialog/dialogs.rc, independently byte-checked against frozen original resources",
+    "correction": "docs/P4_EDIT_CLIENT_PARITY.md",
+    "complete_visible_control_accepted": false,
+    "visible_qualification": "Pending isolated runner with corrected actual dialog resources",
+    "original_resources": {
+      "cases": 4600,
+      "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+      "editClientCases": 0,
+      "editClientMismatches": 0,
+      "editClientText": true,
+      "editCursorMismatches": 0,
+      "editTextVariants": 5,
+      "inactiveEditSelection": true,
+      "keyboardFocusCues": false,
+      "listContent": false,
+      "mismatches": 0,
+      "multilineReturn": [],
+      "os": "Windows 11 Version 24H2",
+      "platform": "windows",
+      "qt": "6.8.3",
+      "reference": "actual hash-verified original dialog resources",
+      "savedEditImages": "all mismatches; one passing control per template/content/state",
+      "style": "windowsvista",
+      "templates": 38,
+      "textGeometryCases": 0,
+      "textGeometryKeyboardFocus": false,
+      "textGlyphs": true,
+      "trackbarGeometryCases": 864,
+      "windowsShown": false,
+      "frozen_layouts_matched": 230,
+      "native_caret_positions_matched": 230
+    },
+    "public_regression": {
+      "cases": 4600,
+      "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+      "editClientCases": 0,
+      "editClientMismatches": 0,
+      "editClientText": true,
+      "editCursorMismatches": 0,
+      "editTextVariants": 5,
+      "inactiveEditSelection": true,
+      "keyboardFocusCues": false,
+      "listContent": false,
+      "mismatches": 0,
+      "multilineReturn": [],
+      "os": "Windows 11 Version 24H2",
+      "platform": "windows",
+      "qt": "6.8.3",
+      "reference": "compiled byte-verified original RT_DIALOG resources",
+      "savedEditImages": "all mismatches; one passing control per template/content/state",
+      "style": "windowsvista",
+      "templates": 38,
+      "textGeometryCases": 0,
+      "textGeometryKeyboardFocus": false,
+      "textGlyphs": true,
+      "trackbarGeometryCases": 864,
+      "windowsShown": false,
+      "frozen_layouts_matched": 230,
+      "native_caret_positions_matched": 230
+    },
+    "caret_scope": "Initial character/caret positions against independent EM_POSFROMCHAR, accounting for the pinned Qt 6.8.3 cursor repaint halo; shown candidate popup geometry remains unqualified."
+  },
+  "composition_cancel_regression": {
+    "line_edit": true,
+    "multiline_edit": true,
+    "selected_and_unselected": true,
+    "reset_time_commit_and_replacement_range": true,
+    "text_cursor_selection_undo_redo_preserved": true,
+    "target_deleted_during_reset": true,
+    "native_ime_shutdown_accepted": false
   }
 }

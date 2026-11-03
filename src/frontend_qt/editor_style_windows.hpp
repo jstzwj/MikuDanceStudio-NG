@@ -13,6 +13,8 @@ namespace mikudancestudio::ui {
 struct TrackbarGeometry;
 }
 namespace mikudancestudio::qt {
+bool DrawWindowsEditText(QPainter&, const QRect&, const QFont&, const QString&, bool english,
+                         bool border, bool enabled, bool readOnly, bool autoScroll);
 bool DrawWindowsListRow(QPainter&, const QRect&, const QFont&, const QString&, bool selected,
                         bool enabled, bool keyboardFocus);
 bool DrawWindowsListBorder(QPainter&, const QRect&, QStyle::State);

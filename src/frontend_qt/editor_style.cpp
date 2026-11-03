@@ -45,6 +45,9 @@ public:
     }
     int pixelMetric(PixelMetric metric, const QStyleOption* option,
                     const QWidget* widget) const override {
+        if (metric == PM_DefaultFrameWidth && widget &&
+            widget->property("mmdNativeSunkenEdit").toBool())
+            return 2;
         if (widget && widget->property("mmdNativeTrackbar").toBool())
             if (const auto* slider = qstyleoption_cast<const QStyleOptionSlider*>(option)) {
                 const auto geometry = SliderGeometry(*slider);
@@ -78,9 +81,16 @@ public:
             DrawWindowsSunkenBorder(*painter, option->rect);
             return;
         }
-        // Original EDIT controls use WS_BORDER, not WS_EX_CLIENTEDGE. Qt's
-        // themed frame changes color on focus/disable; the native plain border
-        // consistently uses COLOR_WINDOWFRAME in these states.
+        // DS_3DLOOK turns the resource EDIT's WS_BORDER into CLIENTEDGE.
+        // Only the hidden classic edge is handled here; shown controls use
+        // the native Vista edit theme, including its normal focus/disable state.
+        if (element == PE_FrameLineEdit && widget &&
+            widget->property("mmdNativeSunkenEdit").toBool() && !widget->isVisible() &&
+            baseStyle()->objectName() == "windowsvista") {
+            DrawWindowsSunkenBorder(*painter, option->rect);
+            return;
+        }
+        // Main-window edits are created directly, without DS_3DLOOK conversion.
         if (element == PE_FrameLineEdit && widget &&
             widget->property("mmdNativeWindowBorder").toBool() &&
             baseStyle()->objectName() == "windowsvista") {

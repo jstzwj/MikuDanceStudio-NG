@@ -242,8 +242,8 @@ def main():
                                                language, str(status), str(request)], env=env,
                                               stdout=log, stderr=subprocess.STDOUT)
 
-                    def wait(predicate, label):
-                        deadline = time.monotonic() + 12
+                    def wait(predicate, label, timeout=12):
+                        deadline = time.monotonic() + timeout
                         latest = {}
                         while time.monotonic() < deadline and client.poll() is None:
                             if status.exists():
@@ -297,7 +297,9 @@ def main():
                                 return state, states
                         raise RuntimeError(f'{label}: native preedit did not end: {states}')
 
-                    wait(lambda s: s['active'], 'startup')
+                    # Fresh hosted language/font installation may require more
+                    # initialization time. Input/command timeouts stay strict.
+                    wait(lambda s: s['active'], 'startup', timeout=60)
                     command('select')
                     wait(lambda s: s['focus'] and s['command'] == sequence, 'native focus')
                     native.activate(command, wait)

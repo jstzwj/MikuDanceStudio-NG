@@ -229,7 +229,6 @@ int main(int argc, char** argv) {
 #endif
     QApplication app(argc, argv);
 #ifdef _WIN32
-    shutdownDiagnostic.Cancel();
     std::fprintf(stderr, "IME QApplication ready\n");
     std::fflush(stderr);
 #endif
@@ -247,6 +246,8 @@ int main(int argc, char** argv) {
         return 2;
     }
     LifetimeTrace sessionTrace{"session"};
+    std::fprintf(stderr, "IME constructing generated scene\n");
+    std::fflush(stderr);
     editor::EditorSession session;
     std::string reason;
     if (!session.New(reason) || !session.ImportModel(std::filesystem::u8path(argv[1]), reason) ||
@@ -255,10 +256,16 @@ int main(int argc, char** argv) {
         return 1;
     }
     qt::Language language;
+    std::fprintf(stderr, "IME loading UI language\n");
+    std::fflush(stderr);
     if (!language.Set(argv[2]))
         return 1;
     LifetimeTrace dialogTrace{"dialog"};
+    std::fprintf(stderr, "IME constructing dialog and fonts\n");
+    std::fflush(stderr);
     qt::EnglishNameDialog dialog(session, language);
+    std::fprintf(stderr, "IME dialog ready\n");
+    std::fflush(stderr);
     dialog.setWindowTitle(QString("MDS-IBus-%1").arg(argv[2]));
     QLineEdit* field = nullptr;
     for (auto* edit : dialog.findChildren<QLineEdit*>())
@@ -275,6 +282,7 @@ int main(int argc, char** argv) {
     unsigned command = 0;
     unsigned publicationFailures = 0, publicationRetries = 0;
     bool finishing = false;
+    bool published = false;
     QTimer timer;
     QObject::connect(&timer, &QTimer::timeout, [&] {
         QFile input(QString::fromLocal8Bit(argv[4]));
@@ -373,6 +381,14 @@ int main(int argc, char** argv) {
             return;
         }
         publicationFailures = 0;
+        if (!published) {
+            published = true;
+#ifdef _WIN32
+            shutdownDiagnostic.Cancel();
+#endif
+            std::fprintf(stderr, "IME first status published\n");
+            std::fflush(stderr);
+        }
         if (finishing) {
             timer.stop();
             const auto result = unchanged && dialog.Active() && reason.empty() ? 0 : 1;

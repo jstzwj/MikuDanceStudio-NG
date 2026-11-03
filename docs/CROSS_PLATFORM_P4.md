@@ -4,6 +4,13 @@ Status: **in progress**. P4 and C1 have not been accepted. The current work also
 includes strict MMD v9.32 layout/behavior parity and multilingual UI, as requested
 on 2026-11-01. These are acceptance requirements, not claims about this revision.
 
+2026-11-04 reference correction: the former public EDIT oracle did not reproduce
+the dialog manager's client-edge conversion. Its complete empty-EDIT results are
+withdrawn as original-MMD parity evidence. Public tests now instantiate the
+byte-verified original dialog resources and compare 4,600 populated EDIT client
+states against native output; the actual original-resource observer independently
+passes the same cases. See [EDIT parity correction](P4_EDIT_CLIENT_PARITY.md).
+
 The Qt runtime now carries the hash-pinned, unmodified Noto Sans CJK 2.004 Regular
 collection and OFL notice. Installed original fonts remain preferred. Both JP and
 SC faces and representative Japanese/Simplified Chinese glyphs are checked in the
@@ -87,8 +94,10 @@ ticks/no ticks, three ranges and four positions at the 96-DPI logical scale.
 Windows paints the native themed downward thumb even with `TBS_NOTICKS`; the
 ground-shadow dialog no longer incorrectly enables tick marks. Qt drag tests
 cover both end stops in all three languages and four scale profiles.
-Separately, isolated Windows CI run **41637849989** qualifies 460 complete
-empty EDIT normal/disabled captures, including nonclient paint. The button text
+The former 460 complete empty EDIT comparisons in isolated run **41637849989**
+used an incorrectly reconstructed public reference; they do not qualify original
+dialog EDIT nonclient paint. The corrected resource-based visible gate remains
+separate from hidden client-area comparisons. The button text
 qualification described below adds 426 actual-caption states and 936 independent
 font/height/focus cases. Other populated control families, hover animations and
 non-Windows theme paint remain outside this qualification;
@@ -156,15 +165,21 @@ scenario with native sentence mode 1. Its event loop returned 0 and the
 observer, dialog and session destructors completed. `QApplication` native window
 destruction subsequently blocked in `NtUserDestroyWindow` → MSCTF → `imjpapi`
 waiting on an internal event. No forced exit is accepted. Windows Server 2025
-is now a separately identified opt-in runner profile; run **41684538568** checks
-its newer native IME. The Server 2022 shutdown failure remains open.
+is a separately identified opt-in runner profile. Run **41684538568** also failed:
+`QApplication` initialized, but no first status was published and no composition
+scenario ran. Its newer IME is not qualified. The Server 2022 shutdown failure
+remains open. The latest client uses the production manifest and extends startup
+diagnostics through dialog/font creation; the isolated workflow prepares and
+records native input services before attempting qualification.
 
-Windows run **41671549143** at `830201b` passed all **73 P4 regressions**, all 460
-complete empty EDIT comparisons and all **68 displayed populated list/combobox
+Windows run **41671549143** at `830201b` passed all **73 P4 regressions** and all
+**68 displayed populated list/combobox
 states** with exact RGB equality. Run **41677249943** at `68493ae` subsequently
 passed all those gates and all **six actual keyboard-focus list cases**, with
 successful package relocation and a successful complete workflow. The earlier
 24 hidden populated-list comparisons remain separate evidence.
+The 460 empty EDIT comparisons in those historical runs used the superseded
+reference and do not qualify original-MMD EDIT appearance.
 
 The selected-target clipboard command (250, F) is now connected to the shared
 session and all three Qt languages. It pastes only copied bone/accessory keys
@@ -4286,6 +4301,10 @@ from the package. Precise scope is retained in
 GitHub Windows runner to investigate EDIT nonclient paint; local P4 labels never
 enable this path.
 
+**Superseded EDIT diagnosis:** the following historical paragraph used a public
+reference that bypassed the dialog manager. Its plain-border conclusion does
+not apply to original dialog EDITs; see the correction linked at the top.
+
 The complete EDIT capture in isolated Windows run **41633026492** established
 that original `WS_BORDER` controls use `COLOR_WINDOWFRAME` in both enabled and
 disabled states; Qt's Vista frame used different normal/disabled theme colors.
@@ -4306,6 +4325,9 @@ normal/disabled captures across all 38 templates** on isolated Windows Server
 2022. It paints empty controls, including their complete nonclient borders;
 text glyphs and active-focus appearance remain separate. The ordinary Windows,
 macOS and Linux editor jobs all passed at `97eb8bc` (run **41635631867**).
+These historical EDIT comparisons are withdrawn as original parity evidence;
+they compared direct-created plain-border controls rather than dialog-managed
+client-edge controls. The ordinary editor workflow results remain historical facts.
 
 The no-`ES_AUTOHSCROLL` numeric fields now limit ASCII user insertion/paste by
 the original glyph advances and client-width rule. Selection replacement keeps
