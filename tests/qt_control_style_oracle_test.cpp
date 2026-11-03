@@ -37,8 +37,15 @@ INT_PTR CALLBACK HiddenDialog(HWND, UINT, WPARAM, LPARAM) {
     return FALSE;
 }
 QImage NativeImage(HWND control, bool visible) {
-    RECT rectangle{};
-    Check(GetWindowRect(control, &rectangle), "native control window rectangle");
+    RECT rectangle{}, child{};
+    Check(GetWindowRect(control, &child), "native control window rectangle");
+    // EDIT does not implement PrintWindow on every Windows version. Ask the
+    // dialog to paint its complete child hierarchy, then crop our own control.
+    // This never reads the screen or another process's window.
+    const auto capture = visible ? GetParent(control) : control;
+    Check(GetWindowRect(capture, &rectangle), "native capture window rectangle");
+    const QRect crop(child.left - rectangle.left, child.top - rectangle.top,
+                     child.right - child.left, child.bottom - child.top);
     const int width = rectangle.right - rectangle.left, height = rectangle.bottom - rectangle.top;
     rectangle = {0, 0, width, height};
     auto dc = CreateCompatibleDC(nullptr);
@@ -56,13 +63,14 @@ QImage NativeImage(HWND control, bool visible) {
     const auto previous = SelectObject(dc, bitmap);
     FillRect(dc, &rectangle, GetSysColorBrush(COLOR_BTNFACE));
     if (visible)
-        Check(PrintWindow(control, dc, 0), "capture our control in the isolated runner");
+        Check(PrintWindow(capture, dc, 2), "capture our dialog in the isolated runner");
     else
         SendMessageW(control, WM_PRINT, reinterpret_cast<WPARAM>(dc),
                      PRF_CLIENT | PRF_NONCLIENT | PRF_ERASEBKGND);
     GdiFlush();
     QImage image(static_cast<unsigned char*>(bits), width, height, width * 4, QImage::Format_RGB32);
-    auto copy = image.copy();
+    Check(image.rect().contains(crop), "control is inside native dialog capture");
+    auto copy = image.copy(crop);
     SelectObject(dc, previous);
     DeleteObject(bitmap);
     DeleteDC(dc);
