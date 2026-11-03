@@ -635,5 +635,12 @@
   "dialog.about.title": "About",
   "dialog.about_physics.title": "关于物理引擎",
   "dialog.about.body": "MikuDanceStudio-NG Ver.%1\n\n基于 MikuMikuDance Ver.9.32\n原作者：Yu Higuchi",
-  "dialog.model_key_capacity.message": "关键帧数量不能超过 %1。\n请执行“删除无用帧”。"
+  "dialog.model_key_capacity.message": "关键帧数量不能超过 %1。\n请执行“删除无用帧”。",
+  "dialog.vsq.title": "导入 VSQ 数据",
+  "dialog.vsq.missing": "模型缺少“%1”口型表情，无法自动生成口型。",
+  "dialog.vsq.missing_title": "自动口型",
+  "dialog.vsq.analysis_title": "VSQ 解析",
+  "dialog.vsq.analysis": "VSQ 解析失败。",
+  "dialog.vsq.open": "无法打开 VSQ 文件。",
+  "dialog.vsq.sysex": "VSQ 包含不支持的 SysEx 事件。"
 }

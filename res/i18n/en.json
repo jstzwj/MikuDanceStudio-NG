@@ -635,5 +635,12 @@
   "dialog.about.title": "About",
   "dialog.about_physics.title": "about physical engine",
   "dialog.about.body": "MikuDanceStudio-NG Ver.%1\n\nBased on MikuMikuDance Ver.9.32\nprogrammed by Yu Higuchi",
-  "dialog.model_key_capacity.message": "You cannot regist over %1 point\nPlease execute 'delete unused frame'"
+  "dialog.model_key_capacity.message": "You cannot regist over %1 point\nPlease execute 'delete unused frame'",
+  "dialog.vsq.title": "load vsq data",
+  "dialog.vsq.missing": "Cannot Lipsync because this model has not facial data of '%1'!!",
+  "dialog.vsq.missing_title": "lipsync",
+  "dialog.vsq.analysis_title": "vsq analysis",
+  "dialog.vsq.analysis": "vsq analysis error!!",
+  "dialog.vsq.open": "Cannot open VSQ file",
+  "dialog.vsq.sysex": "SysEx event is present. I give up!"
 }

@@ -913,6 +913,17 @@ QString EditorWindow::ChooseFile(FileKind kind, bool save, const QString& title,
     return path;
 }
 void EditorWindow::FileAction(const QString& id, const QString& inputPath) {
+    if (id == "file.lipsync") {
+        const auto path = inputPath.isEmpty()
+                              ? ChooseFile(FileKind::Vsq, false, language_.Text("dialog.vsq.title"),
+                                           "vsq files(*.vsq)")
+                              : inputPath;
+        if (!path.isEmpty()) {
+            LoadLipSync(path);
+            Refresh();
+        }
+        return;
+    }
     if (id == "view.screen_size") {
         ScreenSize();
         return;
@@ -1154,6 +1165,9 @@ void EditorWindow::DropFiles(const QList<QUrl>& urls) {
             remember(FileKind::Wave);
             Result(session_.ImportWave(Path(path), reason), reason);
             break;
+        case DroppedFileKind::Vocaloid:
+            LoadLipSync(path);
+            break;
         case DroppedFileKind::Bitmap:
         case DroppedFileKind::Jpeg:
             if (kind == DroppedFileKind::Bitmap)
@@ -1169,6 +1183,43 @@ void EditorWindow::DropFiles(const QList<QUrl>& urls) {
             break;
         }
         Refresh();
+    }
+}
+void EditorWindow::LoadLipSync(const QString& path) {
+    std::string reason;
+    unsigned failed = 0;
+    if (session_.ImportVsq(Path(path), reason, &failed)) {
+        lastError_.clear();
+        KeyOverflow(failed, 20000, true);
+        return;
+    }
+    QString message;
+    if (reason.compare(0, 12, "vsq-missing-") == 0) {
+        const auto vowel = reason.back();
+        const auto kana = vowel == 'a'   ? 0x3042
+                          : vowel == 'i' ? 0x3044
+                          : vowel == 'u' ? 0x3046
+                                         : 0x304a;
+        message = language_.Text("dialog.vsq.missing")
+                      .arg(language_.Code() == "en" ? QChar(vowel) : QChar(ushort(kana)));
+    } else
+        message = language_.Text(reason == "vsq-sysex-unsupported" ? "dialog.vsq.sysex"
+                                 : reason == "vsq-open-error"      ? "dialog.vsq.open"
+                                                                   : "dialog.vsq.analysis");
+    lastError_ = message;
+    if (!testing_) {
+        const auto title = language_.Text(reason.compare(0, 12, "vsq-missing-") == 0
+                                              ? "dialog.vsq.missing_title"
+                                              : "dialog.vsq.analysis_title");
+        QMessageBox dialog(QMessageBox::NoIcon, title, message, QMessageBox::Ok, this);
+        dialog.setOption(QMessageBox::Option::DontUseNativeDialog);
+        dialog.QDialog::setWindowTitle(title);
+        const bool running = timer_.isActive();
+        timer_.stop();
+        dialog.exec();
+        clock_.restart();
+        if (running)
+            timer_.start();
     }
 }
 void EditorWindow::ScreenSize() {

@@ -31,6 +31,8 @@ const char* FileCommand(int command) {
         return "file.motion_save";
     case MDS_CMD_LOAD_WAVE:
         return "file.wave";
+    case MDS_CMD_LOAD_LIP_SYNC:
+        return "file.lipsync";
     case MDS_CMD_RENDER_IMAGE:
         return "file.image";
     case MDS_CMD_NUMERIC_INPUT:
@@ -90,6 +92,7 @@ bool ModelCommand(int command) {
     case MDS_CMD_REGISTER_BLINKING:
     case MDS_CMD_DELETE_EYE_FRAMES:
     case MDS_CMD_DELETE_EYEBROW_FRAMES:
+    case MDS_CMD_LOAD_LIP_SYNC:
         return true;
     default:
         return false;

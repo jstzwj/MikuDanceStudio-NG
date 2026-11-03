@@ -3427,3 +3427,66 @@ settings. The complete clipboard/input and C1 acceptance gates remain open.
 
 Local `ALL_BUILD`, all **45 P4 gates (171.32 seconds)** and the final native
 paste-capacity rerun passed for this revision.
+
+
+The partial-paste revision `ae83ed8` passed all three Portable editor jobs in
+[CI 41562703954](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41562703954).
+The separate foundation workflow exposed an outdated Morph predecessor assertion
+on all four profiles. `dad2174` updates it to accept the native-cleared first
+predecessor while still rejecting a predecessor at the typed pool limit; the
+focused local evaluation test passed. This records a test correction, not a
+relaxation of the original executable clipboard comparisons.
+
+## VSQ automatic lip-sync (2026-11-03)
+
+Command 224 and VSQ drops now enter the same portable bounded SMF reader and
+editor operation. The menu requires a stopped selected model, cancellation is a
+no-op, and the native `UserFile/Vsq` directory is used independently of previous
+folder history. English, Japanese and Chinese use the same operation. The menu
+implementation count is **88/103**. Existing seven-category folder settings are
+accepted alongside the new representation.
+
+The reader retains native one-byte metadata lengths and eight-byte VSQ text
+prefixes, sequential ID/handle lookup, CP932 lyric bytes, vowel/consonant
+classification and report formatting. Unlike the older x86 reconstruction,
+the original x64 uses float division, multiplication and accumulation throughout.
+Its tempo traversal subtracts each next *absolute* tempo time, including for
+three or more changes, and note duration uses the starting tempo segment. These
+behaviors are retained. Mouth keys use truncated float seconds times 30, a
+two-frame lead-in, A/I/U/O envelopes and synthesized E=A+I. Every model key mark
+is cleared, only the selected model is sought, and bone history, other live
+poses and CPU simulation counts survive. Missing mouth data retains document and
+history but marks the scene modified, as the native menu does.
+
+The command writes the native `.txt` analysis alongside the input, replacing
+the first whole-path lowercase `.vsq` occurrence as in MMD. The public fixtures
+contain no third-party model/music data. The optional auxiliary `--vsq` oracle
+runs **16 complete original menu commands** over generated PMD and PMX models:
+all consonant groups, all five vowels, silent phonemes, H inheritance, changed
+tempos/divisions, full and nearly-full pools. Complete Morph tables, linked
+slots, payloads, selection marks, model/application watermarks, seek/scroll,
+capacity messages and report bytes match. Two additional missing-mouth commands
+check exact native message/caption, retained pools, no seek and the modified
+flag. Its frozen table hash
+`6ba3f777ceba5cd4` is enforced by the portable regression.
+
+The portable gate additionally checks every truncated prefix, corrupt headers,
+missing-mouth state, report creation, play gating, retained resources/CPU/history,
+other-model poses and PMM save/reopen. Offscreen Qt tests exercise menus,
+cancellation, original file filter/folder, ordered drops and a detached viewport
+in all three languages. Inputs with missing structures, unsupported events or
+unrepresentable negative/overflowing lead-in frames return bounded errors;
+original out-of-bounds/invalid-file behavior is not claimed as compatibility.
+Native transient debug dumps on malformed analysis are not reproduced. Physical
+file-permission dialogs and all malformed historical VSQ dialects remain outside
+this evidence.
+
+
+Local `ALL_BUILD` and all **46 P4 gates (194.44 seconds)** passed. After moving
+the standalone reader into the formats library, the four touched integration
+gates and final 16-command native observer passed again. Repeated P2 scene
+qualification also passed twice: 31 scene/mode cases each, unchanged frozen
+snapshots and input hashes, maximum absolute difference 5.603e-05 within the
+existing relative contract. The fixture directory creation is now idempotent;
+this fixes the separate foundation workflow's second-run failure without
+changing any existing PMM/model baseline bytes. P4/C1 remains in progress.

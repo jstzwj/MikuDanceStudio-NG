@@ -50,6 +50,12 @@ int main(int argc, char** argv) {
     const auto base = qt::Path(root);
     for (unsigned i = 0; i < unsigned(qt::FileKind::Count); ++i) {
         const auto kind = qt::FileKind(i);
+        if (kind == qt::FileKind::Vsq) {
+            CHECK(history.Initial(kind, base) == QDir(base).filePath("UserFile/Vsq"));
+            history.Confirm(kind, QDir(base).filePath("ignored/voice.vsq"));
+            CHECK(history.Initial(kind, base) == QDir(base).filePath("UserFile/Vsq"));
+            continue;
+        }
         const auto path = QDir(base).filePath(QString("folder-%1/file.dat").arg(i));
         const auto initial = history.Initial(kind, base);
         history.Confirm(kind, {});
@@ -469,7 +475,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 87);
+    CHECK(implemented == 88);
     for (const char* language : {"en", "ja", "zh_CN"}) {
         qt::EditorWindow about(std::filesystem::absolute(argv[2]), true);
         CHECK(about.SetLanguage(language));

@@ -635,5 +635,12 @@
   "dialog.about.title": "About",
   "dialog.about_physics.title": "物理エンジンについて",
   "dialog.about.body": "MikuDanceStudio-NG Ver.%1\n\nMikuMikuDance Ver.9.32 を基に開発\nprogrammed by 樋口優",
-  "dialog.model_key_capacity.message": "登録ポイント数が%1個を超えました\nこれ以上の登録は行えません\n「ﾌﾚｰﾑ編集」の「不用ﾌﾚｰﾑ削除」を実行して下さい"
+  "dialog.model_key_capacity.message": "登録ポイント数が%1個を超えました\nこれ以上の登録は行えません\n「ﾌﾚｰﾑ編集」の「不用ﾌﾚｰﾑ削除」を実行して下さい",
+  "dialog.vsq.title": "vsqデータ読み込み",
+  "dialog.vsq.missing": "このモデルの表情に“%1”の形がない為\n自動リップシンクはできません",
+  "dialog.vsq.missing_title": "vsq解析",
+  "dialog.vsq.analysis_title": "vsq解析",
+  "dialog.vsq.analysis": "vsq解析エラー発生！！",
+  "dialog.vsq.open": "VSQファイルが読み込めません",
+  "dialog.vsq.sysex": "SysExイベントがあります。お手上げ＿(^o^)＿"
 }

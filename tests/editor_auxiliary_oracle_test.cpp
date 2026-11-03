@@ -15,6 +15,8 @@
 #include "editor_blink_fixture.hpp"
 #include "editor_key_capacity_fixture.hpp"
 #include "editor_paste_capacity_fixture.hpp"
+#include "editor_vsq_fixture.hpp"
+#include "mikudancestudio/vsq_format.hpp"
 #include "editor_camera_scale_fixture.hpp"
 #include "gravity_edit_reference.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
@@ -2771,6 +2773,142 @@ unsigned PasteCapacity(OriginalPhysicsModule& original) {
                 static_cast<unsigned long long>(hash));
     return cases;
 }
+std::wstring vsqInputPath;
+unsigned vsqSeekCount;
+int vsqSoughtFrame;
+BOOL WINAPI SelectVsqFile(OPENFILENAMEW* options) {
+    Check(vsqInputPath.size() < options->nMaxFile, "native VSQ file buffer");
+    Check(std::wstring(options->lpstrInitialDir) == L"UserFile\\Vsq",
+          "native VSQ initial directory");
+    std::copy(vsqInputPath.begin(), vsqInputPath.end(), options->lpstrFile);
+    options->lpstrFile[vsqInputPath.size()] = 0;
+    return TRUE;
+}
+void ObserveVsqSeek(mdl::ModelRecord*, int frame, int) {
+    ++vsqSeekCount;
+    vsqSoughtFrame = frame;
+}
+unsigned VsqCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    const unsigned char ret = 0xc3;
+    Patch paint(original.Function<void*>(0x60ea0), &ret, 1);
+    auto open = &SelectVsqFile;
+    auto directory = &IgnoreCurrentDirectory;
+    auto child = &ResetChild;
+    auto length = +[](HWND) -> int { return 0; };
+    auto message = +[](HWND, UINT, WPARAM, LPARAM) -> LRESULT { return 0; };
+    auto reject = &CapacityMessage;
+    Patch a(original.Function<void*>(0x128090), &open, sizeof open);
+    Patch b(original.Function<void*>(0x128278), &directory, sizeof directory);
+    Patch c(original.Function<void*>(0x128658), &child, sizeof child);
+    Patch d(original.Function<void*>(0x1286c8), &length, sizeof length);
+    Patch e(original.Function<void*>(0x1287b8), &message, sizeof message);
+    Patch f(original.Function<void*>(0x128618), &reject, sizeof reject);
+    unsigned char jump[]{0x48, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xe0};
+    auto seek = &ObserveVsqSeek;
+    std::memcpy(jump + 2, &seek, sizeof seek);
+    Patch g(original.Function<void*>(0xcbd90), jump, sizeof jump);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    std::vector<mdl::BoneKey> bones(mdl::kBoneKeyCapacity);
+    std::uint64_t hash = 14695981039346656037ull;
+    unsigned cases = 0;
+    for (const char* file : {"lips.pmd", "lips.pmx"})
+        for (unsigned profile = 0; profile < VsqProfiles().size() + 2; ++profile) {
+            const auto bytes = VsqProfiles()[profile < VsqProfiles().size() ? profile : 0];
+            Check(WriteVsqFixture(root / "native-vsq.vsq", bytes), "write native VSQ fixture");
+            Check(WriteVsqFixture(root / "portable-vsq.vsq", bytes), "write portable VSQ fixture");
+            EditorSession portable;
+            std::string reason;
+            Check(portable.ImportModel(root / file, reason), reason.c_str());
+            if (profile >= VsqProfiles().size())
+                Check(portable.Edit(
+                          "vsq-capacity",
+                          [&](auto& document, auto&) {
+                              FillKeyCapacity(document.models[0].morphKeys,
+                                              (profile - unsigned(VsqProfiles().size())) * 2);
+                              return true;
+                          },
+                          reason),
+                      reason.c_str());
+            const auto& source = portable.Document().models[0];
+            NativeAuxiliary native(source, std::string(file) == "lips.pmx");
+            native.model->physicsFlags = 1;
+            native.model->boneKeys = bones.data();
+            native.model->maxFrame = source.selection.maxFrame;
+            for (auto& key : bones)
+                key.allocated = 1;
+            for (unsigned i = 0; i < native.poses.size(); ++i)
+                std::copy(source.morphNames[i].begin(), source.morphNames[i].end(),
+                          native.poses[i].name);
+            std::memset(app.get(), 0, sizeof(*app));
+            app->modelSlots[0] = native.model.get();
+            reinterpret_cast<unsigned char*>(app.get())[0xa1b90] = 1;
+            vsqInputPath = (root / "native-vsq.vsq").wstring();
+            unexpectedFileUi = vsqSeekCount = 0;
+            capacityMessages = 0;
+            advertisedCapacity = 20000;
+            modelCapacity = true;
+            original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, MDS_CMD_LOAD_LIP_SYNC);
+            Check(!unexpectedFileUi && vsqSeekCount == 1 && app->sceneModified == 1,
+                  "native complete VSQ command callbacks");
+            unsigned failed = 0;
+            Check(portable.ImportVsq(root / "portable-vsq.vsq", reason, &failed), reason.c_str());
+            Check(failed == capacityMessages, "native VSQ partial-capacity notices");
+            const auto& actual = portable.Document();
+            Check(app->currentFrame == actual.timeline.currentFrame &&
+                      app->timelineStartFrame == actual.timeline.startFrame &&
+                      app->lastRegisteredFrame == actual.timeline.lastRegisteredFrame &&
+                      vsqSoughtFrame == actual.timeline.currentFrame,
+                  "native VSQ command tail");
+            native.Compare(actual.models[0]);
+            for (const auto& key : bones)
+                Check(!key.allocated, "native VSQ clears entire bone marks");
+            const auto read = [](const auto& path) {
+                std::ifstream stream(path, std::ios::binary);
+                Check(bool(stream), "VSQ report exists");
+                return std::string(std::istreambuf_iterator<char>(stream), {});
+            };
+            const auto nativeReport = read(root / "native-vsq.txt");
+            const auto portableReport = read(root / "portable-vsq.txt");
+            if (nativeReport != portableReport)
+                std::fprintf(stderr, "native report:\n%sportable report:\n%s", nativeReport.c_str(),
+                             portableReport.c_str());
+            Check(nativeReport == portableReport, "native VSQ report bytes");
+            frame_line_fixture::Hash(hash, actual.models[0].morphKeys);
+            ++cases;
+        }
+    std::printf("Native VSQ frozen model hash: %016llx\n", static_cast<unsigned long long>(hash));
+    for (const char* file : {"triangle.pmd", "triangle.pmx"}) {
+        EditorSession portable;
+        std::string reason;
+        Check(portable.ImportModel(root / file, reason), reason.c_str());
+        NativeAuxiliary native(portable.Document().models[0], std::string(file) == "triangle.pmx");
+        const auto missing = +[](HWND, LPCSTR text, LPCSTR title, UINT flags) -> int {
+            Check(std::string(text) ==
+                          "Cannot Lipsync because this model has not facial data of 'a'!!" &&
+                      std::string(title) == "lipsync" && flags == 0,
+                  "native VSQ missing-mouth notice");
+            ++unexpectedFileUi;
+            return IDOK;
+        };
+        Patch missingPrompt(original.Function<void*>(0x128618), &missing, sizeof missing);
+        std::memset(app.get(), 0, sizeof(*app));
+        app->modelSlots[0] = native.model.get();
+        reinterpret_cast<unsigned char*>(app.get())[0xa1b90] = 1;
+        unexpectedFileUi = vsqSeekCount = 0;
+        original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, MDS_CMD_LOAD_LIP_SYNC);
+        Check(unexpectedFileUi == 1 && !vsqSeekCount && app->sceneModified == 1,
+              "native missing-mouth tail");
+        const auto revision = portable.Revision();
+        Check(!portable.ImportVsq(root / "portable-vsq.vsq", reason) && reason == "vsq-missing-a" &&
+                  portable.Revision() != revision && portable.Dirty(),
+              "portable missing-mouth command");
+        native.Compare(portable.Document().models[0]);
+        ++cases;
+    }
+    return cases;
+}
 unsigned ModelPasteCapacity(OriginalPhysicsModule& original, const std::filesystem::path& root) {
     const unsigned char ret = 0xc3;
     Patch paint(original.Function<void*>(0x60ea0), &ret, 1);
@@ -3164,6 +3302,11 @@ int wmain(int argc, wchar_t** argv) try {
           "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
     if (argc == 4) {
+        if (std::wcscmp(argv[3], L"--vsq") == 0) {
+            std::printf("%u original complete VSQ commands passed\n",
+                        VsqCommands(original, argv[2]));
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--paste-capacity") == 0) {
             std::printf("%u original partial paste capacity commands passed\n",
                         PasteCapacity(original));

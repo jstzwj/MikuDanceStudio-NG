@@ -114,6 +114,7 @@ private:
     bool PanelSlider(int, int);
     bool PanelCombo(int, int);
     void FileAction(const QString&, const QString& inputPath = {});
+    void LoadLipSync(const QString& path);
     void DropFiles(const QList<QUrl>&);
     QString ChooseFile(FileKind, bool save, const QString& title, const QString& filter,
                        const QString& suggestedName = {}, bool confirmOverwrite = true);

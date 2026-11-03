@@ -1,6 +1,7 @@
 #include "editor_window.hpp"
 #include "mikudancestudio/file_drop.hpp"
 #include "mikudancestudio/menu_commands.h"
+#include "editor_vsq_fixture.hpp"
 #include <QApplication>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -165,6 +166,50 @@ int main(int argc, char** argv) {
               vac.state.rotation == (std::array<float, 3>{.1f, .2f, .3f}) &&
               vac.state.parentModel == -1 && vac.state.parentBone == 0);
         CHECK(!window.isVisible() && !window.SeparateWindow()->isVisible());
+
+        qt::EditorWindow lips(std::filesystem::absolute(argv[2]), true);
+        CHECK(lips.SetLanguage(language));
+        auto& lipSession = lips.Session();
+        CHECK(Command(lips, MDS_CMD_LOAD_LIP_SYNC)->property("mmdImplemented").toBool());
+        CHECK(!Command(lips, MDS_CMD_LOAD_LIP_SYNC)->isEnabled());
+        CHECK(Drop(&lips, {url("lips.pmx")}));
+        CHECK(Command(lips, MDS_CMD_LOAD_LIP_SYNC)->isEnabled());
+        CHECK(WriteVsqFixture(root / "drop.vsq"));
+        CHECK(Drop(&lips, {url("drop.vsq")}));
+        CHECK(lips.LastError().isEmpty() && std::filesystem::exists(root / "drop.txt"));
+        CHECK(!lipSession.Document().models[0].morphKeys.sparse.empty());
+        const auto beforeCancel = lipSession.Revision();
+        bool sawVsqDialog = false;
+        QTimer::singleShot(0, [&] {
+            if (auto* dialog = lips.findChild<QFileDialog*>("editor.fileDialog")) {
+                sawVsqDialog =
+                    dialog->property("mmdInitialDirectory").toString() ==
+                        QDir(QCoreApplication::applicationDirPath()).filePath("UserFile/Vsq") &&
+                    dialog->nameFilters() == QStringList{"vsq files(*.vsq)"};
+                dialog->reject();
+            }
+        });
+        Command(lips, MDS_CMD_LOAD_LIP_SYNC)->trigger();
+        CHECK(sawVsqDialog && lipSession.Revision() == beforeCancel);
+        bool accepted = false;
+        const auto cpuFrames = lipSession.Runtime().Counters().frames;
+        QTimer::singleShot(0, [&] {
+            if (auto* dialog = lips.findChild<QFileDialog*>("editor.fileDialog")) {
+                dialog->selectFile(qt::Path(root / "drop.vsq"));
+                accepted = QMetaObject::invokeMethod(dialog, "accept", Qt::DirectConnection);
+            }
+        });
+        Command(lips, MDS_CMD_LOAD_LIP_SYNC)->trigger();
+        CHECK(accepted && lipSession.Revision() != beforeCancel && lips.LastError().isEmpty());
+        CHECK(lipSession.Runtime().Counters().frames == cpuFrames);
+        CHECK(lipSession.Play(reason));
+        lips.Refresh();
+        CHECK(!Command(lips, MDS_CMD_LOAD_LIP_SYNC)->isEnabled());
+        lipSession.Pause();
+        Command(lips, MDS_CMD_TOGGLE_SEPARATE_WINDOW)->trigger();
+        CHECK(Drop(lips.SeparateWindow(), {url("drop.vsq")}));
+        CHECK(lips.LastError().isEmpty() && !lips.isVisible() &&
+              !lips.SeparateWindow()->isVisible());
     }
     std::puts(
         "Qt offscreen drops: three languages, native routing, ordered load/failure, parser reuse, folder memory, cancellation and detached viewport passed");

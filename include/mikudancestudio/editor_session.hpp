@@ -71,6 +71,7 @@ public:
     bool ImportModel(const std::filesystem::path&, std::string&);
     bool ImportAccessory(const std::filesystem::path&, std::string&);
     bool ImportWave(const std::filesystem::path&, std::string&);
+    bool ImportVsq(const std::filesystem::path&, std::string&, unsigned* failedKeys = nullptr);
     bool ImportPicture(const std::filesystem::path&, unsigned viewWidth, unsigned viewHeight,
                        std::string&);
     bool ShowPicture(bool visible, std::string&);
