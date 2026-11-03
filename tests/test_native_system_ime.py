@@ -132,6 +132,7 @@ class WindowsInput:
         self.Input = Input
         self.user.GetForegroundWindow.restype = w.HWND
         self.user.GetWindowThreadProcessId.argtypes = [w.HWND, c.POINTER(w.DWORD)]
+        self.user.GetClassNameW.argtypes = [w.HWND, w.LPWSTR, c.c_int]
         self.user.MapVirtualKeyW.argtypes = [w.UINT, w.UINT]
         self.user.SendInput.argtypes = [w.UINT, c.POINTER(Input), c.c_int]
 
@@ -141,11 +142,21 @@ class WindowsInput:
 
     def key(self, pid, code):
         from ctypes import wintypes as w
-        foreground = self.user.GetForegroundWindow()
         owner = w.DWORD()
-        self.user.GetWindowThreadProcessId(foreground, c.byref(owner))
+        deadline = time.monotonic() + 2
+        while True:
+            foreground = self.user.GetForegroundWindow()
+            self.user.GetWindowThreadProcessId(foreground, c.byref(owner))
+            if owner.value == pid or time.monotonic() >= deadline:
+                break
+            # Candidate/prediction panel transitions can briefly leave no
+            # foreground window. Never post input while ownership is uncertain.
+            time.sleep(.025)
         if owner.value != pid:
-            raise RuntimeError('Input refused: the test client does not own the foreground window')
+            window_class = c.create_unicode_buffer(256)
+            self.user.GetClassNameW(foreground, window_class, len(window_class))
+            raise RuntimeError(f'Input refused: foreground owner={owner.value}, '
+                               f'window={foreground}, class={window_class.value!r}; client={pid}')
         virtual = {45: ord('N'), 34: ord('I'), 4: ord('H'), 31: ord('O'),
                    49: 0x20, 36: 0x0D, 53: 0x1B}[code]
         scan = self.user.MapVirtualKeyW(virtual, 0)
