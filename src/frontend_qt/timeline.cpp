@@ -1,4 +1,5 @@
 #include "timeline.hpp"
+#include "model_labels.hpp"
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/mmd_editor_chrome.hpp"
 #include <QPainter>
@@ -21,7 +22,8 @@ void Timeline::Refresh() {
             const auto resource = session_.Runtime().Resource(model);
             if (resource && rowsModel_ == model && rowsResource_.lock() == resource &&
                 rowsLanguage_ == language_.Code() && rowsGroupFlags_ == m.selection.groupFlags &&
-                rowsBoneNames_ == m.boneNames && rowsMorphNames_ == m.morphNames) {
+                rowsEnglishNames_.lock() == m.englishNames && rowsBoneNames_ == m.boneNames &&
+                rowsMorphNames_ == m.morphNames) {
                 update();
                 return;
             }
@@ -49,6 +51,7 @@ void Timeline::Refresh() {
                 if (!resource)
                     continue;
                 rowsResource_ = resource;
+                rowsEnglishNames_ = m.englishNames;
                 rowsModel_ = model;
                 rowsLanguage_ = language_.Code();
                 rowsGroupFlags_ = m.selection.groupFlags;
@@ -67,13 +70,8 @@ void Timeline::Refresh() {
                                       unsigned(channel), 0};
                 };
                 const auto name = [&](const runtime::ModelDisplayEntry& entry) {
-                    const auto& names = entry.morph ? resource->Document().morphs[entry.index].names
-                                                    : resource->Document().bones[entry.index].names;
-                    const auto& bytes =
-                        language_.Code() == "en" && !names[1].empty() ? names[1] : names[0];
-                    std::string decoded;
-                    text::DecodeUtf16Le(bytes.data(), bytes.size(), decoded);
-                    return QString::fromUtf8(decoded.c_str());
+                    return ModelTrackLabel(session_, model, entry.index, entry.morph,
+                                           language_.Code() == "en");
                 };
                 const auto& groups = resource->DisplayGroups();
                 for (std::size_t i = 0; i < groups.size(); ++i) {
@@ -86,14 +84,13 @@ void Timeline::Refresh() {
                         rows_.push_back({{Track::Display, model, 0, 0}, language_.Text("display")});
                     } else {
                         const auto text =
-                            group.role == 2
-                                ? language_.Text("morph")
+                            group.role == 2 ? language_.Text("morph")
+                            : language_.Code() == "en" && m.englishNames &&
+                                    i < m.englishNames->groups.size()
+                                ? QString::fromUtf8(
+                                      editor::EnglishNameDisplay(m.englishNames->groups[i]).c_str())
                                 : QString::fromUtf8(
-                                      group
-                                          .names[language_.Code() == "en" && !group.names[1].empty()
-                                                     ? 1
-                                                     : 0]
-                                          .c_str());
+                                      group.names[language_.Code() == "en" ? 1 : 0].c_str());
                         Row header({Track::Display, model, 0, 0}, text);
                         header.tracks.clear();
                         header.group = int(i);

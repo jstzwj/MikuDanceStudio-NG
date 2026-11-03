@@ -94,6 +94,8 @@ bool ModelCommand(int command) {
     case MDS_CMD_DELETE_EYEBROW_FRAMES:
     case MDS_CMD_LOAD_LIP_SYNC:
         return true;
+    case MDS_CMD_EDIT_ENGLISH_NAMES:
+        return true;
     default:
         return false;
     }
@@ -435,6 +437,10 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_EDGE_THICKNESS) {
         EdgeThickness();
+        return;
+    }
+    if (command == MDS_CMD_EDIT_ENGLISH_NAMES) {
+        EnglishNames();
         return;
     }
     if (command == MDS_CMD_GROUND_SHADOW_COLOR) {

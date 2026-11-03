@@ -5,6 +5,7 @@
 #include "mikudancestudio/global_key_layout.hpp"
 #include "mikudancestudio/accessory_layout.hpp"
 #include "mikudancestudio/editor_session.hpp"
+#include "mikudancestudio/english_name_edit.hpp"
 #include "mikudancestudio/menu_commands.h"
 #include "mikudancestudio/panel_controls.hpp"
 #include "mikudancestudio/app_layout.hpp"
@@ -3295,6 +3296,7 @@ void GravityCapacity(OriginalPhysicsModule& original) {
         "Original full gravity dialog registration: capacity, all track sweeps and dirty flag passed");
 }
 }
+#include "editor_english_names_oracle.hpp"
 int wmain(int argc, wchar_t** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     std::setvbuf(stdout, nullptr, _IONBF, 0);
@@ -3302,6 +3304,11 @@ int wmain(int argc, wchar_t** argv) try {
           "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
     if (argc == 4) {
+        if (std::wcscmp(argv[3], L"--english-names") == 0) {
+            std::printf("%u original English-name apply commands passed\n",
+                        EnglishNameCommands(original, argv[2]));
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--vsq") == 0) {
             std::printf("%u original complete VSQ commands passed\n",
                         VsqCommands(original, argv[2]));

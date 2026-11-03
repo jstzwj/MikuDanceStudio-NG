@@ -642,5 +642,22 @@
   "dialog.vsq.analysis_title": "VSQ 解析",
   "dialog.vsq.analysis": "VSQ 解析失败。",
   "dialog.vsq.open": "无法打开 VSQ 文件。",
-  "dialog.vsq.sysex": "VSQ 包含不支持的 SysEx 事件。"
+  "dialog.vsq.sysex": "VSQ 包含不支持的 SysEx 事件。",
+  "dialog.numeric.english_name.title": "英文名称编辑",
+  "dialog.numeric.english_name.control.0": "确定",
+  "dialog.numeric.english_name.control.1": "模型名称",
+  "dialog.numeric.english_name.control.3": "模型说明",
+  "dialog.numeric.english_name.control.5": "骨骼名称",
+  "dialog.numeric.english_name.control.7": "<",
+  "dialog.numeric.english_name.control.8": ">",
+  "dialog.numeric.english_name.control.10": "表情名称",
+  "dialog.numeric.english_name.control.12": "<",
+  "dialog.numeric.english_name.control.13": ">",
+  "dialog.numeric.english_name.control.15": "分组名称",
+  "dialog.numeric.english_name.control.17": "<",
+  "dialog.numeric.english_name.control.18": ">",
+  "dialog.enhance.title": "模型扩展",
+  "dialog.enhance.preserve": "请使用“保存扩展模型”将编辑结果保存为新模型。",
+  "dialog.enhance.quit_title": "退出",
+  "dialog.enhance.quit": "有扩展编辑的模型尚未通过“保存扩展模型”保存。\n\n确定退出吗？"
 }

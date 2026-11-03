@@ -88,8 +88,12 @@ int main(int argc, char** argv) {
                     if (resource->Document().morphs[i].header.panel == lane + 1) {
                         const unsigned channel = morphCount - 1 - i;
                         CHECK(combo->itemData(int(listed)).toUInt() == channel);
-                        CHECK(combo->itemText(int(listed)) ==
-                              QString::fromUtf8(resource->MorphNames()[i].c_str()));
+                        const auto& bytes = resource->Document()
+                                                .morphs[i]
+                                                .names[std::string(language) == "en" ? 1 : 0];
+                        std::string label;
+                        CHECK(text::DecodeUtf16Le(bytes.data(), bytes.size(), label));
+                        CHECK(combo->itemText(int(listed)) == QString::fromUtf8(label.c_str()));
                         combo->setCurrentIndex(int(listed++));
                         combo->activated(combo->currentIndex());
                         auto* slider =
@@ -115,12 +119,12 @@ int main(int argc, char** argv) {
                     session.Selected().keys.clear();
                     const auto& names = entry.morph ? resource->Document().morphs[entry.index].names
                                                     : resource->Document().bones[entry.index].names;
-                    const auto& bytes =
-                        std::string(language) == "en" && !names[1].empty() ? names[1] : names[0];
+                    const auto& bytes = names[std::string(language) == "en" ? 1 : 0];
                     std::string name;
                     CHECK(text::DecodeUtf16Le(bytes.data(), bytes.size(), name));
-                    const int index = scope->findText(QString::fromUtf8(name.c_str()));
+                    const int index = scope->findData(QVariantList{int(kind), 0, int(channel)});
                     CHECK(index >= 0);
+                    CHECK(scope->itemText(index) == QString::fromUtf8(name.c_str()));
                     scope->setCurrentIndex(index);
                     scope->activated(index);
                     window.Dispatch(panel::kSelectRangeButton);
@@ -169,7 +173,14 @@ int main(int argc, char** argv) {
             const auto& model = session.Document().models[0];
             CHECK(unsigned(ik->count()) == model.ikSources.size());
             if (ik->count()) {
-                CHECK(ik->currentText() == "I");
+                int index;
+                CHECK(session.Runtime().DocumentBoneIndex(0, model.ikSources[0], index, reason));
+                const auto& bytes = resource->Document()
+                                        .bones[unsigned(index)]
+                                        .names[std::string(language) == "en" ? 1 : 0];
+                std::string label;
+                CHECK(text::DecodeUtf16Le(bytes.data(), bytes.size(), label));
+                CHECK(ik->currentText() == QString::fromUtf8(label.c_str()));
                 static_cast<QAbstractButton*>(window.Control(panel::kIkOffRadio))->click();
                 CHECK(!session.Document().models[0].ikPose[0]);
                 static_cast<QAbstractButton*>(window.Control(panel::kIkOnRadio))->click();

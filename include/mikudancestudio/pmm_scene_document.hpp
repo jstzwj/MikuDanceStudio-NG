@@ -1,6 +1,8 @@
 #pragma once
 #include "mikudancestudio/pmm_document.hpp"
 #include <map>
+#include <memory>
+#include <string>
 
 namespace mikudancestudio::format {
 
@@ -59,6 +61,14 @@ struct PmmModelRegistration {
     std::uint8_t slot = 0;
     std::int32_t selection = 0;
 };
+// Live model metadata, stored as original CP932 bytes. PMM saves the model
+// English name; the other fields belong to an enhanced PMD/PMX, not PMM.
+// Immutable snapshots survive editor validation without cloning GPU/CPU assets.
+struct PmmModelEnglishNames {
+    std::string name, comment;
+    std::vector<std::string> bones, morphs, groups;
+    bool enhanced = false;
+};
 struct PmmSceneModel {
     std::uint8_t slot = 0, groupCount = 0;
     std::array<char, 20> v1Name{};
@@ -84,6 +94,7 @@ struct PmmSceneModel {
     // PMM reapplies the scene color; a later model import starts opaque black.
     // PMX uses its material's edge color and ignores this value.
     std::uint32_t pmdEdgeDiffuse = 0xff000000u;
+    std::shared_ptr<const PmmModelEnglishNames> englishNames;
 };
 inline std::uint32_t PmdOutlineDiffuse(const std::array<std::int32_t, 3>& rgb) {
     return 0xff000000u | (std::uint32_t(rgb[0]) << 16) | (std::uint32_t(rgb[1] & 255) << 8) |

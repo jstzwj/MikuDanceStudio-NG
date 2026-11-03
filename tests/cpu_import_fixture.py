@@ -314,6 +314,8 @@ def write(directory):
     (root / 'outline.pmd').write_bytes(pmd(outline=True))
     (root / 'overlay-offset.pmx').write_bytes(pmx(tail_offset=True))
     (root / 'overlay-types.pmd').write_bytes(pmd(bones=tuple('T%d' % n for n in range(10)), bone_types=tuple(range(10))))
+    (root / 'english.pmd').write_bytes(pmd(bones=tuple('T%d' % n for n in range(10)), bone_types=tuple(range(10)), facial_panels=(1, 2, 3, 4)))
+    (root / 'english.pmx').write_bytes(pmx(display_groups=True, mouth_morphs=True, vertex_morph_name='\u3042'))
     (root / 'drag-roots.pmd').write_bytes(pmd(bones=('root', 'child', 'other'), bone_types=(1, 1, 1), bone_parents=(65535, 0, 65535)))
     (root / 'drag-axes.pmd').write_bytes(pmd(bones=('root', '\u53f3\u8155', '\u5de6\u8155', '\u6307', 'tail'), bone_types=(1, 1, 1, 1, 1)))
     (root / 'drag.pmd').write_bytes(pmd(bones=('root', 'child', 'other'), bone_types=(1, 1, 1)))

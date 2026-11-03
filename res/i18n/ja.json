@@ -642,5 +642,22 @@
   "dialog.vsq.analysis_title": "vsq解析",
   "dialog.vsq.analysis": "vsq解析エラー発生！！",
   "dialog.vsq.open": "VSQファイルが読み込めません",
-  "dialog.vsq.sysex": "SysExイベントがあります。お手上げ＿(^o^)＿"
+  "dialog.vsq.sysex": "SysExイベントがあります。お手上げ＿(^o^)＿",
+  "dialog.numeric.english_name.title": "英語名編集(半角英数字で入力、Enterキーで決定)",
+  "dialog.numeric.english_name.control.0": "OK",
+  "dialog.numeric.english_name.control.1": "モデル名",
+  "dialog.numeric.english_name.control.3": "モデル情報",
+  "dialog.numeric.english_name.control.5": "ボーン名",
+  "dialog.numeric.english_name.control.7": "<",
+  "dialog.numeric.english_name.control.8": ">",
+  "dialog.numeric.english_name.control.10": "表情名",
+  "dialog.numeric.english_name.control.12": "<",
+  "dialog.numeric.english_name.control.13": ">",
+  "dialog.numeric.english_name.control.15": "区分名",
+  "dialog.numeric.english_name.control.17": "<",
+  "dialog.numeric.english_name.control.18": ">",
+  "dialog.enhance.title": "モデル拡張",
+  "dialog.enhance.preserve": "編集結果は'拡張モデル保存'で新しいモデルとして保存して下さい",
+  "dialog.enhance.quit_title": "終了",
+  "dialog.enhance.quit": "'拡張モデル保存'していない拡張編集したモデルがあります\n\n終了してよろしいですか？"
 }

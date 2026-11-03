@@ -390,6 +390,7 @@ bool PreservePmmSessionState(const PmmSceneDocument& source, PmmSceneDocument& t
             !copy(from.morphKeys, to->morphKeys) || !copy(from.displayKeys, to->displayKeys))
             return false;
         to->pmdEdgeDiffuse = from.pmdEdgeDiffuse;
+        to->englishNames = from.englishNames;
     }
     for (const auto& from : source.accessories) {
         const auto to = std::find_if(target.accessories.begin(), target.accessories.end(),

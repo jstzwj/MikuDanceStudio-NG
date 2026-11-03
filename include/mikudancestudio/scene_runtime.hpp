@@ -29,6 +29,8 @@ public:
     bool SetGravity(const format::PmmEvaluatedGravity&, bool applyWorld);
     bool RegisterGravity(std::string&);
     bool SetModelEdgeScale(std::uint8_t slot, float value);
+    bool SetModelEnglishNames(std::uint8_t slot,
+                              std::shared_ptr<const format::PmmModelEnglishNames>);
     bool ToggleModelRenderFlag(std::uint8_t slot, bool shadow);
     bool SetModelOrder(format::ModelOrderKind, const std::vector<std::uint8_t>&);
     bool Reset(std::string&);

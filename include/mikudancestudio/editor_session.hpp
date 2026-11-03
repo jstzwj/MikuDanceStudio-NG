@@ -58,6 +58,13 @@ struct BoneDragInput {
     float clipW = 1, viewScale = 1;
     bool shift = false, control = false;
 };
+enum class EnglishNameKind {
+    Model,
+    Comment,
+    Bone,
+    Morph,
+    Group
+};
 // No window/GPU objects in documents, commands, selection or undo history.
 // Hosts supply the atomic disk replacement policy (QSaveFile in the Qt host).
 class EditorSession final {
@@ -72,6 +79,12 @@ public:
     bool ImportAccessory(const std::filesystem::path&, std::string&);
     bool ImportWave(const std::filesystem::path&, std::string&);
     bool ImportVsq(const std::filesystem::path&, std::string&, unsigned* failedKeys = nullptr);
+    bool ModelEnglishNames(std::uint8_t, format::PmmModelEnglishNames&, std::string&) const;
+    // Native English-name edits are live metadata, with no undo/dirty/CPU tick.
+    bool SetEnglishName(std::uint8_t, EnglishNameKind, unsigned index, std::string_view utf8,
+                        std::string&);
+    bool MarkEnhancedModel(std::uint8_t, std::string&);
+    bool EnhancedModelDirty() const { return enhancedModelDirty_; }
     bool ImportPicture(const std::filesystem::path&, unsigned viewWidth, unsigned viewHeight,
                        std::string&);
     bool ShowPicture(bool visible, std::string&);
@@ -236,6 +249,7 @@ private:
     bool DeleteKeys(State next, const std::set<KeyAddress>&, std::string&, bool markedModelRecords);
     std::uint64_t gravityEpoch_ = 0;
     std::uint64_t appearanceRevision_ = 0;
+    bool enhancedModelDirty_ = false;
     SceneDisplayOptions display_;
     std::unique_ptr<runtime::SceneRuntime> runtime_;
     enum class HistoryKind {

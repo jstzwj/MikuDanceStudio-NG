@@ -18,6 +18,7 @@ namespace mikudancestudio::qt {
 class EdgeThicknessDialog;
 class GroundShadowDialog;
 class GravityDialog;
+class EnglishNameDialog;
 class EditorWindow final : public QMainWindow {
 public:
     explicit EditorWindow(std::filesystem::path assets, bool testing = false,
@@ -61,6 +62,7 @@ private:
     QPointer<EdgeThicknessDialog> edgeDialog_;
     QPointer<GroundShadowDialog> groundShadowDialog_;
     QPointer<GravityDialog> gravityDialog_;
+    QPointer<EnglishNameDialog> englishDialog_;
     std::uint64_t gravityEpoch_ = 0;
     std::uint8_t edgeModel_ = 255;
     std::weak_ptr<const runtime::ModelResource> edgeResource_;
@@ -121,6 +123,7 @@ private:
     void Numeric();
     void ScreenSize();
     void EdgeThickness();
+    void EnglishNames();
     void GroundShadowColor();
     void CenterBias();
     void OutlineColor();

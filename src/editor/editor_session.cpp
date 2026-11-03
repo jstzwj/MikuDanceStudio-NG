@@ -1,4 +1,5 @@
 #include "mikudancestudio/editor_session.hpp"
+#include "mikudancestudio/english_name_edit.hpp"
 #include "mikudancestudio/pmm_key_deletion.hpp"
 #include "mikudancestudio/pmm_bone_registration.hpp"
 #include "mikudancestudio/pmm_morph_registration.hpp"
@@ -576,6 +577,7 @@ bool EditorSession::New(std::string& reason) {
     // ResetAppState clears transparency but preserves the non-display switch.
     SetTransparentModels(false);
     revision_ = savedRevision_ = nextRevision_++;
+    enhancedModelDirty_ = false;
     ++gravityEpoch_;
     reason.clear();
     return true;
@@ -777,6 +779,7 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
         clipboard.clear();
     playing_ = false;
     revision_ = savedRevision_ = nextRevision_++;
+    enhancedModelDirty_ = false;
     ++gravityEpoch_;
     cursorSeconds_ = Document().timeline.currentFrame / 30.;
     return true;
@@ -843,7 +846,16 @@ bool EditorSession::ImportModel(const std::filesystem::path& path, std::string& 
         auto model = MakeModel(std::uint8_t(slot), *resource);
         model.selection.comboIndex = std::uint8_t(next.document.models.size() + 1);
         model.previousDisplayOrder = std::uint8_t(next.document.models.size());
-        model.name = model.sourceName = Name(absolute.stem().u8string());
+        const auto modelName = [&](unsigned language) {
+            const auto& bytes = resource->Document().texts.fields[language];
+            std::string decoded;
+            text::DecodeUtf16Le(bytes.data(), bytes.size(), decoded);
+            const auto name =
+                EnglishNameBytes(decoded, resource->SourceKind() == ModelKind::Pmd ? 19 : 49);
+            return std::vector<char>(name.begin(), name.end());
+        };
+        model.name = modelName(0);
+        model.sourceName = modelName(1);
         if (!DiskPath(absolute, absolute.parent_path(), model.path, reason))
             return false;
         next.document.models.push_back(std::move(model));

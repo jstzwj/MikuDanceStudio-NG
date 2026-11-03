@@ -275,7 +275,8 @@ bool ModelResource::Create(const format::ModelDocument& source,
                 if (i < source.pmd.englishGroupNames.size()) {
                     const auto& en = source.pmd.englishGroupNames[i];
                     Cp932Identifier(en.data(), en.size(), group.names[1]);
-                }
+                } else if (!source.pmd.englishPresence.hasEnglish)
+                    group.names[1] = group.names[0];
                 groups.push_back(std::move(group));
             }
             for (const auto& entry : source.pmd.boneFrames) {

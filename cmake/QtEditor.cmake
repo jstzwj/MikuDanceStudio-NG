@@ -31,6 +31,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/editor_menus.cpp"
         "${root}/src/frontend_qt/editor_panels.cpp"
         "${root}/src/frontend_qt/numeric_dialog.cpp"
+        "${root}/src/frontend_qt/english_name_dialog.cpp"
         "${root}/src/frontend_qt/viewport.cpp"
         "${root}/src/frontend_qt/relative_pointer.cpp"
         "${root}/src/frontend_qt/surface.cpp")
@@ -122,6 +123,11 @@ function(mds_add_qt_editor)
         target_link_libraries(qt_native_audio_test PRIVATE mikudancestudio_frontend_qt)
         qt_add_executable(qt_editor_test "${root}/tests/qt_editor_test.cpp")
         qt_add_executable(qt_numeric_test "${root}/tests/qt_numeric_test.cpp")
+        qt_add_executable(qt_english_names_test "${root}/tests/qt_english_names_test.cpp")
+        target_link_libraries(qt_english_names_test PRIVATE mikudancestudio_frontend_qt Qt6::Test)
+        add_test(NAME qt_english_names COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_qt_numeric.py"
+            --test $<TARGET_FILE:qt_english_names_test> --assets "${root}/res/assets")
+        set_tests_properties(qt_english_names PROPERTIES LABELS "p4;offscreen;qt;oracle" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         target_link_libraries(qt_numeric_test PRIVATE mikudancestudio_frontend_qt Qt6::Test)
         add_test(NAME qt_numeric COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_qt_numeric.py"
             --test $<TARGET_FILE:qt_numeric_test> --assets "${root}/res/assets")

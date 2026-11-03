@@ -1,0 +1,154 @@
+#include "english_name_dialog.hpp"
+#include "editor_window.hpp"
+#include "model_labels.hpp"
+#include "mikudancestudio/menu_commands.h"
+#include <QApplication>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QPushButton>
+#include <QTest>
+#include <iostream>
+using namespace mikudancestudio;
+std::string reason;
+#define CHECK(x)                                                                                   \
+    do {                                                                                           \
+        if (!(x)) {                                                                                \
+            std::cerr << __LINE__ << ": " << #x << ' ' << reason << '\n';                          \
+            return 1;                                                                              \
+        }                                                                                          \
+    } while (false)
+int main(int argc, char** argv) {
+    QApplication app(argc, argv);
+    CHECK(argc == 4 && QGuiApplication::platformName() == "offscreen");
+    const auto root = std::filesystem::absolute(argv[1]);
+    QFile file(QString::fromLocal8Bit(argv[3]));
+    CHECK(file.open(QIODevice::ReadOnly));
+    const auto references = QJsonDocument::fromJson(file.readAll()).object();
+    for (const char* language : {"en", "ja", "zh_CN"})
+        for (const char* model : {"english.pmd", "english.pmx"}) {
+            qt::EditorWindow window(std::filesystem::absolute(argv[2]), true);
+            CHECK(window.SetLanguage(language));
+            auto& session = window.Session();
+            const auto command = [&]() -> QAction* {
+                for (auto* action : window.findChildren<QAction*>())
+                    if (action->property("mmdCommandId").toInt() == MDS_CMD_EDIT_ENGLISH_NAMES)
+                        return action;
+                return nullptr;
+            };
+            CHECK(command() && !command()->isEnabled());
+            CHECK(session.ImportModel(root / model, reason));
+            window.Refresh();
+            CHECK(command()->isEnabled());
+            const auto revision = session.Revision(), frames = session.Runtime().Counters().frames;
+            const auto resource = session.Runtime().Resource(0);
+            const auto undo = session.CanUndo(), redo = session.CanRedo();
+            command()->trigger();
+            auto* dialog = dynamic_cast<qt::EnglishNameDialog*>(
+                window.findChild<QDialog*>("mmd.englishNames"));
+            CHECK(dialog && dialog->Active() && !dialog->isVisible() && !window.isVisible());
+            CHECK(!window.Control(panel::kMainComboModel)->isEnabled());
+            const auto expected =
+                references[QString("english_name.") + (std::string(language) == "en" ? "en" : "ja")]
+                    .toObject();
+            CHECK(dialog->Template().id == expected["id"].toInt());
+            const int unitY = std::string(language) == "en" ? 14 : 12;
+            const auto rect = expected["rect"].toArray();
+            CHECK(dialog->size() ==
+                  QSize((rect[2].toInt() * 7 + 2) / 4, (rect[3].toInt() * unitY + 4) / 8));
+            const auto controls = expected["controls"].toArray();
+            for (int i = 0; i < controls.size(); ++i) {
+                auto* widget = dialog->findChild<QWidget*>(QString("numeric.control.%1").arg(i));
+                CHECK(widget);
+                const auto control = controls[i].toObject();
+                const auto r = control["rect"].toArray();
+                CHECK(widget->geometry() ==
+                      QRect((r[0].toInt() * 7 + 2) / 4, (r[1].toInt() * unitY + 4) / 8,
+                            (r[2].toInt() * 7 + 2) / 4,
+                            control["kind"] == "Combobox" ? unitY + 8
+                                                          : (r[3].toInt() * unitY + 4) / 8));
+            }
+            const auto control = [&](int id) -> QWidget* {
+                for (auto* widget : dialog->findChildren<QWidget*>())
+                    if (widget->property("mmdControlId").toInt() == id)
+                        return widget;
+                return nullptr;
+            };
+            auto* name = qobject_cast<QLineEdit*>(control(667));
+            auto* bone = qobject_cast<QLineEdit*>(control(672));
+            auto* boneCombo = qobject_cast<QComboBox*>(control(669));
+            auto* morph = qobject_cast<QLineEdit*>(control(676));
+            auto* morphCombo = qobject_cast<QComboBox*>(control(673));
+            auto* group = qobject_cast<QLineEdit*>(control(680));
+            auto* comment = qobject_cast<QPlainTextEdit*>(control(668));
+            CHECK(name && bone && boneCombo && morph && morphCombo && group && comment);
+            CHECK(!comment->isReadOnly() && comment->lineWrapMode() == QPlainTextEdit::NoWrap);
+            name->setText("new English model");
+            QTest::keyClick(name, Qt::Key_Return);
+            CHECK(dialog->Active());
+            format::PmmModelEnglishNames names;
+            CHECK(session.ModelEnglishNames(0, names, reason) && names.name == "new English model");
+            bone->setText("first bone");
+            if (boneCombo->count() > 1) {
+                boneCombo->setCurrentIndex(1);
+                CHECK(session.ModelEnglishNames(0, names, reason) &&
+                      names.bones[0] == "first bone");
+                CHECK(session.ActiveBone() == 1);
+                boneCombo->setCurrentIndex(6);
+                CHECK(session.ActiveBone() == -1 && session.Selected().bones.empty());
+                boneCombo->setCurrentIndex(9);
+                CHECK(session.ActiveBone() == -1);
+                boneCombo->setCurrentIndex(0);
+                CHECK(bone->text() == "first bone");
+            } else {
+                qobject_cast<QPushButton*>(control(670))->click();
+                CHECK(session.ModelEnglishNames(0, names, reason) &&
+                      names.bones[0] == "first bone");
+            }
+            bone->setText("cancel still applies");
+            morph->setText("first morph edit");
+            morphCombo->setCurrentIndex(1);
+            CHECK(session.ModelEnglishNames(0, names, reason) &&
+                  names.morphs[1] == "first morph edit");
+            morph->setText("second morph edit");
+            qobject_cast<QPushButton*>(control(674))->click();
+            CHECK(session.ModelEnglishNames(0, names, reason) &&
+                  names.morphs[2] == "second morph edit");
+            group->setText(QString(60, 'g'));
+            comment->setPlainText(QString(250, 'c') + "\nA\nB");
+            dialog->reject(); // Native cancel/window close commits pending fields.
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+            CHECK(!window.findChild<QDialog*>("mmd.englishNames"));
+            CHECK(window.Control(panel::kMainComboModel)->isEnabled());
+            CHECK(session.ModelEnglishNames(0, names, reason));
+            CHECK(names.bones[0] == "cancel still applie" && !names.enhanced);
+            CHECK(names.comment == std::string(250, 'c') + "\nA\n");
+            CHECK(names.groups[3] == std::string(49, 'g'));
+            CHECK(qt::ModelTrackLabel(session, 0, 0, false, true) == "cancel still applie");
+            CHECK(session.Revision() == revision && session.Runtime().Counters().frames == frames &&
+                  session.Runtime().Resource(0) == resource && session.CanUndo() == undo &&
+                  session.CanRedo() == redo);
+            command()->trigger();
+            dialog = dynamic_cast<qt::EnglishNameDialog*>(
+                window.findChild<QDialog*>("mmd.englishNames"));
+            CHECK(dialog && dialog->Active());
+            dialog->accept();
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+            CHECK(session.ModelEnglishNames(0, names, reason) && names.enhanced &&
+                  session.EnhancedModelDirty());
+            CHECK(session.Play(reason));
+            window.Refresh();
+            CHECK(!command()->isEnabled());
+            session.Pause();
+            window.Refresh();
+            command()->trigger();
+            CHECK(session.UnloadModel(0, reason));
+            window.Refresh();
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+            CHECK(!window.findChild<QDialog*>("mmd.englishNames") && !window.isVisible());
+        }
+    std::cout
+        << "English-name dialog: original geometry, three languages, native commit/cancel and lifecycle passed\n";
+    return 0;
+}

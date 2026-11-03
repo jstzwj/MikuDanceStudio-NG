@@ -7,6 +7,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QListWidget>
+#include <QPlainTextEdit>
 #include "mikudancestudio/pmm_scene_evaluation.hpp"
 #include <array>
 #include <functional>
@@ -23,6 +24,7 @@ protected:
     QCheckBox* Checkbox(int id) const { return checkboxes_.at(id); }
     QComboBox* Combo(int id) const { return combos_.at(id); }
     QListWidget* List(int id) const { return lists_.at(id); }
+    QPlainTextEdit* Multiline(int id) const { return multiline_.at(id); }
     virtual void ButtonClicked(int id) { id == 1 ? accept() : reject(); }
     void Prefill(int id, const QString&);
 
@@ -34,6 +36,7 @@ private:
     std::map<int, QCheckBox*> checkboxes_;
     std::map<int, QComboBox*> combos_;
     std::map<int, QListWidget*> lists_;
+    std::map<int, QPlainTextEdit*> multiline_;
 };
 class NumericDialog final : public TemplateDialog {
 public:

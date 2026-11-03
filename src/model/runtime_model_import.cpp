@@ -11,9 +11,12 @@ bool Cp932Identifier(const char* name, std::size_t size, std::string& out) {
     return length && text::DecodeCp932({name, length}, out) && out.find('\0') == std::string::npos;
 }
 namespace {
-bool Name(const char* input, std::size_t size, format::PmxText& out) {
+bool Name(const char* input, std::size_t size, format::PmxText& out, bool allowEmpty = false) {
     std::string utf8;
-    if (!Cp932Identifier(input, size, utf8))
+    std::size_t length = 0;
+    while (length < size && input[length])
+        ++length;
+    if ((!length && !allowEmpty) || !text::DecodeCp932({input, length}, utf8))
         return false;
     // DecodeCp932 only produces valid BMP scalars. Retain raw PMD names in
     // BoneData as well, for the original knee-name and grant rules.
@@ -38,6 +41,18 @@ bool NormalizePmd(const format::PmdDocument& source, format::PmxDocument& out,
     format::PmxDocument result;
     result.header.version = 2;
     result.header.textEncoding = 0;
+    const char* englishName =
+        source.englishPresence.hasEnglish ? source.englishModel.name : source.header.name.data();
+    const char* englishComment = source.englishPresence.hasEnglish ? source.englishModel.comment
+                                                                   : source.header.comment.data();
+    if (!Name(source.header.name.data(), source.header.name.size(), result.texts.fields[0], true) ||
+        !Name(englishName, 20, result.texts.fields[1], true) ||
+        !Name(source.header.comment.data(), source.header.comment.size(), result.texts.fields[2],
+              true) ||
+        !Name(englishComment, 256, result.texts.fields[3], true)) {
+        reason = "invalid-pmd-model-text";
+        return false;
+    }
     for (const auto& v : source.vertices) {
         if (v.weightPercent > 100) {
             reason = "invalid-pmd-weight";
@@ -66,8 +81,9 @@ bool NormalizePmd(const format::PmdDocument& source, format::PmxDocument& out,
         const auto n = result.bones.size();
         if (n < source.englishBoneNames.size()) {
             const auto& name = source.englishBoneNames[n];
-            Name(name.data(), name.size(), bone.names[1]);
-        }
+            Name(name.data(), name.size(), bone.names[1], true);
+        } else if (!source.englishPresence.hasEnglish)
+            bone.names[1] = bone.names[0];
         result.bones.push_back(std::move(bone));
     }
     for (const auto& m : source.materials) {
@@ -87,8 +103,9 @@ bool NormalizePmd(const format::PmdDocument& source, format::PmxDocument& out,
         // PMD English morph names exclude the base morph at index zero.
         if (n && n - 1 < source.englishMorphNames.size()) {
             const auto& name = source.englishMorphNames[n - 1];
-            Name(name.data(), name.size(), morph.names[1]);
-        }
+            Name(name.data(), name.size(), morph.names[1], true);
+        } else if (!source.englishPresence.hasEnglish)
+            morph.names[1] = morph.names[0];
         for (const auto& offset : m.offsets) {
             if (n == 0) {
                 if (offset.vertexIndex >= result.vertices.size()) {

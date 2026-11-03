@@ -642,5 +642,22 @@
   "dialog.vsq.analysis_title": "vsq analysis",
   "dialog.vsq.analysis": "vsq analysis error!!",
   "dialog.vsq.open": "Cannot open VSQ file",
-  "dialog.vsq.sysex": "SysEx event is present. I give up!"
+  "dialog.vsq.sysex": "SysEx event is present. I give up!",
+  "dialog.numeric.english_name.title": "If name is writen by Japanese Font,Rename it to English Font.",
+  "dialog.numeric.english_name.control.0": "OK",
+  "dialog.numeric.english_name.control.1": "Model Name",
+  "dialog.numeric.english_name.control.3": "Model Info",
+  "dialog.numeric.english_name.control.5": "Bone Name",
+  "dialog.numeric.english_name.control.7": "<",
+  "dialog.numeric.english_name.control.8": ">",
+  "dialog.numeric.english_name.control.10": "Facial Name",
+  "dialog.numeric.english_name.control.12": "<",
+  "dialog.numeric.english_name.control.13": ">",
+  "dialog.numeric.english_name.control.15": "Division Name",
+  "dialog.numeric.english_name.control.17": "<",
+  "dialog.numeric.english_name.control.18": ">",
+  "dialog.enhance.title": "enhance model",
+  "dialog.enhance.preserve": "Please preserve the edit result as a new model by 'save enhanced model'.",
+  "dialog.enhance.quit_title": "quit",
+  "dialog.enhance.quit": "There is a enhanced model not preserved by 'save enhanced model'.\n\nDo you realy quit?"
 }

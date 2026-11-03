@@ -2,6 +2,7 @@
 #include "mikudancestudio/mmd_dialog_edit_metrics.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
 #include <QLabel>
+#include <QGroupBox>
 #include <QLocale>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -111,7 +112,10 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
     setFont(font);
     // Original 96-DPI Arial / MS PGothic dialog base units, independently
     // measured in a memory DC. Qt logical pixels then scale with the screen.
-    const int baseX = 7, baseY = language.Code() == "en" ? 15 : 12;
+    const int baseX = 7,
+              baseY = language.Code() == "en"
+                          ? (QString::fromUtf8(template_.fontFamily) == "Tahoma" ? 14 : 15)
+                          : 12;
     const auto x = [&](int v) { return (v * baseX + 2) / 4; };
     const auto y = [&](int v) { return (v * baseY + 4) / 8; };
     setFixedSize(x(template_.width), y(template_.height));
@@ -123,10 +127,24 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
             auto* field = new QLineEdit(this);
             edits_[control.id] = field;
             widget = field;
+        } else if (control.kind == ui::NumericControlKind::Multiline) {
+            auto* field = new QPlainTextEdit(this);
+            field->setReadOnly((control.style & 0x800u) != 0);
+            field->setLineWrapMode(control.style & 0x80u ? QPlainTextEdit::NoWrap
+                                                         : QPlainTextEdit::WidgetWidth);
+            field->setVerticalScrollBarPolicy(control.style & 0x200000u ? Qt::ScrollBarAsNeeded
+                                                                        : Qt::ScrollBarAlwaysOff);
+            field->setHorizontalScrollBarPolicy(control.style & 0x100000u ? Qt::ScrollBarAsNeeded
+                                                                          : Qt::ScrollBarAlwaysOff);
+            field->setTabChangesFocus(true);
+            multiline_[control.id] = field;
+            widget = field;
         } else if (control.kind == ui::NumericControlKind::Static) {
             auto* label = new QLabel(language.Text(control.message), this);
             label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
             widget = label;
+        } else if (control.kind == ui::NumericControlKind::Groupbox) {
+            widget = new QGroupBox(language.Text(control.message), this);
         } else if (control.kind == ui::NumericControlKind::Slider) {
             auto* slider = new DialogTrackbar(this);
             slider->setFocusPolicy(Qt::ClickFocus);
@@ -167,8 +185,8 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
                                                                              : y(control.height));
         if (control.kind == ui::NumericControlKind::Listbox)
             widget->resize(widget->width(), ((y(control.height) - 4) / baseY) * baseY + 4);
-        if (control.kind == ui::NumericControlKind::Edit ||
-            control.kind == ui::NumericControlKind::Button) {
+        if (control.style & 0x10000u) {
+            widget->setFocusPolicy(Qt::StrongFocus);
             if (previous)
                 setTabOrder(previous, widget);
             previous = widget;

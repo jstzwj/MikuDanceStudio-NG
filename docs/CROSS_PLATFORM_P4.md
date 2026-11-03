@@ -3490,3 +3490,61 @@ snapshots and input hashes, maximum absolute difference 5.603e-05 within the
 existing relative contract. The fixture directory creation is now idempotent;
 this fixes the separate foundation workflow's second-run failure without
 changing any existing PMM/model baseline bytes. P4/C1 remains in progress.
+
+
+The VSQ revision `57444a8` passed all three Portable editor jobs in
+[CI 41565690734](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41565690734),
+as well as Portable formats, Portable rendering and Bullet regressions.
+
+## English-name editing (2026-11-03)
+
+Command 259 now opens the original modeless English-name dialog, using verified
+RT_DIALOG 666/665 geometry, control order and English/Japanese labels, plus the
+Chinese catalog. The model-info field retains its editable multiline/scroll behavior. Tahoma's independently measured 96-DPI base units are
+7 by 14; the Japanese template uses the existing 7 by 12 units. The generated
+template gate now verifies 34 binary templates. The menu count is **89/103**.
+
+Names are live immutable metadata snapshots, separate from immutable CPU/GPU
+model resources and motion-track identities. English model names also update
+PMM's existing sourceName field. Bone, Morph, group and comment changes survive
+ordinary editing, undo/redo, seeks and PMM saving within the live session;
+reopening PMM restores model-file metadata except its saved English model name,
+as in the original format. No edit creates bone history, advances simulation or
+marks the scene modified. The enhanced-model application flag and quit reminder
+are independent of PMM's modified flag.
+
+The dialog commits the old entry before changing a combo, wraps previous/next,
+skips Morph slot zero, preserves the special bone types' deselection, and applies
+pending fields on Cancel/close as well as OK. OK adds the original preserve-model
+reminder and enhanced flag. Record widths are 19/49 CP932 bytes; comments truncate
+the multiline ANSI representation at 255 bytes before stripping CR. Model
+metadata alone permits explicit '?' replacement for unrepresentable Unicode;
+strict path and motion-name encoding remains unchanged. Partial CP932 final
+bytes are retained in model metadata and rendered with a replacement glyph.
+Unqualified Windows best-fit Unicode mappings are not claimed by these checks.
+
+PMD normalization now retains all four model text fields and the native Japanese
+fallback for English names when no English section exists. Model import retains
+the header names instead of substituting the filename. English panel, parent,
+scope and timeline labels consume the same metadata without changing resource
+identities or document-to-resource channel mapping. Duplicate/empty labels carry
+stable scope identities so they cannot redirect an edit to another channel.
+
+The optional `--english-names` observer executes **16 original apply commands**
+over generated PMD/PMX models, including initialization, all three cursor loops,
+wraparound, old-input commit, hidden-bone selection, full record truncation,
+comment normalization, Cancel/OK, display-row mirrors, exact preserve reminder,
+retained bone history and unchanged scene-modification flag. USER32 controls and
+UI-only redraw tails are observed in memory; no original window is shown.
+Portable regressions additionally exercise metadata preservation through history,
+playback and PMM lifetime, invalid/stale targets and resource/CPU counters.
+Offscreen Qt checks cover all three languages, original control geometry,
+editable comment, menu gating, one-item loops, Cancel/OK and model unload.
+
+Saving an enhanced PMD, toon/physics enhancement, complete original font/raster,
+input/IME/DPI, chained clipboard and combined-scene/C1 qualification remain open.
+This increment does not complete P4 or C1.
+
+Local `ALL_BUILD` plus the optional native observer target passed. All **48 P4
+gates passed (204.29 seconds)** after the final source changes; the six touched
+integration gates and all 16 native observer profiles also passed separately.

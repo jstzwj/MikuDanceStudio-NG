@@ -98,6 +98,29 @@ public:
             }
         return false;
     }
+    bool SetModelEnglishNames(std::uint8_t slot,
+                              std::shared_ptr<const PmmModelEnglishNames> names) {
+        if (!loaded_ || !names || names->name.size() > 49)
+            return false;
+        for (auto& model : scene_.models)
+            if (model.slot == slot) {
+                const auto bounded = [](const auto& values, std::size_t limit) {
+                    return std::all_of(values.begin(), values.end(), [limit](const auto& value) {
+                        return value.size() <= limit;
+                    });
+                };
+                if (names->comment.size() > 255 || names->bones.size() != model.layout.boneCount ||
+                    names->morphs.size() != model.layout.morphCount ||
+                    names->groups.size() != model.groupCount || !bounded(names->bones, 19) ||
+                    !bounded(names->morphs, 19) || !bounded(names->groups, 49))
+                    return false;
+                std::vector<char> name(names->name.begin(), names->name.end());
+                model.sourceName = std::move(name);
+                model.englishNames = std::move(names);
+                return true;
+            }
+        return false;
+    }
     bool SetModelOrder(ModelOrderKind kind, const std::vector<std::uint8_t>& orderedSlots) {
         return loaded_ && SetPmmModelOrder(scene_, kind, orderedSlots);
     }

@@ -3,6 +3,8 @@
 #include "combo_items.hpp"
 #include "export.hpp"
 #include "numeric_dialog.hpp"
+#include "english_name_dialog.hpp"
+#include "model_labels.hpp"
 #include "mikudancestudio/editor_numeric.hpp"
 #include "mikudancestudio/mmd_control_specs.hpp"
 #include "mikudancestudio/text_encoding.hpp"
@@ -285,7 +287,8 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
 void EditorWindow::Tick(double seconds) {
     if (!std::isfinite(seconds) || seconds < 0)
         return;
-    AdvanceIdleRenderGate(idleRenderState_, session_.Playing(), lowPower_, false);
+    AdvanceIdleRenderGate(idleRenderState_, session_.Playing(), lowPower_,
+                          englishDialog_ && englishDialog_->Active());
     if (!idleRenderState_)
         return;
     if (session_.Playing()) {
@@ -328,6 +331,9 @@ EditorWindow::~EditorWindow() {
     delete edgeDialog_.data();
     delete groundShadowDialog_.data();
     delete gravityDialog_.data();
+    if (englishDialog_)
+        disconnect(englishDialog_, nullptr, this, nullptr);
+    delete englishDialog_.data();
     if (!testing_) {
         QSettings settings;
         settings.setValue("editor/lowPower", lowPower_);
@@ -667,6 +673,8 @@ void EditorWindow::Refresh() {
                                 !session_.Document().wave.enabled))
         audio_.Stop();
     const auto& doc = session_.Document();
+    if (englishDialog_ && !englishDialog_->Valid())
+        englishDialog_->Invalidate();
     if (edgeDialog_) {
         const auto slot = session_.Selected().model;
         const auto resource = session_.Runtime().Resource(slot);
@@ -775,7 +783,9 @@ void EditorWindow::Refresh() {
                             std::string reason;
                             if (session_.Runtime().ResourceMorphIndex(m.slot, int(i), channel,
                                                                       reason))
-                                add(Name(m.morphNames[channel]), unsigned(channel));
+                                add(ModelTrackLabel(session_, m.slot, unsigned(i), true,
+                                                    language_.Code() == "en"),
+                                    unsigned(channel));
                         }
                 });
                 int index = c->findData(old);
@@ -881,11 +891,25 @@ bool EditorWindow::ConfirmUnsaved() {
     return !session_.Dirty();
 }
 void EditorWindow::closeEvent(QCloseEvent* e) {
-    if (ConfirmUnsaved()) {
+    bool confirmed;
+    if (session_.EnhancedModelDirty() && !testing_) {
+        QMessageBox dialog(QMessageBox::NoIcon, language_.Text("dialog.enhance.quit_title"),
+                           language_.Text("dialog.enhance.quit"),
+                           QMessageBox::Ok | QMessageBox::Cancel, this);
+        dialog.setTextFormat(Qt::PlainText);
+        dialog.setOption(QMessageBox::Option::DontUseNativeDialog);
+        dialog.QDialog::setWindowTitle(language_.Text("dialog.enhance.quit_title"));
+        dialog.setWindowFlag(Qt::WindowStaysOnTopHint);
+        confirmed = dialog.exec() == QMessageBox::Ok;
+    } else
+        confirmed = ConfirmUnsaved();
+    if (confirmed) {
         if (edgeDialog_)
             edgeDialog_->close();
         if (gravityDialog_)
             gravityDialog_->close();
+        if (englishDialog_)
+            englishDialog_->close();
         if (separate_)
             separate_->hide();
         e->accept();
@@ -1459,17 +1483,38 @@ void EditorWindow::PhysicsKeys() {
     Refresh();
 }
 QString EditorWindow::ModelLabel(std::uint8_t slot) const {
-    if (language_.Code() == "en")
-        if (const auto resource = session_.Runtime().Resource(slot)) {
-            const auto& bytes = resource->Document().texts.fields[1];
-            std::string name;
-            if (text::DecodeUtf16Le(bytes.data(), bytes.size(), name) && !name.empty())
-                return QString::fromUtf8(name.c_str());
-        }
     for (const auto& model : session_.Document().models)
         if (model.slot == slot)
-            return Name(model.name);
+            return QString::fromUtf8(
+                editor::EnglishNameDisplay(
+                    language_.Code() == "en"
+                        ? std::string(model.sourceName.begin(), model.sourceName.end())
+                        : std::string(model.name.begin(), model.name.end()))
+                    .c_str());
     return {};
+}
+void EditorWindow::EnglishNames() {
+    if (englishDialog_ || session_.Selected().model == 255 || session_.Playing())
+        return;
+    englishDialog_ = new EnglishNameDialog(session_, language_, this);
+    englishDialog_->setAttribute(Qt::WA_DeleteOnClose);
+    englishDialog_->setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    englishDialog_->changed = [this] { Refresh(); };
+    englishDialog_->failed = [this](const std::string& reason) { Result(false, reason); };
+    englishDialog_->preserve = [this] {
+        const auto title = language_.Text("dialog.enhance.title");
+        const auto text = language_.Text("dialog.enhance.preserve");
+        if (!testing_) {
+            QMessageBox dialog(QMessageBox::NoIcon, title, text, QMessageBox::Ok, this);
+            dialog.setTextFormat(Qt::PlainText);
+            dialog.QDialog::setWindowTitle(title);
+            dialog.exec();
+        }
+    };
+    connect(englishDialog_, &QObject::destroyed, this, [this] { Refresh(); });
+    Refresh();
+    if (!testing_)
+        englishDialog_->show();
 }
 void EditorWindow::ModelOrder(bool calculation) {
     const auto kind =

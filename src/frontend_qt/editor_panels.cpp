@@ -1,5 +1,7 @@
 #include "editor_window.hpp"
 #include "combo_items.hpp"
+#include "english_name_dialog.hpp"
+#include "model_labels.hpp"
 #include "mikudancestudio/text_encoding.hpp"
 #include <QAbstractButton>
 #include <QComboBox>
@@ -23,7 +25,11 @@ void EditorWindow::RefreshScopes() {
     std::vector<std::pair<QString, QVariant>> items;
     scopes_.clear();
     const auto add = [&](const QString& label, KeyScope scope) {
-        items.emplace_back(label, QVariant{});
+        items.emplace_back(
+            label, scope.kind == KeyScopeKind::Track
+                       ? QVariant(QVariantList{int(scope.track.track), int(scope.track.slot),
+                                               int(scope.track.channel)})
+                       : QVariant{});
         scopes_.push_back(scope);
     };
     const auto kind = [&](const char* id, KeyScopeKind scope) {
@@ -68,12 +74,7 @@ void EditorWindow::RefreshScopes() {
             if (!(morph ? session_.Runtime().ResourceMorphIndex(model, int(index), channel, reason)
                         : session_.Runtime().ResourceBoneIndex(model, int(index), channel, reason)))
                 return;
-            const auto& names = morph ? resource->Document().morphs[index].names
-                                      : resource->Document().bones[index].names;
-            const auto& bytes = names[language_.Code() == "en" && !names[1].empty() ? 1 : 0];
-            std::string text;
-            text::DecodeUtf16Le(bytes.data(), bytes.size(), text);
-            add(QString::fromUtf8(text.c_str()),
+            add(ModelTrackLabel(session_, model, index, morph, language_.Code() == "en"),
                 {KeyScopeKind::Track,
                  {morph ? Track::Morph : Track::Bone, model, unsigned(channel), 0}});
         };
@@ -142,7 +143,8 @@ void EditorWindow::RefreshPanels() {
     slider(kFrameVolumeSlider, 0, 100, 100 - frameNormalization_);
     check(kFrameVolumeCheckbox, lowPower_);
     const bool model = session_.Selected().model != 255;
-    Control(kMainComboModel)->setEnabled(!session_.Playing());
+    Control(kMainComboModel)
+        ->setEnabled(!session_.Playing() && !(englishDialog_ && englishDialog_->Active()));
     Control(kModelEditToggle)->setEnabled(!session_.Playing());
     static_cast<QAbstractButton*>(Control(kModelEditToggle))
         ->setText(language_.Text(model ? "mode.to_camera" : "mode.to_model"));
@@ -157,7 +159,9 @@ void EditorWindow::RefreshPanels() {
             const auto old = c->currentData();
             SyncComboItems(c, [&](auto add) {
                 for (std::size_t i = 0; i < m.ikSources.size(); ++i)
-                    add(Label(m.boneNames.at(m.ikSources[i])), unsigned(i));
+                    add(ModelTrackLabel(session_, m.slot, unsigned(m.ikSources[i]), false,
+                                        language_.Code() == "en", true),
+                        unsigned(i));
             });
             c->setCurrentIndex(std::max(0, c->findData(old)));
             const auto ik = c->currentData().toUInt();
@@ -181,7 +185,9 @@ void EditorWindow::RefreshPanels() {
             for (const auto& m : d.models)
                 if (m.slot == slot)
                     for (std::size_t i = 0; i < m.boneNames.size(); ++i)
-                        add(Label(m.boneNames[i]), int(i));
+                        add(ModelTrackLabel(session_, m.slot, unsigned(i), false,
+                                            language_.Code() == "en", true),
+                            int(i));
         });
         c->setCurrentIndex(c->findData(bone));
         c->setEnabled(c->count() != 0);

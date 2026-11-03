@@ -41,6 +41,7 @@ private:
     Language& language_;
     std::vector<Row> rows_;
     std::weak_ptr<const runtime::ModelResource> rowsResource_;
+    std::weak_ptr<const format::PmmModelEnglishNames> rowsEnglishNames_;
     std::uint8_t rowsModel_ = 255;
     QString rowsLanguage_;
     std::vector<std::uint8_t> rowsGroupFlags_;
