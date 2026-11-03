@@ -60,6 +60,7 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
     settings.width = width;
     settings.height = height;
     settings.display = editor.DisplayOptions();
+    const auto samples = settings.display.antialiasing ? SceneAntialiasSamples(*backend.device) : 1;
     rhi::SceneRenderer renderer(*backend.device);
     rhi::PreparedModelFrame prepared;
     rhi::CompletionToken token;
@@ -76,7 +77,9 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
         rhi::RenderFrame frame;
         if (!producer.Build(scene, settings, frame, reason))
             return false;
-        auto result = renderer.Prepare(1, frame, prepared);
+        auto result = rhi::ApplyFrameMultisampling(frame, samples);
+        if (result)
+            result = renderer.Prepare(1, frame, prepared);
         if (result)
             result = renderer.Submit(prepared, token);
         if (!result) {

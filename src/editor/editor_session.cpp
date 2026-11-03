@@ -458,6 +458,12 @@ void EditorSession::SetMipmaps(bool value) {
         ++appearanceRevision_;
     }
 }
+void EditorSession::SetAntialiasing(bool value) {
+    if (display_.antialiasing != value) {
+        display_.antialiasing = value;
+        ++appearanceRevision_;
+    }
+}
 void EditorSession::SetWireframe(bool value) {
     if (display_.wireframe != value) {
         display_.wireframe = value;

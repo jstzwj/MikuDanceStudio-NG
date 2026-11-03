@@ -204,6 +204,60 @@ int main(int argc, char** argv) {
               session.Runtime().Counters().frames == playingFrames && playingFrames >= frames);
     }
     CHECK(window.SetLanguage("en"));
+    auto aliasOptions = window.RenderWindow()->Options();
+    const auto aliasBackend = qEnvironmentVariable("MDS_GPU_BACKEND");
+    if (aliasBackend == "d3d11")
+        aliasOptions.backend = rhi::Backend::D3D11;
+    else if (aliasBackend == "d3d12")
+        aliasOptions.backend = rhi::Backend::D3D12;
+    else if (aliasBackend == "vulkan")
+        aliasOptions.backend = rhi::Backend::Vulkan;
+    else if (aliasBackend == "metal")
+        aliasOptions.backend = rhi::Backend::Metal;
+    auto unavailable = aliasOptions;
+    unavailable.backend = rhi::Backend::Null;
+    window.RenderWindow()->SetOptions(unavailable);
+    window.Refresh();
+    const auto unavailableRevision = session.AppearanceRevision();
+    CHECK(!command(MDS_CMD_TOGGLE_ANTIALIASING)->isEnabled() &&
+          !command(MDS_CMD_TOGGLE_ANTIALIASING)->isChecked());
+    command(MDS_CMD_TOGGLE_ANTIALIASING)->trigger();
+    QKeyEvent disabledAlias(QEvent::KeyPress, Qt::Key_H, Qt::NoModifier);
+    QApplication::sendEvent(window.RenderWindow(), &disabledAlias);
+    CHECK(session.AppearanceRevision() == unavailableRevision);
+    window.RenderWindow()->SetOptions(aliasOptions);
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        CHECK(window.SetLanguage(language));
+        const auto revision = session.Revision(), appearance = session.AppearanceRevision();
+        const auto updates = session.Runtime().Counters().frames;
+        const auto undo = session.CanUndo(), redo = session.CanRedo();
+        auto* antialias = command(MDS_CMD_TOGGLE_ANTIALIASING);
+        if (!antialias->isEnabled() || !antialias->isChecked())
+            std::cerr << "antialias enabled=" << antialias->isEnabled()
+                      << " checked=" << antialias->isChecked()
+                      << " display=" << session.DisplayOptions().antialiasing
+                      << " samples=" << window.RenderWindow()->AntialiasSamples()
+                      << " language=" << language << '\n';
+        CHECK(antialias->isEnabled() && antialias->isChecked());
+        antialias->trigger();
+        CHECK(!antialias->isChecked() && !session.DisplayOptions().antialiasing);
+        CHECK(session.AppearanceRevision() == appearance + 1 &&
+              session.Runtime().Counters().frames == updates);
+        CHECK(session.Play(reason));
+        window.Refresh();
+        const auto playingFrames = session.Runtime().Counters().frames;
+        QKeyEvent key(QEvent::KeyPress, Qt::Key_H, Qt::NoModifier);
+        QApplication::sendEvent(window.RenderWindow(), &key);
+        CHECK(session.Playing() && session.DisplayOptions().antialiasing);
+        QKeyEvent repeat(QEvent::KeyPress, Qt::Key_H, Qt::NoModifier, "h", true);
+        QApplication::sendEvent(window.RenderWindow(), &repeat);
+        CHECK(session.DisplayOptions().antialiasing);
+        session.Pause();
+        CHECK(session.Revision() == revision &&
+              session.Runtime().Counters().frames == playingFrames);
+        CHECK(session.CanUndo() == undo && session.CanRedo() == redo);
+    }
+    CHECK(window.SetLanguage("en"));
     command(MDS_CMD_TOGGLE_UI_LANGUAGE)->trigger();
     CHECK(window.CurrentLanguage() == "ja");
     command(MDS_CMD_TOGGLE_UI_LANGUAGE)->trigger();
@@ -498,7 +552,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 93);
+    CHECK(implemented == 94);
     for (const char* language : {"en", "ja", "zh_CN"}) {
         qt::EditorWindow about(std::filesystem::absolute(argv[2]), true);
         CHECK(about.SetLanguage(language));

@@ -147,6 +147,7 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_LOW_POWER:
     case MDS_CMD_TOGGLE_PREVIOUS_FOLDER:
     case MDS_CMD_TOGGLE_MIPMAP:
+    case MDS_CMD_TOGGLE_ANTIALIASING:
     case MDS_CMD_TOGGLE_WIREFRAME:
     case MDS_CMD_TOGGLE_PHYSICS_BODIES:
     case MDS_CMD_ABOUT:
@@ -288,6 +289,8 @@ void EditorWindow::RefreshMenus() {
             enabled &= !session_.Playing();
         if (command == MDS_CMD_PASTE_AT_DIFFERENT_FRAME)
             enabled &= session_.CanPasteToSelectedTrack();
+        if (command == MDS_CMD_TOGGLE_ANTIALIASING)
+            enabled &= viewport_->AntialiasSamples() > 1;
         action->setEnabled(enabled);
     }
     const auto check = [&](int command, bool value) {
@@ -312,6 +315,8 @@ void EditorWindow::RefreshMenus() {
     check(MDS_CMD_TOGGLE_LOW_POWER, lowPower_);
     check(MDS_CMD_TOGGLE_PREVIOUS_FOLDER, fileHistory_.enabled);
     check(MDS_CMD_TOGGLE_MIPMAP, session_.DisplayOptions().mipmaps);
+    check(MDS_CMD_TOGGLE_ANTIALIASING,
+          session_.DisplayOptions().antialiasing && viewport_->AntialiasSamples() > 1);
     check(MDS_CMD_TOGGLE_WIREFRAME, session_.DisplayOptions().wireframe);
     check(MDS_CMD_TOGGLE_PHYSICS_BODIES, session_.DisplayOptions().physicsBodies);
     check(MDS_CMD_TOGGLE_PLAYBACK_PHYSICS_ON_OFF, session_.PlaybackPhysicsOnOff());
@@ -367,6 +372,12 @@ void EditorWindow::MenuCommand(int command) {
             RefreshFrameTimer();
             timer_.start();
         }
+        return;
+    }
+    if (command == MDS_CMD_TOGGLE_ANTIALIASING) {
+        session_.SetAntialiasing(!session_.DisplayOptions().antialiasing);
+        RefreshMenus();
+        UpdateFrame();
         return;
     }
     if (command == MDS_CMD_TOGGLE_WIREFRAME) {

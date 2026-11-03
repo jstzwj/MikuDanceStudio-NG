@@ -8,6 +8,12 @@
 namespace mikudancestudio::qt {
 #ifndef __APPLE__
 std::shared_ptr<const rhi::WindowSurfaceSource> QtSurface(QWindow& window, std::string& reason) {
+#ifdef _WIN32
+    if (QGuiApplication::platformName() != "windows") {
+        reason = "qt-platform-has-no-native-surface";
+        return {};
+    }
+#endif
     window.create();
     auto lease = std::make_shared<QtWindowLease>(window);
     rhi::NativeWindow native;

@@ -8,6 +8,7 @@ struct SceneDisplayOptions {
     bool hideModels = false;
     bool mipmaps = true;
     bool wireframe = false;
+    bool antialiasing = true;
     bool physicsBodies = false;
     // PMM loading initializes each model's displayState to zero without
     // resetting the global effect parameter. Ordinary model imports inherit it.

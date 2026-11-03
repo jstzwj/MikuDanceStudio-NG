@@ -10,6 +10,7 @@
 namespace mikudancestudio::qt {
 render::SceneRenderSources EditorRenderSources(const editor::EditorAssets&);
 std::shared_ptr<const rhi::WindowSurfaceSource> QtSurface(QWindow&, std::string&);
+unsigned SceneAntialiasSamples(const rhi::Device&);
 struct FrameCpuTimings {
     double view = 0, assets = 0, scene = 0, overlay = 0;
 };
@@ -29,6 +30,7 @@ public:
     bool Reset(std::string&);
     bool ReloadTextures(std::string&);
     bool OutputLimits(QSize&, std::string&) const;
+    unsigned AntialiasSamples() const;
     std::function<void(QPoint, Qt::MouseButtons, Qt::KeyboardModifiers)> drag;
     std::function<void(int)> zoom;
     std::function<void(bool, const std::string&)> changed;
@@ -58,7 +60,8 @@ private:
     editor::EditorAssets loaded_;
     rhi::RenderFrame cachedFrame_;
     std::uint64_t cachedRevision_ = 0, cachedUpdates_ = 0, frameBuilds_ = 0;
-    unsigned cachedWidth_ = 0, cachedHeight_ = 0;
+    unsigned cachedWidth_ = 0, cachedHeight_ = 0, cachedSamples_ = 0;
+    mutable unsigned supportedSamples_ = 0;
     std::uint8_t cachedModel_ = 255;
     int cachedBone_ = -1;
     std::vector<std::uint32_t> cachedSelectedBones_;

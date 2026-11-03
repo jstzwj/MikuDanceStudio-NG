@@ -207,6 +207,7 @@ public:
     void SetHiddenModels(bool);
     void SetMipmaps(bool);
     void SetWireframe(bool);
+    void SetAntialiasing(bool);
     void SetPhysicsBodiesVisible(bool);
     bool SetOutlineColor(const std::array<std::uint8_t, 3>& rgb);
     // Invalidate visual changes which preserve the document's dirty revision.

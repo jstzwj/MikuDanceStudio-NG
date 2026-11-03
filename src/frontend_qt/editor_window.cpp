@@ -257,6 +257,7 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
         QSettings settings;
         lowPower_ = settings.value("editor/lowPower", false).toBool();
         session_.SetMipmaps(settings.value("renderer/mipmaps", true).toBool());
+        session_.SetAntialiasing(settings.value("renderer/antialiasing", true).toBool());
         session_.SetWireframe(settings.value("renderer/wireframe", false).toBool());
         fileHistory_.enabled = settings.value("files/rememberFolders", true).toBool();
         fileHistory_.Restore(settings.value("files/directories").toStringList());
@@ -344,6 +345,7 @@ EditorWindow::~EditorWindow() {
         QSettings settings;
         settings.setValue("editor/lowPower", lowPower_);
         settings.setValue("renderer/mipmaps", session_.DisplayOptions().mipmaps);
+        settings.setValue("renderer/antialiasing", session_.DisplayOptions().antialiasing);
         settings.setValue("renderer/wireframe", session_.DisplayOptions().wireframe);
         settings.setValue("files/rememberFolders", fileHistory_.enabled);
         settings.setValue("files/directories", fileHistory_.Save());
@@ -873,6 +875,7 @@ void EditorWindow::UpdateFrame() {
         std::string reason;
         if (!viewport_->Render(reason))
             lastError_ = QString::fromStdString(reason);
+        RefreshMenus();
     }
 }
 bool EditorWindow::SeekFrame(unsigned frame, std::string& reason) {
@@ -2236,6 +2239,12 @@ bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
         }
         if (key->key() == Qt::Key_Space) {
             Dispatch(kPlayButton);
+            return true;
+        }
+        if (key->key() == Qt::Key_H &&
+            !(key->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
+            if (!key->isAutoRepeat())
+                MenuCommand(MDS_CMD_TOGGLE_ANTIALIASING);
             return true;
         }
         if (key->key() == Qt::Key_D &&

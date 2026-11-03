@@ -22,6 +22,25 @@ render::SceneRenderSources EditorRenderSources(const editor::EditorAssets& asset
         "data";
     return out;
 }
+unsigned SceneAntialiasSamples(const rhi::Device& device) {
+    const auto mask = device.FormatFeatures(rhi::TextureFormat::Rgba8).sampleCounts &
+                      device.FormatFeatures(rhi::TextureFormat::DepthStencil).sampleCounts;
+    for (unsigned samples : {8u, 4u, 2u})
+        if (mask & samples)
+            return samples;
+    return 1;
+}
+unsigned Viewport::AntialiasSamples() const {
+    if (const auto* device = controller_.GetDevice())
+        return SceneAntialiasSamples(*device);
+    if (!supportedSamples_) {
+        auto options = options_;
+        options.surface.reset();
+        auto probe = rhi::CreateOffscreenBackendDevice(1, 1, options);
+        supportedSamples_ = probe ? SceneAntialiasSamples(*probe.device) : 1;
+    }
+    return supportedSamples_;
+}
 Viewport::Viewport(editor::EditorSession& session, const std::filesystem::path& assets)
     : session_(session), builtins_(assets) {
     setObjectName("mmd.viewport");
@@ -44,6 +63,7 @@ void Viewport::SetOptions(const rhi::BackendOptions& options) {
     controller_.Close();
     producer_.ResetHistory();
     options_ = options;
+    supportedSamples_ = 0;
 }
 bool Viewport::Reset(std::string& reason) {
     FinishToolDrag();
@@ -181,13 +201,17 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
     settings.height = h;
     settings.editorModel = session_.Selected().model;
     settings.display = session_.DisplayOptions();
+    const auto* device = controller_.GetDevice();
+    const auto samples =
+        settings.display.antialiasing && device ? SceneAntialiasSamples(*device) : 1;
     const auto revision = session_.Revision(), updates = session_.Runtime().Counters().frames;
     const bool history = session_.Document().view.captureMode != 0;
     const auto physics = physicsEdit ? physicsEdit() : render::PhysicsEditView{};
     if (!frameCached_ || history || physics.edit || cachedRevision_ != revision ||
         cachedUpdates_ != updates || cachedWidth_ != w || cachedHeight_ != h ||
-        cachedModel_ != session_.Selected().model || cachedBone_ != ActiveBone() ||
-        cachedPlaying_ != session_.Playing() || cachedSelectedBones_ != session_.Selected().bones ||
+        cachedSamples_ != samples || cachedModel_ != session_.Selected().model ||
+        cachedBone_ != ActiveBone() || cachedPlaying_ != session_.Playing() ||
+        cachedSelectedBones_ != session_.Selected().bones ||
         cachedEditMode_ != session_.Document().timeline.editMode ||
         cachedCoordinateSystem_ != session_.CoordinateSystem() ||
         cachedToolOperation_ != toolOperation_ ||
@@ -207,11 +231,17 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
         if (!overlay_.Append(session_.Runtime(), settings, session_.Selected().bones,
                              session_.Playing(), cachedFrame_, reason, &tools))
             return false;
+        const auto multisampled = rhi::ApplyFrameMultisampling(cachedFrame_, samples);
+        if (!multisampled) {
+            reason = multisampled.reason;
+            return false;
+        }
         cpuTimings_.overlay = elapsed();
         ++frameBuilds_;
         cachedRevision_ = revision;
         cachedAppearanceRevision_ = session_.AppearanceRevision();
         cachedUpdates_ = updates;
+        cachedSamples_ = samples;
         cachedWidth_ = w;
         cachedHeight_ = h;
         cachedModel_ = session_.Selected().model;
@@ -689,6 +719,12 @@ bool RenderImage(const runtime::SceneRuntime& scene, const editor::EditorAssets&
     rhi::RenderFrame frame;
     if (!producer.Build(scene, settings, frame, reason))
         return false;
+    const auto multisampled = rhi::ApplyFrameMultisampling(
+        frame, display.antialiasing ? SceneAntialiasSamples(*backend.device) : 1);
+    if (!multisampled) {
+        reason = multisampled.reason;
+        return false;
+    }
     rhi::SceneRenderer renderer(*backend.device);
     rhi::PreparedModelFrame prepared;
     rhi::CompletionToken token;

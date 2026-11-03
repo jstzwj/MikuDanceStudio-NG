@@ -440,13 +440,17 @@ unsigned FileFolderCommands(OriginalPhysicsModule& original) {
 }
 struct NativeSamplerDevice : SnapshotDeviceFixture {
     std::map<std::pair<unsigned, D3DSAMPLERSTATETYPE>, DWORD> samplers;
+    std::vector<std::pair<D3DRENDERSTATETYPE, DWORD>> states;
     NativeSamplerDevice() : SnapshotDeviceFixture(nullptr) {}
     HRESULT STDMETHODCALLTYPE SetSamplerState(DWORD stage, D3DSAMPLERSTATETYPE state,
                                               DWORD value) override {
         samplers[{stage, state}] = value;
         return S_OK;
     }
-    HRESULT STDMETHODCALLTYPE SetRenderState(D3DRENDERSTATETYPE, DWORD) override { return S_OK; }
+    HRESULT STDMETHODCALLTYPE SetRenderState(D3DRENDERSTATETYPE state, DWORD value) override {
+        states.emplace_back(state, value);
+        return S_OK;
+    }
     HRESULT STDMETHODCALLTYPE SetSoftwareVertexProcessing(BOOL) override { return S_OK; }
     HRESULT STDMETHODCALLTYPE LightEnable(DWORD, BOOL) override { return S_OK; }
     HRESULT STDMETHODCALLTYPE SetTextureStageState(DWORD, D3DTEXTURESTAGESTATETYPE,
@@ -717,6 +721,62 @@ unsigned DisplayFlagCommands(OriginalPhysicsModule& original, bool physicsBodies
 }
 unsigned WireframeCommands(OriginalPhysicsModule& original) {
     return DisplayFlagCommands(original);
+}
+unsigned AntialiasCommands(OriginalPhysicsModule& original) {
+    switchMenuCommand = MDS_CMD_TOGGLE_ANTIALIASING;
+    auto menu = &ShadowMenu;
+    auto state = &ShadowMenuState;
+    auto check = &ShadowMenuCheck;
+    Patch a(original.Function<void*>(0x1286a0), &menu, sizeof menu);
+    Patch b(original.Function<void*>(0x128660), &state, sizeof state);
+    Patch c(original.Function<void*>(0x1287a0), &check, sizeof check);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    NativeSamplerDevice device;
+    std::vector<unsigned char> renderer(0x3ab00);
+    auto* rendererPointer = renderer.data();
+    auto* devicePointer = static_cast<IDirect3DDevice9*>(&device);
+    std::memcpy(renderer.data() + 0x3a9c0, &devicePointer, sizeof devicePointer);
+    const auto beforeRenderer = renderer;
+    unsigned cases = 0;
+    for (bool checked : {false, true})
+        for (bool playing : {false, true})
+            for (unsigned latch : {0u, 7u}) {
+                std::memset(app.get(), 0, sizeof(*app));
+                std::memcpy(reinterpret_cast<unsigned char*>(app.get()) + 0xa16e0, &rendererPointer,
+                            sizeof rendererPointer);
+                app->playbackActive = playing;
+                app->sceneModified = 0x7d;
+                app->physicsResetPending = 1;
+                app->currentFrame = 123;
+                app->letterKeyState[11] = latch;
+                auto expected = std::make_unique<MMDAppState>(*app);
+                expected->letterKeyState[11] = 1; // Original command RVA 0x4fa4e: [app+0x5c].
+                shadowMenuChecked = checked;
+                shadowMenuWrites = 0;
+                device.states.clear();
+                original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, switchMenuCommand);
+                Check(shadowMenuWrites == 1 &&
+                          !std::memcmp(app.get(), expected.get(), sizeof(*app)) &&
+                          renderer == beforeRenderer,
+                      "native antialias menu, H latch, unchanged scene/renderer");
+                Check(device.states.size() == 1 &&
+                          device.states[0].first == D3DRS_MULTISAMPLEANTIALIAS &&
+                          device.states[0].second == DWORD(!checked),
+                      "native antialias render state");
+                EditorSession portable;
+                portable.SetAntialiasing(checked);
+                const auto revision = portable.Revision(),
+                           appearance = portable.AppearanceRevision();
+                portable.SetAntialiasing(!checked);
+                Check(portable.DisplayOptions().antialiasing == !checked &&
+                          portable.Revision() == revision &&
+                          portable.AppearanceRevision() == appearance + 1 && !portable.CanUndo(),
+                      "portable antialias display state");
+                ++cases;
+            }
+    return cases;
 }
 unsigned MipmapCommands(OriginalPhysicsModule& original) {
     switchMenuCommand = MDS_CMD_TOGGLE_MIPMAP;
@@ -3383,6 +3443,11 @@ int wmain(int argc, wchar_t** argv) try {
                         WireframeCommands(original));
             return 0;
         }
+        if (std::wcscmp(argv[3], L"--antialias") == 0) {
+            std::printf("%u original antialias command comparisons passed\n",
+                        AntialiasCommands(original));
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--debug-bodies") == 0) {
             std::printf("%u original body-display command comparisons passed\n",
                         DisplayFlagCommands(original, true));
@@ -3436,6 +3501,7 @@ int wmain(int argc, wchar_t** argv) try {
                 FrameRateCommands(original));
     std::printf("%u original file folder comparisons passed\n", FileFolderCommands(original));
     std::printf("%u original mipmap command comparisons passed\n", MipmapCommands(original));
+    std::printf("%u original antialias command comparisons passed\n", AntialiasCommands(original));
     std::printf("%u original wireframe command comparisons passed\n", WireframeCommands(original));
     std::printf("%u original about command comparisons passed\n", AboutCommands(original));
     std::printf("%u original texture reload commands passed\n", TextureReloadCommands(original));

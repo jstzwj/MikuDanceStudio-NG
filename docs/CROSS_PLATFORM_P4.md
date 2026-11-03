@@ -3750,3 +3750,43 @@ Validation: local ALL_BUILD passed and all 54 P4 gates passed (190.06 seconds).
 The new overlay checks also passed explicitly on DX12 WARP and hardware Vulkan.
 The 600-case drag, 108-case preview, geometry and six-command native observers
 passed without original UI/device creation. Desktop input was never used.
+
+
+## Antialiasing display command and shared MSAA output
+
+The original command 277 and H key are connected in all three Qt languages.
+The preferred supported sample count is selected from the common RGBA8/depth
+capability mask (8, 4, 2, then 1). The native menu is checked by default when
+multisampling is available; unavailable profiles disable it. Toggling changes
+only the appearance revision, including during playback. It neither creates a
+bone undo entry nor changes the document or advances physics. The setting is
+persisted with the renderer preferences.
+
+The Qt viewport, still-image export and fixed-step sequence export all use the
+shared frame transformation and native color resolves. Original target IDs,
+postprocessing and screen/history capture ordering are retained. Offscreen CPU
+preparation creates no device; native presentation rebuilds its cached graph
+when the actual device/sample profile becomes available or changes. Hidden
+surface tests inspect resolves and sample counts through toggle, resize,
+replacement, capture and detach/dock operations. Export checks jagged versus
+multisampled edges, exact restoration, deterministic repeats and capture warmup.
+
+The optional original command observer passed 8 full-dispatch cases covering
+both menu states, playback and preexisting H-key latches. It checks the complete
+application and renderer bytes and the single native
+`SetRenderState(D3DRS_MULTISAMPLEANTIALIAS, value)` call. This is command evidence;
+identical edge sample patterns across arbitrary native GPUs are not asserted.
+The menu implements **94/103** original commands; the remaining nine are media
+and Kinect features scheduled in later plan phases. Wider C1 output/input
+qualification remains open.
+
+The attachment/resolve revision `0813481` passed all four CI workflows, including
+[three-platform editor run 41593205203](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41593205203).
+This includes the new native Metal and lavapipe MSAA gates. Local native-window
+checks use the Windows Qt platform plugin with windows never shown; `offscreen`
+has no native HWND and now returns an explicit unsupported-surface diagnostic.
+
+Validation for the Qt antialias revision: local ALL_BUILD and all **56 P4 gates
+passed (219.05 seconds)**. Explicit DX11 WARP, DX12 WARP and Vulkan hardware
+native-window tests passed with every Windows host kept hidden, including
+sample toggles, resize, replacement, capture history and separate-window rebuilds.

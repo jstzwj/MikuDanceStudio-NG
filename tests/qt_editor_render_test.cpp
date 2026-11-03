@@ -265,6 +265,17 @@ int main(int argc, char** argv) {
         CHECK(a.open(QIODevice::ReadOnly) && b.open(QIODevice::ReadOnly));
         CHECK(a.readAll() == b.readAll());
     }
+    CHECK(session.DisplayOptions().antialiasing);
+    session.SetAntialiasing(false);
+    CHECK(qt::ExportSequence(session, assets, options, root / "frames-no-aa", 0, 0, 128, 96, {},
+                             reason));
+    session.SetAntialiasing(true);
+    CHECK(qt::ExportSequence(session, assets, options, root / "frames-aa-restored", 0, 0, 128, 96,
+                             {}, reason));
+    const QImage aa(qt::Path(root / "frames/frame_00000000.png"));
+    const QImage noAa(qt::Path(root / "frames-no-aa/frame_00000000.png"));
+    const QImage restoredAa(qt::Path(root / "frames-aa-restored/frame_00000000.png"));
+    CHECK(!aa.isNull() && !noAa.isNull() && aa != noAa && aa == restoredAa);
     CHECK(!qt::ExportSequence(
         session, assets, options, root / "cancelled", 0, 3, 128, 96,
         [](unsigned done, unsigned) { return done < 2; }, reason));

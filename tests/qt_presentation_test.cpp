@@ -27,6 +27,9 @@ int main(int argc, char** argv) {
     CHECK(qEnvironmentVariable("MDS_QT_ISOLATED_DISPLAY") == "1");
 #endif
     QApplication app(argc, argv);
+#ifdef _WIN32
+    CHECK(QGuiApplication::platformName() == "windows");
+#endif
     {
         QWindow host;
         host.resize(17, 19);
@@ -119,6 +122,29 @@ int main(int argc, char** argv) {
             CHECK(session.Runtime().Counters().frames == updates);
             if (i == 2)
                 CHECK(viewport.Reset(reason));
+        }
+        CHECK(viewport.AntialiasSamples() > 1);
+        for (bool enabled : {true, false, true}) {
+            const auto frames = session.Runtime().Counters().frames;
+            session.SetAntialiasing(enabled);
+            CHECK(viewport.Render(reason, true));
+            const auto& graph = viewport.PreparedFrame();
+            unsigned resolves = 0;
+            for (const auto& pass : graph.passes) {
+                const auto colors = rhi::ColorAttachments(pass);
+                for (const auto& color : colors) {
+                    if (!color.resolve)
+                        continue;
+                    ++resolves;
+                    const auto target =
+                        std::find_if(graph.targets.begin(), graph.targets.end(),
+                                     [&](const auto& t) { return t.id == color.target; });
+                    CHECK(target != graph.targets.end() &&
+                          target->description.samples == viewport.AntialiasSamples());
+                }
+            }
+            CHECK(enabled ? resolves > 0 : resolves == 0);
+            CHECK(session.Runtime().Counters().frames == frames);
         }
         const auto navigationFrames = session.Runtime().Counters().frames;
         const auto* snapshot = session.Runtime().Snapshot(0);

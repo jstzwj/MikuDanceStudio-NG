@@ -403,3 +403,12 @@ independent no-window observations. All 54 local P4 gates passed; drag float/tex
 checks cover 600 original cases. Menu coverage is 93/103. Antialiasing,
 combined-scene GPU and full input/layout acceptance remain open; P4/C1 is not yet
 accepted. See the P4 evidence record for precise scope and current validation.
+
+
+2026-11-03 P4 antialiasing increment: the shared RHI now has explicit multisample
+attachments and ordered color resolves across DX11, DX12, Vulkan and Metal.
+Command 277 / H, viewport and export are connected, with unavailable capability
+profiles disabled. Native command comparison and three-language dispatch pass;
+the menu implements 94/103 commands (the remaining nine belong to later media
+and Kinect phases). P4/C1 remains in progress pending the complete scene and
+input/layout exit gates. See docs/CROSS_PLATFORM_P4.md for qualified profiles.
