@@ -157,6 +157,13 @@ int main(int argc, char** argv) {
         CHECK(window.SeparateWindow());
         CHECK(Drop(window.SeparateWindow(), {url("bound.x")}));
         CHECK(session.Document().accessories.size() == 1);
+        CHECK(!session.Document().accessories[0].state.shadowEnabled);
+        CHECK(Drop(window.SeparateWindow(), {url("placed.vac")}));
+        CHECK(session.Document().accessories.size() == 2);
+        const auto& vac = session.Document().accessories[1];
+        CHECK(vac.state.scale == 1.25f && vac.state.shadowEnabled &&
+              vac.state.rotation == (std::array<float, 3>{.1f, .2f, .3f}) &&
+              vac.state.parentModel == -1 && vac.state.parentBone == 0);
         CHECK(!window.isVisible() && !window.SeparateWindow()->isVisible());
     }
     std::puts(

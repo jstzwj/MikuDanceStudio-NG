@@ -1523,10 +1523,10 @@ void EditorWindow::Dispatch(int id) {
         break;
     case kLoadModelButton:
     case kLoadAccessoryButton: {
-        const auto p =
-            ChooseFile(id == kLoadModelButton ? FileKind::Model : FileKind::Accessory, false,
-                       language_.Text("control.437"),
-                       id == kLoadModelButton ? "MMD Model (*.pmd *.pmx)" : "Accessory (*.x)");
+        const auto p = ChooseFile(id == kLoadModelButton ? FileKind::Model : FileKind::Accessory,
+                                  false, language_.Text("control.437"),
+                                  id == kLoadModelButton ? "MMD Model (*.pmd *.pmx)"
+                                                         : "Accessory (*.x *.vac)");
         if (p.isEmpty())
             return;
         ok = id == kLoadModelButton ? session_.ImportModel(Path(p), r)

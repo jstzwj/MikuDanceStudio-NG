@@ -366,6 +366,12 @@ Material { 0.2;0.7;0.4;0.6;; 2.0; 0.0;0.0;0.0;; 0.1;0.0;0.0;; }
 }
 ''', encoding='ascii')
     varied = (root / 'bound.x').read_text(encoding='ascii')
+    (root / 'vac-mesh').mkdir()
+    (root / 'vac-mesh/bound.x').write_text(varied, encoding='ascii')
+    # The mesh is in a different directory, but checker.bmp is deliberately
+    # only beside the VAC: native accessory textures retain the wrapper root.
+    (root / 'placed.vac').write_bytes(
+        b'ignored title\r\nvac-mesh\\bound.x\r\n1.25\r\n1,2,3\r\n.1,.2,.3\r\nignored bone\r\n0\r\n')
     (root / 'screen.x').write_text(varied.replace('checker.bmp', 'screen.bmp'), encoding='ascii')
     varied = varied.replace('-2.0;-2.0;0.0', '-2.625;-1.4375;0.3125')
     varied = varied.replace('0.0;2.0;0.0', '0.875;2.25;-0.625')

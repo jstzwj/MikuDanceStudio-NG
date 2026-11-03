@@ -48,6 +48,7 @@ int main(int argc, char** argv) try {
                                 a.rotation = {.1f, .2f, .3f};
                                 a.scale = .2f;
                                 a.opacity = .7f;
+                                a.shadowEnabled = 1;
                             }
                             return true;
                         },

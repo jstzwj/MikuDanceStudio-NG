@@ -44,15 +44,31 @@ int main(int argc, char** argv) {
         options.backend = rhi::Backend::Metal;
     else
         CHECK(requested.isEmpty());
+    options.vulkanLibrary = qEnvironmentVariable("MDS_TEST_VULKAN_LIBRARY").toStdString();
+    if (qEnvironmentVariable("MDS_GPU_DRIVER") == "software")
+        options.driver = rhi::BackendDriver::Software;
+    // A VAC's placement must render exactly like the same direct mesh/current
+    // state. The mesh directory lacks checker.bmp; only the wrapper has it.
+    {
+        editor::EditorSession wrapped, direct;
+        CHECK(wrapped.ImportAccessory(root / "placed.vac", reason));
+        CHECK(direct.ImportAccessory(root / "bound.x", reason));
+        CHECK(direct.SetAccessory(0, wrapped.Document().accessories[0].state, reason));
+        CHECK(direct.Register({{editor::Track::Accessory, 0, 0, 0}}, reason));
+        CHECK(qt::ExportSequence(wrapped, assets, options, root / "vac-render", 0, 0, 127, 95, {},
+                                 reason));
+        CHECK(qt::ExportSequence(direct, assets, options, root / "x-render", 0, 0, 127, 95, {},
+                                 reason));
+        const QImage vac(qt::Path(root / "vac-render/frame_00000000.png"));
+        const QImage mesh(qt::Path(root / "x-render/frame_00000000.png"));
+        CHECK(!vac.isNull() && vac == mesh);
+    }
     std::cout << "Qt offscreen backend: "
               << (options.backend == rhi::Backend::D3D11    ? "d3d11"
                   : options.backend == rhi::Backend::D3D12  ? "d3d12"
                   : options.backend == rhi::Backend::Vulkan ? "vulkan"
                                                             : "metal")
               << std::endl;
-    options.vulkanLibrary = qEnvironmentVariable("MDS_TEST_VULKAN_LIBRARY").toStdString();
-    if (qEnvironmentVariable("MDS_GPU_DRIVER") == "software")
-        options.driver = rhi::BackendDriver::Software;
     {
         qt::EditorWindow sizing(assets, true);
         auto& editor = sizing.Session();
@@ -541,6 +557,7 @@ int main(int argc, char** argv) {
             d.accessories[0].state.position = {1, 2, 3};
             d.accessories[0].state.rotation = {.1f, .2f, .3f};
             d.accessories[0].state.scale = .2f;
+            d.accessories[0].state.shadowEnabled = 1;
             return true;
         },
         reason));

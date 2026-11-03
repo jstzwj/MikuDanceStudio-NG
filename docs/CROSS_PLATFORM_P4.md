@@ -3145,8 +3145,8 @@ The previous-folder switch applies before loading, including failure; JPG
 retains the original omission from background-folder history. Unknown files
 are ignored; remote URLs are not opened. Classified video/VSQ/Kinect inputs
 retain an explicit unsupported diagnostic until their own implementation.
-Classification of VAC is covered; importing its placement settings is still a
-separate gap, not claimed as successful accessory loading here.
+VAC placement loading was added subsequently; its independent parser and PMM
+coverage are recorded below.
 
 The optional `editor_file_drop_oracle_test <original.exe>` invokes the actual
 x64 dispatcher at RVA 978B0. It intercepts only shell enumeration/cleanup,
@@ -3174,3 +3174,51 @@ of the wider isolated input/DPI qualification.
 
 All **42 local P4 tests passed in 132.79 seconds**, followed by the final native
 dispatcher check. P4/C1 remains in progress.
+
+## VAC accessory wrappers and native initial state (2026-11-03)
+
+The shared editor now reads CP932 VAC wrappers before parsing the referenced
+`.x`. Scale, position, radian rotation and the inverted shadow switch initialize
+both the current accessory and its frame-zero key. The title and bone line are
+ignored, as in the actual object loader; importing a VAC does not select or
+attach a model bone. The optional seventh field supports old six-line files.
+The native low-byte interpretation of the integer shadow field is preserved
+without reproducing its adjacent-memory write. Malformed transforms and
+overlong fields fail atomically instead of publishing partially initialized data.
+
+The optional `editor_vac_oracle_test <original.exe> <fixture-directory>` calls
+the hash-verified x64 object loader at RVA DC560. **96 exact comparisons** cover
+six scales, eight shadow forms, LF/CRLF, signed zero and radian rotations. It
+executes the original file reads, `fscanf`, name conversion and path resolver.
+The ANSI mesh locator supplies an explicit CP932 conversion before invoking the
+original resolver; D3DX mesh loading is observed and bypassed, and execution
+stops after the actual VAC `fclose`. This qualifies that parser and its mesh
+request, not native mesh/material allocation or the complete accessory renderer.
+No GPU device or visible window is created.
+
+The same observation distinguishes native naming and defaults: a plain `.x`
+keeps its filename including extension, starts without shadows, and has parent
+model -1 / bone 0. A VAC's name retains its mesh path text, not its title. The
+shared importer now uses these values. Tests that exercise accessory shadow
+rendering explicitly enable that switch. The wrapper detection remains the
+original case-sensitive `.vac` substring; uppercase drop classification does
+not imply uppercase wrapper parsing.
+
+Accessory source paths retain the wrapper, so textures resolve beside it even
+when the mesh resides in a different subdirectory. Save As stores the wrapper
+relative to the new project. Reopening parses its geometry while preserving
+the saved PMM current state and keys, even if the VAC defaults subsequently
+change. Public regression covers CP932 mesh names, atomic missing-mesh failure,
+reopen/seek, original defaults and all 96 import cases. Qt drop regression now
+loads a VAC in all three languages. The offscreen GPU gate compares a generated
+VAC to the same direct mesh with registered placement, requiring identical PNG
+pixels; the mesh subdirectory deliberately lacks its texture.
+
+The preceding file-drop revision passed all three platform jobs in CI
+[41548046861](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41548046861).
+The local P4 run passed 41/43 gates; its two material-history fixtures had relied
+on the old incorrect initial shadow switch. They now explicitly enable it and
+register their off-camera root state. Both affected GPU gates and the VAC gate
+passed the focused rerun, retaining their strict history/pixel assertions.
+P4/C1 remains in progress; these checks do not close the remaining input,
+combined-scene output, layout and command gates.

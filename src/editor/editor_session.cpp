@@ -7,6 +7,7 @@
 #include "mikudancestudio/text_encoding.hpp"
 #include "mikudancestudio/vmd_scene_tracks.hpp"
 #include "mikudancestudio/wave_format.hpp"
+#include "mikudancestudio/vac_format.hpp"
 #include "mikudancestudio/background_placement.hpp"
 #include "mikudancestudio/bone_key_interpolation.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
@@ -313,21 +314,50 @@ PmmSceneModel MakeModel(std::uint8_t slot, const runtime::ModelResource& resourc
     m.displayKeys.dense = {display};
     return m;
 }
-bool ReadAccessory(const std::filesystem::path& path,
-                   std::shared_ptr<const runtime::AccessoryResource>& out, std::string& reason) {
+bool AccessoryBytes(const std::filesystem::path& path, std::vector<char>& bytes,
+                    std::string& reason, std::size_t limit) {
     std::ifstream f(path, std::ios::binary | std::ios::ate);
     const auto size = f ? f.tellg() : std::streampos(-1);
-    if (size < 0 || size > 512 * 1024 * 1024) {
+    if (size < 0 || std::uint64_t(size) > limit) {
         reason = "accessory-read-failed";
         return false;
     }
-    std::vector<char> bytes(std::size_t(size), 0);
+    bytes.assign(std::size_t(size), 0);
     f.seekg(0);
     if (!f.read(bytes.data(), std::streamsize(bytes.size()))) {
         reason = "accessory-read-failed";
         return false;
     }
-    return runtime::AccessoryResource::Parse(bytes.data(), bytes.size(), out, reason);
+    return true;
+}
+bool ReadAccessory(const std::filesystem::path& path,
+                   std::shared_ptr<const runtime::AccessoryResource>& out, std::string& reason,
+                   VacAccessory* placement = nullptr, std::filesystem::path* meshSource = nullptr) {
+    auto mesh = path;
+    std::vector<char> bytes;
+    VacAccessory defaults;
+    defaults.shadowEnabled = false;
+    // The native loader tests this case-sensitive substring on the complete
+    // resolved path, independently of the file-drop classifier.
+    if (path.u8string().find(".vac") != std::string::npos) {
+        if (!AccessoryBytes(path, bytes, reason, 64u << 10) ||
+            !ReadVac({bytes.data(), bytes.size()}, defaults, reason))
+            return false;
+        auto decoded = defaults.meshPath;
+        std::replace(decoded.begin(), decoded.end(), '\\', '/');
+        mesh = std::filesystem::u8path(decoded);
+        if (mesh.is_relative())
+            mesh = path.parent_path() / mesh;
+        mesh = mesh.lexically_normal();
+    }
+    if (!AccessoryBytes(mesh, bytes, reason, 512u << 20) ||
+        !runtime::AccessoryResource::Parse(bytes.data(), bytes.size(), out, reason))
+        return false;
+    if (placement)
+        *placement = std::move(defaults);
+    if (meshSource)
+        *meshSource = std::move(mesh);
+    return true;
 }
 }
 EditorSession::EditorSession() {
@@ -824,26 +854,36 @@ bool EditorSession::ImportAccessory(const std::filesystem::path& path, std::stri
     }
     auto absolute = std::filesystem::absolute(path).lexically_normal();
     std::shared_ptr<const runtime::AccessoryResource> resource;
-    if (!ReadAccessory(absolute, resource, reason))
+    VacAccessory placement;
+    std::filesystem::path mesh;
+    if (!ReadAccessory(absolute, resource, reason, &placement, &mesh))
         return false;
     PmmSceneAccessory a;
     a.slot = std::uint8_t(slot);
     a.order = std::uint8_t(next.document.accessories.size());
     std::string name;
-    if (!text::EncodeCp932(absolute.stem().u8string(), name) || !Fixed(name, a.name) ||
+    const auto& displayName =
+        placement.meshPath.empty() ? mesh.filename().u8string() : placement.meshPath;
+    if (!text::EncodeCp932(displayName, name) || !Fixed(name, a.name) ||
         !DiskPath(absolute, absolute.parent_path(), a.path, reason))
         return false;
     a.state.visible = 1;
     a.state.opacity = 1;
-    a.state.scale = 1;
-    a.state.shadowEnabled = 1;
-    a.state.parentModel = a.state.parentBone = -1;
+    a.state.scale = placement.scale;
+    a.state.position = placement.position;
+    a.state.rotation = placement.rotation;
+    a.state.shadowEnabled = placement.shadowEnabled;
+    a.state.parentModel = -1;
+    a.state.parentBone = 0;
     PmmAccessoryKey k;
     k.visible = 1;
     k.opacity = 1;
-    k.scale = 1;
-    k.shadowEnabled = 1;
-    k.parentModel = k.parentBone = -1;
+    k.scale = a.state.scale;
+    k.position = a.state.position;
+    k.rotation = a.state.rotation;
+    k.shadowEnabled = a.state.shadowEnabled;
+    k.parentModel = -1;
+    k.parentBone = 0;
     a.keyRecords.dense = {k};
     next.document.accessories.push_back(a);
     next.document.accessoryListNames.push_back(a.name);

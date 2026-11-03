@@ -17,6 +17,11 @@ inline bool MaterialHistoryScene(mikudancestudio::editor::EditorSession& session
                    // model, without contributing pixels to the camera image.
                    d.accessories[0].state.position = {10000, 10000, 10000};
                    d.accessories[0].state.scale = .01f;
+                   d.accessories[0].state.shadowEnabled = 1;
+                   auto& root = d.accessories[0].keyRecords.dense[0];
+                   root.position = d.accessories[0].state.position;
+                   root.scale = d.accessories[0].state.scale;
+                   root.shadowEnabled = 1;
                    return true;
                },
                reason);
