@@ -271,8 +271,15 @@ def main():
                     preedit = wait(lambda s: s['preedit'], 'native Hiragana preedit')
                     if preedit['name'] != 'before' or preedit['commits']:
                         raise RuntimeError(f'Composition executed an editor command: {preedit}')
-                    native.key(client.pid, 49)  # Space: candidate conversion
+                    # Kotoeri's default live conversion can already have selected
+                    # Japan. Space then advances to another candidate (e.g. its
+                    # flag emoji), rather than starting conversion as on Windows.
+                    live_conversion = '\u65e5\u672c' in preedit['preedit']
+                    if not live_conversion:
+                        native.key(client.pid, 49)  # Space: candidate conversion
                     converted = wait(lambda s: '\u65e5\u672c' in s['preedit'], 'Japanese candidate conversion')
+                    if converted['commits'] or converted['name'] != 'before':
+                        raise RuntimeError(f'Conversion prematurely applied text: {converted}')
                     committed, commit_keys = finish_composition(36, 1, 'before', 'candidate commit')
                     if committed['field'] != '\u65e5\u672c' or committed['name'] != 'before':
                         raise RuntimeError(f'IME commit changed the scene: {committed}')
@@ -296,6 +303,7 @@ def main():
                                                'conversion': converted, 'commit': committed,
                                                'apply': applied, 'imeReturn': ime_return,
                                                'cancel': cancelled, 'candidateKeys': commit_keys,
+                                               'conversionMode': 'live' if live_conversion else 'space',
                                                'returnKeys': return_keys, 'cancelKeys': cancel_keys})
                     command('finish')
                     try:
