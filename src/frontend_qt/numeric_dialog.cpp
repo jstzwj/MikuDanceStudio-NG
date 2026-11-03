@@ -14,11 +14,82 @@
 #include <QCloseEvent>
 #include <QWheelEvent>
 #include <QStyledItemDelegate>
+#include <QValidator>
 #include <charconv>
 #include <climits>
 #include <cmath>
 namespace mikudancestudio::qt {
 namespace {
+class DialogLineEdit final : public QLineEdit {
+    class WidthValidator final : public QValidator {
+    public:
+        explicit WidthValidator(DialogLineEdit& edit) : QValidator(&edit), edit_(edit) {}
+        State validate(QString& text, int& cursor) const override {
+            return edit_.LimitInsertion(text, cursor);
+        }
+
+    private:
+        DialogLineEdit& edit_;
+    };
+
+public:
+    DialogLineEdit(bool english, bool autoScroll, QWidget* parent)
+        : QLineEdit(parent), english_(english), autoScroll_(autoScroll) {
+        if (!autoScroll_)
+            setValidator(new WidthValidator(*this));
+    }
+
+protected:
+    bool event(QEvent* event) override {
+        const bool insertion =
+            event->type() == QEvent::KeyPress || event->type() == QEvent::InputMethod ||
+            event->type() == QEvent::ContextMenu || event->type() == QEvent::Drop;
+        if (autoScroll_ || editing_ || !insertion)
+            return QLineEdit::event(event);
+        before_ = text();
+        first_ = hasSelectedText() ? selectionStart() : cursorPosition();
+        last_ = first_ + selectedText().size();
+        editing_ = true;
+        const auto handled = QLineEdit::event(event);
+        editing_ = false;
+        return handled;
+    }
+
+private:
+    QValidator::State LimitInsertion(QString& text, int& cursor) const {
+        // WM_SETTEXT bypasses this native insertion limit. Preserve Qt's
+        // programmatic setter too. Non-ASCII shaping is qualified separately.
+        if (!editing_)
+            return QValidator::Acceptable;
+        for (const auto& value : {before_, text})
+            for (const auto c : value)
+                if (c.unicode() < 32 || c.unicode() > 126)
+                    return QValidator::Acceptable;
+        const auto oldBytes = before_.toLatin1();
+        if (ui::NumericPrefillLength(std::string_view(oldBytes.constData(), oldBytes.size()),
+                                     english_, width()) != std::size_t(oldBytes.size()))
+            return QValidator::Acceptable;
+        const auto prefix = before_.left(first_), suffix = before_.mid(last_);
+        if (!text.startsWith(prefix) || !text.endsWith(suffix) ||
+            text.size() < prefix.size() + suffix.size())
+            return QValidator::Acceptable; // Delete/backspace/cut, not insertion.
+        const auto inserted = text.mid(first_, text.size() - prefix.size() - suffix.size());
+        const auto bytes = inserted.toLatin1();
+        const auto length = ui::NumericInsertedLength(
+            std::string_view(oldBytes.constData(), oldBytes.size()), first_, last_,
+            std::string_view(bytes.constData(), bytes.size()), english_, width());
+        if (length == std::size_t(bytes.size()))
+            return QValidator::Acceptable;
+        if (!length && first_ == last_)
+            return QValidator::Invalid;
+        text = prefix + inserted.left(qsizetype(length)) + suffix;
+        cursor = int(first_ + length);
+        return QValidator::Acceptable;
+    }
+    bool english_, autoScroll_, editing_ = false;
+    QString before_;
+    qsizetype first_ = 0, last_ = 0;
+};
 class OrderRowDelegate final : public QStyledItemDelegate {
 public:
     OrderRowDelegate(int height, QObject* parent) : QStyledItemDelegate(parent), height_(height) {}
@@ -140,7 +211,7 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
         const auto& control = template_.controls[i];
         QWidget* widget = nullptr;
         if (control.kind == ui::NumericControlKind::Edit) {
-            auto* field = new QLineEdit(this);
+            auto* field = new DialogLineEdit(english_, (control.style & 0x80u) != 0, this);
             field->setFrame((control.style & 0x00800000u) != 0);
             field->setProperty("mmdNativeWindowBorder", (control.style & 0x00800000u) != 0);
             edits_[control.id] = field;

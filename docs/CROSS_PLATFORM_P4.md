@@ -80,8 +80,11 @@ actual English-name dialog in all three UI languages. It checks preedit,
 candidate commit, a subsequent editor Enter, IME-owned Enter and Escape, and
 unchanged scene evaluation/history/resource identity. This is separate from
 synthetic `QInputMethodEvent` tests. The client and driver refuse to show/input
-anything outside an explicitly isolated GitHub runner. Execution evidence is
-pending; it does not qualify Windows/macOS native IMEs.
+anything outside an explicitly isolated GitHub runner. Linux libpinyin passed
+all three languages in run **41634648066** at `c149568`; raw preedit/commit/apply/
+cancel states are retained in [IME evidence](evidence/cross-platform-p4-ime.json).
+This does not qualify Windows/macOS native IMEs. The Anthy conversion profile is
+under qualification separately.
 
 The selected-target clipboard command (250, F) is now connected to the shared
 session and all three Qt languages. It pastes only copied bone/accessory keys
@@ -4217,3 +4220,19 @@ Font deployment validation passed local ALL_BUILD, all **71 P4 gates (331.50
 seconds)**, then the relocated Windows package in offscreen and never-shown
 Windows QPAs. Both JP/SC font faces loaded from the package with the frozen hash
 and OFL notice. No proprietary system fonts were copied.
+
+Run **41637849989** at `0984b62` subsequently passed all **460 complete EDIT
+normal/disabled captures across all 38 templates** on isolated Windows Server
+2022. It paints empty controls, including their complete nonclient borders;
+text glyphs and active-focus appearance remain separate. The ordinary Windows,
+macOS and Linux editor jobs all passed at `97eb8bc` (run **41635631867**).
+
+The no-`ES_AUTOHSCROLL` numeric fields now limit ASCII user insertion/paste by
+the original glyph advances and client-width rule. Selection replacement keeps
+the unchanged prefix/suffix, typing groups into normal Qt undo, and auto-scroll
+fields remain unrestricted. Programmatic text and non-ASCII shaping are outside
+this insertion qualification. The hash-verified original observer passed **1,000
+additional insertion/selection checkpoints**, bringing its hidden EDIT corpus to
+**1,954**. Qt exercises keyboard paste, typed text and undo in all three languages
+and all four DPI profiles. Local ALL_BUILD and all **29 affected Qt gates passed
+(163.68 seconds)** without showing windows.

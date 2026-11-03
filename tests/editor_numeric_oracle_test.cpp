@@ -65,7 +65,7 @@ void EditWidthOracle(const wchar_t* path) {
     HMODULE resources =
         LoadLibraryExW(path, nullptr, LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE);
     Check(resources != nullptr, "load original numeric resources");
-    unsigned checkpoints = 0;
+    unsigned checkpoints = 0, insertionFailures = 0;
     for (int id : {662, 645, 663, 648, 664, 649, 653, 607, 658, 624}) {
         HRSRC resource = FindResourceW(resources, MAKEINTRESOURCEW(id), MAKEINTRESOURCEW(5));
         Check(resource != nullptr, "find original dialog resource");
@@ -82,6 +82,35 @@ void EditWidthOracle(const wchar_t* path) {
         HWND edit = GetDlgItem(dialog, edge ? 646 : screen ? 621 : ground ? 626 : 637);
         RECT rectangle;
         Check(edit && GetWindowRect(edit, &rectangle), "original edit geometry");
+        for (const char* before : {"", "12.3", "111111111111", "abcdef", "  -4.5"})
+            for (const char* inserted : {"123456789", ".25", "x", "", "------"})
+                for (unsigned mode = 0; mode < 4; ++mode) {
+                    const std::string insertion(inserted);
+                    SetWindowTextA(edit, "");
+                    SendMessageA(edit, EM_REPLACESEL, 0, reinterpret_cast<LPARAM>(before));
+                    char initialBuffer[128]{};
+                    GetWindowTextA(edit, initialBuffer, sizeof initialBuffer);
+                    const std::string initial(initialBuffer);
+                    const auto first = mode == 0   ? 0u
+                                       : mode == 1 ? initial.size()
+                                                   : initial.size() / 2;
+                    const auto last = mode == 0 || mode == 3 ? initial.size() : first;
+                    SendMessageA(edit, EM_SETSEL, first, last);
+                    SendMessageA(edit, EM_REPLACESEL, 0, reinterpret_cast<LPARAM>(inserted));
+                    char actual[128]{};
+                    GetWindowTextA(edit, actual, sizeof actual);
+                    const auto count = mikudancestudio::ui::NumericInsertedLength(
+                        initial, first, last, insertion, english, rectangle.right - rectangle.left);
+                    const auto expected = initial.substr(0, first) + insertion.substr(0, count) +
+                                          initial.substr(last);
+                    if (actual != expected) {
+                        ++insertionFailures;
+                        std::printf(
+                            "EDIT %d before='%s' range=%zu,%zu insert='%s' expected='%s' actual='%s'\n",
+                            id, before, first, last, inserted, expected.c_str(), actual);
+                    }
+                    ++checkpoints;
+                }
         for (const char* text :
              {"0.57", "1.37", "-0.25", "1.23456789", "111111", "......", "------", "  0.00",
               "-1.00", "12.34", "100.00", "1e+2", "-.125", " 12.346", "-45.679"}) {
@@ -112,6 +141,8 @@ void EditWidthOracle(const wchar_t* path) {
     }
     FreeLibrary(resources);
     FreeLibrary(controls);
+    std::printf("Insertion failures: %u\n", insertionFailures);
+    Check(!insertionFailures, "original EDIT preserves suffix while clipping insertion");
     std::printf("Original hidden EDITs: %u prefill/slider width checkpoints; no shown windows\n",
                 checkpoints);
 }

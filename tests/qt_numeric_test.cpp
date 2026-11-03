@@ -26,6 +26,7 @@
 #include <QComboBox>
 #include <QWheelEvent>
 #include <QColorDialog>
+#include <QClipboard>
 #include <iostream>
 #include <limits>
 using namespace mikudancestudio;
@@ -51,6 +52,45 @@ int main(int argc, char** argv) {
     CHECK(file.open(QIODevice::ReadOnly));
     const auto reference = QJsonDocument::fromJson(file.readAll()).object();
     qt::Language language;
+    // Match actual no-ES_AUTOHSCROLL EDIT replacement/typing, not just the
+    // initial formatted prefill. Programmatic WM_SETTEXT remains unrestricted.
+    for (const char* code : {"en", "ja", "zh_CN"}) {
+        CHECK(language.Set(code));
+        const bool english = language.Code() == "en";
+        qt::EdgeThicknessDialog input(language, 1);
+        auto* field = input.Field();
+        for (const char* before : {"", "12.3", "111111111111", "abcdef", "  -4.5"})
+            for (const char* inserted : {"123456789", ".25", "x", "", "------"})
+                for (unsigned mode = 0; mode < 4; ++mode) {
+                    const std::string raw(before), insertion(inserted);
+                    const auto initial =
+                        raw.substr(0, ui::NumericPrefillLength(raw, english, field->width()));
+                    const auto first = mode == 0   ? 0u
+                                       : mode == 1 ? initial.size()
+                                                   : initial.size() / 2;
+                    const auto last = mode == 0 || mode == 3 ? initial.size() : first;
+                    const auto count = ui::NumericInsertedLength(initial, first, last, insertion,
+                                                                 english, field->width());
+                    const auto expected = initial.substr(0, first) + insertion.substr(0, count) +
+                                          initial.substr(last);
+                    field->setText(QString::fromLatin1(initial.c_str()));
+                    field->setSelection(int(first), int(last - first));
+                    app.clipboard()->setText(QString::fromLatin1(inserted));
+                    QTest::keyClick(field, Qt::Key_V, Qt::ControlModifier);
+                    CHECK(field->text().toLatin1().toStdString() == expected);
+                }
+        field->clear();
+        QTest::keyClicks(field, "123456789");
+        CHECK(field->text() ==
+              QString::fromLatin1("123456789")
+                  .left(qsizetype(ui::NumericPrefillLength("123456789", english, field->width()))));
+        field->setText("12345678901234567890");
+        CHECK(field->text() == "12345678901234567890");
+        field->clear();
+        QTest::keyClicks(field, "12.3");
+        QTest::keyClick(field, Qt::Key_Z, Qt::ControlModifier);
+        CHECK(field->text().isEmpty());
+    }
     const std::array<float, 7> initial{1.23456f, -2.34567f, 0, 12.34567f, -45.67891f, 90, 45};
     const QStringList texts{"  1.235", " -2.346", "  0.000", " 12.346",
                             "-45.679", " 90.000", " 45.000"};

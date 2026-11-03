@@ -30,4 +30,29 @@ inline std::size_t NumericPrefillLength(std::string_view text, bool english, int
     }
     return count;
 }
+// ASCII insertion into a native no-auto-scroll EDIT. Existing text outside the
+// selection is retained; only the inserted prefix is limited by the client width.
+inline std::size_t NumericInsertedLength(std::string_view before, std::size_t first,
+                                         std::size_t last, std::string_view inserted, bool english,
+                                         int windowWidth) {
+    if (first > last || last > before.size())
+        return 0;
+    const auto& advances = english ? kDialogArialAdvances : kDialogGothicAdvances;
+    int width = 0;
+    for (std::size_t n = 0; n < before.size(); ++n)
+        if (n < first || n >= last) {
+            const unsigned char c = before[n];
+            if (c < 32 || c > 126)
+                return 0;
+            width += advances[c - 32];
+        }
+    std::size_t count = 0;
+    for (const unsigned char c : inserted) {
+        if (c < 32 || c > 126 || width + advances[c - 32] > windowWidth - (english ? 12 : 8))
+            break;
+        width += advances[c - 32];
+        ++count;
+    }
+    return count;
+}
 }
