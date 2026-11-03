@@ -48,9 +48,9 @@
     "p4_failed": 0,
     "seconds": 283.72,
     "local_log": "out/p4-text-all-tests.log",
-    "final_qt_passed": 29,
-    "final_qt_seconds": 156.95,
-    "final_qt_log": "out/p4-trackbar-final-tests.log",
+    "final_qt_passed": 31,
+    "final_qt_seconds": 152.61,
+    "final_qt_log": "out/p4-list-qt-tests.log",
     "final_control_passed": 2,
     "final_control_seconds": 21.62,
     "final_control_log": "out/p4-text-final-tests.log"
@@ -174,5 +174,48 @@
       "windowsShown": false
     },
     "geometry_scope": "Arial, Tahoma, MS PGothic and MS UI Gothic at 12px; heights 12..24, push/check/radio, ASCII/Japanese text, normal/disabled/keyboard-focus states; no window exposed or real focus changed"
+  },
+  "list_content": {
+    "original_resources": {
+      "cases": 24,
+      "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+      "gdiBorderCases": 0,
+      "gdiBorderMismatches": 0,
+      "keyboardFocusCues": false,
+      "listContent": true,
+      "mismatches": 0,
+      "os": "Windows 11 Version 24H2",
+      "platform": "windows",
+      "qt": "6.8.3",
+      "reference": "actual hash-verified original dialog resources",
+      "style": "windowsvista",
+      "templates": 38,
+      "textGeometryCases": 0,
+      "textGeometryKeyboardFocus": false,
+      "textGlyphs": false,
+      "trackbarGeometryCases": 864,
+      "windowsShown": false
+    },
+    "public_regression": {
+      "cases": 24,
+      "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+      "gdiBorderCases": 0,
+      "gdiBorderMismatches": 0,
+      "keyboardFocusCues": false,
+      "listContent": true,
+      "mismatches": 0,
+      "os": "Windows 11 Version 24H2",
+      "platform": "windows",
+      "qt": "6.8.3",
+      "reference": "Win32 controls using frozen original resource styles",
+      "style": "windowsvista",
+      "templates": 38,
+      "textGeometryCases": 0,
+      "textGeometryKeyboardFocus": false,
+      "textGlyphs": false,
+      "trackbarGeometryCases": 864,
+      "windowsShown": false
+    },
+    "scope": "ASCII/Japanese rows across six original lists, unselected/selected and enabled/disabled; actual focus retains previous Qt renderer pending isolated displayed qualification"
   }
 }

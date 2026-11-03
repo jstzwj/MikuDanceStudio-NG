@@ -223,20 +223,23 @@ int main(int argc, char** argv) try {
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
     const bool visible = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-nonclient";
     const bool text = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--text";
-    Check(argc == 2 || visible || text, "usage: [--isolated-nonclient|--text] output-directory");
+    const bool content = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--content";
+    Check(argc == 2 || visible || text || content,
+          "usage: [--isolated-nonclient|--text|--content] output-directory");
     Check(!visible || (qEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
                        qEnvironmentVariable("MDS_QT_ISOLATED_DISPLAY") == "1"),
           "visible control qualification requires an isolated GitHub runner");
 #else
     constexpr bool visible = false;
     const bool text = argc == 4 && QString::fromLocal8Bit(argv[1]) == "--text";
-    Check(argc == 3 || text, "usage: [--text] original.exe output-directory");
+    const bool content = argc == 4 && QString::fromLocal8Bit(argv[1]) == "--content";
+    Check(argc == 3 || text || content, "usage: [--text|--content] original.exe output-directory");
 #endif
     Check(QGuiApplication::platformName() == "windows", "real Windows QPA required");
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
     const auto instance = GetModuleHandleW(nullptr);
 #else
-    OriginalPhysicsModule original(std::filesystem::u8path(argv[text ? 2 : 1]));
+    OriginalPhysicsModule original(std::filesystem::u8path(argv[text || content ? 2 : 1]));
     const auto instance = reinterpret_cast<HINSTANCE>(original.Function<void*>(0));
 #endif
     const auto output = std::filesystem::absolute(std::filesystem::u8path(argv[argc - 1]));
@@ -342,6 +345,8 @@ int main(int argc, char** argv) try {
             const bool other = entry.kind == NumericControlKind::Combobox ||
                                entry.kind == NumericControlKind::Listbox ||
                                entry.kind == NumericControlKind::Slider;
+            if (content && entry.kind != NumericControlKind::Listbox)
+                continue;
             if (text && entry.kind != NumericControlKind::Button &&
                 entry.kind != NumericControlKind::Checkbox &&
                 entry.kind != NumericControlKind::Radio)
@@ -417,6 +422,15 @@ int main(int argc, char** argv) try {
             if (auto* list = qobject_cast<QListWidget*>(widget)) {
                 list->clear();
                 SendMessageW(control, LB_RESETCONTENT, 0, 0);
+                if (content) {
+                    for (const auto caption :
+                         {QString("ABC 012345"), QStringLiteral("\u65e5\u672c\u8a9e ABC")}) {
+                        list->addItem(caption);
+                        SendMessageW(control, LB_ADDSTRING, 0,
+                                     reinterpret_cast<LPARAM>(caption.toStdWString().c_str()));
+                    }
+                    list->setCurrentRow(-1);
+                }
             }
             auto* slider = qobject_cast<QSlider*>(widget);
             if (slider) {
@@ -461,12 +475,14 @@ int main(int argc, char** argv) try {
                 }
                 if (auto* list = qobject_cast<QListWidget*>(widget)) {
                     if (state == 2) {
-                        list->addItem(QString());
+                        if (!content)
+                            list->addItem(QString());
                         list->setCurrentRow(0);
-                        SendMessageW(control, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L""));
+                        if (!content)
+                            SendMessageW(control, LB_ADDSTRING, 0, reinterpret_cast<LPARAM>(L""));
                         SendMessageW(control, LB_SETCURSEL, 0, 0);
                     }
-                    // List states 2/3 check the same selected, textless row.
+                    // List states 2/3 retain the same selection while toggling enabled.
                     const bool listEnabled = state % 2 == 0;
                     list->setEnabled(listEnabled);
                     EnableWindow(control, listEnabled);
@@ -541,7 +557,8 @@ int main(int argc, char** argv) try {
         {"comparison", visible ? "exact RGB, EDIT normal/disabled including nonclient"
                                : "exact RGB, normal/disabled/pressed, checked/unchecked"},
         {"keyboardFocusCues", false},
-        {"textGlyphs", text},
+        {"textGlyphs", text || content},
+        {"listContent", content},
         {"windowsShown", visible}};
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
     report.insert("reference", "Win32 controls using frozen original resource styles");

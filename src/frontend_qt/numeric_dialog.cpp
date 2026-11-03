@@ -99,6 +99,14 @@ public:
     OrderRowDelegate(int height, QObject* parent) : QStyledItemDelegate(parent), height_(height) {}
     void paint(QPainter* painter, const QStyleOptionViewItem& option,
                const QModelIndex& index) const override {
+#ifdef _WIN32
+        if (QGuiApplication::platformName() == "windows" &&
+            !(option.state & QStyle::State_HasFocus) &&
+            DrawWindowsListRow(
+                *painter, option.rect, option.font, index.data(Qt::DisplayRole).toString(),
+                option.state & QStyle::State_Selected, option.state & QStyle::State_Enabled))
+            return;
+#endif
         auto row = option;
         if (row.state & QStyle::State_Selected) {
             // The original LISTBOX retains its flat system highlight even

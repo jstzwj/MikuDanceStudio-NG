@@ -12,6 +12,60 @@
 #include <vssym32.h>
 
 namespace mikudancestudio::qt {
+bool DrawWindowsListRow(QPainter& painter, const QRect& rect, const QFont& font,
+                        const QString& text, bool selected, bool enabled) {
+    const auto ratio = painter.device()->devicePixelRatioF();
+    const int width = qRound(rect.width() * ratio), height = qRound(rect.height() * ratio);
+    if (width <= 0 || height <= 0)
+        return false;
+    const auto dc = CreateCompatibleDC(nullptr);
+    if (!dc)
+        return false;
+    BITMAPINFO info{};
+    info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    info.bmiHeader.biWidth = width;
+    info.bmiHeader.biHeight = -height;
+    info.bmiHeader.biPlanes = 1;
+    info.bmiHeader.biBitCount = 32;
+    void* bits = nullptr;
+    const auto bitmap = CreateDIBSection(dc, &info, DIB_RGB_COLORS, &bits, nullptr, 0);
+    const auto nativeFont = CreateFontW(
+        -qRound(QFontInfo(font).pixelSize() * ratio), 0, 0, 0, font.bold() ? FW_BOLD : FW_NORMAL,
+        font.italic(), font.underline(), font.strikeOut(), DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+        CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH,
+        QFontInfo(font).family().toStdWString().c_str());
+    bool painted = bitmap && bits && nativeFont;
+    if (painted) {
+        const auto oldBitmap = SelectObject(dc, bitmap), oldFont = SelectObject(dc, nativeFont);
+        RECT rectangle{0, 0, width, height};
+        FillRect(dc, &rectangle, GetSysColorBrush(selected ? COLOR_HIGHLIGHT : COLOR_WINDOW));
+        SetBkMode(dc, TRANSPARENT);
+        // Native LISTBOX keeps the highlight background while disabled, but
+        // changes even selected text to COLOR_GRAYTEXT.
+        SetTextColor(dc, GetSysColor(!enabled   ? COLOR_GRAYTEXT
+                                     : selected ? COLOR_HIGHLIGHTTEXT
+                                                : COLOR_WINDOWTEXT));
+        const auto caption = text.toStdWString();
+        rectangle.left = qRound(2 * ratio);
+        // Two client pixels precede the text; ClearType overhang may extend
+        // back into that margin. BUTTON's measured-label clipping is different.
+        DrawTextW(dc, caption.c_str(), int(caption.size()), &rectangle,
+                  DT_LEFT | DT_TOP | DT_SINGLELINE | DT_NOPREFIX | DT_NOCLIP);
+        GdiFlush();
+        QImage image(static_cast<unsigned char*>(bits), width, height, width * 4,
+                     QImage::Format_RGB32);
+        image.setDevicePixelRatio(ratio);
+        painter.drawImage(rect.topLeft(), image);
+        SelectObject(dc, oldFont);
+        SelectObject(dc, oldBitmap);
+    }
+    if (nativeFont)
+        DeleteObject(nativeFont);
+    if (bitmap)
+        DeleteObject(bitmap);
+    DeleteDC(dc);
+    return painted;
+}
 bool DrawWindowsButton(QPainter& painter, const QStyleOptionButton& option, const QFont& font,
                        const QRect* indicator, bool radio, bool showMnemonic) {
     const auto ratio = painter.device()->devicePixelRatioF();

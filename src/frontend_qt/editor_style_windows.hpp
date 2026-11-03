@@ -7,10 +7,13 @@ class QPainter;
 class QStyleOptionSlider;
 class QStyleOptionButton;
 class QFont;
+class QString;
 namespace mikudancestudio::ui {
 struct TrackbarGeometry;
 }
 namespace mikudancestudio::qt {
+bool DrawWindowsListRow(QPainter&, const QRect&, const QFont&, const QString&, bool selected,
+                        bool enabled);
 bool DrawWindowsButton(QPainter&, const QStyleOptionButton&, const QFont&,
                        const QRect* indicator = nullptr, bool radio = false,
                        bool showMnemonic = false);

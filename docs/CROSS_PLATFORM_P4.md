@@ -4298,3 +4298,23 @@ passed again (21.62 seconds). Empty-control, trackbar and EDIT-border gates
 remain unchanged. Populated EDIT/list/combo text, other DPI/font profiles,
 physical monitor transitions, non-Windows appearance and the strict failing GPU
 profiles remain open; P4/C1 is not accepted.
+
+## Populated Windows list rows
+
+The six original order-list controls now use native GDI text at their measured
+two-client-pixel inset. The native list keeps its blue selection while disabled
+but paints its selected text with `COLOR_GRAYTEXT`; the earlier Qt delegate kept
+white text. Text overhang may extend into the list's left margin, whereas button
+labels clip to their measured box. Both rules are preserved separately.
+
+All **24 populated list states** (ASCII/Japanese rows, selected/unselected,
+enabled/disabled) pass exact RGB against both independent Win32 controls and the
+actual original resources. `qt_list_content` is a hidden P4 regression. Focused
+rows retain the existing Qt path until displayed focus qualification runs in an
+isolated runner. Populated combo capture is also deferred: hidden `WM_PRINT`
+omits its selected text and cannot provide a valid reference. No empty reference
+is counted as successful text qualification.
+
+ALL_BUILD and all **31 affected Qt gates passed (152.61 seconds)**. The preceding
+button-text revision `b1eed84` passed ordinary Windows/macOS/Linux editor CI
+in run **41654914200**. Full P4/C1 acceptance remains open.
