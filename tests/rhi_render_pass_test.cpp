@@ -105,6 +105,50 @@ int main() {
     CHECK(d->BeginRenderPass(write) && d->EndRenderPass() && d->EndFrame() && d->Present());
     CHECK(d->ReadRenderTexture(replacement, out));
     CHECK(d->Destroy(replacement) && d->Destroy(b) && d->Destroy(z) && d->Destroy(narrow));
+    // Resolve is an ordered write, never an implicit sample/readback of MSAA.
+    auto msaa = color;
+    msaa.access = unsigned(TextureAccess::ColorAttachment);
+    msaa.samples = 4;
+    auto multiDepth = portableDepth;
+    multiDepth.access = unsigned(TextureAccess::DepthStencilAttachment);
+    multiDepth.samples = 4;
+    const auto source = d->CreateRenderTexture(msaa), resolved = d->CreateRenderTexture(color),
+               multiZ = d->CreateRenderTexture(multiDepth), singleZ = d->CreateRenderTexture(depth);
+    CHECK(source && resolved && multiZ && singleZ);
+    CHECK(!d->ReadRenderTexture(source, out) && !d->ReadRenderTexture(resolved, out));
+    RenderPassDesc resolve;
+    resolve.color = PassAttachment{source};
+    resolve.color->resolve = resolved;
+    resolve.color->clear = {.25f, .5f, .75f, .5f};
+    resolve.depthStencil = PassAttachment{multiZ};
+    CHECK(d->BeginFrame({}));
+    auto bad = resolve;
+    bad.depthStencil->texture = singleZ;
+    CHECK(!d->BeginRenderPass(bad));
+    bad = resolve;
+    bad.color->resolve = source;
+    CHECK(!d->BeginRenderPass(bad));
+    bad = resolve;
+    bad.color->texture = resolved;
+    CHECK(!d->BeginRenderPass(bad));
+    bad = resolve;
+    bad.sampled = {resolved};
+    CHECK(!d->BeginRenderPass(bad)); // Resolve destination is written in this pass.
+    bad = resolve;
+    bad.depthStencil->resolve = resolved;
+    CHECK(!d->BeginRenderPass(bad));
+    resolve.color->store = AttachmentStore::Discard;
+    CHECK(d->BeginRenderPass(resolve) && d->EndRenderPass());
+    CHECK(d->BeginRenderPass(RenderPassDesc{PassAttachment{resolved, AttachmentLoad::Load}}) &&
+          d->EndRenderPass() && d->EndFrame() && d->Present());
+    CHECK(!d->ReadRenderTexture(source, out) && d->ReadRenderTexture(resolved, out));
+    CHECK(out.bytes[0] == 64 && out.bytes[1] == 128 && out.bytes[2] == 191 && out.bytes[3] == 128);
+    CHECK(d->Destroy(source));
+    const auto recycled = d->CreateRenderTexture(msaa);
+    CHECK(recycled && recycled.generation != source.generation);
+    CHECK(d->BeginFrame({}) && !d->BeginRenderPass(resolve) && d->EndFrame() && d->Present());
+    CHECK(d->Destroy(recycled) && d->Destroy(resolved) && d->Destroy(multiZ) &&
+          d->Destroy(singleZ));
     std::puts(
         "explicit passes: dependencies, feedback, discard, generations, clear/readback and reset passed");
 }

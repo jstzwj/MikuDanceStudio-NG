@@ -16,6 +16,7 @@ struct FrameAttachment {
     ClearColor clear;
     float clearDepth = 1;
     std::uint8_t clearStencil = 0;
+    std::uint64_t resolve = 0;
 };
 struct FramePass {
     std::string name;
@@ -38,6 +39,11 @@ struct RenderFrame {
     std::uint64_t finalColor = 0;
 };
 ModelReplayResult ValidateRenderFrame(const RenderFrame&);
+// Insert multisample color/depth attachments and resolve each color write back
+// to its original, single-sample identity. Sampling/capture/finalColor retain
+// their original pass order. History and scalar shadow maps remain single-sample.
+// Fails atomically for invalid graphs, existing resolves or mixed sample counts.
+ModelReplayResult ApplyFrameMultisampling(RenderFrame&, unsigned samples);
 // Internal transport for the existing resident resource preparation path.
 // Pass dimensions are installed as explicit draw viewports in the transport.
 ModelReplayStream FlattenRenderFrame(const RenderFrame&);

@@ -138,12 +138,23 @@ public:
             FAILED(native->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &data, sizeof(data))))
             return {};
         const bool depth = IsDepthStencil(f);
+        unsigned samples = 1;
+        for (unsigned count : {2u, 4u, 8u}) {
+            D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS quality{
+                detail::DxgiFormat(f), count, D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE};
+            if ((depth || (data.Support1 & D3D12_FORMAT_SUPPORT1_MULTISAMPLE_RESOLVE)) &&
+                SUCCEEDED(native->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
+                                                      &quality, sizeof quality)) &&
+                quality.NumQualityLevels)
+                samples |= count;
+        }
         return {bool(data.Support1 & (depth ? D3D12_FORMAT_SUPPORT1_DEPTH_STENCIL
                                             : D3D12_FORMAT_SUPPORT1_RENDER_TARGET)),
                 !depth && bool(data.Support1 & D3D12_FORMAT_SUPPORT1_SHADER_SAMPLE),
                 !depth && bool(data.Support1 & D3D12_FORMAT_SUPPORT1_BLENDABLE),
                 !depth && bool(data.Support1 & D3D12_FORMAT_SUPPORT1_TEXTURE2D),
-                f == TextureFormat::Rgba8 && bool(data.Support1 & D3D12_FORMAT_SUPPORT1_MIP)};
+                f == TextureFormat::Rgba8 && bool(data.Support1 & D3D12_FORMAT_SUPPORT1_MIP),
+                samples};
     }
     const char* ShaderDiagnostic() const override { return genericError.c_str(); }
     bool PrepareShaderPipeline(const ShaderPipeline&) override;
@@ -375,6 +386,7 @@ public:
         if (d.mips > 1 && !PrepareMipPipeline())
             return {};
         auto desc = Texture(d.width, d.height, format, d.mips);
+        desc.SampleDesc.Count = d.samples;
         desc.Flags = isDepth ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL
                              : D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
         D3D12_CLEAR_VALUE clear{};
@@ -439,12 +451,26 @@ public:
         return true;
     }
     bool EndRenderPass() override {
-        if (!inFrame || !passes.End())
+        if (!inFrame || !passes.Active())
             return false;
         frames[frameIndex].commands->OMSetRenderTargets(0, nullptr, FALSE, nullptr);
+        auto* list = frames[frameIndex].commands.Get();
+        for (const auto& a : ColorAttachments(passes.Current()))
+            if (a.resolve) {
+                auto& source = *Find(a.texture);
+                auto& destination = *Find(a.resolve);
+                Barrier(list, source.native.Get(), source.state,
+                        D3D12_RESOURCE_STATE_RESOLVE_SOURCE);
+                Barrier(list, destination.native.Get(), destination.state,
+                        D3D12_RESOURCE_STATE_RESOLVE_DEST);
+                source.state = D3D12_RESOURCE_STATE_RESOLVE_SOURCE;
+                destination.state = D3D12_RESOURCE_STATE_RESOLVE_DEST;
+                list->ResolveSubresource(destination.native.Get(), 0, source.native.Get(), 0,
+                                         detail::DxgiFormat(passes.Description(a.texture)->format));
+            }
         modelReady = screenReady = false;
         textures = {};
-        return true;
+        return passes.End();
     }
     bool GenerateRenderMips(Handle h) override {
         if (!Live() || !inFrame || !passes.CanGenerateMips(h) || !mipPipeline)
@@ -1518,7 +1544,7 @@ bool D3D12Device::UsePipeline(const ModelPipeline& p, VertexLayout layout, ID3DB
     for (std::size_t i = 0; i < formats.size(); ++i)
         d.RTVFormats[i] = formats[i];
     d.DSVFormat = ActiveDepthFormat();
-    d.SampleDesc.Count = 1;
+    d.SampleDesc.Count = passes.Samples();
     const D3D12_INPUT_ELEMENT_DESC elements[] = {{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
                                                   D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
                                                  {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,
@@ -1550,6 +1576,7 @@ bool D3D12Device::UsePipeline(const ModelPipeline& p, VertexLayout layout, ID3DB
     for (auto format : d.RTVFormats)
         append(format);
     append(d.NumRenderTargets);
+    append(d.SampleDesc);
     append(layout);
     append(p.shadow.mode);
     append(p.postProcess.mode);

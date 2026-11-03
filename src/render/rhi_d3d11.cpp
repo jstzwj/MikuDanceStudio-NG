@@ -74,12 +74,22 @@ public:
         if (!native || FAILED(native->CheckFormatSupport(detail::DxgiFormat(f), &flags)))
             return {};
         const bool depth = IsDepthStencil(f);
+        unsigned samples = 1;
+        for (unsigned count : {2u, 4u, 8u}) {
+            UINT quality = 0;
+            if ((depth || (flags & D3D11_FORMAT_SUPPORT_MULTISAMPLE_RESOLVE)) &&
+                SUCCEEDED(native->CheckMultisampleQualityLevels(detail::DxgiFormat(f), count,
+                                                                &quality)) &&
+                quality)
+                samples |= count;
+        }
         return {bool(flags & (depth ? D3D11_FORMAT_SUPPORT_DEPTH_STENCIL
                                     : D3D11_FORMAT_SUPPORT_RENDER_TARGET)),
                 !depth && bool(flags & D3D11_FORMAT_SUPPORT_SHADER_SAMPLE),
                 !depth && bool(flags & D3D11_FORMAT_SUPPORT_BLENDABLE),
                 f != TextureFormat::DepthStencil && bool(flags & D3D11_FORMAT_SUPPORT_TEXTURE2D),
-                f == TextureFormat::Rgba8 && bool(flags & D3D11_FORMAT_SUPPORT_MIP_AUTOGEN)};
+                f == TextureFormat::Rgba8 && bool(flags & D3D11_FORMAT_SUPPORT_MIP_AUTOGEN),
+                samples};
     }
     const char* ShaderDiagnostic() const override { return genericError.c_str(); }
     bool PrepareShaderPipeline(const ShaderPipeline&) override;
@@ -394,7 +404,8 @@ public:
         D3D11_TEXTURE2D_DESC t{};
         t.Width = d.width;
         t.Height = d.height;
-        t.ArraySize = t.SampleDesc.Count = 1;
+        t.ArraySize = 1;
+        t.SampleDesc.Count = d.samples;
         t.MipLevels = d.mips;
         if (d.mips > 1)
             t.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
@@ -450,6 +461,11 @@ public:
         if (!inFrame || !passes.Active())
             return false;
         context->OMSetRenderTargets(0, nullptr, nullptr);
+        for (const auto& a : ColorAttachments(passes.Current()))
+            if (a.resolve)
+                context->ResolveSubresource(
+                    Find(a.resolve)->texture.Get(), 0, Find(a.texture)->texture.Get(), 0,
+                    detail::DxgiFormat(passes.Description(a.texture)->format));
         ID3D11ShaderResourceView* empty[GraphicsTextureSlots]{};
         context->PSSetShaderResources(0, GraphicsTextureSlots, empty);
         modelReady = pipelineReady = false;
@@ -1378,6 +1394,7 @@ bool D3D11Device::SetModelPipeline(const ModelPipeline& p) {
     rs.CullMode = p.raster.cull == BatchCull::None ? D3D11_CULL_NONE : D3D11_CULL_BACK;
     rs.FrontCounterClockwise = p.raster.cull == BatchCull::Clockwise;
     rs.DepthClipEnable = TRUE;
+    rs.MultisampleEnable = passes.Samples() > 1;
     const std::string bk(reinterpret_cast<const char*>(&bd), sizeof(bd)),
         dk(reinterpret_cast<const char*>(&ds), sizeof(ds)),
         rk(reinterpret_cast<const char*>(&rs), sizeof(rs));

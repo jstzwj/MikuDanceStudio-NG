@@ -202,15 +202,20 @@ public:
         return c;
     }
     TextureFormatCapabilities FormatFeatures(TextureFormat f) const override {
+        TextureFormatCapabilities c;
         if (f == TextureFormat::DepthStencil)
-            return {true, false, false, false};
-        if (f == TextureFormat::Depth24Stencil8)
-            return {bool(native.depth24Stencil8PixelFormatSupported), false, false, false};
-        if (f == TextureFormat::Rgba8)
-            return {true, true, true, true, true};
-        if (f == TextureFormat::Rgba16Float || f == TextureFormat::R32Float)
-            return {true, true, true, true};
-        return {};
+            c = {true, false, false, false};
+        else if (f == TextureFormat::Depth24Stencil8)
+            c = {bool(native.depth24Stencil8PixelFormatSupported), false, false, false};
+        else if (f == TextureFormat::Rgba8)
+            c = {true, true, true, true, true};
+        else if (f == TextureFormat::Rgba16Float || f == TextureFormat::R32Float)
+            c = {true, true, true, true};
+        if (c.render)
+            for (unsigned samples : {2u, 4u, 8u})
+                if ([native supportsTextureSampleCount:samples])
+                    c.sampleCounts |= samples;
+        return c;
     }
     ModelCapabilities ModelFeatures() const override {
         return {true, true, true, true, true,          true,
@@ -287,13 +292,16 @@ public:
         return Live();
     }
     id<MTLTexture> MakeTexture(unsigned w, unsigned h, MTLPixelFormat f, unsigned mips,
-                               MTLTextureUsage usage) {
+                               MTLTextureUsage usage, unsigned samples = 1) {
         @autoreleasepool {
             auto d = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:f
                                                                         width:w
                                                                        height:h
                                                                     mipmapped:NO];
             d.mipmapLevelCount = mips;
+            d.sampleCount = samples;
+            if (samples > 1)
+                d.textureType = MTLTextureType2DMultisample;
             d.storageMode = MTLStorageModePrivate;
             d.usage = usage;
             return [native newTextureWithDescriptor:d];
@@ -435,7 +443,7 @@ public:
         MTLTextureUsage usage = MTLTextureUsageRenderTarget;
         if (d.access & unsigned(TextureAccess::Sampled))
             usage |= MTLTextureUsageShaderRead;
-        r.texture = MakeTexture(d.width, d.height, PixelFormat(d.format), d.mips, usage);
+        r.texture = MakeTexture(d.width, d.height, PixelFormat(d.format), d.mips, usage, d.samples);
         if (!r.texture)
             return {};
         const auto handle = Add(std::move(r));
@@ -518,6 +526,14 @@ public:
                     resource->lastUse = issued + 1;
                 nativeAttachment.loadAction = Load(attachment.load);
                 nativeAttachment.storeAction = Store(attachment.store);
+                if (attachment.resolve) {
+                    auto *resolve = Find(attachment.resolve);
+                    resolve->lastUse = issued + 1;
+                    nativeAttachment.resolveTexture = resolve->texture;
+                    nativeAttachment.storeAction = attachment.store == AttachmentStore::Store
+                                                       ? MTLStoreActionStoreAndMultisampleResolve
+                                                       : MTLStoreActionMultisampleResolve;
+                }
                 auto c = pass ? attachment.clear : clear;
                 nativeAttachment.clearColor = MTLClearColorMake(c.red, c.green, c.blue, c.alpha);
             }
@@ -570,8 +586,11 @@ public:
             return false;
         EndEncoder();
         modelReady = genericReady = genericBound = false;
-        for (const auto& attachment : ColorAttachments(passes.Current()))
+        for (const auto &attachment : ColorAttachments(passes.Current())) {
             Find(attachment.texture)->uploaded = attachment.store == AttachmentStore::Store;
+            if (attachment.resolve)
+                Find(attachment.resolve)->uploaded = true;
+        }
         return passes.End();
     }
     bool GenerateRenderMips(Handle h) override {
@@ -836,7 +855,7 @@ public:
             else if (!Builtin(programKey, program))
                 return false;
             std::ostringstream k;
-            k << programKey << ':';
+            k << programKey << ":samples=" << passes.Samples() << ':';
             for (auto value : {unsigned(p.vertexLayout),
                                unsigned(p.raster.depthTest),
                                unsigned(p.raster.depthWrite),
@@ -866,6 +885,7 @@ public:
             auto found = pipelines.find(key);
             if (found == pipelines.end()) {
                 auto d = [MTLRenderPipelineDescriptor new];
+                d.rasterSampleCount = passes.Samples();
                 d.vertexFunction = program.vertex;
                 d.fragmentFunction = program.pixel;
                 auto vd = [MTLVertexDescriptor vertexDescriptor];

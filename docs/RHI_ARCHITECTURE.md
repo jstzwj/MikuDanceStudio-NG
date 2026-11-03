@@ -282,3 +282,31 @@ other backends by the current RHI skeleton.
 ?? Windows `.x` ??????? D3DX SYSTEMMEM ?????? x86 ???????
 x64 ? 66 ????? 4 ????????????
 ???????????????????
+
+
+## Explicit multisampling and color resolve
+
+Render-target descriptions accept 1, 2, 4 or 8 samples. Format capabilities expose
+an OR mask of the supported numeric counts. Multisample textures have one mip
+and attachment-only access: they cannot be sampled or read back directly.
+Color/depth attachments in a pass must have matching dimensions and sample
+counts. An optional ordered color resolve writes a separate single-sample
+attachment of the same format and size at pass end, including when the source
+store is discarded. The resolve destination participates in write hazards,
+initialization, generation checking and resource retirement. Depth resolve and
+undefined/discard-load resolve are outside this contract.
+
+DX11/DX12 use native color resolves; Vulkan dynamic rendering specifies its
+resolve attachment; Metal uses native multisample store/resolve actions. Pipeline
+caches include the active sample count. `ApplyFrameMultisampling` inserts private
+attachments atomically, resolves each write to the original resource identity,
+and preserves capture, sampling and final-color ordering. Scalar shadow maps
+and cross-frame history stay single-sample.
+
+`rhi_msaa_test` checks builtin/material-shadow/generic shaders, partial edge
+coverage, alpha, retained MSAA loads, discard-store resolves, byte-exact
+post-copy/repeat/restoration, floating MRT negative/HDR values, resize and device
+replacement. The Null and frame-graph tests reject mismatched attachments,
+feedback, unknown/stale resolves and invalid multisample uses. These tests are
+required by the qualified Windows WARP, Linux lavapipe and native Metal P4 CI
+profiles; native hardware sampling patterns are not assumed to be identical.

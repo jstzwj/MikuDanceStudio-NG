@@ -71,6 +71,73 @@ ModelReplayStream Stream(const RenderFrame& f, const FramePass* pass) {
 ModelReplayStream FlattenRenderFrame(const RenderFrame& f) {
     return Stream(f, nullptr);
 }
+ModelReplayResult ApplyFrameMultisampling(RenderFrame& frame, unsigned samples) {
+    const auto fail = [](const char* why) { return ModelReplayResult{false, 0, 0, why}; };
+    const auto valid = ValidateRenderFrame(frame);
+    if (!valid)
+        return valid;
+    if (samples == 1)
+        return valid;
+    if (samples != 2 && samples != 4 && samples != 8)
+        return fail("invalid_frame_sample_count");
+    auto next = frame;
+    std::map<std::uint64_t, std::uint64_t> colors, depths;
+    std::set<std::uint64_t> ids;
+    for (const auto& target : frame.targets) {
+        if (target.description.samples != 1)
+            return fail("frame_already_multisampled");
+        ids.insert(target.id);
+    }
+    std::uint64_t id = UINT64_MAX;
+    const auto mirror = [&](std::uint64_t original, auto& mapping, bool depth) {
+        const auto found = mapping.find(original);
+        if (found != mapping.end())
+            return found->second;
+        while (ids.count(id))
+            --id;
+        auto target = *Target(frame, original);
+        target.id = id--;
+        target.description.samples = samples;
+        target.description.mips = 1;
+        target.description.access = unsigned(depth ? TextureAccess::DepthStencilAttachment
+                                                   : TextureAccess::ColorAttachment);
+        target.history.reset();
+        mapping.emplace(original, target.id);
+        next.targets.push_back(target);
+        return target.id;
+    };
+    for (auto& pass : next.passes) {
+        bool multisampled = false, single = false;
+        const auto color = [&](FrameAttachment& attachment) {
+            const auto* target = Target(frame, attachment.target);
+            if (attachment.resolve)
+                return false;
+            const auto format = target->description.format;
+            if (!target->history &&
+                (format == TextureFormat::Rgba8 || format == TextureFormat::Rgba16Float)) {
+                attachment.resolve = attachment.target;
+                attachment.target = mirror(attachment.target, colors, false);
+                multisampled = true;
+            } else
+                single = true;
+            return true;
+        };
+        if (pass.color && !color(*pass.color))
+            return fail("frame_already_resolves");
+        for (auto& attachment : pass.colors)
+            if (!color(attachment))
+                return fail("frame_already_resolves");
+        if (single && multisampled)
+            return fail("mixed_frame_sample_count");
+        if (multisampled && pass.depthStencil)
+            pass.depthStencil->target = mirror(pass.depthStencil->target, depths, true);
+    }
+    const auto result = ValidateRenderFrame(next);
+    if (!result)
+        return result;
+    frame = std::move(next);
+    return result;
+}
 ModelReplayResult ValidateRenderFrame(const RenderFrame& f) {
     const auto fail = [](const char* why) { return ModelReplayResult{false, 0, 0, why}; };
     if (f.targets.empty() || f.targets.size() > 64 || f.passes.empty() || f.passes.size() > 64)
@@ -118,6 +185,12 @@ ModelReplayResult ValidateRenderFrame(const RenderFrame& f) {
                 return false;
             out = PassAttachment{i->second, a->load,       a->store,
                                  a->clear,  a->clearDepth, a->clearStencil};
+            if (a->resolve) {
+                const auto resolve = handles.find(a->resolve);
+                if (resolve == handles.end())
+                    return false;
+                out->resolve = resolve->second;
+            }
             return true;
         };
         if (!attachment(p.color, native.color) || !attachment(p.depthStencil, native.depthStencil))

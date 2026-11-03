@@ -252,6 +252,8 @@ if(BUILD_TESTING)
     target_link_libraries(rhi_sampler_lod_test PRIVATE mikudancestudio_rhi)
     add_executable(rhi_wireframe_test tests/rhi_wireframe_test.cpp)
     target_link_libraries(rhi_wireframe_test PRIVATE mikudancestudio_rhi)
+    add_executable(rhi_msaa_test tests/rhi_msaa_test.cpp)
+    target_link_libraries(rhi_msaa_test PRIVATE mikudancestudio_rhi)
     set(MDS_LOD_BACKENDS)
     if(WIN32 AND MIKUDANCESTUDIO_RHI_D3D11)
         list(APPEND MDS_LOD_BACKENDS dx11 dx11-software)
@@ -277,6 +279,9 @@ if(BUILD_TESTING)
         endif()
         set_tests_properties(rhi_sampler_lod_${api} PROPERTIES TIMEOUT 90
             RUN_SERIAL TRUE LABELS "${MDS_LOD_LABELS}")
+        add_test(NAME rhi_msaa_${api} COMMAND rhi_msaa_test ${api})
+        set_tests_properties(rhi_msaa_${api} PROPERTIES TIMEOUT 120
+            RUN_SERIAL TRUE LABELS "${MDS_LOD_LABELS};msaa;${api}")
         add_test(NAME rhi_wireframe_${api} COMMAND rhi_wireframe_test ${api})
         set_tests_properties(rhi_wireframe_${api} PROPERTIES TIMEOUT 120
             RUN_SERIAL TRUE LABELS "${MDS_LOD_LABELS}")

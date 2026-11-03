@@ -125,6 +125,10 @@ unsigned TexturePixelBytes(TextureFormat);
 struct TextureFormatCapabilities {
     bool render = false, sampled = false, blend = false, readback = false;
     bool renderMips = false;
+    // Bit set for each supported attachment sample count (1 | 2 | 4 | 8).
+    // Multisampled attachments have explicit color resolves, no direct sampling
+    // or CPU transfer. A format's sampled/readback flags describe single samples.
+    unsigned sampleCounts = 1;
 };
 
 enum class HistoryRepresentation {

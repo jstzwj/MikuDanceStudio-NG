@@ -46,6 +46,7 @@ std::uint64_t Nanoseconds(ProfileClock::time_point start) {
     X(GetPhysicalDeviceQueueFamilyProperties) \
     X(GetPhysicalDeviceMemoryProperties) \
     X(GetPhysicalDeviceFormatProperties) \
+    X(GetPhysicalDeviceImageFormatProperties) \
     X(CreateDevice) \
     X(GetDeviceProcAddr)
 #define DEVICE_FUNCTIONS(X) \
@@ -243,6 +244,14 @@ public:
         vkGetPhysicalDeviceFormatProperties(physical, Format(f), &data);
         const auto flags = data.optimalTilingFeatures;
         const bool depth = IsDepthStencil(f);
+        VkImageFormatProperties image{};
+        const auto usage = depth ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+                                 : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        unsigned samples = 1;
+        if (vkGetPhysicalDeviceImageFormatProperties(physical, Format(f), VK_IMAGE_TYPE_2D,
+                                                     VK_IMAGE_TILING_OPTIMAL, usage, 0,
+                                                     &image) == VK_SUCCESS)
+            samples = unsigned(image.sampleCounts) & 15u;
         return {bool(flags & (depth ? VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
                                     : VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)),
                 !depth && bool(flags & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT) &&
@@ -253,7 +262,8 @@ public:
                     (flags & (VK_FORMAT_FEATURE_BLIT_SRC_BIT | VK_FORMAT_FEATURE_BLIT_DST_BIT |
                               VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) ==
                         (VK_FORMAT_FEATURE_BLIT_SRC_BIT | VK_FORMAT_FEATURE_BLIT_DST_BIT |
-                         VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)};
+                         VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT),
+                samples};
     }
     const char* ShaderDiagnostic() const override { return genericError.c_str(); }
     bool PrepareShaderPipeline(const ShaderPipeline&) override;
@@ -527,7 +537,7 @@ public:
         return true;
     }
     bool AllocateImage(unsigned w, unsigned h, VkFormat format, unsigned mips,
-                       VkImageUsageFlags usage, Resource& out) {
+                       VkImageUsageFlags usage, Resource& out, unsigned samples = 1) {
         VkFormatProperties support;
         vkGetPhysicalDeviceFormatProperties(physical, format, &support);
         const auto required =
@@ -552,7 +562,7 @@ public:
         info.extent = {w, h, 1};
         info.mipLevels = mips;
         info.arrayLayers = 1;
-        info.samples = VK_SAMPLE_COUNT_1_BIT;
+        info.samples = static_cast<VkSampleCountFlagBits>(samples);
         info.tiling = VK_IMAGE_TILING_OPTIMAL;
         info.usage = usage;
         info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -941,7 +951,7 @@ public:
         r.uploaded = true;
         if (d.mips > 1)
             usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        if (!AllocateImage(d.width, d.height, Format(d.format), d.mips, usage, r))
+        if (!AllocateImage(d.width, d.height, Format(d.format), d.mips, usage, r, d.samples))
             return {};
         if (d.mips > 1) {
             VkImageViewCreateInfo view{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
@@ -1071,6 +1081,16 @@ public:
             info.storeOp = store(attachment.store);
             info.clearValue.color = {{attachment.clear.red, attachment.clear.green,
                                       attachment.clear.blue, attachment.clear.alpha}};
+            if (attachment.resolve) {
+                auto& resolve = *Find(attachment.resolve);
+                Barrier(cmd, resolve, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT);
+                info.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+                info.resolveImageView =
+                    resolve.attachmentView ? resolve.attachmentView : resolve.view;
+                info.resolveImageLayout = resolve.layout;
+            }
             colorInfos.push_back(info);
         };
         if (passes.Active()) {
@@ -2144,7 +2164,9 @@ bool VulkanDevice::MakePipeline(const ModelPipeline& p, VkPipeline& out,
         colorFormats.push_back(color->format);
     const auto cf = color ? color->format : VK_FORMAT_UNDEFINED,
                df = depth ? depth->format : VK_FORMAT_UNDEFINED;
+    const auto samples = passes.Samples();
     std::ostringstream key;
+    key << "samples=" << samples << ':';
     for (auto value : {unsigned(cf),
                        unsigned(df),
                        unsigned(p.vertexLayout),
@@ -2270,7 +2292,7 @@ bool VulkanDevice::MakePipeline(const ModelPipeline& p, VkPipeline& out,
                                                                  : VK_CULL_MODE_FRONT_BIT;
     VkPipelineMultisampleStateCreateInfo ms{
         VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
-    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    ms.rasterizationSamples = static_cast<VkSampleCountFlagBits>(samples);
     VkPipelineDepthStencilStateCreateInfo ds{
         VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO};
     ds.depthTestEnable = p.raster.depthTest;

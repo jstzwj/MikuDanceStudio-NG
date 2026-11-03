@@ -32,7 +32,8 @@ public:
         if (!TexturePixelBytes(f) && f != TextureFormat::DepthStencil)
             return {};
         const bool color = !IsDepthStencil(f);
-        return {true, color, color, f != TextureFormat::DepthStencil, f == TextureFormat::Rgba8};
+        return {true, color, color, f != TextureFormat::DepthStencil, f == TextureFormat::Rgba8,
+                15};
     }
     bool PrepareShaderPipeline(const ShaderPipeline& p) override {
         const auto result = ValidateShaderTargetSupport(*this, p);
@@ -142,7 +143,14 @@ public:
         return true;
     }
     bool EndRenderPass() override {
-        if (!inFrame_ || !passes_.End())
+        if (!inFrame_ || !passes_.Active())
+            return false;
+        // Null has no rasterizer; every sample of its clear-only image is the
+        // same value. Resolve transfers that image, preserving initialization.
+        for (const auto& a : ColorAttachments(passes_.Current()))
+            if (a.resolve)
+                Find(a.resolve)->bytes = Find(a.texture)->bytes;
+        if (!passes_.End())
             return false;
         linePipelineReady_ = false;
         shaderReady_ = bindingsReady_ = false;

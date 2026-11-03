@@ -21,7 +21,8 @@ struct RenderTextureDesc {
     std::uint32_t width = 0, height = 0;
     TextureFormat format = TextureFormat::Rgba8;
     std::uint32_t access = std::uint32_t(TextureAccess::ColorAttachment);
-    // Single layer/sample. Color targets may expose a complete mip chain.
+    // Single layer; samples are 1/2/4/8. Multisampled attachments have one
+    // mip and cannot be sampled or transferred directly.
     // Unsupported ranges are rejected, never silently narrowed.
     std::uint32_t mips = 1, layers = 1, samples = 1;
 };
@@ -43,6 +44,9 @@ struct PassAttachment {
     ClearColor clear;
     float clearDepth = 1;
     std::uint8_t clearStencil = 0;
+    // Optional single-sample color destination, resolved at EndRenderPass.
+    // Same format/extent, distinct resource; the source store is independent.
+    Handle resolve;
 };
 struct RenderPassDesc {
     // Legacy single-color spelling. Do not combine with colors.
@@ -88,6 +92,9 @@ public:
     bool CanRead(Handle) const;
     const RenderTextureDesc* Description(Handle) const;
     std::vector<TextureFormat> ColorFormats() const;
+    unsigned Samples() const {
+        return active_ ? Description(PrimaryAttachment(current_)->texture)->samples : 1;
+    }
     const RenderPassDesc& Current() const { return current_; }
     const std::string& Reason() const { return reason_; }
     void InvalidateContents();

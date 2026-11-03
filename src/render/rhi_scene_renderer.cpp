@@ -306,7 +306,8 @@ ModelReplayResult SceneRenderer::PrepareImpl(std::uint64_t id, const ModelReplay
     if (frame)
         for (const auto& t : frame->targets) {
             const auto c = d.FormatFeatures(t.description.format);
-            if ((t.description.mips > 1 && !c.renderMips) || !c.render ||
+            if (!(c.sampleCounts & t.description.samples) ||
+                (t.description.mips > 1 && !c.renderMips) || !c.render ||
                 ((t.description.access & unsigned(TextureAccess::Sampled)) && !c.sampled) ||
                 ((t.description.access & unsigned(TextureAccess::CopySource)) && !c.readback))
                 return {false, 0, 0, "render_texture_format_not_supported"};
@@ -509,13 +510,16 @@ ModelReplayResult SceneRenderer::PrepareImpl(std::uint64_t id, const ModelReplay
                 pass.generateMips = scene.targets.at(p.generateMips).handle;
             const auto attachment = [&](const std::optional<FrameAttachment>& a,
                                         std::optional<PassAttachment>& out) {
-                if (a)
+                if (a) {
                     out = PassAttachment{scene.targets.at(a->target).handle,
                                          a->load,
                                          a->store,
                                          a->clear,
                                          a->clearDepth,
                                          a->clearStencil};
+                    if (a->resolve)
+                        out->resolve = scene.targets.at(a->resolve).handle;
+                }
             };
             attachment(p.color, pass.description.color);
             attachment(p.depthStencil, pass.description.depthStencil);

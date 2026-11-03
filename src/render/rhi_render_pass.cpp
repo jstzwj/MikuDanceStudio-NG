@@ -34,7 +34,11 @@ bool ValidRenderTextureDesc(const RenderTextureDesc& d) {
     for (auto extent = std::max(d.width, d.height); extent > 1; extent >>= 1)
         ++levels;
     if (!d.width || !d.height || d.width > 4096 || d.height > 4096 || !d.mips || d.mips > levels ||
-        d.layers != 1 || d.samples != 1 || !d.access || (d.access & ~15u))
+        d.layers != 1 || (d.samples != 1 && d.samples != 2 && d.samples != 4 && d.samples != 8) ||
+        !d.access || (d.access & ~15u))
+        return false;
+    if (d.samples > 1 &&
+        (d.mips != 1 || Has(d, TextureAccess::Sampled) || Has(d, TextureAccess::CopySource)))
         return false;
     if (d.mips > 1 &&
         (d.mips != levels || d.format != TextureFormat::Rgba8 || !Has(d, TextureAccess::Sampled)))
@@ -80,7 +84,7 @@ bool RenderPassState::Begin(const RenderPassDesc& p) {
     if (!colorCount && !p.depthStencil)
         return fail("missing_attachment");
     std::set<Key> writes, reads;
-    std::uint32_t width = 0, height = 0;
+    std::uint32_t width = 0, height = 0, samples = 0;
     if (p.depthStencil)
         attachments.push_back(*p.depthStencil);
     for (std::size_t n = 0; n < attachments.size(); ++n) {
@@ -96,8 +100,21 @@ bool RenderPassState::Begin(const RenderPassDesc& p) {
             return fail("duplicate_attachment");
         if (width && (d.width != width || d.height != height))
             return fail("attachment_size_mismatch");
+        if (samples && d.samples != samples)
+            return fail("attachment_sample_mismatch");
         width = d.width;
         height = d.height;
+        samples = d.samples;
+        if (a->resolve) {
+            const auto destination = entries_.find(key(a->resolve));
+            if (depth || d.samples == 1 || destination == entries_.end())
+                return fail("invalid_color_resolve");
+            const auto& resolved = destination->second.desc;
+            if (resolved.samples != 1 || resolved.format != d.format || resolved.width != d.width ||
+                resolved.height != d.height || !Has(resolved, TextureAccess::ColorAttachment) ||
+                a->load == AttachmentLoad::Discard || !writes.insert(destination->first).second)
+                return fail("invalid_color_resolve");
+        }
         if (unsigned(a->load) > unsigned(AttachmentLoad::Discard) ||
             unsigned(a->store) > unsigned(AttachmentStore::Discard))
             return fail("invalid_attachment_operation");
@@ -143,6 +160,10 @@ bool RenderPassState::End() {
     for (const auto& a : attachments) {
         entries_.at(key(a.texture)).initialized = a.store == AttachmentStore::Store;
         entries_.at(key(a.texture)).mipsReady = false;
+        if (a.resolve) {
+            entries_.at(key(a.resolve)).initialized = true;
+            entries_.at(key(a.resolve)).mipsReady = false;
+        }
     }
     active_ = false;
     current_ = {};
@@ -165,7 +186,7 @@ bool RenderPassState::CanSample(Handle h) const {
 bool RenderPassState::CanRead(Handle h) const {
     const auto i = entries_.find(key(h));
     return !active_ && i != entries_.end() && i->second.initialized &&
-           Has(i->second.desc, TextureAccess::CopySource);
+           i->second.desc.samples == 1 && Has(i->second.desc, TextureAccess::CopySource);
 }
 bool RenderPassState::CanGenerateMips(Handle h) const {
     const auto i = entries_.find(key(h));
