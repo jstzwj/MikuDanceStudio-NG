@@ -30,6 +30,9 @@ def main():
         raise RuntimeError('Requires isolated CI Xvfb and private DBus; never uses a developer display')
     env = dict(os.environ, QT_QPA_PLATFORM='xcb', QT_IM_MODULE='ibus',
                XMODIFIERS='@im=ibus')
+    # Anthy's distribution entrypoint uses python3 from PATH and the system
+    # PyGObject packages. Hosted toolcache Python deliberately has no gi module.
+    env['PATH'] = '/usr/bin:/bin:' + os.environ.get('PATH', '')
     env.pop('IBUS_USE_PORTAL', None)
     report_path = args.report.resolve()
     report_path.parent.mkdir(parents=True, exist_ok=True)
