@@ -56,11 +56,12 @@ QString ActivateJapaneseIme(HWND window) {
             return "Japanese IME has no native input context";
         const auto opened = ImmSetOpenStatus(context, TRUE);
         const auto converted = ImmSetConversionStatus(
-            context, IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE | IME_CMODE_ROMAN, IME_SMODE_PHRASEPREDICT);
+            context, IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE | IME_CMODE_ROMAN,
+            IME_SMODE_PHRASEPREDICT);
         DWORD conversion = 0, sentence = 0;
         ImmGetConversionStatus(context, &conversion, &sentence);
-        std::fprintf(stderr, "Japanese IME conversion=0x%lx sentence=0x%lx open=%d\n",
-                     conversion, sentence, ImmGetOpenStatus(context));
+        std::fprintf(stderr, "Japanese IME conversion=0x%lx sentence=0x%lx open=%d\n", conversion,
+                     sentence, ImmGetOpenStatus(context));
         ImmReleaseContext(window, context);
         return opened && converted ? QString() : QString("Cannot select native Hiragana mode");
     }
@@ -97,6 +98,10 @@ public:
 };
 }
 int main(int argc, char** argv) {
+    qInstallMessageHandler(
+        [](QtMsgType, const QMessageLogContext& context, const QString& message) {
+            std::fprintf(stderr, "%s: %s\n", context.category, message.toUtf8().constData());
+        });
     QApplication app(argc, argv);
     bool platformInput = (QGuiApplication::platformName() == "xcb" &&
                           qEnvironmentVariable("QT_IM_MODULE") == "ibus") ||

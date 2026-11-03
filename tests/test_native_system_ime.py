@@ -18,6 +18,7 @@ class MacInput:
         self.cf = c.CDLL('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation')
         self.tis = c.CDLL('/System/Library/Frameworks/Carbon.framework/Frameworks/HIToolbox.framework/HIToolbox')
         self.cg = c.CDLL('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics')
+        self.appkit = c.CDLL('/System/Library/Frameworks/AppKit.framework/AppKit')
         self.objc = c.CDLL('/usr/lib/libobjc.A.dylib')
         self.objc.objc_getClass.argtypes, self.objc.objc_getClass.restype = [c.c_char_p], c.c_void_p
         self.objc.sel_registerName.argtypes, self.objc.sel_registerName.restype = [c.c_char_p], c.c_void_p
