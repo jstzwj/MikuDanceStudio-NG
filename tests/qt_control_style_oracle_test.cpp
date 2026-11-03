@@ -223,7 +223,10 @@ int main(int argc, char** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     QApplication app(argc, argv);
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
-    const bool focused = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-list-focus";
+    const bool comboFocus =
+        argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-content-focus";
+    const bool focused =
+        comboFocus || (argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-list-focus");
     const bool visible = argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--isolated-nonclient" ||
                                       QString::fromLocal8Bit(argv[1]) == "--isolated-content" || focused);
     const bool text = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--text";
@@ -237,6 +240,7 @@ int main(int argc, char** argv) try {
 #else
     constexpr bool visible = false;
     constexpr bool focused = false;
+    constexpr bool comboFocus = false;
     const bool text = argc == 4 && QString::fromLocal8Bit(argv[1]) == "--text";
     const bool content = argc == 4 && QString::fromLocal8Bit(argv[1]) == "--content";
     Check(argc == 3 || text || content, "usage: [--text|--content] original.exe output-directory");
@@ -347,7 +351,8 @@ int main(int argc, char** argv) try {
         }
         for (std::size_t index = 0; index < description->count; ++index) {
             const auto& entry = description->controls[index];
-            if (focused && entry.kind != NumericControlKind::Listbox)
+            if (focused && entry.kind != NumericControlKind::Listbox &&
+                !(comboFocus && entry.kind == NumericControlKind::Combobox))
                 continue;
             // WM_PRINT omits hidden EDIT nonclient paint. The hidden border
             // regression therefore compares only the GDI WS_BORDER primitive;
@@ -534,12 +539,15 @@ int main(int argc, char** argv) try {
                 if (visible) {
                     if (focused) {
                         auto* list = qobject_cast<QListWidget*>(widget);
-                        Check(list != nullptr, "focus qualification list");
-                        list->setCurrentRow(0);
-                        SendMessageW(control, LB_SETCURSEL, 0, 0);
+                        if (list) {
+                            list->setCurrentRow(0);
+                            SendMessageW(control, LB_SETCURSEL, 0, 0);
+                        } else
+                            Check(qobject_cast<QComboBox*>(widget) != nullptr,
+                                  "focus qualification combo");
                         SetActiveWindow(native);
                         SetFocus(control);
-                        Check(GetFocus() == control, "native list owns actual keyboard focus");
+                        Check(GetFocus() == control, "native control owns actual keyboard focus");
                         SendMessageW(control, WM_UPDATEUISTATE,
                                      MAKEWPARAM(UIS_CLEAR, UISF_HIDEFOCUS), 0);
                     }
@@ -549,7 +557,7 @@ int main(int argc, char** argv) try {
                     UpdateWindow(control);
                     QCoreApplication::processEvents();
                     if (focused)
-                        Check(GetFocus() == control, "native list retains focus before capture");
+                        Check(GetFocus() == control, "native control retains focus before capture");
                 }
                 const auto expected = NativeImage(control, visible, borderOnly);
                 if (focused) {
@@ -558,7 +566,7 @@ int main(int argc, char** argv) try {
                     QApplication::setActiveWindow(&dialog);
                     widget->setFocus(Qt::TabFocusReason);
                     QCoreApplication::processEvents();
-                    Check(widget->hasFocus(), "Qt list owns actual keyboard focus");
+                    Check(widget->hasFocus(), "Qt control owns actual keyboard focus");
                 }
                 widget->resize(expected.size());
                 QImage actual(expected.size(), QImage::Format_RGB32);

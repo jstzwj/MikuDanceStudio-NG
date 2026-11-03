@@ -29,7 +29,7 @@ on:
         description: Qualify real platform IMEs on isolated Windows, Linux and macOS runners
         default: false
 concurrency:
-  group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}
+  group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}-${{ inputs.system_ime && 'ime' || inputs.native_controls && 'controls' || inputs.native_reference && 'reference' || 'regular' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
@@ -132,6 +132,8 @@ jobs:
           out/p4/qt_control_style_test.exe --isolated-content out/p4/control-content-visible
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           out/p4/qt_control_style_test.exe --isolated-list-focus out/p4/control-list-focus
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          out/p4/qt_control_style_test.exe --isolated-content-focus out/p4/control-content-focus
       - name: Qualify native Japanese input and command ordering
         if: ${{ !cancelled() && inputs.system_ime }}
         shell: powershell
@@ -188,6 +190,7 @@ jobs:
             out/p4/control-style-nonclient/
             out/p4/control-content-visible/
             out/p4/control-list-focus/
+            out/p4/control-content-focus/
             out/p4/distribution-check.*
             out/p4/editor-frame-performance*.json
             out/p4/native-audio*.json
