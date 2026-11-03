@@ -39,6 +39,12 @@ std::string reason;
     } while (false)
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
+    if (qEnvironmentVariableIsSet("QT_SCALE_FACTOR")) {
+        bool validScale = false;
+        const auto scale = qEnvironmentVariable("QT_SCALE_FACTOR").toDouble(&validScale);
+        CHECK(validScale && std::abs(app.devicePixelRatio() - scale) < 1e-6);
+    }
+
     CHECK(QGuiApplication::platformName() == "offscreen");
     CHECK(argc == 4);
     QFile file(QString::fromLocal8Bit(argv[3]));

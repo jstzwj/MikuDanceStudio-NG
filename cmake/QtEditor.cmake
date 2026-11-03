@@ -88,6 +88,11 @@ function(mds_add_qt_editor)
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${root}/res/assets" "$<TARGET_FILE_DIR:MikuDanceStudioNG>/assets")
     include("${root}/cmake/QtDistribution.cmake")
     if(BUILD_TESTING)
+        qt_add_executable(qt_c1_workflow_test "${root}/tests/qt_c1_workflow_test.cpp")
+        target_link_libraries(qt_c1_workflow_test PRIVATE mikudancestudio_frontend_qt)
+        add_test(NAME qt_c1_workflow COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"
+            --passes $<TARGET_FILE:qt_c1_workflow_test> --assets "${root}/res/assets")
+        set_tests_properties(qt_c1_workflow PROPERTIES LABELS "p4;offscreen;qt;gpu;c1" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_texture_reload_test "${root}/tests/qt_texture_reload_test.cpp")
         target_link_libraries(qt_texture_reload_test PRIVATE mikudancestudio_frontend_qt)
         add_test(NAME qt_texture_reload COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"
@@ -203,6 +208,24 @@ function(mds_add_qt_editor)
             qt_add_executable(qt_metal_present_test "${root}/tests/qt_metal_present_test.cpp")
             target_link_libraries(qt_metal_present_test PRIVATE mikudancestudio_frontend_qt)
         endif()
+        # Fractional/native physical-coordinate profiles. Each process owns its
+        # QPA scale; synthetic events never interact with the developer desktop.
+        foreach(scale IN ITEMS 1.25 1.5 2)
+            string(REPLACE "." "_" profile "${scale}")
+            add_test(NAME qt_bone_drag_dpi_${profile} COMMAND ${Python3_EXECUTABLE}
+                "${root}/tests/test_runtime_cpu_scene.py"
+                --passes $<TARGET_FILE:qt_bone_drag_test> --assets "${root}/res/assets")
+            add_test(NAME qt_numeric_dpi_${profile} COMMAND ${Python3_EXECUTABLE}
+                "${root}/tests/test_qt_numeric.py"
+                --test $<TARGET_FILE:qt_numeric_test> --assets "${root}/res/assets")
+            add_test(NAME qt_model_physics_dpi_${profile} COMMAND ${Python3_EXECUTABLE}
+                "${root}/tests/test_qt_numeric.py"
+                --test $<TARGET_FILE:qt_model_physics_test> --assets "${root}/res/assets"
+                --evidence "${root}/tests/reference/model-physics-original.json")
+            set_tests_properties(qt_bone_drag_dpi_${profile} qt_numeric_dpi_${profile}
+                qt_model_physics_dpi_${profile} PROPERTIES LABELS "p4;offscreen;qt;dpi"
+                TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_SCALE_FACTOR=${scale}")
+        endforeach()
         qt_add_executable(qt_presentation_test "${root}/tests/qt_presentation_test.cpp")
         target_link_libraries(qt_presentation_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)

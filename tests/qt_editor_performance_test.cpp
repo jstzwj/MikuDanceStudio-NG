@@ -62,6 +62,12 @@ int main(int argc, char** argv) try {
             return {};
         const auto start = Clock::now();
         auto frame = viewport->PreparedFrame();
+        const auto sampling = rhi::ApplyFrameMultisampling(
+            frame,
+            session.DisplayOptions().antialiasing ? qt::SceneAntialiasSamples(*gpu.device) : 1);
+        if (!sampling)
+            reason = sampling.reason;
+        CHECK(sampling);
         CHECK(rhi::ApplyMaterialSampling(frame, options.materialSampling));
         auto result = renderer->Prepare(1, frame, prepared);
         reason = result.reason;
@@ -118,7 +124,10 @@ int main(int argc, char** argv) try {
            << "\",\"vertices\":" << session.Runtime().Snapshot(0)->vertices.size()
            << ",\"cold_prepare_ms\":" << coldMs << ",\"p95_budget_ms\":" << p95Budget
            << ",\"max_budget_ms\":" << maxBudget
-           << ",\"gpu_completion_in_total\":" << (measureGpu ? "true" : "false")
+           << ",\"gpu_completion_in_total\":" << (measureGpu ? "true" : "false") << ",\"samples\":"
+           << (gpu.device && session.DisplayOptions().antialiasing
+                   ? qt::SceneAntialiasSamples(*gpu.device)
+                   : 1)
            << ",\"backend\":" << int(options.backend) << ",\"adapter\":";
     const auto adapter = QJsonDocument(QJsonArray{QString::fromStdString(gpu.adapter)})
                              .toJson(QJsonDocument::Compact);

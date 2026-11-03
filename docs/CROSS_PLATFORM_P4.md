@@ -3790,3 +3790,48 @@ Validation for the Qt antialias revision: local ALL_BUILD and all **56 P4 gates
 passed (219.05 seconds)**. Explicit DX11 WARP, DX12 WARP and Vulkan hardware
 native-window tests passed with every Windows host kept hidden, including
 sample toggles, resize, replacement, capture history and separate-window rebuilds.
+
+
+## Fractional DPI input and default-AA performance
+
+The viewport now retains Qt floating-point logical pointer positions until its
+single conversion to integer physical pixels. Rounding the logical position
+first could lose a one-physical-pixel drag at fractional/Retina scaling. The
+camera, bone, physics and box-selection paths use the same conversion; native
+integer-pixel drag kernels and their existing original-executable comparisons
+are unchanged. Pointer warping still uses the OS integer logical coordinate API.
+
+Nine offscreen regressions passed on Windows x64 at 125%, 150% and 200%: actual
+Qt DPR assertions, axis hit/drag, one physical pixel, backwards box selection,
+focus cancellation, staging body/joint edits and all three-language numeric
+dialog input/geometry. These are injected Qt events; they do not establish real
+OS IME or per-monitor transition acceptance. The profiles are now in the `p4`
+CI label on all platforms.
+
+The complete CPU/GPU timing gate now includes the default antialias resolve
+transform, rather than timing its CPU-only single-sample preparation result.
+Local DX11 WARP selected 8 samples. Static/navigation/animation/paused-physics/
+bone-edit p95 totals were 18.77/19.54/19.18/15.06/15.54 ms; maximum was 54.89 ms.
+The unchanged local budgets are 33.33 ms p95 and 100 ms maximum, including GPU
+completion without timed image readback. This generated scene has 8190 vertices;
+it is not a new Sour Miku or physical-presentation timing claim.
+
+The preceding antialias revision d375f93 passed all three editor jobs in
+[run 41596162529](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41596162529),
+including native Metal on macOS and software Vulkan on Linux. P4 remains open.
+
+
+## Combined C1 workflow and original scene diagnostic
+
+`qt_c1_workflow_test` keeps one Qt editor session through PMD/PMX import, two
+accessories (one uses screen.bmp), a non-square picture, silent WAV metadata,
+all eight key pools, both native-mode clipboards, overwrite, bone Undo/Redo,
+frame-line insertion/deletion, three-language replacement, physical playback,
+save/reopen and frame-zero-warmed PNG sequence export. Save/reopen outputs must
+match exactly. Unloading invalidates the departed model's history, and a new
+session reopens the combined project. No native surface or audio device opens.
+The generated Windows DX11 WARP, DX12 WARP and hardware Vulkan runs passed;
+other platforms are pending CI. All 66 local P4 gates passed (300.33 seconds).
+This integration complements the independent native kernel comparisons rather
+than turning the shared editor into its own original-MMD oracle.
+

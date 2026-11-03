@@ -259,7 +259,7 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
 int Viewport::ActiveBone() const {
     return session_.ActiveBone();
 }
-int Viewport::ToolAt(QPoint point) {
+int Viewport::ToolAt(QPointF point) {
     render::ViewportTools tools;
     tools.camera = session_.Selected().model == 255;
     tools.playing = session_.Playing();
@@ -285,7 +285,7 @@ std::uint64_t Viewport::Submissions() const {
     const auto* renderer = const_cast<rhi::ScenePreviewController&>(controller_).GetRenderer();
     return renderer ? renderer->Stats().submissions : 0;
 }
-QPoint Viewport::DevicePoint(QPoint point) const {
+QPoint Viewport::DevicePoint(QPointF point) const {
     return {qRound(point.x() * devicePixelRatio()), qRound(point.y() * devicePixelRatio())};
 }
 void Viewport::FinishBoxSelection() {
@@ -322,8 +322,8 @@ bool Viewport::BeginCenteredCursor(int operation, QWindow* inputSurface) {
     // Hidden/offscreen tests never request capture or global pointer movement.
     cursorWarped_ = isExposed() && !QGuiApplication::platformName().startsWith("wayland");
     if (cursorWarped_) {
-        previous_ = {qRound((w / 2) / ratio), qRound((h / 2) / ratio)};
-        QCursor::setPos(mapToGlobal(previous_));
+        previous_ = QPoint(qRound((w / 2) / ratio), qRound((h / 2) / ratio));
+        QCursor::setPos(mapToGlobal(previous_.toPoint()));
     }
     toolPrevious_ = DevicePoint(previous_);
     relativePosition_ = toolPrevious_;
@@ -440,7 +440,7 @@ void Viewport::mousePressEvent(QMouseEvent* e) {
     if (boneDragMode_ || physicsDragMode_ || sceneDragMode_ || headerDragOperation_)
         return;
     pressed_ = true;
-    previous_ = e->position().toPoint();
+    previous_ = e->position();
     const int operation = e->button() == Qt::LeftButton ? ToolAt(previous_) : 0;
     if (operation == 21) {
         session_.CycleCoordinateSystem();
@@ -561,7 +561,7 @@ void Viewport::mousePressEvent(QMouseEvent* e) {
 }
 void Viewport::mouseMoveEvent(QMouseEvent* e) {
     if (!pressed_) {
-        const auto operation = ToolAt(e->position().toPoint());
+        const auto operation = ToolAt(e->position());
         if (operation != toolOperation_) {
             toolOperation_ = operation;
             if (changed)
@@ -569,7 +569,7 @@ void Viewport::mouseMoveEvent(QMouseEvent* e) {
         }
         return;
     }
-    auto point = e->position().toPoint();
+    auto point = e->position();
     const auto delta = DevicePoint(point) - DevicePoint(previous_);
     if (headerDragOperation_ || sceneDragMode_ || boneDragMode_ || physicsDragMode_) {
         if (!(e->buttons() & Qt::LeftButton)) {
@@ -689,7 +689,7 @@ void Viewport::mouseReleaseEvent(QMouseEvent* e) {
         return;
     }
     if (box_ && e->button() == Qt::LeftButton) {
-        previous_ = e->position().toPoint();
+        previous_ = e->position();
         boxAdditive_ = e->modifiers() & Qt::ShiftModifier;
         FinishBoxSelection();
     }

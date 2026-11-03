@@ -71,7 +71,7 @@ private:
     bool cachedPlaying_ = false;
     std::uint64_t cachedAppearanceRevision_ = 0;
     int ActiveBone() const;
-    int ToolAt(QPoint);
+    int ToolAt(QPointF);
     bool frameCached_ = false;
     bool profileFrame_ = false;
     FrameCpuTimings cpuTimings_;
@@ -92,13 +92,13 @@ private:
     bool centeredCursor_ = false, cursorWarped_ = false;
     QPoint restoreCursor_;
     QCursor savedCursor_;
-    QPoint DevicePoint(QPoint) const;
+    QPoint DevicePoint(QPointF) const;
     void FinishBoxSelection();
     bool box_ = false, boxAdditive_ = false;
     std::uint8_t boxModel_ = 255;
-    QPoint anchor_;
+    QPointF anchor_;
     std::vector<cpu_bone::ScreenPoint> bonePoints_;
-    QPoint previous_;
+    QPointF previous_;
 };
 // Export uses its own scene/renderer. It never reads the editor swapchain.
 bool RenderImage(const runtime::SceneRuntime&, const editor::EditorAssets&,

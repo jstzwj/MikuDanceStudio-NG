@@ -16,6 +16,12 @@ std::string reason;
     } while (false)
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
+    if (qEnvironmentVariableIsSet("QT_SCALE_FACTOR")) {
+        bool validScale = false;
+        const auto scale = qEnvironmentVariable("QT_SCALE_FACTOR").toDouble(&validScale);
+        CHECK(validScale && std::abs(app.devicePixelRatio() - scale) < 1e-6);
+    }
+
     CHECK(argc == 3);
     const auto root = std::filesystem::absolute(argv[1]);
     editor::EditorSession session;
@@ -110,7 +116,17 @@ int main(int argc, char** argv) {
     mouse(QEvent::MouseMove, cameraX - QPointF(0, 10), Qt::NoButton, Qt::LeftButton);
     mouse(QEvent::MouseButtonRelease, cameraX - QPointF(0, 10), Qt::LeftButton, Qt::NoButton);
     CHECK(ok && viewport.cursor().shape() != Qt::BlankCursor);
-    CHECK(std::abs(session.Document().cameraState[0] + .5f * ratio) < 1e-6f);
+    const int cameraDy = qRound((cameraX.y() - 10) * ratio) - qRound(cameraX.y() * ratio);
+    CHECK(std::abs(session.Document().cameraState[0] - .05f * cameraDy) < 1e-6f);
+    // Native input has integer physical coordinates. Preserve Qt fractional
+    // logical positions until that conversion: one device pixel must survive
+    // even when both endpoints round to the same logical pixel at high DPI.
+    const auto beforePixel = session.Document().cameraState[0];
+    const QPointF pixelStart(cameraX.x(), (qRound(cameraX.y() * ratio) + .1) / ratio);
+    mouse(QEvent::MouseButtonPress, pixelStart, Qt::LeftButton, Qt::LeftButton);
+    mouse(QEvent::MouseMove, pixelStart - QPointF(0, 1 / ratio), Qt::NoButton, Qt::LeftButton);
+    mouse(QEvent::MouseButtonRelease, pixelStart, Qt::LeftButton, Qt::NoButton);
+    CHECK(std::abs(session.Document().cameraState[0] - beforePixel + .05f) < 1e-6f);
     CHECK(session.Runtime().Counters().frames == frames && !session.CanUndo());
     const auto cameraAngle = axis(2, true);
     mouse(QEvent::MouseButtonPress, cameraAngle, Qt::LeftButton, Qt::LeftButton);
@@ -118,7 +134,8 @@ int main(int argc, char** argv) {
           Qt::ControlModifier);
     QCoreApplication::sendEvent(&viewport, &focus);
     CHECK(ok && viewport.cursor().shape() != Qt::BlankCursor);
-    CHECK(std::abs(session.Document().cameraState[8] + .02f * ratio) < 1e-6f);
+    const int angleDy = qRound((cameraAngle.y() - 10) * ratio) - qRound(cameraAngle.y() * ratio);
+    CHECK(std::abs(session.Document().cameraState[8] - .002f * angleDy) < 1e-6f);
     const auto stopped = session.Document().cameraState;
     mouse(QEvent::MouseMove, cameraAngle - QPointF(0, 30), Qt::NoButton, Qt::LeftButton);
     CHECK(session.Document().cameraState == stopped);
