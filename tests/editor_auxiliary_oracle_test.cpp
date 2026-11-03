@@ -14,6 +14,7 @@
 #include "editor_morph_purge_fixture.hpp"
 #include "editor_blink_fixture.hpp"
 #include "editor_key_capacity_fixture.hpp"
+#include "editor_paste_capacity_fixture.hpp"
 #include "editor_camera_scale_fixture.hpp"
 #include "gravity_edit_reference.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
@@ -2617,6 +2618,268 @@ void BoneCapacity(OriginalPhysicsModule& original, const std::filesystem::path& 
     std::puts(
         "Original full 600000-slot bone command: failures, complete pool, markers and empty-capture history passed");
 }
+unsigned PasteCapacity(OriginalPhysicsModule& original) {
+    const unsigned char ret = 0xc3;
+    Patch paint(original.Function<void*>(0x60ea0), &ret, 1);
+    Patch controls(original.Function<void*>(0x62bb0), &ret, 1);
+    Patch reload(original.Function<void*>(0x59c30), &ret, 1);
+    Patch seekCamera(original.Function<void*>(0x5ba90), &ret, 1);
+    Patch seekLight(original.Function<void*>(0x5caf0), &ret, 1);
+    Patch seekShadow(original.Function<void*>(0x5d320), &ret, 1);
+    Patch syncAccessory(original.Function<void*>(0x5e510), &ret, 1);
+    auto message = &CapacityMessage;
+    Patch prompt(original.Function<void*>(0x128618), &message, sizeof message);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    std::vector<mdl::CameraKey> camera(10000);
+    std::vector<mdl::LightKey> light(10000);
+    std::vector<mdl::SelfShadowKey> shadow(10000);
+    std::vector<mdl::GravityKey> gravity(10000);
+    std::vector<mdl::AccessoryKey> accessories(10000);
+    std::array<mdl::CameraClipboardRecord, 3> cameraClipboard{};
+    std::array<mdl::LightClipboardRecord, 3> lightClipboard{};
+    const auto defaults = NewPmmScene();
+    for (unsigned i = 0; i < 3; ++i) {
+        auto& c = cameraClipboard[i];
+        const auto& key = defaults.cameraKeys.dense[0];
+        c.frame = i;
+        c.distance = key.distance;
+        c.fov = key.fov;
+        c.perspective = key.perspective;
+        c.parentModel = key.parentModel;
+        c.parentBone = key.parentBone;
+        std::copy(key.eye.begin(), key.eye.end(), c.eye);
+        std::copy(key.target.begin(), key.target.end(), c.target);
+        std::memcpy(c.interpolation, key.interpolation.data(), 24);
+        c.eye[0] = float(31 + i);
+        auto& l = lightClipboard[i];
+        const auto& value = defaults.lightKeys.dense[0];
+        l.frame = i;
+        std::copy(value.color.begin(), value.color.end(), l.color);
+        std::copy(value.direction.begin(), value.direction.end(), l.direction);
+        l.color[0] = float(i + 1) / 8;
+    }
+    const auto cameraPut = [&](unsigned i, const PmmCameraKey& key) {
+        auto& out = camera[i];
+        out.frame = key.frame;
+        out.previous = key.previous;
+        out.next = key.next;
+        out.distance = key.distance;
+        out.fov = key.fov;
+        out.parentModel = key.parentModel;
+        out.parentBone = key.parentBone;
+        out.perspective = key.perspective;
+        out.selected = key.selected;
+        std::copy(key.eye.begin(), key.eye.end(), out.eye);
+        std::copy(key.target.begin(), key.target.end(), out.target);
+        std::memcpy(out.interpolation, key.interpolation.data(), 24);
+    };
+    const auto lightPut = [&](unsigned i, const PmmLightKey& key) {
+        auto& out = light[i];
+        out.frame = key.frame;
+        out.previous = key.previous;
+        out.next = key.next;
+        out.selected = key.selected;
+        std::copy(key.color.begin(), key.color.end(), out.color);
+        std::copy(key.direction.begin(), key.direction.end(), out.direction);
+    };
+    unsigned cases = 0;
+    std::uint64_t hash = 14695981039346656037ull;
+    modelCapacity = false;
+    advertisedCapacity = 10000;
+    for (unsigned cameraFree : {0u, 1u, 2u})
+        for (unsigned lightFree : {0u, 1u, 2u})
+            for (unsigned frame : {0u, 3u, 21000u}) {
+                EditorSession portable;
+                std::string reason;
+                Check(GlobalPasteCapacityFixture(portable, cameraFree, lightFree, frame, reason),
+                      reason.c_str());
+                const auto before = portable.Document();
+                std::memset(app.get(), 0, sizeof(*app));
+                const auto clear = [](auto& pool) {
+                    for (auto& key : pool) {
+                        key = {};
+                        key.selected = 1;
+                    }
+                };
+                clear(camera);
+                clear(light);
+                clear(shadow);
+                clear(gravity);
+                clear(accessories);
+                app->cameraKeyTrack = camera.data();
+                app->lightKeyTrack = light.data();
+                app->selfShadowKeyTrack = shadow.data();
+                app->gravityKeyTrack = gravity.data();
+                for (auto& keys : app->accKeyTracks)
+                    keys = accessories.data();
+                cameraPut(0, before.cameraKeys.dense[0]);
+                lightPut(0, before.lightKeys.dense[0]);
+                for (const auto& key : before.cameraKeys.sparse)
+                    cameraPut(unsigned(key.index), key.value);
+                for (const auto& key : before.lightKeys.sparse)
+                    lightPut(unsigned(key.index), key.value);
+                auto* raw = reinterpret_cast<unsigned char*>(app.get());
+                raw[0x328] = raw[0xa1b90] = 1;
+                auto* c = cameraClipboard.data();
+                auto* l = lightClipboard.data();
+                std::memcpy(raw + 0x3a8, &c, sizeof c);
+                std::memcpy(raw + 0x3b0, &l, sizeof l);
+                const unsigned count = 3;
+                std::memcpy(raw + 0x9e504, &count, 4);
+                std::memcpy(raw + 0x9e508, &count, 4);
+                app->currentFrame = int(frame);
+                app->lastRegisteredFrame = before.timeline.lastRegisteredFrame;
+                capacityMessages = 0;
+                original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, panel::kPasteButton);
+                std::vector<Track> rejected;
+                Check(portable.Paste(frame, false, reason, &rejected), reason.c_str());
+                Check(rejected.size() == capacityMessages && app->sceneModified == 1 &&
+                          portable.Dirty() &&
+                          app->lastRegisteredFrame ==
+                              portable.Document().timeline.lastRegisteredFrame,
+                      "native partial paste reports and watermarks");
+                const auto compare = [&](const auto& pool, const auto& track, const auto& convert) {
+                    using T = typename std::decay_t<decltype(track.dense)>::value_type;
+                    std::map<unsigned, const T*> keys{{0, &track.dense[0]}};
+                    for (const auto& key : track.sparse)
+                        keys.emplace(unsigned(key.index), &key.value);
+                    for (unsigned i = 0; i < pool.size(); ++i) {
+                        const bool alive = i == 0 || pool[i].frame != 0;
+                        const auto found = keys.find(i);
+                        Check(alive == (found != keys.end()),
+                              "native partial paste occupied slots");
+                        if (alive) {
+                            const auto saved = pool[i];
+                            convert(i, *found->second);
+                            Check(!std::memcmp(&saved, &pool[i], sizeof saved),
+                                  "native partial paste complete record bytes");
+                        } else
+                            Check(!pool[i].selected, "native partial paste unused marks");
+                    }
+                };
+                compare(camera, portable.Document().cameraKeys, cameraPut);
+                compare(light, portable.Document().lightKeys, lightPut);
+                Check(std::all_of(accessories.begin(), accessories.end(),
+                                  [](const auto& k) { return !k.selected; }),
+                      "native partial paste clears accessory marks");
+                HashPasteCapacity(hash, portable.Document());
+                ++cases;
+            }
+    std::printf("Native partial-paste frozen hash: %016llx\n",
+                static_cast<unsigned long long>(hash));
+    return cases;
+}
+unsigned ModelPasteCapacity(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    const unsigned char ret = 0xc3;
+    Patch paint(original.Function<void*>(0x60ea0), &ret, 1);
+    Patch controls(original.Function<void*>(0x62bb0), &ret, 1);
+    Patch seek(original.Function<void*>(0xcbd90), &ret, 1);
+    auto message = &CapacityMessage;
+    Patch prompt(original.Function<void*>(0x128618), &message, sizeof message);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    std::vector<mdl::BoneKey> bones(mdl::kBoneKeyCapacity);
+    unsigned cases = 0;
+    std::uint64_t hash = 14695981039346656037ull;
+    // Start with at least one free slot: the original Reset*Cursor points one
+    // past the table when initially full, and the registrar then reads it.
+    // Mid-loop exhaustion exercises the defined native path without that OOB.
+    for (unsigned morphFree : {1u, 2u})
+        for (unsigned displayFree : {1u, 2u}) {
+            EditorSession portable;
+            std::string reason;
+            Check(ModelPasteCapacityFixture(portable, root, morphFree, displayFree, reason),
+                  reason.c_str());
+            const auto& source = portable.Document().models[0];
+            NativeAuxiliary native(source, true);
+            Check(native.chains.empty(), "model partial-paste fixture needs no IK");
+            native.model->physicsFlags = 1;
+            native.model->boneKeys = bones.data();
+            native.model->maxFrame = source.selection.maxFrame;
+            for (auto& key : bones)
+                key.allocated = 1;
+            for (unsigned i = 0; i < native.poses.size(); ++i) {
+                Check(source.morphNames[i].size() < sizeof(native.poses[i].name),
+                      "native Morph name capacity");
+                std::copy(source.morphNames[i].begin(), source.morphNames[i].end(),
+                          native.poses[i].name);
+            }
+            const auto copy = [&](unsigned i, const auto& key) {
+                auto& out = native.displays[i];
+                out.frame = key.frame;
+                out.previous = key.previous;
+                out.next = key.next;
+                out.visible = key.visible;
+                out.allocated = key.allocated;
+            };
+            copy(0, source.displayKeys.dense[0]);
+            for (const auto& key : source.displayKeys.sparse)
+                copy(unsigned(key.index), key.value);
+            std::array<mdl::MorphClipboardRecord, 3> morphs{};
+            std::array<mdl::DisplayClipboardRecord, 3> displays{};
+            for (unsigned i = 0; i < 3; ++i) {
+                std::copy(source.morphNames[0].begin(), source.morphNames[0].end(), morphs[i].name);
+                morphs[i].frame = displays[i].frame = i;
+                morphs[i].value = float(i + 1) / 8;
+                displays[i].visible = std::uint8_t(i % 2);
+            }
+            std::memset(app.get(), 0, sizeof(*app));
+            app->modelSlots[0] = native.model.get();
+            app->currentFrame = 3;
+            app->lastRegisteredFrame = portable.Document().timeline.lastRegisteredFrame;
+            auto* raw = reinterpret_cast<unsigned char*>(app.get());
+            auto* m = morphs.data();
+            auto* d = displays.data();
+            std::memcpy(raw + 0x398, &m, sizeof m);
+            std::memcpy(raw + 0x3a0, &d, sizeof d);
+            const unsigned count = 3;
+            std::memcpy(raw + 0x9e4fc, &count, 4);
+            std::memcpy(raw + 0x9e500, &count, 4);
+            capacityMessages = 0;
+            // Both notices use model wording but different record limits.
+            // Run once with a collector which recognizes each exact text.
+            const auto observer = +[](HWND owner, LPCSTR text, LPCSTR title, UINT flags) -> int {
+                advertisedCapacity = std::strstr(text, "20000") ? 20000 : 1000;
+                modelCapacity = true;
+                return CapacityMessage(owner, text, title, flags);
+            };
+            Patch modelPrompt(original.Function<void*>(0x128618), &observer, sizeof observer);
+            original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, panel::kPasteButton);
+            std::vector<Track> rejected;
+            const auto frames = portable.Runtime().Counters().frames;
+            const bool undo = portable.CanUndo(), redo = portable.CanRedo();
+            Check(portable.Paste(3, false, reason, &rejected), reason.c_str());
+            if (!(rejected.size() == capacityMessages && app->sceneModified == 1 &&
+                  app->lastRegisteredFrame == portable.Document().timeline.lastRegisteredFrame &&
+                  portable.Runtime().Counters().frames == frames && portable.CanUndo() == undo &&
+                  portable.CanRedo() == redo))
+                std::fprintf(
+                    stderr,
+                    "partial model free=%u/%u reports=%zu/%u dirty=%u max=%d/%d frames=%llu/%llu undo=%d/%d redo=%d/%d\n",
+                    morphFree, displayFree, rejected.size(), capacityMessages,
+                    unsigned(app->sceneModified), app->lastRegisteredFrame,
+                    portable.Document().timeline.lastRegisteredFrame,
+                    static_cast<unsigned long long>(frames),
+                    static_cast<unsigned long long>(portable.Runtime().Counters().frames), undo,
+                    portable.CanUndo(), redo, portable.CanRedo());
+            Check(rejected.size() == capacityMessages && app->sceneModified == 1 &&
+                      app->lastRegisteredFrame ==
+                          portable.Document().timeline.lastRegisteredFrame &&
+                      portable.Runtime().Counters().frames == frames &&
+                      portable.CanUndo() == undo && portable.CanRedo() == redo,
+                  "native partial model paste side effects");
+            native.Compare(portable.Document().models[0]);
+            frame_line_fixture::Hash(hash, portable.Document().models[0].morphKeys);
+            frame_line_fixture::Hash(hash, portable.Document().models[0].displayKeys);
+            ++cases;
+        }
+    std::printf("Native model partial-paste frozen hash: %016llx\n",
+                static_cast<unsigned long long>(hash));
+    return cases;
+}
 unsigned CameraScaleCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
     const unsigned char ret = 0xc3;
     Patch seek(original.Function<void*>(0x59c30), &ret, 1);
@@ -2901,6 +3164,13 @@ int wmain(int argc, wchar_t** argv) try {
           "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
     if (argc == 4) {
+        if (std::wcscmp(argv[3], L"--paste-capacity") == 0) {
+            std::printf("%u original partial paste capacity commands passed\n",
+                        PasteCapacity(original));
+            std::printf("%u original model partial paste capacity commands passed\n",
+                        ModelPasteCapacity(original, argv[2]));
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--key-capacity") == 0) {
             std::printf(
                 "%u original full display and %u original full global capacity commands passed\n",

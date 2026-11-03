@@ -856,33 +856,43 @@ int main(int argc, char** argv) {
                 CHECK(overflow.Session().SelectModel(model ? 0 : 255, reason));
                 overflow.Refresh();
                 const auto frames = overflow.Session().Runtime().Counters().frames;
-                bool visited = false;
-                QTimer::singleShot(10, [&] {
-                    auto* dialog = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
-                    if (!dialog)
-                        return;
-                    const auto capacity = model ? 1000 : 600000;
-                    const auto text = messages
-                                          .Text(model ? "dialog.model_key_capacity.message"
-                                                      : "dialog.key_capacity.message")
-                                          .arg(capacity);
-                    visited = dialog->text() == text && dialog->icon() == QMessageBox::NoIcon &&
-                              dialog->windowTitle() == messages.Text("dialog.key_capacity.title") &&
-                              dialog->standardButtons() == QMessageBox::Ok &&
-                              dialog->parentWidget() == &overflow;
-                    if (std::string(language) == "en")
-                        visited &=
-                            dialog->text() ==
-                            (model
-                                 ? "You cannot regist over 1000 point\nPlease execute 'delete unused frame'"
-                                 : "You cannot regist over 600000point.\nPlease execute 'delete unused frame'");
-                    dialog->done(QMessageBox::Ok);
-                });
-                overflow.Dispatch(model ? panel::kRegisterModelDisplayButton
-                                        : panel::kRegisterCameraButton);
-                CHECK(visited && overflow.LastError().isEmpty() && overflow.Session().Dirty() &&
-                      overflow.Session().Runtime().Counters().frames == frames &&
-                      !overflow.isVisible() && overflow.RenderWindow()->Submissions() == 0);
+                CHECK(overflow.Session().Copy(
+                    {{model ? Track::Display : Track::Camera, std::uint8_t(model ? 0 : 255), 0, 0}},
+                    reason));
+                for (bool paste : {false, true}) {
+                    bool visited = false;
+                    QTimer::singleShot(10, [&] {
+                        auto* dialog =
+                            qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+                        if (!dialog)
+                            return;
+                        const auto capacity = model ? 1000 : paste ? 10000 : 600000;
+                        const auto text = messages
+                                              .Text(model ? "dialog.model_key_capacity.message"
+                                                          : "dialog.key_capacity.message")
+                                              .arg(capacity);
+                        visited =
+                            dialog->text() == text && dialog->icon() == QMessageBox::NoIcon &&
+                            dialog->windowTitle() == messages.Text("dialog.key_capacity.title") &&
+                            dialog->standardButtons() == QMessageBox::Ok &&
+                            dialog->parentWidget() == &overflow;
+                        if (std::string(language) == "en")
+                            visited &=
+                                dialog->text() ==
+                                (model
+                                     ? "You cannot regist over 1000 point\nPlease execute 'delete unused frame'"
+                                 : paste
+                                     ? "You cannot regist over 10000point.\nPlease execute 'delete unused frame'"
+                                     : "You cannot regist over 600000point.\nPlease execute 'delete unused frame'");
+                        dialog->done(QMessageBox::Ok);
+                    });
+                    overflow.Dispatch(paste   ? panel::kPasteButton
+                                      : model ? panel::kRegisterModelDisplayButton
+                                              : panel::kRegisterCameraButton);
+                    CHECK(visited && overflow.LastError().isEmpty() && overflow.Session().Dirty() &&
+                          overflow.Session().Runtime().Counters().frames == frames &&
+                          !overflow.isVisible() && overflow.RenderWindow()->Submissions() == 0);
+                }
             }
         }
         QSettings::setDefaultFormat(previousFormat);

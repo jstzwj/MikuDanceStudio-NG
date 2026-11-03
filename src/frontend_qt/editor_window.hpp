@@ -129,6 +129,7 @@ private:
     void RegisterBlinks();
     void MorphOverflow(unsigned failedKeys);
     void KeyOverflow(unsigned failedKeys, unsigned capacity, bool model);
+    bool PasteKeys(bool mirrored, bool selectedTrack, std::string&);
     void CameraScale();
     void BoneScale();
     void PhysicsKeys();

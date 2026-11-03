@@ -1,5 +1,6 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "editor_key_capacity_fixture.hpp"
+#include "editor_paste_capacity_fixture.hpp"
 #include <fstream>
 #include <iostream>
 using namespace mikudancestudio;
@@ -83,6 +84,82 @@ int main(int argc, char** argv) {
                 CHECK(reopened.Seek(frame, reason));
                 ++cases;
             }
+    std::uint64_t pasteHash = 14695981039346656037ull;
+    for (unsigned cameraFree : {0u, 1u, 2u})
+        for (unsigned lightFree : {0u, 1u, 2u})
+            for (unsigned frame : {0u, 3u, 21000u}) {
+                EditorSession session;
+                CHECK(GlobalPasteCapacityFixture(session, cameraFree, lightFree, frame, reason));
+                const auto frames = session.Runtime().Counters().frames;
+                std::vector<Track> rejected;
+                CHECK(session.Paste(frame, false, reason, &rejected));
+                const auto count = [&](unsigned free) {
+                    return frame == 0   ? (!free ? 1u : 3u)
+                           : frame == 3 ? (!free       ? 0u
+                                           : free == 1 ? 2u
+                                                       : 3u)
+                                        : free;
+                };
+                const auto cameraCount = count(cameraFree), lightCount = count(lightFree);
+                CHECK(rejected.size() == unsigned(cameraCount < 3) + unsigned(lightCount < 3));
+                CHECK(session.Selected().keys.size() == cameraCount + lightCount);
+                const auto check = [&](const auto& track, unsigned changed, auto value) {
+                    using T = typename std::decay_t<decltype(track.dense)>::value_type;
+                    std::vector<std::vector<T>> chains;
+                    CHECK(PmmTrackChains(track, chains));
+                    for (const auto& key : chains[0]) {
+                        const bool pasted = key.frame >= frame && key.frame < frame + changed;
+                        CHECK(bool(key.selected) == pasted);
+                        if (pasted)
+                            CHECK(value(key) == (key.frame - frame));
+                    }
+                    return 0;
+                };
+                CHECK(check(session.Document().cameraKeys, cameraCount,
+                            [](const auto& key) { return unsigned(key.eye[0] - 31); }) == 0);
+                CHECK(check(session.Document().lightKeys, lightCount,
+                            [](const auto& key) { return unsigned(key.color[0] * 8 - 1); }) == 0);
+                CHECK(session.Runtime().Counters().frames == frames &&
+                      session.Runtime().Simulation().resetPending && session.Dirty());
+                HashPasteCapacity(pasteHash, session.Document());
+                const auto path = root / "partial-paste.pmm";
+                CHECK(session.Save(path, writer, reason));
+                EditorSession reopened;
+                CHECK(reopened.Open(path, reason));
+                CHECK(reopened.Document().cameraKeys.sparse.size() ==
+                      session.Document().cameraKeys.sparse.size());
+                CHECK(reopened.Document().lightKeys.sparse.size() ==
+                      session.Document().lightKeys.sparse.size());
+                ++cases;
+            }
+    CHECK(pasteHash == 0xbdf068b38686a6b4ull);
+    std::uint64_t modelHash = 14695981039346656037ull;
+    for (unsigned morphFree : {0u, 1u, 2u})
+        for (unsigned displayFree : {0u, 1u, 2u}) {
+            EditorSession session;
+            CHECK(ModelPasteCapacityFixture(session, root, morphFree, displayFree, reason));
+            const bool undo = session.CanUndo(), redo = session.CanRedo();
+            const auto frames = session.Runtime().Counters().frames;
+            std::vector<Track> rejected;
+            CHECK(session.Paste(3, false, reason, &rejected));
+            // Three Morph roots put the first sparse key after the destination
+            // range. Display has one root, so frame four is an overwrite.
+            CHECK(session.Document().models[0].morphKeys.dense.size() > 2);
+            CHECK(rejected.size() == unsigned(morphFree < 3) + unsigned(displayFree < 2));
+            const auto displayCount = !displayFree ? 0u : displayFree == 1 ? 2u : 3u;
+            const auto selected = std::count_if(
+                session.Selected().keys.begin(), session.Selected().keys.end(),
+                [](const auto& key) { return PmmModelKey(key.track) && key.slot == 0; });
+            CHECK(selected == morphFree + displayCount);
+            CHECK(session.CanUndo() == undo && session.CanRedo() == redo &&
+                  session.Runtime().Counters().frames == frames);
+            if (morphFree && displayFree) {
+                frame_line_fixture::Hash(modelHash, session.Document().models[0].morphKeys);
+                frame_line_fixture::Hash(modelHash, session.Document().models[0].displayKeys);
+            }
+            ++cases;
+        }
+    CHECK(modelHash == 0xef5ef02e35193905ull);
     std::cout << cases
               << " full/near-full registration, overwrite, marks and PMM reload cases passed\n";
 }

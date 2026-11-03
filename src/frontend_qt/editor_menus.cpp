@@ -418,8 +418,7 @@ void EditorWindow::MenuCommand(int command) {
                 return;
         }
         std::string reason;
-        const bool ok = session_.PasteToSelectedTrack(
-            unsigned(session_.Document().timeline.currentFrame), reason);
+        const bool ok = PasteKeys(false, true, reason);
         if (!ok && (reason == "clipboard-select-bone" || reason == "clipboard-select-accessory")) {
             lastError_ = language_.Text(model ? "dialog.track_paste.select_bone"
                                               : "dialog.track_paste.select_accessory");

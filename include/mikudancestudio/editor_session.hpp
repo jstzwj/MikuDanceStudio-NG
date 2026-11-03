@@ -146,9 +146,11 @@ public:
     void SetRegistrationPhysics(bool enabled) { registrationPhysics_ = enabled; }
     bool Copy(const std::set<KeyAddress>&, std::string&);
     bool CanPasteFrames(bool mirror = false) const;
-    bool Paste(std::uint32_t frame, bool mirror, std::string&);
+    bool Paste(std::uint32_t frame, bool mirror, std::string&,
+               std::vector<Track>* failedPools = nullptr);
     bool CanPasteToSelectedTrack() const;
-    bool PasteToSelectedTrack(std::uint32_t frame, std::string&);
+    bool PasteToSelectedTrack(std::uint32_t frame, std::string&,
+                              std::vector<Track>* failedPools = nullptr);
     InterpolationSelection Interpolation(unsigned channel) const;
     bool CopyInterpolation(unsigned channel, std::string&);
     bool PasteInterpolation(unsigned channel, std::string&);
@@ -305,7 +307,8 @@ private:
     bool RegisterMorphChannels(std::uint8_t, const std::vector<std::uint32_t>&, bool seekModel,
                                std::string&, unsigned* failedKeys);
     bool ChangeFrameLine(Track, bool insert, std::string&, bool fromMenu);
-    bool PasteFrames(std::uint32_t frame, bool mirror, bool selectedTrack, std::string&);
+    bool PasteFrames(std::uint32_t frame, bool mirror, bool selectedTrack, std::string&,
+                     std::vector<Track>* failedPools);
     static HistoryEntry CaptureHistory(const format::PmmSceneModel&, HistoryKind,
                                        std::uint32_t frame,
                                        const std::vector<std::uint32_t>& indices = {});

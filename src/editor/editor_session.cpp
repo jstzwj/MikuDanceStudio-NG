@@ -171,6 +171,32 @@ bool Get(PmmSceneDocument& d, const KeyAddress& a, Key& value) {
         return false;
     });
 }
+enum class RegistrationSlot {
+    Invalid,
+    Overwrite,
+    Insert,
+    Full
+};
+RegistrationSlot ProbeRegistration(PmmSceneDocument& document, const KeyAddress& address) {
+    auto result = RegistrationSlot::Invalid;
+    Visit(document, address, [&](const auto& track) {
+        using T = typename std::decay_t<decltype(track.dense)>::value_type;
+        std::vector<std::vector<T>> chains;
+        if (address.frame > 0x7fffffffU || !PmmTrackChains(track, chains) ||
+            address.channel >= chains.size())
+            return false;
+        const auto& chain = chains[address.channel];
+        if (std::any_of(chain.begin(), chain.end(),
+                        [&](const auto& key) { return key.frame == address.frame; }))
+            result = RegistrationSlot::Overwrite;
+        else
+            result = track.dense.size() + track.sparse.size() >= PmmKeyCapacity<T>
+                         ? RegistrationSlot::Full
+                         : RegistrationSlot::Insert;
+        return true;
+    });
+    return result;
+}
 bool Pose(PmmSceneDocument& d, const KeyAddress& a, Key& key) {
     if (a.track == Track::Camera) {
         auto k = d.cameraKeys.dense.at(0);
@@ -1580,27 +1606,8 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
         // A full native pool still permits overwrites. Overflow is a command
         // result, not a transaction failure: previous insertions, cleared marks
         // and bone history remain in effect even when later channels are full.
-        bool inserted = true;
-        bool full = false;
-        bool valid = Visit(next.document, address, [&](auto& track) {
-            using T = typename std::decay_t<decltype(track.dense)>::value_type;
-            std::vector<std::vector<T>> chains;
-            if (address.frame > 0x7fffffffU || !PmmTrackChains(track, chains) ||
-                address.channel >= chains.size())
-                return false;
-            const auto& chain = chains[address.channel];
-            inserted = std::none_of(chain.begin(), chain.end(),
-                                    [&](const auto& k) { return k.frame == address.frame; });
-            if (inserted && track.dense.size() + track.sparse.size() >= PmmKeyCapacity<T>) {
-                full = true;
-                ++failed;
-                if constexpr (std::is_same_v<T, PmmBoneKey>)
-                    Model(next.document, address.slot)->bonePose.at(address.channel).flags[1] = 0;
-                return true;
-            }
-            return true;
-        });
-        if (!valid) {
+        const auto slot = ProbeRegistration(next.document, address);
+        if (slot == RegistrationSlot::Invalid) {
             reason = "key-registration-invalid-tracks";
             return false;
         }
@@ -1614,13 +1621,17 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
                     ++it;
             next.selection.tracks.insert({address.track, address.slot, 0, 0});
         }
-        if (full) {
+        if (slot == RegistrationSlot::Full) {
+            ++failed;
+            if (address.track == Track::Bone)
+                Model(next.document, address.slot)->bonePose.at(address.channel).flags[1] = 0;
             if (PmmModelKey(address.track))
                 next.document.timeline.lastRegisteredFrame =
                     std::max(next.document.timeline.lastRegisteredFrame,
                              int(Model(next.document, address.slot)->selection.maxFrame));
             continue;
         }
+        const bool inserted = slot == RegistrationSlot::Insert;
         if (address.track == Track::Bone) {
             auto* model = Model(next.document, address.slot);
             PmmEvaluatedBone live;
@@ -1957,8 +1968,9 @@ bool EditorSession::CanPasteFrames(bool mirror) const {
         return item.address.track == Track::Bone;
     });
 }
-bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason) {
-    return PasteFrames(frame, mirror, false, reason);
+bool EditorSession::Paste(std::uint32_t frame, bool mirror, std::string& reason,
+                          std::vector<Track>* failedPools) {
+    return PasteFrames(frame, mirror, false, reason, failedPools);
 }
 bool EditorSession::CanPasteToSelectedTrack() const {
     if (playing_)
@@ -1969,16 +1981,19 @@ bool EditorSession::CanPasteToSelectedTrack() const {
     return std::any_of(clipboard.begin(), clipboard.end(),
                        [&](const auto& item) { return item.address.track == track; });
 }
-bool EditorSession::PasteToSelectedTrack(std::uint32_t frame, std::string& reason) {
-    return PasteFrames(frame, false, true, reason);
+bool EditorSession::PasteToSelectedTrack(std::uint32_t frame, std::string& reason,
+                                         std::vector<Track>* failedPools) {
+    return PasteFrames(frame, false, true, reason, failedPools);
 }
 bool EditorSession::PasteFrames(std::uint32_t frame, bool mirror, bool selectedTrack,
-                                std::string& reason) {
+                                std::string& reason, std::vector<Track>* failedPools) {
     if (playing_) {
         reason = "clipboard-paste-during-playback";
         return false;
     }
     if (!(selectedTrack ? CanPasteToSelectedTrack() : CanPasteFrames(mirror))) {
+        if (failedPools)
+            failedPools->clear();
         reason.clear();
         return true; // Original empty/unsupported-mode paste is a no-op.
     }
@@ -2029,6 +2044,10 @@ bool EditorSession::PasteFrames(std::uint32_t frame, bool mirror, bool selectedT
                 std::copy(live.rotation.begin(), live.rotation.end(), pose.components.begin() + 3);
             }
             history.emplace(model->slot, std::move(entry));
+        } else {
+            // Clearing bone selection bytes for an auxiliary-only paste must
+            // not become an inferred bone-key Undo operation.
+            history.emplace(model->slot, CaptureHistory(*model, HistoryKind::None, 0));
         }
     }
     if (!modelClipboard) {
@@ -2053,7 +2072,14 @@ bool EditorSession::PasteFrames(std::uint32_t frame, bool mirror, bool selectedT
             else
                 ++it;
     }
+    std::set<Track> stopped;
+    std::vector<Track> rejected;
     for (auto item : clipboard) {
+        // Native paste has a separate loop for each record kind. A full pool
+        // stops that loop, including any later overwrites, then proceeds to the
+        // next kind. All accessory slots belong to the same clipboard loop.
+        if (stopped.count(item.address.track))
+            continue;
         if (selectedTrack && item.address.track != (model ? Track::Bone : Track::Accessory))
             continue;
         if (mirror && item.address.track != Track::Bone)
@@ -2082,6 +2108,16 @@ bool EditorSession::PasteFrames(std::uint32_t frame, bool mirror, bool selectedT
             if (index < 0)
                 continue; // Native name misses are successful no-ops.
             item.address.channel = unsigned(index);
+        }
+        const auto slot = ProbeRegistration(d, item.address);
+        if (slot == RegistrationSlot::Invalid) {
+            reason = "clipboard-track-mismatch";
+            return false;
+        }
+        if (slot == RegistrationSlot::Full) {
+            stopped.insert(item.address.track);
+            rejected.push_back(item.address.track);
+            continue;
         }
         if (item.address.track == Track::Bone) {
             int resourceBone;
@@ -2137,12 +2173,15 @@ bool EditorSession::PasteFrames(std::uint32_t frame, bool mirror, bool selectedT
                 reason = "clipboard-track-mismatch";
                 return false;
             }
-            if (model &&
-                (item.address.track == Track::Morph || item.address.track == Track::Display))
-                model->selection.maxFrame = std::max(model->selection.maxFrame, item.address.frame);
-            else
-                d.timeline.lastRegisteredFrame =
-                    std::max(d.timeline.lastRegisteredFrame, int(item.address.frame));
+            // Auxiliary/global overwrite returns before updating native watermarks.
+            if (slot == RegistrationSlot::Insert) {
+                if (model && PmmModelKey(item.address.track))
+                    model->selection.maxFrame =
+                        std::max(model->selection.maxFrame, item.address.frame);
+                else
+                    d.timeline.lastRegisteredFrame =
+                        std::max(d.timeline.lastRegisteredFrame, int(item.address.frame));
+            }
         }
         next.selection.keys.insert(item.address);
     }
@@ -2182,6 +2221,8 @@ bool EditorSession::PasteFrames(std::uint32_t frame, bool mirror, bool selectedT
         return false;
     if (modelClipboard || !selectedTrack)
         runtime_->RequestPhysicsReset();
+    if (failedPools)
+        *failedPools = std::move(rejected);
     return true;
 }
 

@@ -1366,6 +1366,21 @@ void EditorWindow::KeyOverflow(unsigned failedKeys, unsigned capacity, bool mode
             overflow.exec();
         }
 }
+bool EditorWindow::PasteKeys(bool mirrored, bool selectedTrack, std::string& reason) {
+    std::vector<editor::Track> rejected;
+    const auto frame = unsigned(session_.Document().timeline.currentFrame);
+    const bool ok = selectedTrack ? session_.PasteToSelectedTrack(frame, reason, &rejected)
+                                  : session_.Paste(frame, mirrored, reason, &rejected);
+    if (ok)
+        for (auto kind : rejected)
+            KeyOverflow(1,
+                        kind == editor::Track::Bone    ? format::PmmKeyCapacity<format::PmmBoneKey>
+                        : kind == editor::Track::Morph ? 20000
+                        : kind == editor::Track::Display ? 1000
+                                                         : 10000,
+                        format::PmmModelKey(kind));
+    return ok;
+}
 void EditorWindow::CameraScale() {
     CameraScaleDialog dialog(language_, this);
     dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
@@ -1579,7 +1594,7 @@ void EditorWindow::Dispatch(int id) {
         break;
     case kPasteButton:
     case kReversePasteButton:
-        ok = session_.Paste(current, id == kReversePasteButton, r);
+        ok = PasteKeys(id == kReversePasteButton, false, r);
         break;
     case kDeleteFramesButton:
         ok = session_.Delete(session_.Selected().keys, r);

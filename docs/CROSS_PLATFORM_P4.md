@@ -3392,3 +3392,38 @@ the focused session rerun passed (11.78 seconds), completing the 45 gate results
 
 This increment does not qualify every malformed legacy PMM file or complete
 the remaining clipboard, combined-scene, input/IME/DPI/font and C1 exit gates.
+
+The capacity-registration revision `d6e1fd8` passed Windows, Linux and macOS in
+[CI 41560341463](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41560341463).
+
+
+## Partial clipboard paste at pool capacity (2026-11-03)
+
+Paste now reports rejected pool kinds while retaining the successful prefix of
+that kind, then continues other kinds. Once a kind exhausts its pool, later
+records of that kind are skipped even if they could overwrite existing keys.
+All accessory slots participate in one accessory paste loop. Name mapping,
+selected-target mapping, typed limits, mark clearing, insertion-only auxiliary
+watermarks and the native same-command seek remain intact. Morph/display-only
+paste clears bone key marks without adding a bone Undo record. The Qt path shows
+one localized notice per stopped kind; camera paste advertises 10000, retaining
+the original distinction from its registration button's 600000 message.
+
+The optional `--paste-capacity` original-executable observer passed **27 complete
+camera/light commands and four complete model Morph/display commands**. It checks
+physical record slots, links, payloads, marks, messages, modification, watermarks
+and retained history. Their frozen complete-table hashes are respectively
+`bdf068b38686a6b4` and `ef5ef02e35193905`; these are also enforced by the portable
+regression. Model native cases start with one or two free records: the original
+initially-full Morph/display cursor reads one past its table, so that undefined
+path is not used as qualification evidence. Portable initially-full cases reject
+safely, alongside the native-qualified mid-loop exhaustion cases.
+
+The portable capacity gate now covers **76** registration/partial-paste cases,
+including independent exhaustion across kinds, overwrite order, preserved CPU
+state/history, PMM save/reopen and initially-full model pools. Production Qt
+registration and paste notices run offscreen in all three languages with isolated
+settings. The complete clipboard/input and C1 acceptance gates remain open.
+
+Local `ALL_BUILD`, all **45 P4 gates (171.32 seconds)** and the final native
+paste-capacity rerun passed for this revision.
