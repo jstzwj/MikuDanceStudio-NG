@@ -11,8 +11,11 @@ import cpu_import_fixture
 
 
 def run(*command, env=None):
-    return subprocess.run(command, check=True, text=True, encoding='utf-8',
-                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15, env=env).stdout.strip()
+    result = subprocess.run(command, text=True, encoding='utf-8',
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15, env=env)
+    if result.returncode:
+        raise RuntimeError(f'{command} exited {result.returncode}: {result.stdout} {result.stderr}')
+    return result.stdout.strip()
 
 
 def main():
@@ -84,6 +87,11 @@ def main():
                         wait(lambda s: s['active'], 'dialog startup')
                         window = run('xdotool', 'search', '--onlyvisible', '--name', f'^MDS-IBus-{language}$').splitlines()[-1]
                         run('xdotool', 'windowfocus', '--sync', window)
+                        # Keep Xvfb's fixed US layout. IBus's CLI otherwise
+                        # invokes setxkbmap for an engine's layout metadata,
+                        # which is unrelated to the composition being tested.
+                        run('gsettings', 'set', 'org.freedesktop.ibus.general',
+                            'use-system-keyboard-layout', 'true', env=env)
                         run('ibus', 'engine', 'libpinyin', env=env)
                         command('select')
                         wait(lambda s: s['focus'] and s['command'] == sequence, 'native focus')
