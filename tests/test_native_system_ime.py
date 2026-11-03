@@ -31,6 +31,8 @@ class MacInput:
             (self.cg, 'CGEventCreateKeyboardEvent', c.c_void_p, [c.c_void_p, c.c_ushort, c.c_bool]),
             (self.cg, 'CGEventPostToPid', None, [c.c_int, c.c_void_p]),
             (self.cg, 'CGEventSetFlags', None, [c.c_void_p, c.c_uint64]),
+            (self.cg, 'CGEventKeyboardSetUnicodeString', None,
+             [c.c_void_p, c.c_ulong, c.POINTER(c.c_uint16)]),
         ]
         for library, name, result, arguments in signatures:
             function = getattr(library, name)
@@ -75,6 +77,9 @@ class MacInput:
             if not event:
                 raise RuntimeError('Cannot create a native keyboard event')
             self.cg.CGEventSetFlags(event, 0)
+            if code in (36, 49, 53):
+                character = c.c_uint16({36: 13, 49: 32, 53: 27}[code])
+                self.cg.CGEventKeyboardSetUnicodeString(event, 1, c.byref(character))
             self.cg.CGEventPostToPid(pid, event)
             self.cf.CFRelease(event)
             time.sleep(.025)
@@ -175,7 +180,7 @@ def main():
                 sequence = 0
                 env = dict(os.environ, QT_QPA_PLATFORM='cocoa' if sys.platform == 'darwin' else 'windows',
                            MDS_SYSTEM_IME='kotoeri' if sys.platform == 'darwin' else 'ms-ime',
-                           QT_LOGGING_RULES='qt.qpa.input.methods=true;qt.qpa.keys=true')
+                           QT_LOGGING_RULES='qt.qpa.input.methods=true;qt.qpa.events.keys=true')
                 with args.report.with_suffix(f'.{language}.log').open('w', encoding='utf-8') as log:
                     client = subprocess.Popen([str(args.test.resolve()), str(root / 'english.pmd'),
                                                language, str(status), str(request)], env=env,
@@ -186,7 +191,13 @@ def main():
                         latest = {}
                         while time.monotonic() < deadline and client.poll() is None:
                             if status.exists():
-                                latest = json.loads(status.read_text(encoding='utf-8'))
+                                try:
+                                    latest = json.loads(status.read_text(encoding='utf-8'))
+                                except (PermissionError, FileNotFoundError):
+                                    # QSaveFile replaces the snapshot atomically. A
+                                    # Windows reader can race its brief rename lock.
+                                    time.sleep(.025)
+                                    continue
                                 if latest.get('error') or not latest['sceneUnchanged']:
                                     raise RuntimeError(f'{language}: scene changed: {latest}')
                                 if predicate(latest):
@@ -246,6 +257,11 @@ def main():
             report['accepted'] = True
     finally:
         if client is not None and client.poll() is None:
+            if status.exists():
+                try:
+                    report['lastStatus'] = json.loads(status.read_text(encoding='utf-8'))
+                except OSError:
+                    pass
             client.terminate()
             client.wait(timeout=10)
         native.close()
