@@ -128,6 +128,15 @@ That Windows profile remains unaccepted until all three languages complete and
 the native clients exit successfully. Final command acknowledgements and
 input-context logs distinguish shutdown and input delivery failures.
 
+Follow-up run **41675939566** captured the blocked UI-thread stack and a minidump
+of the generated-fixture client. Closing the IMM context completed; restoring
+the prior TSF profile blocked inside Microsoft Japanese IME (`imjpapi`), reached
+through `NtUserActivateKeyboardLayout`. The helper's activation is `FORPROCESS`
+and does not replace other applications' profiles. Revision `207d8ad` therefore
+uses normal focus/window destruction and delivers those notifications before
+quitting, while still requiring natural client shutdown. Qualification of that
+change is pending; the diagnostic does not itself accept the Windows profile.
+
 Windows run **41671549143** at `830201b` passed all **73 P4 regressions**, all 460
 complete empty EDIT comparisons and all **68 displayed populated list/combobox
 states** with exact RGB equality. The new six actual keyboard-focus list cases
@@ -4336,11 +4345,20 @@ nonclient border color. Combo text uses GDI and the exact `COMBOBOXINFO::rcItem`
 geometry, including its one-pixel left text inset and unchanged right clip edge.
 All 22 combo item rectangles independently match USER32. Run **41671549143**
 at `830201b` retains the complete images and report. Its additional six focused
-list cases failed; `625f5db` implements their native text/XOR focus path and adds
-a focus-ownership assertion immediately before capture. Qualification remains
+list cases failed; `68493ae` completes their native text/XOR focus path, including
+the monochrome brush colors and item-view focus state. The oracle also asserts
+focus ownership immediately before capture. Qualification remains
 pending. Focused combos, populated EDIT glyphs and non-Windows appearance remain
 outside this accepted corpus.
 
 ALL_BUILD and all **31 affected Qt gates passed (152.61 seconds)**. The preceding
 button-text revision `b1eed84` passed ordinary Windows/macOS/Linux editor CI
 in run **41654914200**. Full P4/C1 acceptance remains open.
+
+The latest ALL_BUILD and **31 affected Qt gates passed (160.85 seconds)**;
+the final three hidden control gates passed again after the focus fixes
+(22.94 seconds). The clean `68493ae` Windows development archive passed relocated
+PMM, language, multimedia and offscreen/native-hidden rendering checks with an
+SDK-free PATH. Its SHA-256 is
+`28409db6a7583c97876bbd72a493c03ef708fae50dda9ca254b42b8c4402fa02`.
+Build identity and precise test scope are retained in the control evidence.

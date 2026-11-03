@@ -49,11 +49,11 @@
     "seconds": 283.72,
     "local_log": "out/p4-text-all-tests.log",
     "final_qt_passed": 31,
-    "final_qt_seconds": 152.61,
-    "final_qt_log": "out/p4-list-qt-tests.log",
+    "final_qt_seconds": 160.85,
+    "final_qt_log": "out/p4-focus-qt-tests.log",
     "final_control_passed": 3,
-    "final_control_seconds": 21.44,
-    "final_control_log": "out/p4-list-focus-tests.log",
+    "final_control_seconds": 22.94,
+    "final_control_log": "out/p4-list-focus-xor-tests.log",
     "windows_ci": {
       "run": 41671549143,
       "revision": "830201b",
@@ -638,8 +638,17 @@
       "trackbarGeometryCases": 0,
       "windowsShown": true
     },
-    "followup_revision": "625f5db",
-    "followup_run": 41675216620,
+    "followup_revision": "68493ae",
+    "followup_run": 41677249943,
     "followup_status": "pending isolated qualification"
+  },
+  "relocated_package_build": {
+    "commit": "68493ae753c78316fc7409ebf0fb725650b73143",
+    "modified": false,
+    "archive": "MikuDanceStudio-NG-10.15-windows-x64.zip",
+    "sha256": "28409db6a7583c97876bbd72a493c03ef708fae50dda9ca254b42b8c4402fa02",
+    "build_log": "out/p4-keyboard-focus-dist-build.log",
+    "test_log": "out/p4-keyboard-focus-dist-test.log",
+    "scope": "Development package; successful relocation is not P4/C1 acceptance"
   }
 }
