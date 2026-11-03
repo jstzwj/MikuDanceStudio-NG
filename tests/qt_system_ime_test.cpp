@@ -1,4 +1,12 @@
 // Real platform input context qualification. Visible only in an isolated CI display.
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <Windows.h>
+#include <msctf.h>
+#include <imm.h>
+#include <wrl/client.h>
+#endif
 #include "english_name_dialog.hpp"
 #include "mikudancestudio/english_name_edit.hpp"
 #include <QApplication>
@@ -12,6 +20,44 @@
 
 using namespace mikudancestudio;
 namespace {
+#ifdef _WIN32
+QString ActivateJapaneseIme(HWND window) {
+    using Microsoft::WRL::ComPtr;
+    ComPtr<ITfInputProcessorProfiles> profiles;
+    auto result = CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr, CLSCTX_INPROC_SERVER,
+                                   IID_PPV_ARGS(&profiles));
+    if (FAILED(result))
+        return QString("TSF profiles: 0x%1").arg(unsigned(result), 8, 16, QLatin1Char('0'));
+    ComPtr<IEnumTfLanguageProfiles> available;
+    result = profiles->EnumLanguageProfiles(0x411, &available);
+    if (FAILED(result))
+        return "Japanese TSF profile enumeration failed";
+    TF_LANGUAGEPROFILE profile{};
+    ULONG fetched = 0;
+    while (available->Next(1, &profile, &fetched) == S_OK && fetched) {
+        if (profile.catid != GUID_TFCAT_TIP_KEYBOARD)
+            continue;
+        ComPtr<ITfInputProcessorProfileMgr> manager;
+        result = profiles.As(&manager);
+        if (SUCCEEDED(result))
+            result = manager->ActivateProfile(TF_PROFILETYPE_INPUTPROCESSOR, 0x411, profile.clsid,
+                                              profile.guidProfile, nullptr,
+                                              TF_IPPMF_FORPROCESS | TF_IPPMF_ENABLEPROFILE |
+                                                  TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE);
+        if (FAILED(result))
+            return QString("TSF activation: 0x%1").arg(unsigned(result), 8, 16, QLatin1Char('0'));
+        const auto context = ImmGetContext(window);
+        if (!context)
+            return "Japanese IME has no native input context";
+        const auto opened = ImmSetOpenStatus(context, TRUE);
+        const auto converted =
+            ImmSetConversionStatus(context, IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE, IME_SMODE_NONE);
+        ImmReleaseContext(window, context);
+        return opened && converted ? QString() : QString("Cannot select native Hiragana mode");
+    }
+    return "No installed Japanese TSF keyboard profile";
+}
+#endif
 class InputObserver final : public QObject {
 public:
     unsigned preedits = 0, commits = 0;
@@ -33,10 +79,14 @@ public:
 }
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
-    const bool platformInput = (QGuiApplication::platformName() == "xcb" &&
-                                qEnvironmentVariable("QT_IM_MODULE") == "ibus") ||
-                               (QGuiApplication::platformName() == "cocoa" &&
-                                qEnvironmentVariable("MDS_SYSTEM_IME") == "kotoeri");
+    bool platformInput = (QGuiApplication::platformName() == "xcb" &&
+                          qEnvironmentVariable("QT_IM_MODULE") == "ibus") ||
+                         (QGuiApplication::platformName() == "cocoa" &&
+                          qEnvironmentVariable("MDS_SYSTEM_IME") == "kotoeri");
+#ifdef _WIN32
+    platformInput |= QGuiApplication::platformName() == "windows" &&
+                     qEnvironmentVariable("MDS_SYSTEM_IME") == "ms-ime";
+#endif
     if (argc != 5 || qEnvironmentVariable("GITHUB_ACTIONS") != "true" ||
         qEnvironmentVariable("MDS_QT_ISOLATED_DISPLAY") != "1" || !platformInput) {
         std::fprintf(stderr, "Requires isolated CI platform IME: model language status command\n");
@@ -76,13 +126,19 @@ int main(int argc, char** argv) {
             if (sequence > command) {
                 command = sequence;
                 if (request["action"] == "select") {
-                    if (QGuiApplication::platformName() == "cocoa") {
+                    if (QGuiApplication::platformName() != "xcb") {
                         dialog.raise();
                         dialog.activateWindow();
                     }
                     field->setFocus();
                     field->selectAll();
-                } else if (request["action"] == "finish")
+                }
+#ifdef _WIN32
+                else if (request["action"] == "activate-ime")
+                    reason =
+                        ActivateJapaneseIme(reinterpret_cast<HWND>(dialog.winId())).toStdString();
+#endif
+                else if (request["action"] == "finish")
                     finishing = true;
             }
         }

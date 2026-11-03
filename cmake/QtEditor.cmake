@@ -103,6 +103,7 @@ function(mds_add_qt_editor)
         qt_add_executable(qt_system_ime_test EXCLUDE_FROM_ALL "${root}/tests/qt_system_ime_test.cpp")
         target_link_libraries(qt_system_ime_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
+            target_link_libraries(qt_system_ime_test PRIVATE ole32 uuid imm32)
             qt_add_executable(qt_control_style_test "${root}/tests/qt_control_style_oracle_test.cpp"
                 "${root}/res/frontend_qt/windows.manifest")
             target_compile_definitions(qt_control_style_test PRIVATE MDS_SYSTEM_CONTROL_REFERENCE)

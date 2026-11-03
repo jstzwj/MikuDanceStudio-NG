@@ -1,4 +1,4 @@
-"""Qualify Kotoeri input in test-owned windows on an isolated macOS CI runner."""
+"""Qualify native Japanese input in test-owned windows on isolated CI runners."""
 import argparse
 import ctypes as c
 import json
@@ -38,6 +38,7 @@ class MacInput:
         self.previous = self.tis.TISCopyCurrentKeyboardInputSource()
         self.available = []
         self.japanese = None
+        self.japanese_method = None
         key = c.c_void_p.in_dll(self.tis, 'kTISPropertyInputSourceID')
         for index in range(self.cf.CFArrayGetCount(self.sources)):
             source = self.cf.CFArrayGetValueAtIndex(self.sources, index)
@@ -46,14 +47,23 @@ class MacInput:
             if value and self.cf.CFStringGetCString(value, buffer, len(buffer), 0x08000100):
                 identifier = buffer.value.decode('utf-8')
                 self.available.append(identifier)
-                if 'Kotoeri' in identifier and identifier.endswith('.Japanese'):
+                if identifier == 'com.apple.inputmethod.Kotoeri.RomajiTyping':
+                    self.japanese_method = source
+                if identifier == 'com.apple.inputmethod.Kotoeri.RomajiTyping.Japanese':
                     self.japanese = source
 
     def select(self):
         if not self.japanese:
             raise RuntimeError(f'Japanese Hiragana input mode unavailable: {self.available}')
-        if self.tis.TISEnableInputSource(self.japanese) or self.tis.TISSelectInputSource(self.japanese):
-            raise RuntimeError('Cannot enable/select the installed Japanese input mode')
+        # Modes are selectable children, not independently enableable input
+        # methods. Enable RomajiTyping before selecting its Hiragana mode.
+        enabled = self.tis.TISEnableInputSource(self.japanese_method) if self.japanese_method else -1
+        selected = self.tis.TISSelectInputSource(self.japanese)
+        if enabled or selected:
+            raise RuntimeError(f'Cannot enable/select Japanese Romaji/Hiragana: {enabled}/{selected}')
+
+    def activate(self, command, wait):
+        self.select()
 
     def key(self, pid, code):
         if not self.cg.CGPreflightPostEventAccess():
@@ -78,17 +88,75 @@ class MacInput:
             self.cf.CFRelease(self.sources)
 
 
+class WindowsInput:
+    def __init__(self):
+        from ctypes import wintypes as w
+        self.available = ['Installed Windows Japanese TSF keyboard profiles']
+        self.user = c.WinDLL('user32', use_last_error=True)
+
+        class Keyboard(c.Structure):
+            _fields_ = [('key', w.WORD), ('scan', w.WORD), ('flags', w.DWORD),
+                        ('time', w.DWORD), ('extra', c.c_size_t)]
+
+        class Mouse(c.Structure):
+            _fields_ = [('x', w.LONG), ('y', w.LONG), ('data', w.DWORD),
+                        ('flags', w.DWORD), ('time', w.DWORD), ('extra', c.c_size_t)]
+
+        class Data(c.Union):
+            _fields_ = [('keyboard', Keyboard), ('mouse', Mouse)]
+
+        class Input(c.Structure):
+            _fields_ = [('type', w.DWORD), ('data', Data)]
+
+        self.Input = Input
+        self.user.GetForegroundWindow.restype = w.HWND
+        self.user.GetWindowThreadProcessId.argtypes = [w.HWND, c.POINTER(w.DWORD)]
+        self.user.MapVirtualKeyW.argtypes = [w.UINT, w.UINT]
+        self.user.SendInput.argtypes = [w.UINT, c.POINTER(Input), c.c_int]
+
+    def activate(self, command, wait):
+        sequence = command('activate-ime')
+        wait(lambda s: s['command'] == sequence, 'native TSF profile activation')
+
+    def key(self, pid, code):
+        from ctypes import wintypes as w
+        foreground = self.user.GetForegroundWindow()
+        owner = w.DWORD()
+        self.user.GetWindowThreadProcessId(foreground, c.byref(owner))
+        if owner.value != pid:
+            raise RuntimeError('Input refused: the test client does not own the foreground window')
+        virtual = {45: ord('N'), 34: ord('I'), 4: ord('H'), 31: ord('O'),
+                   49: 0x20, 36: 0x0D, 53: 0x1B}[code]
+        scan = self.user.MapVirtualKeyW(virtual, 0)
+        for down in (True, False):
+            event = self.Input()
+            event.type = 1
+            event.data.keyboard.scan = scan
+            event.data.keyboard.flags = 8 | (0 if down else 2)
+            if self.user.SendInput(1, c.byref(event), c.sizeof(event)) != 1:
+                raise RuntimeError(f'Native key input failed: {c.get_last_error()}')
+        time.sleep(.12)
+
+    def type_japanese(self, pid):
+        for code in (45, 34, 4, 31, 45, 45):
+            self.key(pid, code)
+
+    def close(self):
+        pass  # The client activates TSF only for its own process.
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--test', type=Path, required=True)
     parser.add_argument('--report', type=Path, required=True)
     args = parser.parse_args()
-    if (sys.platform != 'darwin' or os.environ.get('GITHUB_ACTIONS') != 'true' or
+    if (sys.platform not in ('darwin', 'win32') or os.environ.get('GITHUB_ACTIONS') != 'true' or
             os.environ.get('MDS_QT_ISOLATED_DISPLAY') != '1'):
-        raise RuntimeError('Requires an isolated macOS GitHub runner; never uses a developer desktop')
-    report = {'accepted': False, 'engine': 'Kotoeri', 'profiles': []}
+        raise RuntimeError('Requires an isolated native GitHub runner; never uses a developer desktop')
+    engine = 'Kotoeri' if sys.platform == 'darwin' else 'Microsoft Japanese IME'
+    report = {'accepted': False, 'engine': engine, 'profiles': []}
     args.report.parent.mkdir(parents=True, exist_ok=True)
-    native = MacInput()
+    native = MacInput() if sys.platform == 'darwin' else WindowsInput()
     client = None
     try:
         report['availableSources'] = native.available
@@ -100,7 +168,8 @@ def main():
                 status.unlink(missing_ok=True)
                 request.unlink(missing_ok=True)
                 sequence = 0
-                env = dict(os.environ, QT_QPA_PLATFORM='cocoa', MDS_SYSTEM_IME='kotoeri')
+                env = dict(os.environ, QT_QPA_PLATFORM='cocoa' if sys.platform == 'darwin' else 'windows',
+                           MDS_SYSTEM_IME='kotoeri' if sys.platform == 'darwin' else 'ms-ime')
                 with args.report.with_suffix(f'.{language}.log').open('w', encoding='utf-8') as log:
                     client = subprocess.Popen([str(args.test.resolve()), str(root / 'english.pmd'),
                                                language, str(status), str(request)], env=env,
@@ -125,11 +194,12 @@ def main():
                         staged = request.with_suffix('.tmp')
                         staged.write_text(json.dumps({'sequence': sequence, 'action': action}), encoding='utf-8')
                         staged.replace(request)
+                        return sequence
 
                     wait(lambda s: s['active'], 'startup')
                     command('select')
                     wait(lambda s: s['focus'] and s['command'] == sequence, 'native focus')
-                    native.select()
+                    native.activate(command, wait)
                     time.sleep(.5)
                     native.type_japanese(client.pid)
                     preedit = wait(lambda s: s['preedit'], 'native Hiragana preedit')
@@ -174,7 +244,7 @@ def main():
             client.wait(timeout=10)
         native.close()
         args.report.write_text(json.dumps(report, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
-    print('Native Kotoeri preedit, conversion, commit and cancellation passed in three UI languages')
+    print(f'Native {engine} preedit, conversion, commit and cancellation passed in three UI languages')
 
 
 if __name__ == '__main__':
