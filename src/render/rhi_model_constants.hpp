@@ -65,17 +65,25 @@ struct ModelConstants {
     ModelPixelConstants pixel{};
     ModelCompatibilityConstants compatibility{};
 };
-// Deliberate float32 product and sum rounding. Shared transport for both
-// backends; native API state and resource ownership stay inside each device.
+// Measured D3DX9_43 x64 matrix product. Rows 0/3 use paired sums and rows
+// 1/2 accumulate left to right; every product/sum rounds to float32.
+// Native API state and resource ownership stay inside each device.
 inline std::array<float, 16> Dx9MatrixMultiply(const std::array<float, 16>& a,
                                                const std::array<float, 16>& b) {
     std::array<float, 16> out{};
     for (unsigned r = 0; r < 4; ++r)
         for (unsigned c = 0; c < 4; ++c) {
-            volatile float sum = 0;
+            volatile float products[4];
             for (unsigned k = 0; k < 4; ++k) {
-                volatile float product = a[r * 4 + k] * b[k * 4 + c];
-                sum = sum + product;
+                products[k] = a[r * 4 + k] * b[k * 4 + c];
+            }
+            volatile float sum = products[0] + products[1];
+            if (r == 0 || r == 3) {
+                volatile float tail = products[2] + products[3];
+                sum = sum + tail;
+            } else {
+                sum = sum + products[2];
+                sum = sum + products[3];
             }
             out[r * 4 + c] = sum;
         }
@@ -98,6 +106,7 @@ inline bool BuildModelConstants(const ModelPipeline& p, const ModelViewport& vie
     vc.globalAmbient = s.globalAmbient;
     vc.flags = {s.lighting, s.normalizeNormals, s.specularEnabled, s.localViewer};
     vc.parameters = {s.shininess, float(viewport.width), float(viewport.height), 0};
+    vc.combined = Dx9MatrixMultiply(Dx9MatrixMultiply(vc.w, vc.v), vc.p);
     if (measured) {
         auto& worldView = out.compatibility.worldView;
         worldView = Dx9MatrixMultiply(vc.w, vc.v);

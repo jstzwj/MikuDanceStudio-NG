@@ -200,6 +200,14 @@ function(mds_add_qt_editor)
             --assets "${root}/res/assets")
         set_tests_properties(p4_scene_frame_contract PROPERTIES LABELS "p4;headless" TIMEOUT 120)
         add_executable(editor_scene_gate_test "${root}/tests/editor_scene_gate_test.cpp")
+        add_executable(editor_composite_render_test "${root}/tests/editor_composite_render_test.cpp")
+        target_link_libraries(editor_composite_render_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render)
+        add_test(NAME editor_composite_render COMMAND editor_composite_render_test
+            "${root}/tests/data/p4_composite" "${root}/res/assets")
+        # This frozen original reference qualifies the captured native HAL
+        # profile. Software rasterizers have independently recorded blend/depth
+        # differences; invoke this strict gate explicitly on qualified hardware.
+        set_tests_properties(editor_composite_render PROPERTIES LABELS "offscreen;gpu;native-reference" TIMEOUT 120)
         target_link_libraries(editor_scene_gate_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render)
         add_test(NAME editor_scene_gate COMMAND ${Python3_EXECUTABLE}
             "${root}/tests/test_runtime_cpu_scene.py" --passes $<TARGET_FILE:editor_scene_gate_test>

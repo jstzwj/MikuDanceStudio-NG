@@ -84,11 +84,11 @@ This closes that command's integration gap, not the complete clipboard/input gat
 |---|---|
 | Shared editing and serialization | First local regression passed; full command/compatibility coverage pending |
 | Qt original layout and multilingual interface | Initial three-platform command/language regression passed; full original parity pending |
-| C1 scene rendering | Model outlines, texture morphs and screen history passed on three platforms; accessory self-shadow passed local DX9 comparisons on DX11/DX12/Vulkan; full C1 comparison pending |
+| C1 scene rendering | Independent original baseline and composite each pass 48 explicit native-hardware cases on DX11/DX12/Vulkan; WARP frozen-reference Alpha/depth differences remain open; broader device qualification pending |
 | WAV and synchronization | Qualified Windows silent profile and new CoreAudio/PulseAudio 120-second runs passed; latest Windows hosted runner has no audio device and reports unavailable; Linux uses an explicit 50 ms virtual queue; physical speaker latency and the default two-second cold null-sink profile are unqualified |
 | Fixed-step image sequence export and cancellation | Generated 30fps sequence, strict repeat and cancellation passed on three platforms |
 | Three-platform open/edit/play/save/reopen/export | Combined PMD/PMX, accessory/screen, WAV, physics, all-key-pool edit/save/reopen/export workflow passed at c097942; independent output qualification remains separate |
-| MMD v9.32 independent geometry, behavior and output comparison | Pending |
+| MMD v9.32 independent geometry, behavior and output comparison | Command, geometry and explicit hardware-output subsets passed; complete native input/control appearance and chained model commands pending |
 | Input, IME, DPI, font metrics and lifecycle acceptance | Native surface lifecycle passed on all platforms; full input/IME/DPI/font acceptance pending |
 | CPU frame-production performance | Local Sour Miku complete offscreen CPU/GPU budget passed on DX11/DX12/Vulkan; generated three-platform CPU/GPU qualification passed at 6dbc9cf; physical presentation latency is separate |
 
@@ -4029,3 +4029,50 @@ Validation: local ALL_BUILD and all **69 P4 gates passed (275.02 seconds)**;
 the final independent original dispatcher observer also passed all 84 checkpoints.
 The screen/DPR revision `bb941e9` subsequently passed all three editor jobs,
 formats and rendering in [editor run 41610505053](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41610505053).
+
+
+## Native composite position transport and hardware reference
+
+The earlier 24 failing PMX composite cases are resolved in the explicit native
+D3D9Ex HAL / TITAN Xp profile. The actual native vertex streams showed that the
+static X loader performs an identity coordinate transform with the measured
+float reciprocal `0x1.fffffep-1f`. The portable importer now retains this boundary.
+Independent CPU calls also showed that D3DX9_43 x64 matrix multiplication pairs
+the two partial sums in rows 0/3, while rows 1/2 accumulate left to right. The
+shared constant producer uses that measured product and supplies a separate
+combined position matrix; lighting still receives its distinct world/view inputs.
+The shared HLSL requires no shader doubles or compatibility-mode override.
+
+All **48 composite comparisons** now pass on hardware DX11, DX12 and Vulkan,
+including exact Alpha/coverage, RGB at most one code value, floating shadow error
+below 1e-6 and byte-exact repeated submission. The independent model/self-shadow
+control still passes all **48** cases. CPU comparisons include **64 exact native
+matrix products**, five exact identity coordinate transforms and the existing
+162 exact camera comparisons. Public regression covers the cancellation sum tree
+and X input boundary. The native observer can dump the actual per-draw vertex
+streams as well as matrices and color prefixes.
+
+`tests/data/p4_composite` contains generated public inputs and unmodified lossless
+original rest/posed PNGs (512/257). `editor_composite_render` passes both frozen
+references on all three Windows hardware backends. It retains the same strict
+comparison and is explicitly labelled `native-reference`, outside the ordinary
+software-device P4 suite. **WARP does not pass**: at rest, 8,684 pixels have Alpha
+179 instead of the native 178, and another 45 pixels differ at coplanar depth/line
+ties (five coverage differences). Ordered shader MADs did not remove those
+differences and were discarded. Metal and software Vulkan have not been qualified
+against this hardware capture. These are open portability qualifications, not
+skips counted as acceptance; no threshold, native PNG or production Alpha was
+adjusted to hide them. See the updated machine-readable
+[composite evidence](evidence/cross-platform-p4-composite.json).
+
+P4/C1 remains in progress for these wider output profiles and the complete native
+input, control appearance and chained model-command requirements. All local GPU
+checks were offscreen or used windows never shown; no desktop interaction ran.
+
+Local `ALL_BUILD` and **70 P4 gates passed (292.14 seconds)** after the position
+transport change. The three-platform editor workflow builds the public original
+reference test; `workflow_dispatch` with `native_reference=true` executes its
+strict qualification as a failing gate on any mismatch and uploads its JUnit
+result. Ordinary software-device CI does not claim that distinct hardware-native
+qualification. The latest preceding editor, renderer and formats workflows at
+`18ea63f` all passed; new cross-platform evidence will be recorded after execution.

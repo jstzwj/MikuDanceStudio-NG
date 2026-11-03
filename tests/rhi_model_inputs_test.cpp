@@ -18,6 +18,13 @@ int main() {
     CHECK(rhi::detail::BuildModelConstants(transport,{0,0,64,64,0,1},true,constants));
     CHECK(constants.compatibility.worldView==prepared && constants.compatibility.combined==prepared);
     CHECK(constants.vertex.w==transport.shader.world && constants.vertex.v==transport.shader.view);
+    const std::array<float, 16> cancellation{1, 1, 67108864, -67108864, 1, 1, 67108864, -67108864,
+                                             1, 1, 67108864, -67108864, 1, 1, 67108864, -67108864};
+    const std::array<float, 16> ones{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    const std::array<float, 16> nativeProduct{2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 2, 2};
+    CHECK(rhi::detail::Dx9MatrixMultiply(cancellation, ones) == nativeProduct);
+    CHECK(rhi::detail::BuildModelConstants(transport, {0, 0, 64, 64, 0, 1}, false, constants));
+    CHECK(constants.vertex.combined == prepared);
     CHECK(!rhi::ModelOptions{}.diagnosticSpecularFma);
     render::ModelFrameInputs frame;frame.scene.frame=42;frame.scene.camera.parentModel=-1;
     frame.scene.camera.distance=-10;frame.scene.camera.fov=60;frame.scene.lightState={.5f,.25f,.75f,0,-1,0};

@@ -87,6 +87,9 @@ int main(int argc, char** argv) {
     CHECK(AccessoryResource::Parse(binary.data(), binary.size(), resource, reason));
     CHECK(resource->Vertices().size() == 3 && resource->Indices().size() == 3 &&
           resource->Vertices()[2].normal[2] == 1);
+    // Frozen D3DX9_43 x64 root identity-coordinate transform observations.
+    CHECK(resource->Vertices()[1].position[0] == 0x1.fffffep-1f &&
+          resource->Vertices()[2].position[1] == 0x1.fffffep-1f);
     std::ifstream compressed(std::filesystem::path(argv[1]) / "triangle-bzip.x", std::ios::binary);
     std::string zipped{std::istreambuf_iterator<char>(compressed), {}};
     CHECK(AccessoryResource::Parse(zipped.data(), zipped.size(), resource, reason));

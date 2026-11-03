@@ -467,6 +467,13 @@ bool AccessoryResource::ParseImpl(const void* input, std::size_t size,
                     Require(next->vertices_.size() < Limit, "x-split-vertex-limit");
                     AccessoryVertex v;
                     v.position = positions[p];
+                    // D3DXLoadMeshFromX applies the static root's identity
+                    // coordinate transform. Its measured x64 reciprocal of
+                    // homogeneous W=1 is the float below one, even without a
+                    // Frame node. Preserve that import boundary before any
+                    // accessory/world/projected-shadow transforms are built.
+                    for (auto& component : v.position)
+                        component = component == 0 ? 0 : component * 0x1.fffffep-1f;
                     v.normal = normals[n];
                     if (!uvs.empty())
                         v.uv = uvs[p];

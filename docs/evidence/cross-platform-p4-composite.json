@@ -1,6 +1,6 @@
 {
   "date": "2026-11-03",
-  "accepted": false,
+  "accepted": true,
   "scope": "Independent original x64 composite scene; corrected MMD fixed-axis view and 1/100000 projection; public PMD/PMX, two accessories, picture, grid, projected shadows and self-shadow",
   "original_sha256": "07516fd3bf1e6b1339836b6773a156f61bdd6f848eeb621fdda012375df313a1",
   "native_profile": "Explicit D3D9Ex HAL, NVIDIA TITAN Xp, hardware vertex processing, managed-allocation adapter",
@@ -10,8 +10,8 @@
     "vulkan"
   ],
   "comparisons": 48,
-  "passed": 24,
-  "failed": 24,
+  "passed": 48,
+  "failed": 0,
   "thresholds": {
     "rgb_code_values": 1,
     "alpha_code_values": 0,
@@ -20,24 +20,18 @@
     "repeat_bytes": "exact"
   },
   "prefix_diagnosis": {
-    "case": "pmx-opaque-rest-1",
-    "backend": "dx11",
-    "native_and_portable_main_draws": 10,
-    "byte_exact_prefixes": [
-      1,
-      2,
-      3
+    "root_causes": [
+      "Static X identity coordinate transform preserves measured reciprocal rounding",
+      "Precombine position world/view/projection with exact native matrix sum trees; retain separate lighting inputs"
     ],
-    "first_outside_tolerance": 5,
-    "first_failing_draw": "First accessory projected ground shadow",
-    "bad_pixels_after_draw_5": 51,
-    "bad_pixels_after_draw_6": 54,
-    "bad_pixels_final": 54,
-    "matrices": "World/view/projection numerically identical after camera correction; signed zero may differ"
+    "matrix_cpu_oracle": "64 products match actual D3DX CPU imports with zero component tolerance",
+    "position_cpu_oracle": "Five identity coordinate-transform inputs match actual D3DX CPU imports exactly",
+    "position_shader": "Shared HLSL, no shader double requirement, default policy",
+    "normal_input": "Unit-normal precision remains a separately bounded input difference; final outputs pass existing tolerance"
   },
   "control": "Independent model/self-shadow baseline passed all 48 cases after camera correction",
   "desktop": "Windows never shown; no Present, SendInput, focus or display-mode changes",
-  "raw_local_log": "out/p4-original-composite-camera.log",
+  "raw_local_log": "out/p4-original-composite-shared-transform.log",
   "results": [
     {
       "case": "pmd-opaque-rest-1",
@@ -122,8 +116,8 @@
       "shadow_mode": 2,
       "backend": "dx11",
       "target": "shadow",
-      "changed": 496,
-      "maximum": 5.96046448e-08,
+      "changed": 181,
+      "maximum": 7.4505806e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -144,8 +138,8 @@
       "shadow_mode": 2,
       "backend": "dx12",
       "target": "shadow",
-      "changed": 496,
-      "maximum": 5.96046448e-08,
+      "changed": 181,
+      "maximum": 7.4505806e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -166,8 +160,8 @@
       "shadow_mode": 2,
       "backend": "vulkan",
       "target": "shadow",
-      "changed": 496,
-      "maximum": 5.96046448e-08,
+      "changed": 181,
+      "maximum": 7.4505806e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -254,8 +248,8 @@
       "shadow_mode": 2,
       "backend": "dx11",
       "target": "shadow",
-      "changed": 496,
-      "maximum": 5.96046448e-08,
+      "changed": 181,
+      "maximum": 7.4505806e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -276,8 +270,8 @@
       "shadow_mode": 2,
       "backend": "dx12",
       "target": "shadow",
-      "changed": 496,
-      "maximum": 5.96046448e-08,
+      "changed": 181,
+      "maximum": 7.4505806e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -298,8 +292,8 @@
       "shadow_mode": 2,
       "backend": "vulkan",
       "target": "shadow",
-      "changed": 496,
-      "maximum": 5.96046448e-08,
+      "changed": 181,
+      "maximum": 7.4505806e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -386,8 +380,8 @@
       "shadow_mode": 2,
       "backend": "dx11",
       "target": "shadow",
-      "changed": 496,
-      "maximum": 5.96046448e-08,
+      "changed": 181,
+      "maximum": 7.4505806e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -408,8 +402,8 @@
       "shadow_mode": 2,
       "backend": "dx12",
       "target": "shadow",
-      "changed": 496,
-      "maximum": 5.96046448e-08,
+      "changed": 181,
+      "maximum": 7.4505806e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -430,8 +424,8 @@
       "shadow_mode": 2,
       "backend": "vulkan",
       "target": "shadow",
-      "changed": 496,
-      "maximum": 5.96046448e-08,
+      "changed": 181,
+      "maximum": 7.4505806e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -518,8 +512,8 @@
       "shadow_mode": 2,
       "backend": "dx11",
       "target": "shadow",
-      "changed": 496,
-      "maximum": 5.96046448e-08,
+      "changed": 181,
+      "maximum": 7.4505806e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -540,8 +534,8 @@
       "shadow_mode": 2,
       "backend": "dx12",
       "target": "shadow",
-      "changed": 496,
-      "maximum": 5.96046448e-08,
+      "changed": 181,
+      "maximum": 7.4505806e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -562,8 +556,8 @@
       "shadow_mode": 2,
       "backend": "vulkan",
       "target": "shadow",
-      "changed": 496,
-      "maximum": 5.96046448e-08,
+      "changed": 181,
+      "maximum": 7.4505806e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -573,19 +567,8 @@
       "shadow_mode": 1,
       "backend": "dx11",
       "target": "color",
-      "changed": 84399,
-      "maximum": 86.0,
-      "outside_tolerance": 162,
-      "coverage_differences": 0
-    },
-    {
-      "case": "pmx-opaque-rest-1",
-      "size": 512,
-      "shadow_mode": 1,
-      "backend": "dx11",
-      "target": "shadow",
-      "changed": 2375,
-      "maximum": 1.34110451e-07,
+      "changed": 84237,
+      "maximum": 1.0,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -593,11 +576,22 @@
       "case": "pmx-opaque-rest-1",
       "size": 512,
       "shadow_mode": 1,
+      "backend": "dx11",
+      "target": "shadow",
+      "changed": 2406,
+      "maximum": 1.1920929e-07,
+      "outside_tolerance": 0,
+      "coverage_differences": 0
+    },
+    {
+      "case": "pmx-opaque-rest-1",
+      "size": 512,
+      "shadow_mode": 1,
       "backend": "dx12",
       "target": "color",
-      "changed": 84399,
-      "maximum": 86.0,
-      "outside_tolerance": 162,
+      "changed": 84237,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -606,8 +600,8 @@
       "shadow_mode": 1,
       "backend": "dx12",
       "target": "shadow",
-      "changed": 2375,
-      "maximum": 1.34110451e-07,
+      "changed": 2406,
+      "maximum": 1.1920929e-07,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -617,9 +611,9 @@
       "shadow_mode": 1,
       "backend": "vulkan",
       "target": "color",
-      "changed": 84399,
-      "maximum": 86.0,
-      "outside_tolerance": 162,
+      "changed": 84237,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -628,8 +622,8 @@
       "shadow_mode": 1,
       "backend": "vulkan",
       "target": "shadow",
-      "changed": 2375,
-      "maximum": 1.34110451e-07,
+      "changed": 2406,
+      "maximum": 1.1920929e-07,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -639,19 +633,8 @@
       "shadow_mode": 2,
       "backend": "dx11",
       "target": "color",
-      "changed": 84399,
-      "maximum": 86.0,
-      "outside_tolerance": 162,
-      "coverage_differences": 0
-    },
-    {
-      "case": "pmx-opaque-rest-2",
-      "size": 512,
-      "shadow_mode": 2,
-      "backend": "dx11",
-      "target": "shadow",
-      "changed": 2316,
-      "maximum": 1.49011612e-07,
+      "changed": 84237,
+      "maximum": 1.0,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -659,11 +642,22 @@
       "case": "pmx-opaque-rest-2",
       "size": 512,
       "shadow_mode": 2,
+      "backend": "dx11",
+      "target": "shadow",
+      "changed": 2554,
+      "maximum": 8.94069672e-08,
+      "outside_tolerance": 0,
+      "coverage_differences": 0
+    },
+    {
+      "case": "pmx-opaque-rest-2",
+      "size": 512,
+      "shadow_mode": 2,
       "backend": "dx12",
       "target": "color",
-      "changed": 84399,
-      "maximum": 86.0,
-      "outside_tolerance": 162,
+      "changed": 84237,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -672,8 +666,8 @@
       "shadow_mode": 2,
       "backend": "dx12",
       "target": "shadow",
-      "changed": 2316,
-      "maximum": 1.49011612e-07,
+      "changed": 2554,
+      "maximum": 8.94069672e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -683,9 +677,9 @@
       "shadow_mode": 2,
       "backend": "vulkan",
       "target": "color",
-      "changed": 84399,
-      "maximum": 86.0,
-      "outside_tolerance": 162,
+      "changed": 84237,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -694,8 +688,8 @@
       "shadow_mode": 2,
       "backend": "vulkan",
       "target": "shadow",
-      "changed": 2316,
-      "maximum": 1.49011612e-07,
+      "changed": 2554,
+      "maximum": 8.94069672e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -705,19 +699,8 @@
       "shadow_mode": 1,
       "backend": "dx11",
       "target": "color",
-      "changed": 21942,
-      "maximum": 86.0,
-      "outside_tolerance": 48,
-      "coverage_differences": 0
-    },
-    {
-      "case": "pmx-opaque-posed-1",
-      "size": 257,
-      "shadow_mode": 1,
-      "backend": "dx11",
-      "target": "shadow",
-      "changed": 2375,
-      "maximum": 1.34110451e-07,
+      "changed": 21894,
+      "maximum": 1.0,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -725,11 +708,22 @@
       "case": "pmx-opaque-posed-1",
       "size": 257,
       "shadow_mode": 1,
+      "backend": "dx11",
+      "target": "shadow",
+      "changed": 2406,
+      "maximum": 1.1920929e-07,
+      "outside_tolerance": 0,
+      "coverage_differences": 0
+    },
+    {
+      "case": "pmx-opaque-posed-1",
+      "size": 257,
+      "shadow_mode": 1,
       "backend": "dx12",
       "target": "color",
-      "changed": 21942,
-      "maximum": 86.0,
-      "outside_tolerance": 48,
+      "changed": 21894,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -738,8 +732,8 @@
       "shadow_mode": 1,
       "backend": "dx12",
       "target": "shadow",
-      "changed": 2375,
-      "maximum": 1.34110451e-07,
+      "changed": 2406,
+      "maximum": 1.1920929e-07,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -749,9 +743,9 @@
       "shadow_mode": 1,
       "backend": "vulkan",
       "target": "color",
-      "changed": 21942,
-      "maximum": 86.0,
-      "outside_tolerance": 48,
+      "changed": 21894,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -760,8 +754,8 @@
       "shadow_mode": 1,
       "backend": "vulkan",
       "target": "shadow",
-      "changed": 2375,
-      "maximum": 1.34110451e-07,
+      "changed": 2406,
+      "maximum": 1.1920929e-07,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -771,19 +765,8 @@
       "shadow_mode": 2,
       "backend": "dx11",
       "target": "color",
-      "changed": 21942,
-      "maximum": 86.0,
-      "outside_tolerance": 48,
-      "coverage_differences": 0
-    },
-    {
-      "case": "pmx-opaque-posed-2",
-      "size": 257,
-      "shadow_mode": 2,
-      "backend": "dx11",
-      "target": "shadow",
-      "changed": 2316,
-      "maximum": 1.49011612e-07,
+      "changed": 21894,
+      "maximum": 1.0,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -791,11 +774,22 @@
       "case": "pmx-opaque-posed-2",
       "size": 257,
       "shadow_mode": 2,
+      "backend": "dx11",
+      "target": "shadow",
+      "changed": 2554,
+      "maximum": 8.94069672e-08,
+      "outside_tolerance": 0,
+      "coverage_differences": 0
+    },
+    {
+      "case": "pmx-opaque-posed-2",
+      "size": 257,
+      "shadow_mode": 2,
       "backend": "dx12",
       "target": "color",
-      "changed": 21942,
-      "maximum": 86.0,
-      "outside_tolerance": 48,
+      "changed": 21894,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -804,8 +798,8 @@
       "shadow_mode": 2,
       "backend": "dx12",
       "target": "shadow",
-      "changed": 2316,
-      "maximum": 1.49011612e-07,
+      "changed": 2554,
+      "maximum": 8.94069672e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -815,9 +809,9 @@
       "shadow_mode": 2,
       "backend": "vulkan",
       "target": "color",
-      "changed": 21942,
-      "maximum": 86.0,
-      "outside_tolerance": 48,
+      "changed": 21894,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -826,8 +820,8 @@
       "shadow_mode": 2,
       "backend": "vulkan",
       "target": "shadow",
-      "changed": 2316,
-      "maximum": 1.49011612e-07,
+      "changed": 2554,
+      "maximum": 8.94069672e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -837,19 +831,8 @@
       "shadow_mode": 1,
       "backend": "dx11",
       "target": "color",
-      "changed": 84399,
-      "maximum": 86.0,
-      "outside_tolerance": 162,
-      "coverage_differences": 0
-    },
-    {
-      "case": "pmx-alpha-rest-1",
-      "size": 512,
-      "shadow_mode": 1,
-      "backend": "dx11",
-      "target": "shadow",
-      "changed": 2375,
-      "maximum": 1.34110451e-07,
+      "changed": 84237,
+      "maximum": 1.0,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -857,11 +840,22 @@
       "case": "pmx-alpha-rest-1",
       "size": 512,
       "shadow_mode": 1,
+      "backend": "dx11",
+      "target": "shadow",
+      "changed": 2406,
+      "maximum": 1.1920929e-07,
+      "outside_tolerance": 0,
+      "coverage_differences": 0
+    },
+    {
+      "case": "pmx-alpha-rest-1",
+      "size": 512,
+      "shadow_mode": 1,
       "backend": "dx12",
       "target": "color",
-      "changed": 84399,
-      "maximum": 86.0,
-      "outside_tolerance": 162,
+      "changed": 84237,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -870,8 +864,8 @@
       "shadow_mode": 1,
       "backend": "dx12",
       "target": "shadow",
-      "changed": 2375,
-      "maximum": 1.34110451e-07,
+      "changed": 2406,
+      "maximum": 1.1920929e-07,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -881,9 +875,9 @@
       "shadow_mode": 1,
       "backend": "vulkan",
       "target": "color",
-      "changed": 84399,
-      "maximum": 86.0,
-      "outside_tolerance": 162,
+      "changed": 84237,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -892,8 +886,8 @@
       "shadow_mode": 1,
       "backend": "vulkan",
       "target": "shadow",
-      "changed": 2375,
-      "maximum": 1.34110451e-07,
+      "changed": 2406,
+      "maximum": 1.1920929e-07,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -903,9 +897,9 @@
       "shadow_mode": 2,
       "backend": "dx11",
       "target": "color",
-      "changed": 84399,
-      "maximum": 86.0,
-      "outside_tolerance": 162,
+      "changed": 84237,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -914,8 +908,8 @@
       "shadow_mode": 2,
       "backend": "dx11",
       "target": "shadow",
-      "changed": 2316,
-      "maximum": 1.49011612e-07,
+      "changed": 2554,
+      "maximum": 8.94069672e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -925,19 +919,8 @@
       "shadow_mode": 2,
       "backend": "dx12",
       "target": "color",
-      "changed": 84399,
-      "maximum": 86.0,
-      "outside_tolerance": 162,
-      "coverage_differences": 0
-    },
-    {
-      "case": "pmx-alpha-rest-2",
-      "size": 512,
-      "shadow_mode": 2,
-      "backend": "dx12",
-      "target": "shadow",
-      "changed": 2316,
-      "maximum": 1.49011612e-07,
+      "changed": 84237,
+      "maximum": 1.0,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -945,11 +928,22 @@
       "case": "pmx-alpha-rest-2",
       "size": 512,
       "shadow_mode": 2,
+      "backend": "dx12",
+      "target": "shadow",
+      "changed": 2554,
+      "maximum": 8.94069672e-08,
+      "outside_tolerance": 0,
+      "coverage_differences": 0
+    },
+    {
+      "case": "pmx-alpha-rest-2",
+      "size": 512,
+      "shadow_mode": 2,
       "backend": "vulkan",
       "target": "color",
-      "changed": 84399,
-      "maximum": 86.0,
-      "outside_tolerance": 162,
+      "changed": 84237,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -958,8 +952,8 @@
       "shadow_mode": 2,
       "backend": "vulkan",
       "target": "shadow",
-      "changed": 2316,
-      "maximum": 1.49011612e-07,
+      "changed": 2554,
+      "maximum": 8.94069672e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -969,9 +963,9 @@
       "shadow_mode": 1,
       "backend": "dx11",
       "target": "color",
-      "changed": 21942,
-      "maximum": 86.0,
-      "outside_tolerance": 48,
+      "changed": 21894,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -980,8 +974,8 @@
       "shadow_mode": 1,
       "backend": "dx11",
       "target": "shadow",
-      "changed": 2375,
-      "maximum": 1.34110451e-07,
+      "changed": 2406,
+      "maximum": 1.1920929e-07,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -991,9 +985,9 @@
       "shadow_mode": 1,
       "backend": "dx12",
       "target": "color",
-      "changed": 21942,
-      "maximum": 86.0,
-      "outside_tolerance": 48,
+      "changed": 21894,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -1002,8 +996,8 @@
       "shadow_mode": 1,
       "backend": "dx12",
       "target": "shadow",
-      "changed": 2375,
-      "maximum": 1.34110451e-07,
+      "changed": 2406,
+      "maximum": 1.1920929e-07,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -1013,9 +1007,9 @@
       "shadow_mode": 1,
       "backend": "vulkan",
       "target": "color",
-      "changed": 21942,
-      "maximum": 86.0,
-      "outside_tolerance": 48,
+      "changed": 21894,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -1024,8 +1018,8 @@
       "shadow_mode": 1,
       "backend": "vulkan",
       "target": "shadow",
-      "changed": 2375,
-      "maximum": 1.34110451e-07,
+      "changed": 2406,
+      "maximum": 1.1920929e-07,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -1035,9 +1029,9 @@
       "shadow_mode": 2,
       "backend": "dx11",
       "target": "color",
-      "changed": 21942,
-      "maximum": 86.0,
-      "outside_tolerance": 48,
+      "changed": 21894,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -1046,8 +1040,8 @@
       "shadow_mode": 2,
       "backend": "dx11",
       "target": "shadow",
-      "changed": 2316,
-      "maximum": 1.49011612e-07,
+      "changed": 2554,
+      "maximum": 8.94069672e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -1057,9 +1051,9 @@
       "shadow_mode": 2,
       "backend": "dx12",
       "target": "color",
-      "changed": 21942,
-      "maximum": 86.0,
-      "outside_tolerance": 48,
+      "changed": 21894,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -1068,8 +1062,8 @@
       "shadow_mode": 2,
       "backend": "dx12",
       "target": "shadow",
-      "changed": 2316,
-      "maximum": 1.49011612e-07,
+      "changed": 2554,
+      "maximum": 8.94069672e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     },
@@ -1079,9 +1073,9 @@
       "shadow_mode": 2,
       "backend": "vulkan",
       "target": "color",
-      "changed": 21942,
-      "maximum": 86.0,
-      "outside_tolerance": 48,
+      "changed": 21894,
+      "maximum": 1.0,
+      "outside_tolerance": 0,
       "coverage_differences": 0
     },
     {
@@ -1090,10 +1084,48 @@
       "shadow_mode": 2,
       "backend": "vulkan",
       "target": "shadow",
-      "changed": 2316,
-      "maximum": 1.49011612e-07,
+      "changed": 2554,
+      "maximum": 8.94069672e-08,
       "outside_tolerance": 0,
       "coverage_differences": 0
     }
-  ]
+  ],
+  "previous_failure": {
+    "passed": 24,
+    "failed": 24,
+    "raw_local_log": "out/p4-original-composite-camera.log",
+    "prefix_diagnosis": {
+      "case": "pmx-opaque-rest-1",
+      "backend": "dx11",
+      "native_and_portable_main_draws": 10,
+      "byte_exact_prefixes": [
+        1,
+        2,
+        3
+      ],
+      "first_outside_tolerance": 5,
+      "first_failing_draw": "First accessory projected ground shadow",
+      "bad_pixels_after_draw_5": 51,
+      "bad_pixels_after_draw_6": 54,
+      "bad_pixels_final": 54,
+      "matrices": "World/view/projection numerically identical after camera correction; signed zero may differ"
+    }
+  },
+  "frozen_public_color_references": {
+    "rest.png": "7899cf6d9b9aea4c06069612f72e984ad369daf42b3392a34fa621d3d6b20ecc",
+    "posed.png": "1cfcdcd62f8ffed4731d63fb6abf83dd50f7c8854e4b9db52ad47b6e593bed20"
+  },
+  "qualification_boundary": "Explicit Windows x64 D3D9Ex native composite profile only; complete P4/C1 acceptance remains separate",
+  "unqualified_profiles": {
+    "d3d11_warp": {
+      "accepted": false,
+      "reference": "same frozen native hardware reference, unchanged thresholds",
+      "rest_alpha_rounding_pixels": 8684,
+      "rest_other_pixels": 45,
+      "rest_coverage_differences": 5,
+      "cause": "Observed Alpha 179 versus native 178; remaining coplanar depth/line ties. Required wider portability qualification remains open."
+    },
+    "metal": "not yet run against this frozen capture",
+    "software_vulkan": "not yet run against this frozen capture"
+  }
 }

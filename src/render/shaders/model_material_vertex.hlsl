@@ -6,6 +6,7 @@ cbuffer VertexInputs : register(b0) {
     uint4 flags; // lighting, normalizeNormals, specularEnabled, localViewer
     uint4 coordinates; // logical coordinate modes, reserved
     float4 parameters; // power, viewport width, viewport height, reserved
+    row_major float4x4 combined;
 };
 #if MDS_MODEL_VERTEX_COLOR
 struct VertexInput { float3 position:POSITION; float4 color:COLOR0; };
@@ -43,7 +44,7 @@ PixelInput main(VertexInput input) {
 #if MDS_MODEL_DX9_COMPATIBILITY && MDS_MODEL_SPECULAR_FMA_DIAGNOSTIC
     camera=Dx9Camera(input.position);
 #endif
-    output.position = mul(camera,projection);
+    output.position = mul(float4(input.position,1),combined);
 #if MDS_MODEL_DX9_COMPATIBILITY
     output.position=Dx9Clip(input.position);
 #else

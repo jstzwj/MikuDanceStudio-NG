@@ -297,6 +297,22 @@ std::array<rhi::AttachmentReadback, 2> NativeFrame(Fixture& fixture, OriginalMod
                                     std::to_string(unsigned(transform)) + ".f32",
                                 &matrix, sizeof matrix);
             }
+            Com<IDirect3DVertexBuffer9> vertices;
+            UINT offset = 0, stride = 0;
+            Hr(fixture.device->GetStreamSource(0, &vertices.p, &offset, &stride),
+               "prefix native vertex stream");
+            if (vertices.p) {
+                D3DVERTEXBUFFER_DESC description{};
+                Hr(vertices->GetDesc(&description), "prefix vertex description");
+                void* bytes = nullptr;
+                Hr(vertices->Lock(0, 0, &bytes, D3DLOCK_READONLY), "prefix vertex input bytes");
+                SaveRenderBytes(prefixOutput,
+                                "native-" + std::to_string(drawNumber) + "-vertices.bin", bytes,
+                                description.Size);
+                Hr(vertices->Unlock(), "prefix vertex unlock");
+                std::printf("native prefix %u vertex offset=%u stride=%u bytes=%u\n", drawNumber,
+                            offset, stride, description.Size);
+            }
         };
     }
     // The original frame loop decrements the retired ABI workspace, rather
@@ -551,6 +567,14 @@ int wmain(int argc, wchar_t** argv) try {
                                         color.bytes.data(), color.bytes.size());
                                     unsigned transform = 0;
                                     const auto& shader = draws[n - 1].pipeline.shader;
+                                    for (const auto& resource : frame.resources)
+                                        if (resource.kind == rhi::ReplayResourceKind::Vertices &&
+                                            resource.key.id == draws[n - 1].vertices.id &&
+                                            resource.key.version == draws[n - 1].vertices.version)
+                                            SaveRenderBytes(
+                                                output,
+                                                "portable-" + std::to_string(n) + "-vertices.bin",
+                                                resource.bytes.data(), resource.bytes.size());
                                     for (const auto* matrix :
                                          {&shader.world, &shader.view, &shader.projection})
                                         SaveRenderBytes(
