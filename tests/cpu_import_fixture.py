@@ -366,7 +366,7 @@ Material { 0.2;0.7;0.4;0.6;; 2.0; 0.0;0.0;0.0;; 0.1;0.0;0.0;; }
 }
 ''', encoding='ascii')
     varied = (root / 'bound.x').read_text(encoding='ascii')
-    (root / 'vac-mesh').mkdir()
+    (root / 'vac-mesh').mkdir(exist_ok=True)
     (root / 'vac-mesh/bound.x').write_text(varied, encoding='ascii')
     # The mesh is in a different directory, but checker.bmp is deliberately
     # only beside the VAC: native accessory textures retain the wrapper root.
