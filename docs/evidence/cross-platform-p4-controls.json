@@ -5,7 +5,7 @@
   "original_sha256": "07516fd3bf1e6b1339836b6773a156f61bdd6f848eeb621fdda012375df313a1",
   "windows_build": "26100.9457",
   "original_resources": {
-    "cases": 494,
+    "cases": 574,
     "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
     "gdiBorderCases": 460,
     "gdiBorderMismatches": 0,
@@ -17,10 +17,11 @@
     "style": "windowsvista",
     "templates": 38,
     "textAndKeyboardFocusCues": false,
+    "trackbarGeometryCases": 864,
     "windowsShown": false
   },
   "public_regression": {
-    "cases": 494,
+    "cases": 574,
     "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
     "gdiBorderCases": 460,
     "gdiBorderMismatches": 0,
@@ -32,6 +33,7 @@
     "style": "windowsvista",
     "templates": 38,
     "textAndKeyboardFocusCues": false,
+    "trackbarGeometryCases": 864,
     "windowsShown": false
   },
   "exclusions": [
@@ -47,8 +49,8 @@
     "seconds": 290.17,
     "local_log": "out/p4-style-all-tests.log",
     "final_qt_passed": 29,
-    "final_qt_seconds": 141.23,
-    "final_qt_log": "out/p4-list-final-tests.log"
+    "final_qt_seconds": 156.95,
+    "final_qt_log": "out/p4-trackbar-final-tests.log"
   },
   "relocated_package": {
     "assets": "assets",
@@ -120,6 +122,13 @@
   "control_states": {
     "button_checkbox_radio": 426,
     "empty_combobox": 44,
-    "listbox_empty_and_selected_textless_row": 24
+    "listbox_empty_and_selected_textless_row": 24,
+    "trackbar_endpoints_and_midpoints": 80
+  },
+  "trackbar_geometry": {
+    "cases": 864,
+    "comparison": "Exact TBM_GETCHANNELRECT and TBM_GETTHUMBRECT; 4 widths, 9 heights, ticks/no ticks, 3 ranges, 4 positions",
+    "logical_dpi": 96,
+    "windowsShown": false
   }
 }

@@ -1,9 +1,11 @@
 #include "editor_style.hpp"
 #include "editor_font.hpp"
+#include "mikudancestudio/mmd_trackbar_geometry.hpp"
 #include <QApplication>
 #include <QProxyStyle>
 #include <QStyleFactory>
 #include <QStyleOptionButton>
+#include <QStyleOptionSlider>
 #include <QVariant>
 #include <QWidget>
 #ifdef _WIN32
@@ -16,6 +18,41 @@ class EditorStyle final : public QProxyStyle {
 public:
     explicit EditorStyle(QStyle* base) : QProxyStyle(base) {
         setObjectName(QStringLiteral("mmd.editorStyle"));
+    }
+    QRect subControlRect(ComplexControl control, const QStyleOptionComplex* option, SubControl part,
+                         const QWidget* widget) const override {
+        if (control == CC_Slider && widget && widget->property("mmdNativeTrackbar").toBool())
+            if (const auto* slider = qstyleoption_cast<const QStyleOptionSlider*>(option)) {
+                const auto geometry = SliderGeometry(*slider);
+                const auto rectangle = part == SC_SliderHandle ? geometry.thumb : geometry.channel;
+                if (part == SC_SliderHandle || part == SC_SliderGroove)
+                    return QRect(rectangle.x, rectangle.y, rectangle.width, rectangle.height)
+                        .translated(slider->rect.topLeft());
+            }
+        return QProxyStyle::subControlRect(control, option, part, widget);
+    }
+    int pixelMetric(PixelMetric metric, const QStyleOption* option,
+                    const QWidget* widget) const override {
+        if (widget && widget->property("mmdNativeTrackbar").toBool())
+            if (const auto* slider = qstyleoption_cast<const QStyleOptionSlider*>(option)) {
+                const auto geometry = SliderGeometry(*slider);
+                if (metric == PM_SliderLength)
+                    return geometry.thumb.width;
+                if (metric == PM_SliderSpaceAvailable)
+                    return std::max(0, geometry.channel.width - geometry.thumb.width);
+            }
+        return QProxyStyle::pixelMetric(metric, option, widget);
+    }
+    void drawComplexControl(ComplexControl control, const QStyleOptionComplex* option,
+                            QPainter* painter, const QWidget* widget) const override {
+#ifdef _WIN32
+        if (control == CC_Slider && widget && widget->property("mmdNativeTrackbar").toBool() &&
+            baseStyle()->objectName() == "windowsvista")
+            if (const auto* slider = qstyleoption_cast<const QStyleOptionSlider*>(option))
+                if (DrawWindowsTrackbar(*painter, *slider, SliderGeometry(*slider)))
+                    return;
+#endif
+        QProxyStyle::drawComplexControl(control, option, painter, widget);
     }
     void drawPrimitive(PrimitiveElement element, const QStyleOption* option, QPainter* painter,
                        const QWidget* widget) const override {
@@ -63,6 +100,17 @@ public:
                     return;
                 }
         QProxyStyle::drawControl(element, option, painter, widget);
+    }
+
+private:
+    static ui::TrackbarGeometry SliderGeometry(const QStyleOptionSlider& slider) {
+        const int position =
+            slider.upsideDown
+                ? int(std::int64_t(slider.maximum) + slider.minimum - slider.sliderPosition)
+                : slider.sliderPosition;
+        return ui::DialogTrackbarGeometry(slider.rect.width(), slider.rect.height(),
+                                          slider.tickPosition != QSlider::NoTicks, slider.minimum,
+                                          slider.maximum, position);
     }
 };
 }

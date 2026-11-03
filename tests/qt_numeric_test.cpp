@@ -2,6 +2,7 @@
 #include "editor_window.hpp"
 #include "viewport.hpp"
 #include "mikudancestudio/mmd_dialog_edit_metrics.hpp"
+#include "mikudancestudio/mmd_trackbar_geometry.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
 #include "mikudancestudio/editor_numeric.hpp"
 #include "mikudancestudio/editor_rotation.hpp"
@@ -25,6 +26,7 @@
 #include <QInputMethodEvent>
 #include <QComboBox>
 #include <QWheelEvent>
+#include <QMouseEvent>
 #include <QColorDialog>
 #include <QClipboard>
 #include <iostream>
@@ -406,6 +408,28 @@ int main(int argc, char** argv) {
             CHECK(value == float(position) / 100.f);
             CHECK(dialog.Field()->text() == QString::asprintf("%3.2f", double(value)).left(3));
         }
+        // Hit testing and drag travel must use the same native geometry as
+        // painting, including its inset channel and height-dependent thumb.
+        auto* trackbar = dialog.Trackbar();
+        const auto handleCenter = [&](int position) {
+            const auto r = ui::DialogTrackbarGeometry(trackbar->width(), trackbar->height(), false,
+                                                      0, 200, position)
+                               .thumb;
+            return QPoint(r.x + r.width / 2, r.y + r.height / 2);
+        };
+        const auto mouse = [&](QEvent::Type type, QPoint point, Qt::MouseButton button,
+                               Qt::MouseButtons buttons) {
+            QMouseEvent event(type, point, trackbar->mapToGlobal(point), button, buttons,
+                              Qt::NoModifier);
+            QApplication::sendEvent(trackbar, &event);
+        };
+        trackbar->setValue(0);
+        mouse(QEvent::MouseButtonPress, handleCenter(0), Qt::LeftButton, Qt::LeftButton);
+        mouse(QEvent::MouseMove, handleCenter(200), Qt::NoButton, Qt::LeftButton);
+        CHECK(trackbar->value() == 200 && value == 2.f);
+        mouse(QEvent::MouseMove, handleCenter(0), Qt::NoButton, Qt::LeftButton);
+        CHECK(trackbar->value() == 0 && value == 0.f);
+        mouse(QEvent::MouseButtonRelease, handleCenter(0), Qt::LeftButton, Qt::NoButton);
         dialog.Trackbar()->setValue(57);
         const auto before = edits;
         dialog.Field()->setText("1.75");
@@ -694,7 +718,7 @@ int main(int argc, char** argv) {
         CHECK(dialog.Field()->text() == prefill(.57f) && dialog.Trackbar()->value() == 57);
         CHECK(dialog.Trackbar()->minimum() == 0 && dialog.Trackbar()->maximum() == 200 &&
               dialog.Trackbar()->tickInterval() == 100 &&
-              dialog.Trackbar()->tickPosition() == QSlider::TicksBelow);
+              dialog.Trackbar()->tickPosition() == QSlider::NoTicks);
         unsigned edits = 0;
         float value = .57f;
         dialog.changed = [&](float next) {

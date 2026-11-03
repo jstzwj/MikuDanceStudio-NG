@@ -17,12 +17,14 @@ static void Check(bool value, const char* reason) {
 #endif
 #include "numeric_dialog.hpp"
 #include "editor_style.hpp"
+#include "mikudancestudio/mmd_trackbar_geometry.hpp"
 #include <QApplication>
 #include <QImage>
 #include <QPainter>
 #include <QPushButton>
 #include <QStyle>
 #include <QStyleOptionFrame>
+#include <QStyleOptionSlider>
 #include <QProxyStyle>
 #include <QFile>
 #include <QJsonDocument>
@@ -88,6 +90,50 @@ unsigned Difference(const QImage& a, const QImage& b) {
             count += (a.pixel(x, y) & 0xffffff) != (b.pixel(x, y) & 0xffffff);
     return count;
 }
+unsigned TrackbarGeometryCorpus() {
+    const auto parent = CreateWindowExW(0, L"STATIC", L"", WS_POPUP, 0, 0, 600, 80, nullptr,
+                                        nullptr, nullptr, nullptr);
+    Check(parent != nullptr, "hidden geometry parent");
+    unsigned cases = 0;
+    for (const int width : {64, 170, 193, 513})
+        for (const int height : {11, 12, 15, 19, 20, 23, 24, 26, 32})
+            for (const bool ticks : {false, true}) {
+                const auto control = CreateWindowExW(
+                    0, TRACKBAR_CLASSW, L"", WS_CHILD | WS_VISIBLE | (ticks ? 0 : TBS_NOTICKS), 0,
+                    0, width, height, parent, nullptr, nullptr, nullptr);
+                Check(control && !IsWindowVisible(control), "never-shown geometry trackbar");
+                for (const auto range :
+                     {std::pair{0, 100}, std::pair{0, 200}, std::pair{-100, 100}}) {
+                    SendMessageW(control, TBM_SETRANGE, FALSE, MAKELONG(range.first, range.second));
+                    for (const int percent : {0, 37, 50, 100}) {
+                        const int value =
+                            range.first + (range.second - range.first) * percent / 100;
+                        SendMessageW(control, TBM_SETPOS, TRUE, value);
+                        const auto geometry = mikudancestudio::ui::DialogTrackbarGeometry(
+                            width, height, ticks, range.first, range.second, value);
+                        for (const bool thumb : {false, true}) {
+                            RECT r{};
+                            SendMessageW(control, thumb ? TBM_GETTHUMBRECT : TBM_GETCHANNELRECT, 0,
+                                         reinterpret_cast<LPARAM>(&r));
+                            const auto expected = thumb ? geometry.thumb : geometry.channel;
+                            if (r.left != expected.x || r.top != expected.y ||
+                                r.right - r.left != expected.width ||
+                                r.bottom - r.top != expected.height) {
+                                std::fprintf(
+                                    stderr,
+                                    "trackbar geometry %dx%d ticks=%d range=%d..%d value=%d thumb=%d\n",
+                                    width, height, ticks, range.first, range.second, value, thumb);
+                                Check(false, "independent native trackbar geometry corpus");
+                            }
+                        }
+                        ++cases;
+                    }
+                }
+                DestroyWindow(control);
+            }
+    DestroyWindow(parent);
+    return cases;
+}
 }
 int main(int argc, char** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
@@ -114,6 +160,7 @@ int main(int argc, char** argv) try {
     mikudancestudio::qt::InstallEditorStyle(app);
     INITCOMMONCONTROLSEX common{sizeof common, ICC_BAR_CLASSES};
     Check(InitCommonControlsEx(&common), "initialize original trackbar class");
+    const auto geometryCases = visible ? 0 : TrackbarGeometryCorpus();
     using namespace mikudancestudio::ui;
     const NumericTemplate* descriptions[] = {
         &kNumericBoneEn,
@@ -208,7 +255,8 @@ int main(int argc, char** argv) try {
             // complete EDIT painting is qualified separately in isolated CI.
             const bool borderOnly = !visible && entry.kind == NumericControlKind::Edit;
             const bool other = entry.kind == NumericControlKind::Combobox ||
-                               entry.kind == NumericControlKind::Listbox;
+                               entry.kind == NumericControlKind::Listbox ||
+                               entry.kind == NumericControlKind::Slider;
             if (visible ? entry.kind != NumericControlKind::Edit
                         : (entry.kind != NumericControlKind::Edit &&
                            entry.kind != NumericControlKind::Button &&
@@ -265,14 +313,47 @@ int main(int argc, char** argv) try {
                 list->clear();
                 SendMessageW(control, LB_RESETCONTENT, 0, 0);
             }
-            for (unsigned state = 0; state < (entry.kind == NumericControlKind::Listbox ? 4u
-                                              : !button                                 ? 2u
-                                              : button->isCheckable()                   ? 6u
-                                                                                        : 3u);
+            auto* slider = qobject_cast<QSlider*>(widget);
+            if (slider) {
+                slider->setRange(0, 100);
+                slider->setTickInterval(1000);
+                SendMessageW(control, TBM_SETRANGE, FALSE, MAKELONG(0, 100));
+                SendMessageW(control, TBM_SETTICFREQ, 1000, 0);
+            }
+            for (unsigned state = 0; state < (slider                                      ? 8u
+                                              : entry.kind == NumericControlKind::Listbox ? 4u
+                                              : !button                                   ? 2u
+                                              : button->isCheckable()                     ? 6u
+                                                                                          : 3u);
                  ++state) {
                 const bool enabled = state % 3 != 1, pressed = state % 3 == 2, checked = state >= 3;
                 EnableWindow(control, enabled);
                 widget->setEnabled(enabled);
+                if (slider) {
+                    constexpr int positions[]{0, 37, 50, 100};
+                    slider->setEnabled(state % 2 == 0);
+                    EnableWindow(control, state % 2 == 0);
+                    slider->setValue(positions[state / 2]);
+                    SendMessageW(control, TBM_SETPOS, TRUE, positions[state / 2]);
+                    QStyleOptionSlider option;
+                    option.initFrom(slider);
+                    option.orientation = Qt::Horizontal;
+                    option.minimum = 0;
+                    option.maximum = 100;
+                    option.sliderPosition = slider->value();
+                    option.tickPosition = slider->tickPosition();
+                    for (const auto part : {QStyle::SC_SliderGroove, QStyle::SC_SliderHandle}) {
+                        RECT r{};
+                        SendMessageW(control,
+                                     part == QStyle::SC_SliderGroove ? TBM_GETCHANNELRECT
+                                                                     : TBM_GETTHUMBRECT,
+                                     0, reinterpret_cast<LPARAM>(&r));
+                        Check(slider->style()->subControlRect(QStyle::CC_Slider, &option, part,
+                                                              slider) ==
+                                  QRect(r.left, r.top, r.right - r.left, r.bottom - r.top),
+                              "native trackbar channel/thumb geometry");
+                    }
+                }
                 if (auto* list = qobject_cast<QListWidget*>(widget)) {
                     if (state == 2) {
                         list->addItem(QString());
@@ -349,6 +430,7 @@ int main(int argc, char** argv) try {
         {"mismatches", int(mismatches)},
         {"gdiBorderCases", int(borderCases)},
         {"gdiBorderMismatches", int(borderMismatches)},
+        {"trackbarGeometryCases", int(geometryCases)},
         {"comparison", visible ? "exact RGB, EDIT normal/disabled including nonclient"
                                : "exact RGB, normal/disabled/pressed, checked/unchecked"},
         {"textAndKeyboardFocusCues", false},

@@ -255,6 +255,8 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
             widget = new QGroupBox(language.Text(control.message), this);
         } else if (control.kind == ui::NumericControlKind::Slider) {
             auto* slider = new DialogTrackbar(this);
+            slider->setProperty("mmdNativeTrackbar", true);
+            slider->setTickPosition(control.style & 0x10u ? QSlider::NoTicks : QSlider::TicksBelow);
             slider->setFocusPolicy(Qt::ClickFocus);
             sliders_[control.id] = slider;
             widget = slider;
@@ -577,7 +579,6 @@ GroundShadowDialog::GroundShadowDialog(const Language& language, float value, QW
     setObjectName("mmd.groundShadow");
     Trackbar()->setRange(0, 200);
     Trackbar()->setTickInterval(100);
-    Trackbar()->setTickPosition(QSlider::TicksBelow);
     Reset(value);
     connect(Field(), &QLineEdit::returnPressed, this, [this] {
         float value;
