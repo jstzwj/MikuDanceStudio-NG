@@ -147,6 +147,7 @@ jobs:
           out/p4/qt_control_style_test.exe --isolated-content-focus out/p4/control-content-focus
       - name: Qualify native Japanese input and command ordering
         if: ${{ !cancelled() && inputs.system_ime }}
+        timeout-minutes: 15
         shell: powershell
         env:
           MDS_QT_ISOLATED_DISPLAY: '1'
