@@ -20,7 +20,6 @@
 #include <QSaveFile>
 #include <QTimer>
 #include <cstdio>
-#include <optional>
 #ifdef __APPLE__
 void ActivateCocoaInputWindow(std::uintptr_t);
 std::string ActivateCocoaJapanese();
@@ -129,7 +128,7 @@ private:
     HANDLE main_ = nullptr;
     std::thread worker_;
 };
-QString ActivateJapaneseIme(HWND window, std::optional<TF_INPUTPROCESSORPROFILE>& previous) {
+QString ActivateJapaneseIme(HWND window) {
     using Microsoft::WRL::ComPtr;
     ComPtr<ITfInputProcessorProfiles> profiles;
     auto result = CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr, CLSCTX_INPROC_SERVER,
@@ -147,12 +146,6 @@ QString ActivateJapaneseIme(HWND window, std::optional<TF_INPUTPROCESSORPROFILE>
             continue;
         ComPtr<ITfInputProcessorProfileMgr> manager;
         result = profiles.As(&manager);
-        if (SUCCEEDED(result) && !previous) {
-            TF_INPUTPROCESSORPROFILE active{};
-            result = manager->GetActiveProfile(GUID_TFCAT_TIP_KEYBOARD, &active);
-            if (SUCCEEDED(result))
-                previous = active;
-        }
         if (SUCCEEDED(result))
             result = manager->ActivateProfile(TF_PROFILETYPE_INPUTPROCESSOR, 0x411, profile.clsid,
                                               profile.guidProfile, nullptr,
@@ -175,35 +168,6 @@ QString ActivateJapaneseIme(HWND window, std::optional<TF_INPUTPROCESSORPROFILE>
         return opened && converted ? QString() : QString("Cannot select native Hiragana mode");
     }
     return "No installed Japanese TSF keyboard profile";
-}
-void RestoreInputProfile(HWND window, const std::optional<TF_INPUTPROCESSORPROFILE>& previous) {
-    std::fprintf(stderr, "IME restoring input context\n");
-    std::fflush(stderr);
-    if (const auto context = ImmGetContext(window)) {
-        std::fprintf(stderr, "IME closing native input context\n");
-        std::fflush(stderr);
-        ImmSetOpenStatus(context, FALSE);
-        std::fprintf(stderr, "IME native input context closed\n");
-        std::fflush(stderr);
-        ImmReleaseContext(window, context);
-    }
-    if (previous) {
-        Microsoft::WRL::ComPtr<ITfInputProcessorProfileMgr> manager;
-        std::fprintf(stderr, "IME creating profile manager for restoration\n");
-        std::fflush(stderr);
-        auto result = CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr, CLSCTX_INPROC_SERVER,
-                                       IID_PPV_ARGS(&manager));
-        std::fprintf(stderr, "IME activating original TSF profile\n");
-        std::fflush(stderr);
-        if (SUCCEEDED(result))
-            result = manager->ActivateProfile(previous->dwProfileType, previous->langid,
-                                               previous->clsid, previous->guidProfile, previous->hkl,
-                                               TF_IPPMF_FORPROCESS |
-                                                   TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE);
-        std::fprintf(stderr, "IME restored original TSF profile: 0x%lx\n",
-                     static_cast<unsigned long>(result));
-        std::fflush(stderr);
-    }
 }
 #endif
 class InputObserver final : public QObject {
@@ -288,9 +252,6 @@ int main(int argc, char** argv) {
     unsigned command = 0;
     unsigned publicationFailures = 0, publicationRetries = 0;
     bool finishing = false;
-#ifdef _WIN32
-    std::optional<TF_INPUTPROCESSORPROFILE> previousProfile;
-#endif
     QTimer timer;
     QObject::connect(&timer, &QTimer::timeout, [&] {
         QFile input(QString::fromLocal8Bit(argv[4]));
@@ -316,8 +277,8 @@ int main(int argc, char** argv) {
                 }
 #ifdef _WIN32
                 else if (request["action"] == "activate-ime")
-                    reason = ActivateJapaneseIme(reinterpret_cast<HWND>(dialog.winId()),
-                                                   previousProfile).toStdString();
+                    reason =
+                        ActivateJapaneseIme(reinterpret_cast<HWND>(dialog.winId())).toStdString();
 #endif
 #ifdef __APPLE__
                 else if (request["action"] == "activate-ime")
@@ -394,13 +355,16 @@ int main(int argc, char** argv) {
             const auto result = unchanged && dialog.Active() && reason.empty() ? 0 : 1;
 #ifdef _WIN32
             shutdownDiagnostic.Arm();
-            RestoreInputProfile(reinterpret_cast<HWND>(dialog.winId()), previousProfile);
 #endif
+            // Activation was FORPROCESS, so it never replaced another app's
+            // profile. Let normal focus/window destruction release this input
+            // context instead of synchronously switching layouts during TSF
+            // teardown. Deliver the hide/focus notifications before quitting.
             field->clearFocus();
             dialog.hide();
             std::fprintf(stderr, "IME finish snapshot published; leaving event loop\n");
             std::fflush(stderr);
-            app.exit(result);
+            QTimer::singleShot(0, &app, [&app, result] { app.exit(result); });
         }
     });
     dialog.show();
