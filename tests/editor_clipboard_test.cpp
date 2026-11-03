@@ -1,5 +1,6 @@
 #include "mikudancestudio/editor_session.hpp"
 #include "bone_clipboard_fixture.hpp"
+#include "editor_clipboard_chain_fixture.hpp"
 #include <fstream>
 #include <iostream>
 using namespace mikudancestudio;
@@ -62,6 +63,47 @@ int main(int argc, char** argv) {
         CHECK(std::abs(rotation[3] - .75 / length) <= 2e-6);
     }
     const auto root = std::filesystem::absolute(argv[1]);
+    std::uint64_t chainHash = 14695981039346656037ull;
+    for (unsigned accessories : {0u, 1u, 2u})
+        for (bool reversed : {false, true}) {
+            EditorSession chain;
+            CHECK(clipboard_chain_fixture::Initialize(chain, root, accessories, reversed, reason));
+            for (const auto& command : clipboard_chain_fixture::Commands()) {
+                CHECK(clipboard_chain_fixture::Execute(chain, command, accessories, reason));
+                clipboard_chain_fixture::Hash(chainHash, chain.Document());
+            }
+        }
+    CHECK(chainHash == 0xe5501b1a254b32e5ull);
+    // A seek between opacity keys has more precision than PMM's packed current
+    // pose. Subsequent editing must preserve it; saving rounds only disk bytes.
+    EditorSession interpolated;
+    CHECK(clipboard_chain_fixture::Initialize(interpolated, root, 1, false, reason));
+    CHECK(interpolated.Seek(8, reason));
+    const float opacity = interpolated.Document().accessories[0].state.opacity;
+    CHECK(opacity == .625f);
+    CHECK(interpolated.SetSelectedKeys({{Track::Camera, 255, 0, 5}}, reason));
+    CHECK(interpolated.Copy({{Track::Camera, 255, 0, 5}}, reason));
+    CHECK(interpolated.Paste(80, false, reason));
+    CHECK(interpolated.Document().accessories[0].state.opacity == opacity);
+    const auto writeInterpolated = [](const auto& path, const auto& bytes, auto&) {
+        std::ofstream file(path, std::ios::binary);
+        file.write(reinterpret_cast<const char*>(bytes.data()), std::streamsize(bytes.size()));
+        return bool(file);
+    };
+    CHECK(interpolated.Save(root / "interpolated-opacity.pmm", writeInterpolated, reason));
+    CHECK(interpolated.Document().accessories[0].state.opacity == opacity);
+    EditorSession diskOpacity;
+    CHECK(diskOpacity.Open(root / "interpolated-opacity.pmm", reason));
+    CHECK(diskOpacity.Document().accessories[0].state.opacity == .63f);
+    const auto revisionOpacity = interpolated.Revision();
+    CHECK(!interpolated.Edit(
+        "unrepresentable key opacity",
+        [](auto& d, auto&) {
+            d.accessories[0].keyRecords.dense[0].opacity = .625f;
+            return true;
+        },
+        reason));
+    CHECK(reason == "pmm-opacity-precision" && interpolated.Revision() == revisionOpacity);
     for (const char* file : {"articulated.pmd", "articulated.pmx"}) {
         EditorSession editor;
         CHECK(editor.ImportModel(root / file, reason));

@@ -129,11 +129,11 @@ struct Writer {
         f(k.distance);
         flag(k.selected);
     }
-    void opacity(unsigned visible, float value) {
+    void opacity(unsigned visible, float value, bool exact = true) {
         if (visible > 1 || !std::isfinite(value) || value < 0 || value > 1)
             throw std::runtime_error("pmm-opacity");
         const auto n = std::lround(value * 100);
-        if (std::abs(value - float(n) / 100) > 1e-5f)
+        if (exact && std::abs(value - float(n) / 100) > 1e-5f)
             throw std::runtime_error("pmm-opacity-precision");
         u8(unsigned((100 - n) * 2 + visible));
     }
@@ -280,7 +280,7 @@ void Scene(Writer& w, const PmmSceneDocument& d) {
         w.u8(a.order);
         w.track(a.keyRecords, 1);
         const auto& v = a.state;
-        w.opacity(v.visible, v.opacity);
+        w.opacity(v.visible, v.opacity, false);
         w.u32(v.parentModel);
         w.u32(v.parentBone);
         w.floats(v.rotation);
@@ -397,6 +397,10 @@ bool PreservePmmSessionState(const PmmSceneDocument& source, PmmSceneDocument& t
                                      [&](const auto& item) { return item.slot == from.slot; });
         if (to == target.accessories.end() || !copy(from.keyRecords, to->keyRecords))
             return false;
+        // Runtime interpolation has float precision; only the on-disk current
+        // pose packs opacity into an integer percentage. Validation must not
+        // reject or round the live pose during an unrelated editing command.
+        to->state.opacity = from.state.opacity;
     }
     return true;
 }

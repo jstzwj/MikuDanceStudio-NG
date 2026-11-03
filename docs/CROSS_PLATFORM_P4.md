@@ -3991,3 +3991,41 @@ bone-drag profiles. Native Qt lifecycle tests also passed DX11 WARP, DX12 WARP
 and hardware Vulkan, including resize, device replacement, detach/dock,
 destroy/recreate and unload; every local window stayed hidden. This validates
 the event boundary and lifecycle, not physical movement between real monitors.
+
+## Chained global clipboard commands and live accessory opacity
+
+The optional Windows x64 original-executable observer now accepts
+`--clipboard-chain`. It executes the real copy/paste command dispatcher through
+14 consecutive commands, for zero/one/two accessories and both source allocation
+orders. All **84 checkpoints** passed: full 10,000-record camera, light, shadow,
+gravity and accessory pools, links, selection bytes and maximum-frame watermark.
+Overlapping/repeated pastes, root replacement, copying pasted records, empty
+copy and subsequent clipboard replacement are included. Native clipboard counts,
+buffer identities and payloads are checked; paste never mutates those buffers.
+Only presentation and pose-evaluation tails are stubbed. This qualifies the
+global command chain, not model bone/Morph/display chains or OS event delivery.
+
+The public generated fixture freezes the independently compared checkpoints as
+`e5501b1a254b32e5` in `editor_clipboard_test`, built by all three editor jobs.
+No original executable, licensed model or desktop interaction is required for
+that regression.
+
+The chain reproduced an editing defect: seeking between accessory opacity keys
+produces a non-integer percentage, and a subsequent copy/paste failed with
+`pmm-opacity-precision`. PMM's current-pose byte stores an integer percentage,
+but live interpolation must retain float precision. Rebuilding/validating a
+session now preserves live pose opacity while encoding only its disk byte at
+percentage precision, consistent with the existing preservation writer. Key
+record opacity still has the stricter representability check. Tests verify
+62.5% remains exact through selection, paste and Save; reopening reads the
+encoded 63%; an unrepresentable key edit is rejected atomically.
+
+All three editor jobs, formats, rendering and Bullet passed the camera revision
+`c65f523`, including [editor run 41609879520](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41609879520).
+P4/C1 remains open, particularly the independent composite output and complete
+native input/layout qualifications. No acceptance threshold was relaxed.
+
+Validation: local ALL_BUILD and all **69 P4 gates passed (275.02 seconds)**;
+the final independent original dispatcher observer also passed all 84 checkpoints.
+The screen/DPR revision `bb941e9` subsequently passed all three editor jobs,
+formats and rendering in [editor run 41610505053](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41610505053).
