@@ -305,10 +305,25 @@ def main():
                     live_conversion = '\u65e5\u672c' in preedit['preedit']
                     if not live_conversion:
                         native.key(client.pid, 49)  # Space: candidate conversion
-                    converted = wait(lambda s: '\u65e5\u672c' in s['preedit'], 'Japanese candidate conversion')
-                    if converted['commits'] or converted['name'] != 'before':
-                        raise RuntimeError(f'Conversion prematurely applied text: {converted}')
-                    committed, commit_keys = finish_composition(36, 1, 'before', 'candidate commit')
+                    converted = wait(lambda s: '\u65e5\u672c' in s['preedit'] or
+                                     (s['commits'] == 1 and s['committed'] == '\u65e5\u672c'),
+                                     'Japanese candidate conversion')
+                    if converted['name'] != 'before' or not converted['active']:
+                        raise RuntimeError(f'Conversion executed an editor command: {converted}')
+                    if converted['commits']:
+                        # MS-IME prediction can finalize on the conversion key.
+                        # Require evidence that native preedit contained the
+                        # candidate before its native commit. Never send Return
+                        # after composition already ended: it would apply text.
+                        inputs = [e for e in converted['events'] if e['type'] == 'input']
+                        candidates = [i for i, e in enumerate(inputs) if e['preedit'] == '\u65e5\u672c']
+                        commits = [i for i, e in enumerate(inputs) if e['commit'] == '\u65e5\u672c']
+                        if (converted['commits'] != 1 or converted['preedit'] or
+                                not candidates or not commits or candidates[0] >= commits[0]):
+                            raise RuntimeError(f'Native candidate/commit order differs: {converted}')
+                        committed, commit_keys = converted, []
+                    else:
+                        committed, commit_keys = finish_composition(36, 1, 'before', 'candidate commit')
                     if committed['field'] != '\u65e5\u672c' or committed['name'] != 'before':
                         raise RuntimeError(f'IME commit changed the scene: {committed}')
                     native.key(client.pid, 36)
@@ -332,6 +347,7 @@ def main():
                                                'apply': applied, 'imeReturn': ime_return,
                                                'cancel': cancelled, 'candidateKeys': commit_keys,
                                                'conversionMode': 'live' if live_conversion else 'space',
+                                               'candidateCommitKey': 'return' if commit_keys else 'conversion',
                                                'returnKeys': return_keys, 'cancelKeys': cancel_keys})
                     command('finish')
                     try:
