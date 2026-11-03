@@ -157,9 +157,13 @@ QString ActivateJapaneseIme(HWND window) {
         if (!context)
             return "Japanese IME has no native input context";
         const auto opened = ImmSetOpenStatus(context, TRUE);
+        DWORD previousConversion = 0, previousSentence = 0;
+        ImmGetConversionStatus(context, &previousConversion, &previousSentence);
+        std::fprintf(stderr, "Japanese IME initial conversion=0x%lx sentence=0x%lx\n",
+                     previousConversion, previousSentence);
         const auto converted = ImmSetConversionStatus(
             context, IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE | IME_CMODE_ROMAN,
-            IME_SMODE_NONE);
+            IME_SMODE_PLAURALCLAUSE);
         DWORD conversion = 0, sentence = 0;
         ImmGetConversionStatus(context, &conversion, &sentence);
         std::fprintf(stderr, "Japanese IME conversion=0x%lx sentence=0x%lx open=%d\n", conversion,
