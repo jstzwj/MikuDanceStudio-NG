@@ -53,7 +53,18 @@
     "final_qt_log": "out/p4-list-qt-tests.log",
     "final_control_passed": 2,
     "final_control_seconds": 21.62,
-    "final_control_log": "out/p4-text-final-tests.log"
+    "final_control_log": "out/p4-text-final-tests.log",
+    "windows_ci": {
+      "run": 41659495981,
+      "revision": "5077514",
+      "p4_passed": 73,
+      "p4_failed": 0,
+      "complete_edit_cases": 460,
+      "complete_edit_mismatches": 0,
+      "displayed_populated_cases": 68,
+      "displayed_populated_mismatches": 68,
+      "accepted_displayed_content": false
+    }
   },
   "relocated_package": {
     "assets": "assets",

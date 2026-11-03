@@ -110,13 +110,20 @@ commit/cancel and the subsequent editor command. The distro engine runs with its
 system Python/PyGObject runtime and an explicitly selected Hiragana input mode.
 This does not qualify Windows/macOS native IMEs.
 
-Native Windows/Microsoft Japanese IME and macOS/Kotoeri drivers now run only on
-isolated hosted runners. Run **41651244757** established actual Kotoeri Hiragana
-preedit and candidate conversion, but candidate Return did not commit. Its
-Windows test failed on a status-file replacement race. These are unsuccessful
-qualifications; the driver retains event order and the next revision corrects
-the snapshot race and native control-key characters. Neither profile is counted
-as accepted until its complete commit/cancel/editor-command sequence passes.
+Native Windows/Microsoft Japanese IME and macOS/Kotoeri drivers run only on
+isolated hosted runners. Windows run **41659361085** passed the complete English
+UI scenario, including native candidate commit, a separate editor Enter and
+cancellation; client shutdown then timed out before the other languages ran.
+macOS run **41659371934** established actual Hiragana preedit and candidate
+conversion, but candidate Return did not commit. These are unsuccessful overall
+qualifications. Final command acknowledgements and input-context logs are retained
+to distinguish shutdown and input delivery failures. Neither profile is accepted
+until all three languages complete and the native clients exit successfully.
+
+Windows run **41659495981** passed all **73 P4 regressions** and all 460 complete
+empty EDIT comparisons. Its new displayed populated-control qualification failed
+all 68 list/combobox states. The earlier 24 hidden populated-list comparisons
+remain separate evidence; they do not qualify displayed controls or combo labels.
 
 The selected-target clipboard command (250, F) is now connected to the shared
 session and all three Qt languages. It pastes only copied bone/accessory keys
