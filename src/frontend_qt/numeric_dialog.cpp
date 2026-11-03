@@ -104,8 +104,10 @@ public:
             DrawWindowsListRow(
                 *painter, option.rect, option.font, index.data(Qt::DisplayRole).toString(),
                 option.state & QStyle::State_Selected, option.state & QStyle::State_Enabled,
-                (option.state & QStyle::State_HasFocus) &&
-                    (option.state & QStyle::State_KeyboardFocusChange)))
+                // Item-view options carry HasFocus for the current focused
+                // item. QCommonStyle adds KeyboardFocusChange only later when
+                // constructing its separate focus-rectangle option.
+                option.state & QStyle::State_HasFocus))
             return;
 #endif
         auto row = option;
