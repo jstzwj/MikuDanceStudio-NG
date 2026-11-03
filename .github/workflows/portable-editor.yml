@@ -26,7 +26,7 @@ on:
         default: false
       system_ime:
         type: boolean
-        description: Qualify real Chinese/Japanese IBus input in private Linux display and DBus sessions
+        description: Qualify real platform IMEs (Linux IBus and macOS Kotoeri) on isolated runners
         default: false
 concurrency:
   group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}
@@ -379,6 +379,13 @@ jobs:
         env:
           MDS_GPU_BACKEND: metal
         run: ctest --test-dir out/p4 -L native-reference --output-on-failure --output-junit native-reference.xml
+      - name: Qualify native Japanese input and command ordering
+        if: ${{ !cancelled() && inputs.system_ime }}
+        env:
+          MDS_QT_ISOLATED_DISPLAY: '1'
+        run: |
+          cmake --build out/p4 --target qt_system_ime_test --parallel 3
+          python tests/test_macos_system_ime.py --test out/p4/qt_system_ime_test --report out/p4/system-ime-kotoeri.json
       - name: Native CoreAudio silent clock
         run: python tests/test_native_audio.py --test out/p4/qt_native_audio_test --report out/p4/native-audio.json --allow-unavailable
       - name: Deploy and validate relocated package
@@ -416,6 +423,7 @@ jobs:
             out/p4/p4.xml
             out/p4/native-reference.xml
             out/p4/native-reference/
+            out/p4/system-ime*
             out/p4/distribution-check.*
             out/p4/metal-only-distribution.*
             out/p4/editor-frame-performance*.json

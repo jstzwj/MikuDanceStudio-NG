@@ -33,11 +33,13 @@ public:
 }
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
+    const bool platformInput = (QGuiApplication::platformName() == "xcb" &&
+                                qEnvironmentVariable("QT_IM_MODULE") == "ibus") ||
+                               (QGuiApplication::platformName() == "cocoa" &&
+                                qEnvironmentVariable("MDS_SYSTEM_IME") == "kotoeri");
     if (argc != 5 || qEnvironmentVariable("GITHUB_ACTIONS") != "true" ||
-        qEnvironmentVariable("MDS_QT_ISOLATED_DISPLAY") != "1" ||
-        QGuiApplication::platformName() != "xcb" ||
-        qEnvironmentVariable("QT_IM_MODULE") != "ibus") {
-        std::fprintf(stderr, "Requires isolated CI X11/IBus: model language status command\n");
+        qEnvironmentVariable("MDS_QT_ISOLATED_DISPLAY") != "1" || !platformInput) {
+        std::fprintf(stderr, "Requires isolated CI platform IME: model language status command\n");
         return 2;
     }
     editor::EditorSession session;
@@ -74,6 +76,10 @@ int main(int argc, char** argv) {
             if (sequence > command) {
                 command = sequence;
                 if (request["action"] == "select") {
+                    if (QGuiApplication::platformName() == "cocoa") {
+                        dialog.raise();
+                        dialog.activateWindow();
+                    }
                     field->setFocus();
                     field->selectAll();
                 } else if (request["action"] == "finish")
