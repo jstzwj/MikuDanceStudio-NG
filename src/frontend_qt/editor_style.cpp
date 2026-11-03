@@ -121,7 +121,7 @@ public:
                     backdrop.end();
                     auto field =
                         subControlRect(CC_ComboBox, &blank, SC_ComboBoxEditField, widget);
-                    field.adjust(1, 0, -1, 0); // USER32's label inset within COMBOBOXINFO::rcItem.
+                    field.adjust(1, 0, 0, 0); // Native label inset; retain rcItem's right clipping edge.
                     if (DrawWindowsComboText(background, field, widget->font(), combo->currentText,
                                              combo->state & State_Enabled)) {
                         painter->drawImage(combo->rect.topLeft(), background);

@@ -31,6 +31,11 @@ class MacInput:
         self.objc.sel_registerName.argtypes, self.objc.sel_registerName.restype = [c.c_char_p], c.c_void_p
         self.send_object = c.CFUNCTYPE(c.c_void_p, c.c_void_p, c.c_void_p)(('objc_msgSend', self.objc))
         self.send_pid = c.CFUNCTYPE(c.c_int, c.c_void_p, c.c_void_p)(('objc_msgSend', self.objc))
+        set_policy = c.CFUNCTYPE(c.c_bool, c.c_void_p, c.c_void_p, c.c_long)(('objc_msgSend', self.objc))
+        application = self.send_object(self.objc.objc_getClass(b'NSApplication'),
+                                       self.objc.sel_registerName(b'sharedApplication'))
+        if not set_policy(application, self.objc.sel_registerName(b'setActivationPolicy:'), 2):
+            raise RuntimeError('Cannot keep the input driver out of the foreground')
         signatures = [
             (self.cf, 'CFArrayGetCount', c.c_long, [c.c_void_p]),
             (self.cf, 'CFArrayGetValueAtIndex', c.c_void_p, [c.c_void_p, c.c_long]),
@@ -204,7 +209,7 @@ def main():
             os.environ.get('MDS_QT_ISOLATED_DISPLAY') != '1'):
         raise RuntimeError('Requires an isolated native GitHub runner; never uses a developer desktop')
     engine = 'Kotoeri' if sys.platform == 'darwin' else 'Microsoft Japanese IME'
-    report = {'accepted': False, 'engine': engine, 'profiles': []}
+    report = {'accepted': False, 'engine': engine, 'driverPid': os.getpid(), 'profiles': []}
     args.report.parent.mkdir(parents=True, exist_ok=True)
     native = MacInput() if sys.platform == 'darwin' else WindowsInput()
     client = None
