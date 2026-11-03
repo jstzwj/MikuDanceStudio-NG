@@ -1130,27 +1130,33 @@
     },
     "metal": {
       "accepted": false,
-      "run": 41622629997,
-      "revision": "c8f1e35",
+      "run": 41631440318,
+      "revision": "fb8c1e8",
       "rest_outside_tolerance_elements": 24,
       "posed_outside_tolerance_elements": 21,
       "coverage_differences": [
         0,
         0
       ],
-      "note": "Uniform material Alpha correction applied; strict remaining line/depth differences still fail."
+      "note": "Picture and grid prefixes pass. First accessory ground-shadow/grid overlap fails; all color/Alpha and coverage criteria unchanged. Per-draw raw RGBA retained in CI artifact.",
+      "rest_outside_tolerance_pixels": 8,
+      "posed_outside_tolerance_pixels": 7,
+      "first_failing_prefix": 5
     },
     "software_vulkan": {
       "accepted": false,
-      "run": 41622621722,
-      "revision": "c8f1e35",
+      "run": 41631432925,
+      "revision": "fb8c1e8",
       "rest_outside_tolerance_elements": 29,
       "posed_outside_tolerance_elements": 54,
       "coverage_differences": [
         2,
         0
       ],
-      "note": "Uniform material Alpha correction applied; strict remaining line/depth differences still fail."
+      "note": "Grid prefix differs at the viewport border; most initial line differences are later occluded. Projected-shadow/grid overlap also differs. Per-draw raw RGBA retained; criteria unchanged.",
+      "rest_outside_tolerance_pixels": 9,
+      "posed_outside_tolerance_pixels": 18,
+      "first_failing_prefix": 2
     }
   }
 }

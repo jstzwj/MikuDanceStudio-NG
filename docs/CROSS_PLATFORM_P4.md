@@ -95,8 +95,11 @@ synthetic `QInputMethodEvent` tests. The client and driver refuse to show/input
 anything outside an explicitly isolated GitHub runner. Linux libpinyin passed
 all three languages in run **41634648066** at `c149568`; raw preedit/commit/apply/
 cancel states are retained in [IME evidence](evidence/cross-platform-p4-ime.json).
-This does not qualify Windows/macOS native IMEs. The Anthy conversion profile is
-under qualification separately.
+The Japanese Anthy profile also passed all three languages in run **41641234931**
+at `46b2bd1`: Hiragana preedit, conversion to the Japanese candidate, IME-owned
+commit/cancel and the subsequent editor command. The distro engine runs with its
+system Python/PyGObject runtime and an explicitly selected Hiragana input mode.
+This does not qualify Windows/macOS native IMEs.
 
 The selected-target clipboard command (250, F) is now connected to the shared
 session and all three Qt languages. It pastes only copied bone/accessory keys
