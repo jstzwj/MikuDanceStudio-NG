@@ -60,27 +60,26 @@ bool DrawWindowsListBorder(QPainter& painter, const QRect& rect, QStyle::State s
     const auto theme = OpenThemeDataForDpi(nullptr, L"ListBox", UINT(qRound(96 * ratio)));
     if (!theme)
         return false;
-    WindowsCanvas canvas(qRound(rect.width() * ratio), qRound(rect.height() * ratio));
-    bool painted = false;
-    if (!canvas.image.isNull()) {
-        canvas.image.fill(Qt::white);
-        const RECT rectangle{0, 0, canvas.image.width(), canvas.image.height()};
-        const int partState = !(state & QStyle::State_Enabled) ? LBPSN_DISABLED
-                              : state & QStyle::State_HasFocus ? LBPSN_FOCUSED
-                                                               : LBPSN_NORMAL;
-        painted = SUCCEEDED(DrawThemeBackground(theme, canvas.dc, LBCP_BORDER_NOSCROLL, partState,
-                                                &rectangle, nullptr));
-        GdiFlush();
-        if (painted) {
-            canvas.image.setDevicePixelRatio(ratio);
-            painter.save();
-            painter.setClipRegion(QRegion(rect).subtracted(QRegion(rect.adjusted(2, 2, -2, -2))),
-                                  Qt::IntersectClip);
-            painter.drawImage(rect.topLeft(), canvas.image);
-            painter.restore();
-        }
-    }
+    const int partState = !(state & QStyle::State_Enabled) ? LBPSN_DISABLED
+                          : state & QStyle::State_HasFocus ? LBPSN_FOCUSED : LBPSN_NORMAL;
+    COLORREF color{};
+    const bool painted = SUCCEEDED(GetThemeColor(theme, LBCP_BORDER_NOSCROLL, partState,
+                                                 TMT_BORDERCOLOR, &color));
     CloseThemeData(theme);
+    if (painted) {
+        // USER32's nonclient edge uses the theme color, not the client part's
+        // background bitmap. Preserve the white inner client-edge inset.
+        painter.save();
+        painter.setClipRegion(QRegion(rect).subtracted(QRegion(rect.adjusted(2, 2, -2, -2))),
+                              Qt::IntersectClip);
+        painter.fillRect(rect, Qt::white);
+        const QColor border(GetRValue(color), GetGValue(color), GetBValue(color));
+        painter.fillRect(QRect(rect.left(), rect.top(), rect.width(), 1), border);
+        painter.fillRect(QRect(rect.left(), rect.bottom(), rect.width(), 1), border);
+        painter.fillRect(QRect(rect.left(), rect.top(), 1, rect.height()), border);
+        painter.fillRect(QRect(rect.right(), rect.top(), 1, rect.height()), border);
+        painter.restore();
+    }
     return painted;
 }
 bool DrawWindowsComboText(QImage& background, const QRect& rect, const QFont& font,

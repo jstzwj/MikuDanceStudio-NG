@@ -119,8 +119,9 @@ public:
                     QPainter backdrop(&background);
                     QProxyStyle::drawComplexControl(CC_ComboBox, &blank, &backdrop, widget);
                     backdrop.end();
-                    const auto field =
+                    auto field =
                         subControlRect(CC_ComboBox, &blank, SC_ComboBoxEditField, widget);
+                    field.adjust(1, 0, -1, 0); // USER32's label inset within COMBOBOXINFO::rcItem.
                     if (DrawWindowsComboText(background, field, widget->font(), combo->currentText,
                                              combo->state & State_Enabled)) {
                         painter->drawImage(combo->rect.topLeft(), background);
