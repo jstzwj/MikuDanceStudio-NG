@@ -184,6 +184,7 @@ jobs:
             out/p4/system-ime*
             out/p4/control-style/
             out/p4/control-style-nonclient/
+            out/p4/control-content-visible/
             out/p4/distribution-check.*
             out/p4/editor-frame-performance*.json
             out/p4/native-audio*.json
