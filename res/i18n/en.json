@@ -660,5 +660,20 @@
   "dialog.enhance.preserve": "Please preserve the edit result as a new model by 'save enhanced model'.",
   "dialog.enhance.quit_title": "quit",
   "dialog.enhance.quit": "There is a enhanced model not preserved by 'save enhanced model'.\n\nDo you realy quit?",
-  "enhance.save_title": "save enhanced model"
+  "enhance.save_title": "save enhanced model",
+  "dialog.numeric.toon.title": "toon texture",
+  "dialog.numeric.toon.control.0": "OK",
+  "dialog.numeric.toon.control.1": "cancel",
+  "dialog.numeric.toon.control.2": "tex01",
+  "dialog.numeric.toon.control.3": "tex02",
+  "dialog.numeric.toon.control.4": "tex03",
+  "dialog.numeric.toon.control.5": "tex04",
+  "dialog.numeric.toon.control.6": "tex05",
+  "dialog.numeric.toon.control.12": "tex06",
+  "dialog.numeric.toon.control.13": "tex07",
+  "dialog.numeric.toon.control.14": "tex08",
+  "dialog.numeric.toon.control.15": "tex09",
+  "dialog.numeric.toon.control.16": "tex10",
+  "dialog.toon.missing": "Cannot find '%1'.\n\nPlease put '%1' in the same folder as model file (*.pmd).",
+  "dialog.toon.title": "toon texture"
 }

@@ -4,6 +4,7 @@
 #include "export.hpp"
 #include "numeric_dialog.hpp"
 #include "english_name_dialog.hpp"
+#include "toon_dialog.hpp"
 #include "model_labels.hpp"
 #include "mikudancestudio/editor_numeric.hpp"
 #include "mikudancestudio/mmd_control_specs.hpp"
@@ -1512,6 +1513,28 @@ QString EditorWindow::ModelLabel(std::uint8_t slot) const {
                         : std::string(model.name.begin(), model.name.end()))
                     .c_str());
     return {};
+}
+void EditorWindow::ToonTextures() {
+    ToonDialog dialog(session_, language_, this);
+    dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    dialog.missing = [this](const QString& name) {
+        lastError_ = language_.Text("dialog.toon.missing").arg(name);
+        if (!testing_) {
+            QMessageBox message(QMessageBox::NoIcon, language_.Text("dialog.toon.title"),
+                                lastError_, QMessageBox::Ok, this);
+            message.setTextFormat(Qt::PlainText);
+            message.exec();
+        }
+    };
+    const bool ok = dialog.exec() == QDialog::Accepted;
+    Refresh();
+    if (ok && !testing_) {
+        QMessageBox message(QMessageBox::NoIcon, language_.Text("dialog.enhance.title"),
+                            language_.Text("dialog.enhance.preserve"), QMessageBox::Ok, this);
+        message.setWindowFlag(Qt::WindowStaysOnTopHint);
+        message.setTextFormat(Qt::PlainText);
+        message.exec();
+    }
 }
 void EditorWindow::EnglishNames() {
     const auto resource = session_.Runtime().Resource(session_.Selected().model);

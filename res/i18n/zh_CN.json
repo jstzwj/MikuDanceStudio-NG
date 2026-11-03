@@ -660,5 +660,20 @@
   "dialog.enhance.preserve": "请使用“保存扩展模型”将编辑结果保存为新模型。",
   "dialog.enhance.quit_title": "退出",
   "dialog.enhance.quit": "有扩展编辑的模型尚未通过“保存扩展模型”保存。\n\n确定退出吗？",
-  "enhance.save_title": "保存扩展模型"
+  "enhance.save_title": "保存扩展模型",
+  "dialog.numeric.toon.title": "卡通渲染纹理",
+  "dialog.numeric.toon.control.0": "确定",
+  "dialog.numeric.toon.control.1": "取消",
+  "dialog.numeric.toon.control.2": "纹理01",
+  "dialog.numeric.toon.control.3": "纹理02",
+  "dialog.numeric.toon.control.4": "纹理03",
+  "dialog.numeric.toon.control.5": "纹理04",
+  "dialog.numeric.toon.control.6": "纹理05",
+  "dialog.numeric.toon.control.12": "纹理06",
+  "dialog.numeric.toon.control.13": "纹理07",
+  "dialog.numeric.toon.control.14": "纹理08",
+  "dialog.numeric.toon.control.15": "纹理09",
+  "dialog.numeric.toon.control.16": "纹理10",
+  "dialog.toon.missing": "找不到“%1”。\n\n请将“%1”放在模型文件(*.pmd)所在的文件夹。",
+  "dialog.toon.title": "卡通渲染纹理"
 }

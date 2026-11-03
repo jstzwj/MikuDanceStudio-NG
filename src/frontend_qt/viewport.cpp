@@ -15,6 +15,7 @@ render::SceneRenderSources EditorRenderSources(const editor::EditorAssets& asset
     for (const auto& [slot, path] : assets.modelTexturePaths)
         out.models[slot] = path;
     out.accessories = assets.accessoryPaths;
+    out.modelToons = assets.modelToons;
     out.picture = assets.picture;
     out.sharedToons =
         std::filesystem::u8path(QCoreApplication::applicationDirPath().toUtf8().constData()) /
@@ -165,6 +166,13 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
         frameCached_ = false;
     }
     cpuTimings_.assets = elapsed();
+    if (assets.modelToons != loaded_.modelToons) {
+        if (!producer_.ReloadTextures(session_.Runtime(), EditorRenderSources(assets), builtins_,
+                                      reason))
+            return false;
+        loaded_.modelToons = assets.modelToons;
+        frameCached_ = false;
+    }
     render::SceneRenderSettings settings;
     settings.width = w;
     settings.height = h;

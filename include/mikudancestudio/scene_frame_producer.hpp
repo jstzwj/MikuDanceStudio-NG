@@ -1,4 +1,5 @@
 #pragma once
+#include "model_toon_edit.hpp"
 #include "scene_runtime.hpp"
 #include "rhi_frame_passes.hpp"
 #include "render_self_shadow.hpp"
@@ -8,6 +9,7 @@
 namespace mikudancestudio::render {
 struct SceneRenderSources {
     std::map<std::uint8_t, std::filesystem::path> models, accessories;
+    std::map<std::uint8_t, std::shared_ptr<const ModelToonEdit>> modelToons;
     std::filesystem::path sharedToons;
     std::shared_ptr<const rhi::RgbaImage> picture;
 };

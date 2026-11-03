@@ -1,4 +1,5 @@
 #pragma once
+#include "model_toon_edit.hpp"
 #include "scene_display_options.hpp"
 #include "scene_runtime.hpp"
 #include "pmm_edit.hpp"
@@ -49,6 +50,7 @@ struct EditorAssets {
     std::map<std::uint8_t, std::filesystem::path> modelPaths, accessoryPaths;
     // Loaded texture directory survives "save enhanced model" to another folder.
     std::map<std::uint8_t, std::filesystem::path> modelTexturePaths;
+    std::map<std::uint8_t, std::shared_ptr<const ModelToonEdit>> modelToons;
     std::filesystem::path wave;
     std::filesystem::path picturePath;
     std::shared_ptr<const rhi::RgbaImage> picture;
@@ -89,6 +91,11 @@ public:
                         std::string&);
     bool MarkEnhancedModel(std::uint8_t, std::string&);
     bool EnhancedModelDirty() const { return enhancedModelDirty_; }
+    bool ModelToonNames(std::uint8_t, std::array<std::string, 10>&, std::string&) const;
+    // Names are UTF-8 UI text. Successful entries remain applied on partial failure.
+    bool SetModelToonNames(std::uint8_t, const std::array<std::string, 10>&,
+                           std::vector<unsigned>& missing, std::string&);
+    void RefreshModelToons();
     bool ImportPicture(const std::filesystem::path&, unsigned viewWidth, unsigned viewHeight,
                        std::string&);
     bool ShowPicture(bool visible, std::string&);
@@ -254,6 +261,8 @@ private:
     std::uint64_t gravityEpoch_ = 0;
     std::uint64_t appearanceRevision_ = 0;
     bool enhancedModelDirty_ = false;
+    void InitializeModelToons(EditorAssets&, bool refresh = false);
+    std::map<std::filesystem::path, std::shared_ptr<const rhi::RgbaImage>> toonImages_;
     SceneDisplayOptions display_;
     std::unique_ptr<runtime::SceneRuntime> runtime_;
     enum class HistoryKind {

@@ -301,6 +301,7 @@ bool EditorSession::UnloadModel(std::uint8_t slot, std::string& reason) {
     }
     next.assets.modelPaths.erase(slot);
     next.assets.modelTexturePaths.erase(slot);
+    next.assets.modelToons.erase(slot);
     auto& d = next.document;
     d.models.erase(std::remove_if(d.models.begin(), d.models.end(),
                                   [&](const auto& m) { return m.slot == slot; }),

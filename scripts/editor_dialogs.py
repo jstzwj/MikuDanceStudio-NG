@@ -25,6 +25,7 @@ NAMES += [('accessory_order', 'en', 659), ('accessory_order', 'ja', 627)]
 NAMES += [('frame_shift', 'en', 655), ('frame_shift', 'ja', 615)]
 NAMES += [('blink', 'en', 656), ('blink', 'ja', 617)]
 NAMES += [('english_name', 'en', 666), ('english_name', 'ja', 665)]
+NAMES += [('toon', 'en', 682), ('toon', 'ja', 681)]
 
 
 def source_dialogs():
@@ -43,6 +44,7 @@ def source_dialogs():
                    'frame_shift': 'FRAME_SHIFT',
                    'blink': 'REGISTER_BLINKING',
                    'english_name': 'ENGLISH_NAMES',
+                   'toon': 'TOON_TEXTURE',
                    'calculation_order': 'MODEL_CALCULATE_ORDER'}.get(kind, kind.upper() + '_NUMERIC_INPUT')
         tag = f'MDS_DLG_{command}_{"EN" if language == "en" else "JP"}'
         block = source.split(tag + ' DIALOGEX ', 1)[1].split('\n  END', 1)[0]
@@ -193,6 +195,9 @@ def run(check):
           'over': '\u7b2c', 'th': '\u4e2a\u4e4b\u540e',
           'accessory described after models': '\u7684\u9644\u4ef6\u5728\u6a21\u578b\u4e4b\u540e\u7ed8\u5236',
           'If name is writen by Japanese Font,Rename it to English Font.': '\u82f1\u6587\u540d\u79f0\u7f16\u8f91',
+          'toon texture': '\u5361\u901a\u6e32\u67d3\u7eb9\u7406',
+          **{f'toon{i:02}': f'toon{i:02}' for i in range(1, 11)},
+          **{f'tex{i:02}': f'\u7eb9\u7406{i:02}' for i in range(1, 11)},
           'Model Name': '\u6a21\u578b\u540d\u79f0', 'Model Info': '\u6a21\u578b\u8bf4\u660e',
           'Bone Name': '\u9aa8\u9abc\u540d\u79f0', 'Facial Name': '\u8868\u60c5\u540d\u79f0',
           'Division Name': '\u5206\u7ec4\u540d\u79f0', '<': '<', '>': '>',

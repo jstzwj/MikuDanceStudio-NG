@@ -570,4 +570,56 @@ inline constexpr NumericControl kNumericEnglishNameJaControls[] = {
 };
 inline constexpr NumericTemplate kNumericEnglishNameJa = {
     665, 226, 228, 9, "MS UI Gothic", "dialog.numeric.english_name.title", kNumericEnglishNameJaControls, 20};
+inline constexpr NumericControl kNumericToonEnControls[] = {
+    {1, 42, 84, 43, 14, NumericControlKind::Button, "dialog.numeric.toon.control.0", 0x50010001u},
+    {2, 107, 84, 42, 14, NumericControlKind::Button, "dialog.numeric.toon.control.1", 0x50010000u},
+    {-1, 3, 10, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.2", 0x50020000u},
+    {-1, 3, 25, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.3", 0x50020000u},
+    {-1, 3, 39, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.4", 0x50020000u},
+    {-1, 3, 53, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.5", 0x50020000u},
+    {-1, 3, 67, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.6", 0x50020000u},
+    {709, 28, 8, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {710, 28, 22, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {711, 28, 36, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {712, 28, 50, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {713, 28, 64, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {-1, 100, 10, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.12", 0x50020000u},
+    {-1, 100, 25, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.13", 0x50020000u},
+    {-1, 100, 39, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.14", 0x50020000u},
+    {-1, 100, 53, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.15", 0x50020000u},
+    {-1, 100, 67, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.16", 0x50020000u},
+    {714, 125, 8, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {715, 125, 22, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {716, 125, 36, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {717, 125, 50, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {718, 125, 64, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+};
+inline constexpr NumericTemplate kNumericToonEn = {
+    682, 193, 103, 9, "Arial", "dialog.numeric.toon.title", kNumericToonEnControls, 22};
+inline constexpr NumericControl kNumericToonJaControls[] = {
+    {1, 42, 84, 43, 14, NumericControlKind::Button, "dialog.numeric.toon.control.0", 0x50010001u},
+    {2, 107, 84, 42, 14, NumericControlKind::Button, "dialog.numeric.toon.control.1", 0x50010000u},
+    {-1, 3, 10, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.2", 0x50020000u},
+    {-1, 3, 25, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.3", 0x50020000u},
+    {-1, 3, 39, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.4", 0x50020000u},
+    {-1, 3, 53, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.5", 0x50020000u},
+    {-1, 3, 67, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.6", 0x50020000u},
+    {709, 28, 8, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {710, 28, 22, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {711, 28, 36, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {712, 28, 50, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {713, 28, 64, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {-1, 100, 10, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.12", 0x50020000u},
+    {-1, 100, 25, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.13", 0x50020000u},
+    {-1, 100, 39, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.14", 0x50020000u},
+    {-1, 100, 53, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.15", 0x50020000u},
+    {-1, 100, 67, 24, 10, NumericControlKind::Static, "dialog.numeric.toon.control.16", 0x50020000u},
+    {714, 125, 8, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {715, 125, 22, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {716, 125, 36, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {717, 125, 50, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+    {718, 125, 64, 59, 12, NumericControlKind::Edit, "", 0x50810080u},
+};
+inline constexpr NumericTemplate kNumericToonJa = {
+    681, 193, 103, 9, "MS PGothic", "dialog.numeric.toon.title", kNumericToonJaControls, 22};
 }

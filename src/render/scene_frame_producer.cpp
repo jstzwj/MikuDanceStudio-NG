@@ -414,7 +414,12 @@ bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRen
                 if (pmd && m.toonReference != 255) {
                     if (m.toonReference >= 10)
                         return Fail(reason, "pmd_toon_slot");
-                    const auto& name = resource->PmdToonNames()[m.toonReference];
+                    const auto edit = sources.modelToons.find(std::uint8_t(slot));
+                    if (edit != sources.modelToons.end() && !edit->second)
+                        return Fail(reason, "pmd_toon_edit_missing");
+                    const auto& names = edit == sources.modelToons.end() ? resource->PmdToonNames()
+                                                                         : edit->second->names;
+                    const auto& name = names[m.toonReference];
                     std::string decoded;
                     if (!text::DecodeCp932(
                             std::string_view(name.data(),
@@ -423,14 +428,12 @@ bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRen
                         return Fail(reason, "pmd_toon_encoding");
                     request.kind = ToonKind::ModelFile;
                     request.path = Path(decoded);
-                    for (unsigned n = 1; n <= 10; ++n) {
-                        char expected[20];
-                        std::snprintf(expected, sizeof expected, "toon%02u.bmp", n);
-                        if (decoded == expected) {
-                            request.kind = ToonKind::Shared;
-                            request.sharedSlot = n;
-                            break;
-                        }
+                    char expected[20];
+                    std::snprintf(expected, sizeof expected, "toon%02u.bmp",
+                                  unsigned(m.toonReference) + 1);
+                    if (decoded == expected) {
+                        request.kind = ToonKind::Shared;
+                        request.sharedSlot = unsigned(m.toonReference) + 1;
                     }
                 } else if (!pmd && m.sharedToon) {
                     request.kind = ToonKind::Shared;
@@ -440,7 +443,18 @@ bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRen
                     request.path = TexturePath(doc, m.toonIndex);
                 }
                 MaterialTextureAsset toon;
-                const bool toonReady = toons.Load(request, toon);
+                bool toonReady = false;
+                const auto edit = sources.modelToons.find(std::uint8_t(slot));
+                if (pmd && m.toonReference < 10 && edit != sources.modelToons.end() &&
+                    request.kind == ToonKind::ModelFile && edit->second->images[m.toonReference]) {
+                    toon.sourcePath = edit->second->paths[m.toonReference];
+                    toon.identity = "file:" + toon.sourcePath.generic_u8string();
+                    toon.origin = TextureOrigin::ModelFile;
+                    toon.content.image = *edit->second->images[m.toonReference];
+                    toon.content.revision = ImageRevision(toon.content.image);
+                    toonReady = true;
+                } else
+                    toonReady = toons.Load(request, toon);
                 if (!toonReady && (request.kind != ToonKind::ModelFile ||
                                    request.missing != MissingToonPolicy::Unbound))
                     return Fail(reason, "toon_missing_or_unsupported");

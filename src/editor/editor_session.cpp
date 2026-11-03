@@ -566,6 +566,7 @@ bool EditorSession::New(std::string& reason) {
     state_ = std::move(next);
     runtime_ = std::move(runtime);
     path_.clear();
+    toonImages_.clear();
     histories_.clear();
     for (auto& clipboard : clipboards_)
         clipboard.clear();
@@ -765,6 +766,8 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     runtime_ = std::move(runtime);
     state_ = std::move(next);
     path_ = absolute;
+    toonImages_.clear();
+    InitializeModelToons(state_.assets);
     display_.opaqueModels.fill(false);
     for (const auto& model : Document().models)
         display_.opaqueModels[model.slot] = true;
@@ -874,6 +877,7 @@ bool EditorSession::ImportModel(const std::filesystem::path& path, std::string& 
         next.assets.models[std::uint8_t(slot)] = resource;
         next.assets.modelPaths[std::uint8_t(slot)] = absolute;
         next.assets.modelTexturePaths[std::uint8_t(slot)] = absolute;
+        InitializeModelToons(next.assets);
         next.selection = {};
         next.selection.model = std::uint8_t(slot);
         if (!ReadPmmSelectedKeys(next.document, next.selection.model, next.selection.keys)) {

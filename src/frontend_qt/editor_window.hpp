@@ -124,6 +124,7 @@ private:
     void ScreenSize();
     void EdgeThickness();
     void EnglishNames();
+    void ToonTextures();
     void GroundShadowColor();
     void CenterBias();
     void OutlineColor();

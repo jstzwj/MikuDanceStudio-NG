@@ -57,10 +57,11 @@ bool EditorSession::SaveEnhancedModel(std::uint8_t slot, const std::filesystem::
     const unsigned firstGroup = model.facialTargets.empty() ? 2 : 3;
     for (unsigned i = 0; i < model.groupNames.size(); ++i)
         copy(model.englishGroupNames[i], names.groups[i + firstGroup]);
-    if (!model.englishPresence.hasToonFields)
-        for (unsigned i = 0; i < 10; ++i)
-            std::snprintf(model.toonNames[i].data(), model.toonNames[i].size(), "toon%02u.bmp",
-                          i + 1);
+    std::array<std::string, 10> toons;
+    if (!ModelToonNames(slot, toons, reason))
+        return false;
+    for (unsigned i = 0; i < 10; ++i)
+        copy(model.toonNames[i], toons[i]);
     std::vector<std::uint8_t> bytes;
     if (!format::WriteEnhancedPmd(model, bytes, reason))
         return false;

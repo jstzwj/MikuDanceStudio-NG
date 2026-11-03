@@ -97,6 +97,7 @@ bool ModelCommand(int command) {
     case MDS_CMD_LOAD_LIP_SYNC:
         return true;
     case MDS_CMD_EDIT_ENGLISH_NAMES:
+    case MDS_CMD_TOON_TEXTURES:
     case MDS_CMD_SAVE_ENHANCED_MODEL:
         return true;
     default:
@@ -258,7 +259,8 @@ void EditorWindow::RefreshMenus() {
         bool enabled = Implemented(command);
         if (ModelCommand(command))
             enabled &= model && !session_.Playing();
-        if (command == MDS_CMD_EDIT_ENGLISH_NAMES || command == MDS_CMD_SAVE_ENHANCED_MODEL) {
+        if (command == MDS_CMD_EDIT_ENGLISH_NAMES || command == MDS_CMD_SAVE_ENHANCED_MODEL ||
+            command == MDS_CMD_TOON_TEXTURES) {
             const auto resource = session_.Runtime().Resource(session_.Selected().model);
             enabled &= resource && resource->SourceKind() == format::ModelKind::Pmd;
         }
@@ -331,6 +333,7 @@ void EditorWindow::MenuCommand(int command) {
         return;
     idleRenderState_ = 1;
     if (command == MDS_CMD_RESTORE_TEXTURES) {
+        session_.RefreshModelToons();
         std::string reason;
         if (Result(viewport_->ReloadTextures(reason), reason))
             UpdateFrame();
@@ -453,6 +456,10 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_EDIT_ENGLISH_NAMES) {
         EnglishNames();
+        return;
+    }
+    if (command == MDS_CMD_TOON_TEXTURES) {
+        ToonTextures();
         return;
     }
     if (command == MDS_CMD_GROUND_SHADOW_COLOR) {

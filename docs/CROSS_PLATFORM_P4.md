@@ -3610,3 +3610,45 @@ built successfully; a separate x86 compilation/execution confirmed the 172-byte
 rigid record and all four damping/contact offsets. The P2 31-case report retained
 its input hashes and existing numerical contract. No visible window or audible
 test output was used.
+
+
+## Toon enhancement (2026-11-03)
+
+Command 261 now uses the original English/Japanese templates (682/681), with a
+Chinese catalog. There are 36 independently decoded binary dialog templates and
+91/103 implemented menu commands. The PMD-only/stopped gate remains active.
+The collector retains successful entries when another entry fails, reports each
+missing input, and closes on either result. Entering the default name for that
+slot skips both probing and storage, so it does not reset an existing custom
+name. Only complete success sets the enhanced-model reminder. PMM modification,
+bone history, current pose and CPU evaluation counters are unchanged.
+
+Live toon names and decoded CPU images are owned independently from immutable
+model geometry. They feed ordinary rendering, backend replacement, export and
+enhanced PMD saving. The original loaded texture directory survives saving the
+PMD to another location. Removing a resident file does not invalidate its cached
+image; explicit texture restoration discards cached image data and reloads the
+current names. No GPU objects enter editor history. Shared toon detection now
+matches the current material slot only: toon01.bmp in slot 2 is a private model
+file, matching the original renderer.
+
+The optional `--toon` original observer passed 16 complete dispatcher commands,
+including both languages, Cancel/OK, default skip, multiple failures, cross-slot
+default names, dialog prefill and reminder/PMM flags. It executes the actual
+original dialog procedure/collector; only USER32 calls, text encoding and the GPU
+file probe are intercepted. Portable BMP decoding and actual rendered material
+changes have separate public offscreen Qt regressions. Inputs over the original
+100-byte storage limit are rejected rather than invoking its CRT failure path.
+The existing portable texture decoder's supported formats remain unchanged.
+
+The preceding enhanced-save revision 47610be passed Windows/macOS/Linux Portable
+editor [CI 41575490189](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41575490189).
+Physics enhancement, combined scenes and full input/layout/C1 gates continue.
+
+Local ALL_BUILD passed. The 52-test P4 sweep passed all 51 other gates; an
+incorrect toon assertion that compared overlay versions across resizing was
+corrected, then all five affected gates passed (19.90 seconds). The final toon
+regression additionally passed on DX11 WARP, DX12 WARP and hardware Vulkan,
+including a real second device and strict rebound-image equality after deleting
+the resident private toon file. The optional 16-case original observer passed
+again. The final application build remains part of this increment.
