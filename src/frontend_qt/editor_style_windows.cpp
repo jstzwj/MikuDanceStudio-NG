@@ -83,7 +83,7 @@ bool DrawWindowsListBorder(QPainter& painter, const QRect& rect, QStyle::State s
     return painted;
 }
 bool DrawWindowsComboText(QImage& background, const QRect& rect, const QFont& font,
-                          const QString& text, bool enabled) {
+                          const QString& text, bool enabled, bool keyboardFocus) {
     WindowsCanvas canvas(background.width(), background.height());
     if (canvas.image.isNull())
         return false;
@@ -101,9 +101,16 @@ bool DrawWindowsComboText(QImage& background, const QRect& rect, const QFont& fo
     SetTextColor(canvas.dc, GetSysColor(enabled ? COLOR_WINDOWTEXT : COLOR_GRAYTEXT));
     RECT rectangle{qRound(rect.left() * ratio), qRound(rect.top() * ratio),
                    qRound((rect.right() + 1) * ratio), qRound((rect.bottom() + 1) * ratio)};
+    const auto focus = rectangle;
+    rectangle.left = qRound((rect.left() + 1) * ratio);
     const auto caption = text.toStdWString();
     DrawTextW(canvas.dc, caption.c_str(), int(caption.size()), &rectangle,
               DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+    if (keyboardFocus) {
+        SetTextColor(canvas.dc, RGB(0, 0, 0));
+        SetBkColor(canvas.dc, RGB(255, 255, 255));
+        DrawFocusRect(canvas.dc, &focus);
+    }
     GdiFlush();
     std::memcpy(background.bits(), canvas.image.constBits(), background.sizeInBytes());
     SelectObject(canvas.dc, previous);

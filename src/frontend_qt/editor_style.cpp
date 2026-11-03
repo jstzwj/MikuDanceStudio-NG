@@ -107,7 +107,7 @@ public:
             baseStyle()->objectName() == "windowsvista")
             if (const auto* combo = qstyleoption_cast<const QStyleOptionComboBox*>(option)) {
                 if (!combo->editable && combo->currentIcon.isNull() &&
-                    combo->direction == Qt::LeftToRight && !(combo->state & State_HasFocus)) {
+                    combo->direction == Qt::LeftToRight) {
                     const auto ratio = painter->device()->devicePixelRatioF();
                     QImage background(qRound(combo->rect.width() * ratio),
                                       qRound(combo->rect.height() * ratio), QImage::Format_RGB32);
@@ -121,9 +121,9 @@ public:
                     backdrop.end();
                     auto field =
                         subControlRect(CC_ComboBox, &blank, SC_ComboBoxEditField, widget);
-                    field.adjust(1, 0, 0, 0); // Native label inset; retain rcItem's right clipping edge.
                     if (DrawWindowsComboText(background, field, widget->font(), combo->currentText,
-                                             combo->state & State_Enabled)) {
+                                             combo->state & State_Enabled,
+                                             combo->state & State_HasFocus)) {
                         painter->drawImage(combo->rect.topLeft(), background);
                         return;
                     }
