@@ -221,9 +221,11 @@ int main(int argc, char** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     QApplication app(argc, argv);
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
-    const bool visible = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-nonclient";
+    const bool visible = argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--isolated-nonclient" ||
+                                      QString::fromLocal8Bit(argv[1]) == "--isolated-content");
     const bool text = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--text";
-    const bool content = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--content";
+    const bool content = argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--content" ||
+                                      QString::fromLocal8Bit(argv[1]) == "--isolated-content");
     Check(argc == 2 || visible || text || content,
           "usage: [--isolated-nonclient|--text|--content] output-directory");
     Check(!visible || (qEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
@@ -345,13 +347,14 @@ int main(int argc, char** argv) try {
             const bool other = entry.kind == NumericControlKind::Combobox ||
                                entry.kind == NumericControlKind::Listbox ||
                                entry.kind == NumericControlKind::Slider;
-            if (content && entry.kind != NumericControlKind::Listbox)
+            if (content && entry.kind != NumericControlKind::Listbox &&
+                !(visible && entry.kind == NumericControlKind::Combobox))
                 continue;
             if (text && entry.kind != NumericControlKind::Button &&
                 entry.kind != NumericControlKind::Checkbox &&
                 entry.kind != NumericControlKind::Radio)
                 continue;
-            if (visible ? entry.kind != NumericControlKind::Edit
+            if (visible ? (!content && entry.kind != NumericControlKind::Edit)
                         : (entry.kind != NumericControlKind::Edit &&
                            entry.kind != NumericControlKind::Button &&
                            entry.kind != NumericControlKind::Checkbox &&
@@ -418,6 +421,13 @@ int main(int argc, char** argv) try {
             if (auto* combo = qobject_cast<QComboBox*>(widget)) {
                 combo->clear();
                 SendMessageW(control, CB_RESETCONTENT, 0, 0);
+                if (content) {
+                    const auto caption = templateIndex % 2 ? QStringLiteral("\u65e5\u672c\u8a9e ABC")
+                                                           : QString("ABC 012345");
+                    combo->addItem(caption);
+                    SendMessageW(control, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(caption.toStdWString().c_str()));
+                    SendMessageW(control, CB_SETCURSEL, 0, 0);
+                }
             }
             if (auto* list = qobject_cast<QListWidget*>(widget)) {
                 list->clear();
@@ -554,7 +564,7 @@ int main(int argc, char** argv) try {
         {"trackbarGeometryCases", int(geometryCases)},
         {"textGeometryCases", int(textGeometryCases)},
         {"textGeometryKeyboardFocus", text},
-        {"comparison", visible ? "exact RGB, EDIT normal/disabled including nonclient"
+        {"comparison", visible && !content ? "exact RGB, EDIT normal/disabled including nonclient"
                                : "exact RGB, normal/disabled/pressed, checked/unchecked"},
         {"keyboardFocusCues", false},
         {"textGlyphs", text || content},

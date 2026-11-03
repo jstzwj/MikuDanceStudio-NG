@@ -126,7 +126,10 @@ jobs:
         env:
           QT_QPA_PLATFORM: windows
           MDS_QT_ISOLATED_DISPLAY: '1'
-        run: out/p4/qt_control_style_test.exe --isolated-nonclient out/p4/control-style-nonclient
+        run: |
+          out/p4/qt_control_style_test.exe --isolated-nonclient out/p4/control-style-nonclient
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          out/p4/qt_control_style_test.exe --isolated-content out/p4/control-content-visible
       - name: Qualify native Japanese input and command ordering
         if: ${{ !cancelled() && inputs.system_ime }}
         shell: powershell
