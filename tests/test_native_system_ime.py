@@ -246,6 +246,25 @@ def main():
                                 time.sleep(.025)
                         return sequence
 
+                    def finish_composition(key, commits, name, label):
+                        states = []
+                        # Native candidate/prediction UIs may consume one key
+                        # to close a panel before committing/cancelling preedit.
+                        # Never send another key after preedit has ended: that
+                        # would exercise an editor command instead of the IME.
+                        for _ in range(3):
+                            native.key(client.pid, key)
+                            time.sleep(.35)
+                            state = wait(lambda s: True, label)
+                            states.append(state)
+                            if not state['active'] or state['name'] != name:
+                                raise RuntimeError(f'IME key executed an editor command: {state}')
+                            if not state['preedit']:
+                                if state['commits'] != commits:
+                                    raise RuntimeError(f'Unexpected native commit/cancel: {state}')
+                                return state, states
+                        raise RuntimeError(f'{label}: native preedit did not end: {states}')
+
                     wait(lambda s: s['active'], 'startup')
                     command('select')
                     wait(lambda s: s['focus'] and s['command'] == sequence, 'native focus')
@@ -257,8 +276,7 @@ def main():
                         raise RuntimeError(f'Composition executed an editor command: {preedit}')
                     native.key(client.pid, 49)  # Space: candidate conversion
                     converted = wait(lambda s: '\u65e5\u672c' in s['preedit'], 'Japanese candidate conversion')
-                    native.key(client.pid, 36)  # Return: IME commit
-                    committed = wait(lambda s: s['commits'] == 1 and not s['preedit'], 'candidate commit')
+                    committed, commit_keys = finish_composition(36, 1, 'before', 'candidate commit')
                     if committed['field'] != '\u65e5\u672c' or committed['name'] != 'before':
                         raise RuntimeError(f'IME commit changed the scene: {committed}')
                     native.key(client.pid, 36)
@@ -267,22 +285,21 @@ def main():
                     wait(lambda s: s['command'] == sequence, 'second selection')
                     native.type_japanese(client.pid)
                     wait(lambda s: s['preedit'], 'second composition')
-                    native.key(client.pid, 36)
-                    ime_return = wait(lambda s: s['commits'] == 2 and not s['preedit'], 'IME Enter')
+                    ime_return, return_keys = finish_composition(36, 2, '\u65e5\u672c', 'IME Enter')
                     if ime_return['name'] != '\u65e5\u672c' or not ime_return['active']:
                         raise RuntimeError(f'IME Enter also executed a command: {ime_return}')
                     command('select')
                     wait(lambda s: s['command'] == sequence, 'third selection')
                     native.type_japanese(client.pid)
                     wait(lambda s: s['preedit'], 'third composition')
-                    native.key(client.pid, 53)  # Escape: cancel composition
-                    cancelled = wait(lambda s: not s['preedit'] and s['active'], 'IME Escape')
+                    cancelled, cancel_keys = finish_composition(53, 2, '\u65e5\u672c', 'IME Escape')
                     if cancelled['name'] != '\u65e5\u672c' or cancelled['commits'] != 2:
                         raise RuntimeError(f'IME cancellation changed the scene: {cancelled}')
                     report['profiles'].append({'language': language, 'preedit': preedit,
                                                'conversion': converted, 'commit': committed,
                                                'apply': applied, 'imeReturn': ime_return,
-                                               'cancel': cancelled})
+                                               'cancel': cancelled, 'candidateKeys': commit_keys,
+                                               'returnKeys': return_keys, 'cancelKeys': cancel_keys})
                     command('finish')
                     if client.wait(timeout=10):
                         raise RuntimeError('Input client failed')
