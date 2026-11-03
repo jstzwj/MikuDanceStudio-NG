@@ -843,7 +843,8 @@ bool SceneRuntime::CanApplyEditorDocument(const format::PmmSceneDocument& doc) c
     return true;
 }
 
-bool SceneRuntime::ApplyEditorDocument(format::SceneSession candidate, std::string& reason) try {
+bool SceneRuntime::ApplyEditorDocument(format::SceneSession candidate, std::string& reason,
+                                       std::optional<std::uint8_t> forcePose) try {
     if (!candidate.Loaded() || !CanApplyEditorDocument(candidate.Document())) {
         reason = "scene-editor-layout-changed";
         return false;
@@ -888,7 +889,8 @@ bool SceneRuntime::ApplyEditorDocument(format::SceneSession candidate, std::stri
             const auto& value = source.bonePose[i];
             // Unchanged saved poses must not overwrite the live IK result or
             // physics backup produced since the last document evaluation.
-            if (!std::equal(value.components.begin(), value.components.begin() + 7,
+            if (forcePose == source.slot ||
+                !std::equal(value.components.begin(), value.components.begin() + 7,
                             before.bonePose[i].components.begin())) {
                 std::copy_n(value.components.begin(), 3, bone.trans);
                 std::copy_n(value.components.begin() + 3, 4, bone.rotQuat);
@@ -901,7 +903,7 @@ bool SceneRuntime::ApplyEditorDocument(format::SceneSession candidate, std::stri
             }
         }
         for (unsigned i = 0; i < source.morphPose.size(); ++i)
-            if (source.morphPose[i] != before.morphPose[i])
+            if (forcePose == source.slot || source.morphPose[i] != before.morphPose[i])
                 timeline.morphs[item.morphMap[i]].value = source.morphPose[i];
         for (unsigned i = 0; i < source.ikPose.size(); ++i)
             timeline.chains[item.ikMap[i]].enabled = source.ikPose[i];
@@ -981,6 +983,89 @@ bool SceneRuntime::ApplyEditorDocument(format::SceneSession candidate, std::stri
     return false;
 }
 
+bool SceneRuntime::PhysicsEditPose(std::uint8_t slot, bool fromTracks, std::string& reason) {
+    if (!impl_ || impl_->failed || impl_->playing || !impl_->session || !impl_->items.count(slot)) {
+        reason = "physics-edit-target-unavailable";
+        return false;
+    }
+    auto document = impl_->session->Document();
+    auto target = std::find_if(document.models.begin(), document.models.end(),
+                               [&](const auto& m) { return m.slot == slot; });
+    if (target == document.models.end()) {
+        reason = "physics-edit-model-missing";
+        return false;
+    }
+    if (fromTracks) {
+        auto evaluated = *impl_->session;
+        if (!evaluated.Seek(impl_->frame, {false, false})) {
+            reason = "physics-edit-seek-failed";
+            return false;
+        }
+        const auto& models = evaluated.Document().models;
+        *target = *std::find_if(models.begin(), models.end(),
+                                [&](const auto& m) { return m.slot == slot; });
+    } else {
+        for (auto& bone : target->bonePose) {
+            std::fill_n(bone.components.begin(), 7, 0.f);
+            bone.components[6] = 1;
+        }
+    }
+    format::SceneSession candidate;
+    return format::SceneSession::Create(document, candidate, reason) &&
+           ApplyEditorDocument(std::move(candidate), reason, slot);
+}
+bool SceneRuntime::ReplacePmdPhysics(std::uint8_t slot,
+                                     const std::vector<format::RigidData>& rigids,
+                                     const std::vector<format::JointData>& joints,
+                                     std::string& reason) try {
+    if (!impl_ || impl_->failed || impl_->playing || !impl_->session || !impl_->items.count(slot)) {
+        reason = "physics-edit-target-unavailable";
+        return false;
+    }
+    auto& item = impl_->items.at(slot);
+    if (!item.resource->PmdSource()) {
+        reason = "physics-edit-requires-pmd";
+        return false;
+    }
+    format::ModelDocument document;
+    document.kind = format::ModelKind::Pmd;
+    document.pmd = *item.resource->PmdSource();
+    document.pmd.rigids = rigids;
+    document.pmd.joints = joints;
+    document.pmd.hasPhysicsSection = true;
+    std::shared_ptr<const ModelResource> resource;
+    if (!ModelResource::Create(document, resource, reason))
+        return false;
+    auto physics = std::make_unique<ModelPhysics>();
+    int constraint = impl_->constraintId;
+    if (!physics->Create(resource, impl_->world.world, constraint, reason))
+        return false;
+    physics->CopyPoseBackupFrom(*item.physics);
+    auto instance = std::make_unique<ModelInstance>(resource);
+    // Validate and prepare the replacement before restoring the dialog pose.
+    // A rejected body/joint must not alter the current scene or its world.
+    if (!PhysicsEditPose(slot, true, reason))
+        return false;
+    // Physics replacement changes no vertex, material or current bone pose.
+    // Keep the published CPU snapshot; the next normal frame uses the new owner.
+    instance->snapshot_ = item.instance->Snapshot();
+    auto bones = item.timeline.bones;
+    for (auto& bone : bones)
+        bone.hasRigidBody = false;
+    for (const auto& body : rigids)
+        if (body.mode && body.boneIndex >= 0)
+            bones.at(std::size_t(body.boneIndex)).hasRigidBody = true;
+    item.timeline.bones = std::move(bones);
+    item.instance = std::move(instance);
+    item.resource = std::move(resource);
+    item.physics = std::move(physics); // Remove only the replaced model's old bodies/constraints.
+    impl_->constraintId = constraint;
+    reason.clear();
+    return true;
+} catch (const std::exception& e) {
+    reason = e.what();
+    return false;
+}
 bool SceneRuntime::Edit(const std::function<void(format::PmmSceneDocument&)>& change,
                         std::string& reason) {
     if (!impl_ || !impl_->session || impl_->failed) {

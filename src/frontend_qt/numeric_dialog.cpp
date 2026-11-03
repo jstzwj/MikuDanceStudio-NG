@@ -68,7 +68,7 @@ protected:
 private:
     int wheelRemainder_ = 0;
 };
-bool FloatPrefix(const QString& text, int limit, float& result) {
+bool DoublePrefix(const QString& text, int limit, double& result) {
     const auto bytes = text.toUtf8().left(limit);
     const char* begin = bytes.constData();
     const char* end = begin + bytes.size();
@@ -87,6 +87,13 @@ bool FloatPrefix(const QString& text, int limit, float& result) {
         parsed = QLocale::c().toDouble(match.captured(), &valid);
     if (!valid || !std::isfinite(parsed) || !std::isfinite(float(parsed)))
         return false;
+    result = parsed;
+    return true;
+}
+bool FloatPrefix(const QString& text, int limit, float& result) {
+    double parsed;
+    if (!DoublePrefix(text, limit, parsed))
+        return false;
     result = float(parsed);
     return true;
 }
@@ -96,6 +103,9 @@ int EdgePosition(float value) {
         return 0;
     return std::clamp(int(scaled), 0, 200);
 }
+}
+bool NativeDialogDoublePrefix(const QString& text, int limit, double& result) {
+    return DoublePrefix(text, limit, result);
 }
 TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Language& language,
                                QWidget* parent)
@@ -168,6 +178,14 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
             check->setFocusPolicy(Qt::ClickFocus);
             checkboxes_[control.id] = check;
             widget = check;
+        } else if (control.kind == ui::NumericControlKind::Radio) {
+            auto* radio = new QRadioButton(language.Text(control.message), this);
+            radio->setAutoExclusive(false);
+            radio->setFocusPolicy(Qt::ClickFocus);
+            radios_[control.id] = radio;
+            connect(radio, &QRadioButton::clicked, this,
+                    [this, id = control.id] { ButtonClicked(id); });
+            widget = radio;
         } else {
             auto* button = new QPushButton(language.Text(control.message), this);
             button->setAutoDefault(false);

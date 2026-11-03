@@ -49,7 +49,11 @@ public:
     // document and fresh CPU snapshots without stepping/recreating the world.
     // Unsupported structural changes use LoadResources; rejection is atomic.
     bool CanApplyEditorDocument(const format::PmmSceneDocument&) const;
-    bool ApplyEditorDocument(format::SceneSession, std::string&);
+    bool ApplyEditorDocument(format::SceneSession, std::string&,
+                             std::optional<std::uint8_t> forcePose = {});
+    bool PhysicsEditPose(std::uint8_t, bool fromTracks, std::string&);
+    bool ReplacePmdPhysics(std::uint8_t, const std::vector<format::RigidData>&,
+                           const std::vector<format::JointData>&, std::string&);
     void SetPanelExpanded(unsigned option, bool expanded);
     void SetSidebarWidth(int width);
     bool SetFrameLimit(unsigned limit);

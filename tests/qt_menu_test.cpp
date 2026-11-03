@@ -475,7 +475,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 91);
+    CHECK(implemented == 92);
     for (const char* language : {"en", "ja", "zh_CN"}) {
         qt::EditorWindow about(std::filesystem::absolute(argv[2]), true);
         CHECK(about.SetLanguage(language));

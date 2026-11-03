@@ -19,6 +19,7 @@ class EdgeThicknessDialog;
 class GroundShadowDialog;
 class GravityDialog;
 class EnglishNameDialog;
+class ModelPhysicsDialog;
 class EditorWindow final : public QMainWindow {
 public:
     explicit EditorWindow(std::filesystem::path assets, bool testing = false,
@@ -63,6 +64,7 @@ private:
     QPointer<GroundShadowDialog> groundShadowDialog_;
     QPointer<GravityDialog> gravityDialog_;
     QPointer<EnglishNameDialog> englishDialog_;
+    QPointer<ModelPhysicsDialog> physicsDialog_;
     std::uint64_t gravityEpoch_ = 0;
     std::uint8_t edgeModel_ = 255;
     std::weak_ptr<const runtime::ModelResource> edgeResource_;
@@ -124,6 +126,7 @@ private:
     void ScreenSize();
     void EdgeThickness();
     void EnglishNames();
+    void ModelPhysics();
     void ToonTextures();
     void GroundShadowColor();
     void CenterBias();

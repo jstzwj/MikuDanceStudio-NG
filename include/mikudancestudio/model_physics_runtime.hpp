@@ -14,6 +14,7 @@ public:
     bool Create(std::shared_ptr<const ModelResource>, btDiscreteDynamicsWorld*, int& constraintId,
                 std::string&);
     void Restore(ModelEvaluation&);
+    void CopyPoseBackupFrom(const ModelPhysics& other) { backup_ = other.backup_; }
     void Attach(cpu_model::Model&);
     void Execute(ModelEvaluation&, CpuPhysicsModelPhase);
     std::vector<std::array<float, 38>> Snapshot() const;

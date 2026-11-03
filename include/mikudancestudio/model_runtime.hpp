@@ -187,6 +187,7 @@ public:
     const ModelSnapshot& Snapshot() const { return snapshot_; }
 
 private:
+    friend class SceneRuntime;
     std::shared_ptr<const ModelResource> resource_;
     std::shared_ptr<const MotionClip> motion_;
     ModelSnapshot snapshot_;

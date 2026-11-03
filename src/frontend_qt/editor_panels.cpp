@@ -1,6 +1,7 @@
 #include "editor_window.hpp"
 #include "combo_items.hpp"
 #include "english_name_dialog.hpp"
+#include "model_physics_dialog.hpp"
 #include "model_labels.hpp"
 #include "mikudancestudio/text_encoding.hpp"
 #include <QAbstractButton>
@@ -144,7 +145,8 @@ void EditorWindow::RefreshPanels() {
     check(kFrameVolumeCheckbox, lowPower_);
     const bool model = session_.Selected().model != 255;
     Control(kMainComboModel)
-        ->setEnabled(!session_.Playing() && !(englishDialog_ && englishDialog_->Active()));
+        ->setEnabled(!session_.Playing() && !(englishDialog_ && englishDialog_->Active()) &&
+                     !(physicsDialog_ && physicsDialog_->Active()));
     Control(kModelEditToggle)->setEnabled(!session_.Playing());
     static_cast<QAbstractButton*>(Control(kModelEditToggle))
         ->setText(language_.Text(model ? "mode.to_camera" : "mode.to_model"));

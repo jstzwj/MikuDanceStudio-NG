@@ -33,6 +33,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/numeric_dialog.cpp"
         "${root}/src/frontend_qt/english_name_dialog.cpp"
         "${root}/src/frontend_qt/toon_dialog.cpp"
+        "${root}/src/frontend_qt/model_physics_dialog.cpp"
         "${root}/src/frontend_qt/viewport.cpp"
         "${root}/src/frontend_qt/relative_pointer.cpp"
         "${root}/src/frontend_qt/surface.cpp")
@@ -126,6 +127,12 @@ function(mds_add_qt_editor)
         qt_add_executable(qt_numeric_test "${root}/tests/qt_numeric_test.cpp")
         qt_add_executable(qt_english_names_test "${root}/tests/qt_english_names_test.cpp")
         qt_add_executable(qt_model_save_test "${root}/tests/qt_model_save_test.cpp")
+        qt_add_executable(qt_model_physics_test "${root}/tests/qt_model_physics_test.cpp")
+        target_link_libraries(qt_model_physics_test PRIVATE mikudancestudio_frontend_qt Qt6::Test)
+        add_test(NAME qt_model_physics COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_qt_numeric.py"
+            --test $<TARGET_FILE:qt_model_physics_test> --assets "${root}/res/assets"
+            --evidence "${root}/tests/reference/model-physics-original.json")
+        set_tests_properties(qt_model_physics PROPERTIES LABELS "p4;offscreen;qt;oracle" TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_toon_test "${root}/tests/qt_toon_test.cpp")
         target_link_libraries(qt_toon_test PRIVATE mikudancestudio_frontend_qt Qt6::Test)
         add_test(NAME qt_toon COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_qt_numeric.py"

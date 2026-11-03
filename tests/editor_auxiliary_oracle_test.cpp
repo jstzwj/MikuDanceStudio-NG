@@ -3299,6 +3299,7 @@ void GravityCapacity(OriginalPhysicsModule& original) {
 #include "editor_english_names_oracle.hpp"
 #include "editor_model_save_oracle.hpp"
 #include "editor_toon_oracle.hpp"
+#include "editor_model_physics_oracle.hpp"
 int wmain(int argc, wchar_t** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     std::setvbuf(stdout, nullptr, _IONBF, 0);
@@ -3306,6 +3307,11 @@ int wmain(int argc, wchar_t** argv) try {
           "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
     if (argc == 4) {
+        if (std::wcscmp(argv[3], L"--model-physics") == 0) {
+            std::printf("%u original physics dialog snapshots passed\n",
+                        ModelPhysicsCommands(original, argv[2]));
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--toon") == 0) {
             std::printf("%u original complete toon commands passed\n",
                         ToonCommands(original, argv[2]));

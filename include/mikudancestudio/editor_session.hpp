@@ -1,5 +1,6 @@
 #pragma once
 #include "model_toon_edit.hpp"
+#include "model_physics_edit.hpp"
 #include "scene_display_options.hpp"
 #include "scene_runtime.hpp"
 #include "pmm_edit.hpp"
@@ -96,6 +97,9 @@ public:
     bool SetModelToonNames(std::uint8_t, const std::array<std::string, 10>&,
                            std::vector<unsigned>& missing, std::string&);
     void RefreshModelToons();
+    bool BeginModelPhysicsEdit(std::uint8_t, ModelPhysicsEdit&, std::string&);
+    bool FinishModelPhysicsEdit(std::uint8_t, const ModelPhysicsEdit* accepted, std::string&);
+    ModelPhysicsClipboard& PhysicsClipboard() { return physicsClipboard_; }
     bool ImportPicture(const std::filesystem::path&, unsigned viewWidth, unsigned viewHeight,
                        std::string&);
     bool ShowPicture(bool visible, std::string&);
@@ -261,6 +265,7 @@ private:
     std::uint64_t gravityEpoch_ = 0;
     std::uint64_t appearanceRevision_ = 0;
     bool enhancedModelDirty_ = false;
+    ModelPhysicsClipboard physicsClipboard_;
     void InitializeModelToons(EditorAssets&, bool refresh = false);
     std::map<std::filesystem::path, std::shared_ptr<const rhi::RgbaImage>> toonImages_;
     SceneDisplayOptions display_;

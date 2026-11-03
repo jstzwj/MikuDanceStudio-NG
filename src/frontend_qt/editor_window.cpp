@@ -4,6 +4,7 @@
 #include "export.hpp"
 #include "numeric_dialog.hpp"
 #include "english_name_dialog.hpp"
+#include "model_physics_dialog.hpp"
 #include "toon_dialog.hpp"
 #include "model_labels.hpp"
 #include "mikudancestudio/editor_numeric.hpp"
@@ -289,7 +290,8 @@ void EditorWindow::Tick(double seconds) {
     if (!std::isfinite(seconds) || seconds < 0)
         return;
     AdvanceIdleRenderGate(idleRenderState_, session_.Playing(), lowPower_,
-                          englishDialog_ && englishDialog_->Active());
+                          (englishDialog_ && englishDialog_->Active()) ||
+                              (physicsDialog_ && physicsDialog_->Active()));
     if (!idleRenderState_)
         return;
     if (session_.Playing()) {
@@ -335,6 +337,9 @@ EditorWindow::~EditorWindow() {
     if (englishDialog_)
         disconnect(englishDialog_, nullptr, this, nullptr);
     delete englishDialog_.data();
+    if (physicsDialog_)
+        disconnect(physicsDialog_, nullptr, this, nullptr);
+    delete physicsDialog_.data();
     if (!testing_) {
         QSettings settings;
         settings.setValue("editor/lowPower", lowPower_);
@@ -674,6 +679,8 @@ void EditorWindow::Refresh() {
                                 !session_.Document().wave.enabled))
         audio_.Stop();
     const auto& doc = session_.Document();
+    if (physicsDialog_ && !physicsDialog_->Valid())
+        physicsDialog_->Invalidate();
     if (englishDialog_ && !englishDialog_->Valid())
         englishDialog_->Invalidate();
     if (edgeDialog_) {
@@ -727,6 +734,7 @@ void EditorWindow::Refresh() {
     check(kPhysicsFrameCheckbox, session_.AutoInterpolation());
     check(kPhysicsCheckbox, session_.RegistrationPhysics());
     check(kPlaybackFromCurrentCheckbox, doc.timeline.startAtCurrent);
+    Control(kPlayButton)->setEnabled(!(physicsDialog_ && physicsDialog_->Active()));
     if (auto* b = qobject_cast<QAbstractButton*>(Control(kPlayButton)))
         b->setText(language_.Text(session_.Playing() ? "stop" : "control.408"));
     auto* models = qobject_cast<QComboBox*>(Control(kMainComboModel));
@@ -911,6 +919,8 @@ void EditorWindow::closeEvent(QCloseEvent* e) {
             gravityDialog_->close();
         if (englishDialog_)
             englishDialog_->close();
+        if (physicsDialog_)
+            physicsDialog_->close();
         if (separate_)
             separate_->hide();
         e->accept();
@@ -1562,6 +1572,36 @@ void EditorWindow::EnglishNames() {
     if (!testing_)
         englishDialog_->show();
 }
+void EditorWindow::ModelPhysics() {
+    const auto resource = session_.Runtime().Resource(session_.Selected().model);
+    if (physicsDialog_ || !resource || !resource->PmdSource() || session_.Playing())
+        return;
+    physicsDialog_ = new ModelPhysicsDialog(session_, language_, this);
+    physicsDialog_->setAttribute(Qt::WA_DeleteOnClose);
+    physicsDialog_->setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
+    physicsDialog_->changed = [this] { Refresh(); };
+    physicsDialog_->failed = [this](const std::string& reason) { Result(false, reason); };
+    physicsDialog_->report = [this](const QString& title, const QString& text) {
+        lastError_ = text;
+        if (!testing_) {
+            QMessageBox message(QMessageBox::NoIcon, title, text, QMessageBox::Ok, this);
+            message.setTextFormat(Qt::PlainText);
+            message.exec();
+        }
+    };
+    physicsDialog_->preserve = [this] {
+        if (!testing_) {
+            QMessageBox message(QMessageBox::NoIcon, language_.Text("dialog.enhance.title"),
+                                language_.Text("dialog.enhance.preserve"), QMessageBox::Ok, this);
+            message.setTextFormat(Qt::PlainText);
+            message.exec();
+        }
+    };
+    connect(physicsDialog_, &QObject::destroyed, this, [this] { Refresh(); });
+    Refresh();
+    if (!testing_)
+        physicsDialog_->show();
+}
 void EditorWindow::ModelOrder(bool calculation) {
     const auto kind =
         calculation ? format::ModelOrderKind::Calculation : format::ModelOrderKind::Draw;
@@ -1696,6 +1736,8 @@ void EditorWindow::Dispatch(int id) {
         break;
     }
     case kPlayButton:
+        if (physicsDialog_ && physicsDialog_->Active())
+            return;
         if (session_.Playing()) {
             session_.Pause();
             audio_.Stop();

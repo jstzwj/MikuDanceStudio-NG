@@ -98,6 +98,7 @@ bool ModelCommand(int command) {
         return true;
     case MDS_CMD_EDIT_ENGLISH_NAMES:
     case MDS_CMD_TOON_TEXTURES:
+    case MDS_CMD_PHYSICS_MODEL:
     case MDS_CMD_SAVE_ENHANCED_MODEL:
         return true;
     default:
@@ -260,7 +261,7 @@ void EditorWindow::RefreshMenus() {
         if (ModelCommand(command))
             enabled &= model && !session_.Playing();
         if (command == MDS_CMD_EDIT_ENGLISH_NAMES || command == MDS_CMD_SAVE_ENHANCED_MODEL ||
-            command == MDS_CMD_TOON_TEXTURES) {
+            command == MDS_CMD_TOON_TEXTURES || command == MDS_CMD_PHYSICS_MODEL) {
             const auto resource = session_.Runtime().Resource(session_.Selected().model);
             enabled &= resource && resource->SourceKind() == format::ModelKind::Pmd;
         }
@@ -456,6 +457,10 @@ void EditorWindow::MenuCommand(int command) {
     }
     if (command == MDS_CMD_EDIT_ENGLISH_NAMES) {
         EnglishNames();
+        return;
+    }
+    if (command == MDS_CMD_PHYSICS_MODEL) {
+        ModelPhysics();
         return;
     }
     if (command == MDS_CMD_TOON_TEXTURES) {

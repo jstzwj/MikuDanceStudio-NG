@@ -3652,3 +3652,49 @@ regression additionally passed on DX11 WARP, DX12 WARP and hardware Vulkan,
 including a real second device and strict rebound-image equality after deleting
 the resident private toon file. The optional 16-case original observer passed
 again. The final application build remains part of this increment.
+
+
+## PMD physics staging and selected-owner replacement (2026-11-03)
+
+Menu 262 now opens the original modeless physics editor in all three languages.
+The English/Japanese templates 684/683, all 119 controls and original control
+ordering are extracted from the original resource bytes; the template gate now
+checks 38 templates. Shape, dynamic/static and body/joint page radios use separate
+exclusive groups. Model selection and playback are disabled while the dialog is
+active. Unloading or replacing its model invalidates the dialog. Cancel restores
+the selected model from the current frame; accepted edits replace only its
+immutable PMD resource and Bullet owner, preserving the shared world, other
+models, frame clock and per-model bone history. The enhanced-PMD writer includes
+the new body/joint tables. Neither staging nor acceptance creates PMM undo entries
+or advances simulation. Physics copy buffers survive New/Open like the original.
+
+`editor_auxiliary_oracle_test original.exe fixture --model-physics` executes the
+hash-verified original dialog/init/collector/subclass routines with intercepted
+USER32 controls and no window. Its 100 snapshots are frozen in
+`tests/reference/model-physics-original.json`. `qt_model_physics` replays them in
+English, Japanese and Chinese, comparing control text and selection plus body and
+joint float bit patterns. Cases cover add/copy/paste/delete, repeated deletion,
+retained collision masks, scratch-slot reuse, duplicate ordinal resolution, shape
+changes, group and attachment selection, page changes and Y-angle limits.
+
+The comparison exposed differences from the old Win32 reconstruction: ordinary
+angle edits calculate in double using float-truncated pi, numeric bulk reads take
+nine bytes, and Enter on Y-angle limits defers validation until bulk collection.
+The new shared implementation follows the observed executable. Body paste retains
+the destination name, group, collision mask, restitution and friction. Deleted
+scratch slots and visible combo rows remain separate, including the original's
+stale-selection behavior. Invalid nonfinite physical values, unsafe fixed-buffer
+names and unresolved body references are rejected before publishing a new model;
+original memory-corruption behavior is outside the accepted input domain.
+
+The CPU regression covers two models through playback modes 1/2/3, cancel and
+accept, atomic rejection, PMD saving/reopening, retained history, unloading, PMX
+gating and continued playback. Both new local gates pass. The Qt menu now marks
+92/103 commands implemented; the staging window's viewport debug rendering and
+menu 264 are the next rendering increment. Antialiasing, combined-scene and full
+input/layout/C1 acceptance remain open. This increment does not accept P4/C1.
+
+Validation: local `ALL_BUILD` and all **54 P4 gates passed (193.72 seconds)**.
+The application and optional native observer were rebuilt after formatting;
+100 original snapshots and the Qt physics test passed again, including the
+disabled-playback keyboard dispatch guard. Tests created no visible windows.

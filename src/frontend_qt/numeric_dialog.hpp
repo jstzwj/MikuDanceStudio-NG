@@ -5,6 +5,7 @@
 #include <QLineEdit>
 #include <QSlider>
 #include <QCheckBox>
+#include <QRadioButton>
 #include <QComboBox>
 #include <QListWidget>
 #include <QPlainTextEdit>
@@ -13,6 +14,7 @@
 #include <functional>
 #include <map>
 namespace mikudancestudio::qt {
+bool NativeDialogDoublePrefix(const QString&, int limit, double&);
 class TemplateDialog : public QDialog {
 public:
     const ui::NumericTemplate& Template() const { return template_; }
@@ -22,6 +24,7 @@ protected:
     QLineEdit* Edit(int id) const { return edits_.at(id); }
     QSlider* Slider(int id) const { return sliders_.at(id); }
     QCheckBox* Checkbox(int id) const { return checkboxes_.at(id); }
+    QRadioButton* Radio(int id) const { return radios_.at(id); }
     QComboBox* Combo(int id) const { return combos_.at(id); }
     QListWidget* List(int id) const { return lists_.at(id); }
     QPlainTextEdit* Multiline(int id) const { return multiline_.at(id); }
@@ -34,6 +37,7 @@ private:
     std::map<int, QLineEdit*> edits_;
     std::map<int, QSlider*> sliders_;
     std::map<int, QCheckBox*> checkboxes_;
+    std::map<int, QRadioButton*> radios_;
     std::map<int, QComboBox*> combos_;
     std::map<int, QListWidget*> lists_;
     std::map<int, QPlainTextEdit*> multiline_;
