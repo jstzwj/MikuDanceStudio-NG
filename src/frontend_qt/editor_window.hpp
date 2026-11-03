@@ -128,6 +128,7 @@ private:
     void ShiftMouthFrames();
     void RegisterBlinks();
     void MorphOverflow(unsigned failedKeys);
+    void KeyOverflow(unsigned failedKeys, unsigned capacity, bool model);
     void CameraScale();
     void BoneScale();
     void PhysicsKeys();

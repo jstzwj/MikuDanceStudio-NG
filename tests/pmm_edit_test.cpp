@@ -55,7 +55,110 @@ template <class T> void StableRecords() {
     CHECK(!RegisterPmmKey(track, 0, T{}));
     CHECK(track.sparse.size() == 2 && track.dense[0].next == 2);
 }
+template <class T> PmmKeyTrack<T> CapacityTrack(unsigned count) {
+    PmmKeyTrack<T> track;
+    track.dense.resize(1);
+    track.dense[0].next = count > 1 ? 1 : 0;
+    track.sparse.reserve(count - 1);
+    for (unsigned i = 1; i < count; ++i) {
+        T key{};
+        key.frame = i * 2;
+        key.previous = i - 1;
+        key.next = i + 1 < count ? i + 1 : 0;
+        track.sparse.push_back({int(i), 0, key});
+    }
+    return track;
+}
+template <class T> void CapacityBoundary() {
+    constexpr auto capacity = PmmKeyCapacity<T>;
+    PmmKeyTrack<T> track;
+    track.dense.resize(1);
+    track.dense[0].next = capacity - 1;
+    T key{};
+    key.frame = 10;
+    track.sparse.push_back({int(capacity - 1), 0, key});
+    std::vector<std::vector<T>> chains;
+    CHECK(PmmTrackChains(track, chains));
+    auto invalid = track;
+    invalid.sparse[0].index = capacity;
+    invalid.dense[0].next = capacity;
+    CHECK(!PmmTrackChains(invalid, chains));
+    invalid = track;
+    invalid.unused[capacity] = {};
+    CHECK(!PmmTrackChains(invalid, chains));
+    std::map<std::uint32_t, T> captured{{capacity, {}}}, displaced;
+    CHECK(!RestorePmmKeyRecords(track, captured, displaced) && displaced.empty());
+    key.frame = 20;
+    CHECK(RegisterPmmKey(track, 0, key));
+    CHECK(track.sparse[0].index == 1 && track.sparse[1].index == int(capacity - 1));
+    CHECK(track.sparse[1].value.next == 1 && track.sparse[0].value.previous == capacity - 1);
+}
+template <class T> void FullCapacity() {
+    const auto capacity = PmmKeyCapacity<T>;
+    auto track = CapacityTrack<T>(capacity);
+    std::vector<std::vector<T>> chains;
+    CHECK(PmmTrackChains(track, chains));
+    T key{};
+    key.frame = 2;
+    CHECK(RegisterPmmKey(track, 0, key)); // Existing slots remain writable at capacity.
+    key.frame = 3;
+    std::map<std::uint32_t, T> captured;
+    CHECK(!RegisterPmmKey(track, 0, key, &captured) && captured.empty());
+    CHECK(track.dense[0].next == 1 && track.sparse.size() == capacity - 1 &&
+          track.sparse[0].value.frame == 2 && track.sparse[0].value.next == 2);
+    CHECK(DeletePmmKey(track, 0, 2));
+    CHECK(RegisterPmmKey(track, 0, key));
+    CHECK(track.sparse[0].index == 1 && track.sparse[0].value.frame == 3);
+    CHECK(PmmTrackChains(track, chains));
+    PmmKeyTrack<T> rebuilt;
+    CHECK(BuildPmmTrack(chains, rebuilt) && rebuilt.sparse.size() == capacity - 1);
+    key.frame = capacity * 2 + 1;
+    chains[0].push_back(key);
+    CHECK(!BuildPmmTrack(chains, rebuilt) && rebuilt.sparse.size() == capacity - 1);
+}
+void LargeBoneRoundtrip() {
+    auto doc = NewPmmScene();
+    PmmSceneModel model;
+    model.layout.boneCount = 1;
+    model.boneNames = {{'B'}};
+    model.bonePose.resize(1);
+    model.bonePose[0].components[6] = 1;
+    // Exceeds the old arbitrary 100k sparse-record ceiling without requiring
+    // a full 600k-table allocation in ordinary CI.
+    model.boneKeys = CapacityTrack<PmmBoneKey>(100003);
+    for (auto& record : model.boneKeys.sparse)
+        record.value.rotation[3] = 1;
+    model.boneKeys.dense[0].rotation[3] = 1;
+    model.displayKeys.dense.resize(1);
+    doc.models.push_back(std::move(model));
+    PmmSceneDocument rebuilt;
+    std::string reason;
+    CHECK(RebuildPmmV2(doc, rebuilt, reason));
+    CHECK(rebuilt.models[0].boneKeys.sparse.size() == 100002);
+    const auto& last = rebuilt.models[0].boneKeys.sparse.back();
+    CHECK(last.index == 100002 && last.value.frame == 200004 && !last.value.next);
+    auto invalid = doc;
+    invalid.models[0].boneKeys.unused[PmmKeyCapacity<PmmBoneKey>] = {};
+    CHECK(!RebuildPmmV2(invalid, rebuilt, reason) &&
+          rebuilt.models[0].boneKeys.sparse.size() == 100002);
+}
 int main() {
+    CapacityBoundary<PmmBoneKey>();
+    CapacityBoundary<PmmMorphKey>();
+    CapacityBoundary<PmmDisplayKey>();
+    CapacityBoundary<PmmCameraKey>();
+    CapacityBoundary<PmmLightKey>();
+    CapacityBoundary<PmmSelfShadowKey>();
+    CapacityBoundary<PmmGravityKey>();
+    CapacityBoundary<PmmAccessoryKey>();
+    FullCapacity<PmmDisplayKey>();
+    FullCapacity<PmmMorphKey>();
+    FullCapacity<PmmCameraKey>();
+    FullCapacity<PmmLightKey>();
+    FullCapacity<PmmSelfShadowKey>();
+    FullCapacity<PmmGravityKey>();
+    FullCapacity<PmmAccessoryKey>();
+    LargeBoneRoundtrip();
     StableRecords<PmmBoneKey>();
     StableRecords<PmmMorphKey>();
     StableRecords<PmmCameraKey>();

@@ -1,4 +1,5 @@
 #include "mikudancestudio/pmm_scene_document.hpp"
+#include "mikudancestudio/pmm_key_limits.hpp"
 #include <algorithm>
 #include <cstring>
 #include <utility>
@@ -37,10 +38,10 @@ struct Cursor {
         offset += length;
         return true;
     }
-    bool count(std::uint32_t& value) {
+    bool count(std::uint32_t& value, std::uint32_t limit = kMaxRecords) {
         std::int32_t signedValue = 0;
         if (!scalar(signedValue) || signedValue < 0 ||
-            signedValue > static_cast<std::int32_t>(kMaxRecords))
+            signedValue > static_cast<std::int32_t>(limit))
             return false;
         value = static_cast<std::uint32_t>(signedValue);
         return true;
@@ -60,7 +61,7 @@ bool Name(Cursor& cursor, std::vector<char>& name) {
 template <class T, class Reader>
 bool Track(Cursor& cursor, std::uint32_t dense, Reader reader, PmmTrackCounts& counts,
            PmmKeyTrack<T>& keys) {
-    if (dense > kMaxRecords)
+    if (dense > PmmKeyCapacity<T>)
         return false;
     keys.dense.resize(dense);
     keys.denseRecordOffsets.resize(dense);
@@ -70,12 +71,13 @@ bool Track(Cursor& cursor, std::uint32_t dense, Reader reader, PmmTrackCounts& c
             return false;
     }
     std::uint32_t sparse = 0;
-    if (!cursor.count(sparse))
+    if (!cursor.count(sparse, PmmKeyCapacity<T> - dense))
         return false;
     keys.sparse.resize(sparse);
     for (std::uint32_t index = 0; index < sparse; ++index) {
         auto& key = keys.sparse[index];
-        if (!cursor.scalar(key.index) || key.index < 0)
+        if (!cursor.scalar(key.index) || key.index < 0 ||
+            std::uint32_t(key.index) >= PmmKeyCapacity<T>)
             return false;
         key.recordOffset = cursor.offset;
         if (!reader(cursor, key.value))

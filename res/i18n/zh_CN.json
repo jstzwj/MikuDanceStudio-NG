@@ -634,5 +634,6 @@
   "dialog.blink.capacity_title": "登记关键帧",
   "dialog.about.title": "About",
   "dialog.about_physics.title": "关于物理引擎",
-  "dialog.about.body": "MikuDanceStudio-NG Ver.%1\n\n基于 MikuMikuDance Ver.9.32\n原作者：Yu Higuchi"
+  "dialog.about.body": "MikuDanceStudio-NG Ver.%1\n\n基于 MikuMikuDance Ver.9.32\n原作者：Yu Higuchi",
+  "dialog.model_key_capacity.message": "关键帧数量不能超过 %1。\n请执行“删除无用帧”。"
 }

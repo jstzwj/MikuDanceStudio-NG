@@ -3341,3 +3341,54 @@ title explicitly, preserving the existing cross-platform title assertion.
 Local `ALL_BUILD` and all **44 P4 gates passed (146.10 seconds)** with the WAV
 preview implementation. The about test additionally exercises a running frame
 timer, requiring no modal-time CPU updates and an active timer after closing.
+
+The WAV/reload/about revision `ea1d7c2` subsequently passed Windows, Linux and
+macOS in [CI 41556525831](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41556525831).
+
+## Native key-pool capacity and registration failures (2026-11-03)
+
+PMM editing, reconstruction and reading now share the native operational record
+limits, including frame-zero roots: bone **600000 on 64-bit / 300000 on 32-bit**,
+Morph **20000**, model display/IK **1000**, and global/accessory **10000**.
+This replaces the arbitrary shared 100000 ceiling, which rejected legitimate
+large bone tables while permitting impossible insertions in smaller pools.
+Boundary validation includes sparse indices, free-slot caches and partial Undo
+records. An existing key can still be overwritten at capacity; deleting a key
+makes its physical slot reusable. No partial document is published on malformed
+topology or unrepresentable frame numbers.
+
+Capacity exhaustion is a successful native command with rejected insertions.
+Registration retains prior successful channels, clears the appropriate key
+marks and marks the scene modified. Rejected model registration retains the
+existing maximum-frame watermarks. Rejected bone registration also clears the
+pending edit marker and retains its bone Undo entry, even with no captured key
+records. Global registration clears all global/accessory marks and selects its
+row. Auxiliary registration does not add bone history or advance CPU simulation.
+
+The Qt path reports each rejected registration with an icon-free localized
+dialog. Model and global English text intentionally differ in spacing and
+punctuation. The native camera button's message says **600000** even though its
+pool holds **10000**; camera paste uses 10000. That inconsistency is preserved.
+The production dialog path is tested in all three languages using Qt offscreen
+and temporary settings; no editor window is shown and no user settings change.
+
+The new portable gate covers **40** full/near-full camera, light, shadow,
+accessory and display cases: frame-zero overwrite, existing sparse overwrite,
+interior/end insertion, overflow, marks, retained resources/CPU/history, saving,
+reopening and seeking. The format gate exercises all eight pool boundaries and
+full smaller pools; a **100002-sparse-bone** PMM roundtrip guards the previous
+reader ceiling. The optional original-executable `--key-capacity` observer
+executes complete display and global registration commands, checking exact
+native slots, payloads, message bytes, marks, modification and watermarks.
+It passed **16 display commands, 16 camera/light commands and a full
+600000-slot selected-bone command**. The latter compares the complete native
+bone table, rejected channels, cleared edit markers, retained watermark and
+the empty-capture Undo entry; portable Undo/Redo remains usable afterward.
+The full auxiliary original-executable regression also passed. Local
+`ALL_BUILD` succeeded and 44/45 P4 gates passed on the initial full run; the
+remaining session fixtures expected impossible camera/gravity indices to enter
+the document. They now check atomic rejection at that earlier shared boundary;
+the focused session rerun passed (11.78 seconds), completing the 45 gate results.
+
+This increment does not qualify every malformed legacy PMM file or complete
+the remaining clipboard, combined-scene, input/IME/DPI/font and C1 exit gates.

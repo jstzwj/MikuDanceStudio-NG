@@ -1352,6 +1352,20 @@ void EditorWindow::MorphOverflow(unsigned failedKeys) {
             overflow.exec();
         }
 }
+void EditorWindow::KeyOverflow(unsigned failedKeys, unsigned capacity, bool model) {
+    if (!testing_)
+        for (unsigned i = 0; i < failedKeys; ++i) {
+            QMessageBox overflow(QMessageBox::NoIcon, QString(),
+                                 language_
+                                     .Text(model ? "dialog.model_key_capacity.message"
+                                                 : "dialog.key_capacity.message")
+                                     .arg(capacity),
+                                 QMessageBox::Ok, this);
+            overflow.setOption(QMessageBox::Option::DontUseNativeDialog);
+            overflow.QDialog::setWindowTitle(language_.Text("dialog.key_capacity.title"));
+            overflow.exec();
+        }
+}
 void EditorWindow::CameraScale() {
     CameraScaleDialog dialog(language_, this);
     dialog.setWindowFlag(Qt::WindowStaysOnTopHint, separate_ != nullptr);
@@ -1468,6 +1482,13 @@ void EditorWindow::Dispatch(int id) {
     std::string r;
     bool ok = true;
     const auto current = unsigned(session_.Document().timeline.currentFrame);
+    const auto registerKeys = [&](const std::vector<KeyAddress>& keys, unsigned capacity) {
+        unsigned failed = 0;
+        const bool registered = session_.Register(keys, r, &failed);
+        if (registered)
+            KeyOverflow(failed, capacity, !keys.empty() && format::PmmModelKey(keys[0].track));
+        return registered;
+    };
     switch (id) {
     case kFrameVolumeCheckbox:
         MenuCommand(MDS_CMD_TOGGLE_LOW_POWER);
@@ -1593,23 +1614,24 @@ void EditorWindow::Dispatch(int id) {
         std::vector<KeyAddress> addresses;
         for (auto bone : session_.Selected().bones)
             addresses.push_back({Track::Bone, session_.Selected().model, bone, current});
-        ok = session_.Register(addresses, r);
+        ok = registerKeys(addresses, format::PmmKeyCapacity<format::PmmBoneKey>);
         break;
     }
     case kRegisterCameraButton:
-        ok = session_.Register({{Track::Camera, 255, 0, current}}, r);
+        // Native camera registration advertises 600000 although its pool is 10000.
+        ok = registerKeys({{Track::Camera, 255, 0, current}}, 600000);
         break;
     case kRegisterLightButton:
-        ok = session_.Register({{Track::Light, 255, 0, current}}, r);
+        ok = registerKeys({{Track::Light, 255, 0, current}}, 10000);
         break;
     case kRegisterSelfShadowButton:
-        ok = session_.Register({{Track::Shadow, 255, 0, current}}, r);
+        ok = registerKeys({{Track::Shadow, 255, 0, current}}, 10000);
         break;
     case kRegisterModelDisplayButton:
-        ok = session_.Register({{Track::Display, session_.Selected().model, 0, current}}, r);
+        ok = registerKeys({{Track::Display, session_.Selected().model, 0, current}}, 1000);
         break;
     case kRegisterAccessoryButton:
-        ok = session_.Register({{Track::Accessory, session_.Selected().accessory, 0, current}}, r);
+        ok = registerKeys({{Track::Accessory, session_.Selected().accessory, 0, current}}, 10000);
         break;
     case kRegisterMorphButton0:
     case kRegisterMorphButton1:

@@ -634,5 +634,6 @@
   "dialog.blink.capacity_title": "ﾌﾚｰﾑ登録",
   "dialog.about.title": "About",
   "dialog.about_physics.title": "物理エンジンについて",
-  "dialog.about.body": "MikuDanceStudio-NG Ver.%1\n\nMikuMikuDance Ver.9.32 を基に開発\nprogrammed by 樋口優"
+  "dialog.about.body": "MikuDanceStudio-NG Ver.%1\n\nMikuMikuDance Ver.9.32 を基に開発\nprogrammed by 樋口優",
+  "dialog.model_key_capacity.message": "登録ポイント数が%1個を超えました\nこれ以上の登録は行えません\n「ﾌﾚｰﾑ編集」の「不用ﾌﾚｰﾑ削除」を実行して下さい"
 }

@@ -1,5 +1,6 @@
 #pragma once
 #include "mikudancestudio/pmm_scene_document.hpp"
+#include "pmm_key_limits.hpp"
 #include <algorithm>
 #include <map>
 #include <set>
@@ -20,22 +21,23 @@ bool RebuildPmmBoneInterpolation(PmmKeyTrack<PmmBoneKey>&, std::size_t channel,
 
 template <class T>
 bool PmmTrackChains(const PmmKeyTrack<T>& track, std::vector<std::vector<T>>& chains) {
-    if (track.dense.size() > 100000 || track.sparse.size() > 100000 || track.unused.size() > 100000)
+    if (track.dense.size() > PmmKeyCapacity<T> ||
+        track.sparse.size() > PmmKeyCapacity<T> - track.dense.size() ||
+        track.unused.size() > PmmKeyCapacity<T> - track.dense.size())
         return false;
     std::map<std::uint32_t, const T*> sparse;
     for (const auto& entry : track.sparse)
         if (entry.index < 0 || std::size_t(entry.index) < track.dense.size() ||
-            std::size_t(entry.index) >= track.dense.size() + 100000 ||
+            std::size_t(entry.index) >= PmmKeyCapacity<T> ||
             !sparse.emplace(std::uint32_t(entry.index), &entry.value).second)
             return false;
     for (const auto& [index, key] : track.unused)
-        if (index < track.dense.size() || index >= track.dense.size() + 100000 || key.frame ||
+        if (index < track.dense.size() || index >= PmmKeyCapacity<T> || key.frame ||
             sparse.count(index))
             return false;
     const auto clearedMorphSlot = [&](std::uint32_t index) {
         if constexpr (std::is_same_v<T, PmmMorphKey>) {
-            if (index < track.dense.size() || index >= track.dense.size() + 100000 ||
-                sparse.count(index))
+            if (index < track.dense.size() || index >= PmmKeyCapacity<T> || sparse.count(index))
                 return false;
             const auto found = track.unused.find(index);
             // PMM serializes occupied slots only; an absent free record is zero.
@@ -54,7 +56,7 @@ bool PmmTrackChains(const PmmKeyTrack<T>& track, std::vector<std::vector<T>>& ch
         // Native unlinking writes table[next].previous even when next is the
         // zero sentinel. Root 0 can therefore retain a predecessor (including
         // a subsequently freed slot); it is never followed as a chain edge.
-        if (key->frame || (root && key->previous) || key->previous >= track.dense.size() + 100000)
+        if (key->frame || (root && key->previous) || key->previous >= PmmKeyCapacity<T>)
             return false;
         auto index = std::uint32_t(root);
         result[root].push_back(*key);
@@ -187,7 +189,7 @@ bool RestorePmmKeyRecords(PmmKeyTrack<T>& track, const std::map<std::uint32_t, T
     auto next = track;
     std::map<std::uint32_t, T> old;
     for (const auto& [index, key] : saved) {
-        if (index >= next.dense.size() + 100000)
+        if (index >= PmmKeyCapacity<T>)
             return false;
         if (index < next.dense.size()) {
             old.emplace(index, next.dense[index]);
@@ -223,7 +225,7 @@ bool RestorePmmKeyRecords(PmmKeyTrack<T>& track, const std::map<std::uint32_t, T
 }
 template <class T>
 bool BuildPmmTrack(const std::vector<std::vector<T>>& chains, PmmKeyTrack<T>& output) {
-    if (chains.size() > 100000)
+    if (chains.size() > PmmKeyCapacity<T>)
         return false;
     PmmKeyTrack<T> next;
     next.dense.resize(chains.size());
@@ -245,7 +247,7 @@ bool BuildPmmTrack(const std::vector<std::vector<T>>& chains, PmmKeyTrack<T>& ou
             if (!k)
                 next.dense[root] = value;
             else {
-                if (next.sparse.size() >= 100000)
+                if (next.dense.size() + next.sparse.size() >= PmmKeyCapacity<T>)
                     return false;
                 next.sparse.push_back({std::int32_t(current), 0, value});
             }
@@ -306,7 +308,7 @@ bool RegisterPmmKey(PmmKeyTrack<T>& track, std::size_t channel, T key,
         current = std::move(key);
         return true;
     }
-    if (track.sparse.size() >= 100000)
+    if (track.dense.size() + track.sparse.size() >= PmmKeyCapacity<T>)
         return false;
     // Button registration reuses the first free record after the roots.
     auto free = std::uint32_t(track.dense.size());

@@ -634,5 +634,6 @@
   "dialog.blink.capacity_title": "register frame",
   "dialog.about.title": "About",
   "dialog.about_physics.title": "about physical engine",
-  "dialog.about.body": "MikuDanceStudio-NG Ver.%1\n\nBased on MikuMikuDance Ver.9.32\nprogrammed by Yu Higuchi"
+  "dialog.about.body": "MikuDanceStudio-NG Ver.%1\n\nBased on MikuMikuDance Ver.9.32\nprogrammed by Yu Higuchi",
+  "dialog.model_key_capacity.message": "You cannot regist over %1 point\nPlease execute 'delete unused frame'"
 }

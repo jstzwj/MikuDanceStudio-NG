@@ -1508,7 +1508,8 @@ bool EditorSession::SetRenderSize(unsigned width, unsigned height, std::string& 
         history.emplace(model.slot, CaptureHistory(model, HistoryKind::None, 0));
     return Commit(std::move(next), reason, history, false);
 }
-bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::string& reason) {
+bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::string& reason,
+                             unsigned* failedKeys) {
     EndGesture();
     if (addresses.empty()) {
         reason = "no-selected-keys";
@@ -1520,6 +1521,22 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
     // bone registration appends history; auxiliary commands must also suppress
     // automatic bone history caused by clearing those selection bytes.
     const std::set<KeyAddress> ordered(addresses.begin(), addresses.end());
+    if (std::any_of(ordered.begin(), ordered.end(),
+                    [](const auto& address) { return !PmmModelKey(address.track); })) {
+        PmmKeyPools pools{
+            {Track::Camera, 255}, {Track::Light, 255}, {Track::Shadow, 255}, {Track::Gravity, 255}};
+        for (const auto& accessory : next.document.accessories)
+            pools.emplace(Track::Accessory, accessory.slot);
+        if (!SetPmmSelectedKeys(next.document, 255, {}, pools)) {
+            reason = "key-registration-invalid-tracks";
+            return false;
+        }
+        for (auto it = next.selection.keys.begin(); it != next.selection.keys.end();)
+            if (!PmmModelKey(it->track))
+                it = next.selection.keys.erase(it);
+            else
+                ++it;
+    }
     for (const auto& address : ordered) {
         if ((address.track == Track::Bone || address.track == Track::Morph ||
              address.track == Track::Display) &&
@@ -1553,11 +1570,56 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
             ClearModelKeyMarks(*model, next.selection);
         }
     }
+    unsigned failed = 0;
     for (const auto& address : ordered) {
         Key key;
         if (!Pose(next.document, address, key)) {
             reason = "key-registration-failed";
             return false;
+        }
+        // A full native pool still permits overwrites. Overflow is a command
+        // result, not a transaction failure: previous insertions, cleared marks
+        // and bone history remain in effect even when later channels are full.
+        bool inserted = true;
+        bool full = false;
+        bool valid = Visit(next.document, address, [&](auto& track) {
+            using T = typename std::decay_t<decltype(track.dense)>::value_type;
+            std::vector<std::vector<T>> chains;
+            if (address.frame > 0x7fffffffU || !PmmTrackChains(track, chains) ||
+                address.channel >= chains.size())
+                return false;
+            const auto& chain = chains[address.channel];
+            inserted = std::none_of(chain.begin(), chain.end(),
+                                    [&](const auto& k) { return k.frame == address.frame; });
+            if (inserted && track.dense.size() + track.sparse.size() >= PmmKeyCapacity<T>) {
+                full = true;
+                ++failed;
+                if constexpr (std::is_same_v<T, PmmBoneKey>)
+                    Model(next.document, address.slot)->bonePose.at(address.channel).flags[1] = 0;
+                return true;
+            }
+            return true;
+        });
+        if (!valid) {
+            reason = "key-registration-invalid-tracks";
+            return false;
+        }
+        // The validation above records capacity failures before any payload or
+        // interpolation mutation. A failed bone still loses its edit marker.
+        if (!PmmModelKey(address.track)) {
+            for (auto it = next.selection.tracks.begin(); it != next.selection.tracks.end();)
+                if (!PmmModelKey(it->track))
+                    it = next.selection.tracks.erase(it);
+                else
+                    ++it;
+            next.selection.tracks.insert({address.track, address.slot, 0, 0});
+        }
+        if (full) {
+            if (PmmModelKey(address.track))
+                next.document.timeline.lastRegisteredFrame =
+                    std::max(next.document.timeline.lastRegisteredFrame,
+                             int(Model(next.document, address.slot)->selection.maxFrame));
+            continue;
         }
         if (address.track == Track::Bone) {
             auto* model = Model(next.document, address.slot);
@@ -1581,26 +1643,39 @@ bool EditorSession::Register(const std::vector<KeyAddress>& addresses, std::stri
             if (physics)
                 current.flags[0] = *pose.physicsDisabled;
             current.flags[1] = 0;
-        } else if (!Put(next.document, address, key)) {
-            reason = "key-registration-failed";
-            return false;
+        } else {
+            std::visit(
+                [](auto& value) {
+                    using T = std::decay_t<decltype(value)>;
+                    if constexpr (std::is_same_v<T, PmmMorphKey> ||
+                                  std::is_same_v<T, PmmDisplayKey>)
+                        value.allocated = 1;
+                    else if constexpr (!std::is_same_v<T, PmmBoneKey>)
+                        value.selected = 1;
+                },
+                key);
+            if (!Put(next.document, address, key)) {
+                reason = "key-registration-failed";
+                return false;
+            }
         }
-        if (address.track == Track::Bone || address.track == Track::Morph ||
-            address.track == Track::Display)
-            next.selection.keys.insert(address);
-    }
-    for (const auto& address : ordered) {
-        next.document.timeline.lastRegisteredFrame =
-            std::max(next.document.timeline.lastRegisteredFrame, int(address.frame));
-        if (address.track == Track::Bone || address.track == Track::Morph ||
-            address.track == Track::Display) {
+        next.selection.keys.insert(address);
+        if (inserted || address.track == Track::Bone)
+            next.document.timeline.lastRegisteredFrame =
+                std::max(next.document.timeline.lastRegisteredFrame, int(address.frame));
+        if (PmmModelKey(address.track)) {
             auto* model = Model(next.document, address.slot);
-            model->selection.maxFrame = std::max(model->selection.maxFrame, address.frame);
+            if (inserted || address.track == Track::Bone)
+                model->selection.maxFrame = std::max(model->selection.maxFrame, address.frame);
             next.document.timeline.lastRegisteredFrame = std::max(
                 next.document.timeline.lastRegisteredFrame, int(model->selection.maxFrame));
         }
     }
-    return Commit(std::move(next), reason, history, false);
+    if (!Commit(std::move(next), reason, history, false))
+        return false;
+    if (failedKeys)
+        *failedKeys = failed;
+    return true;
 }
 
 bool EditorSession::DeleteUnusedFrames(unsigned& deleted, std::string& reason) {

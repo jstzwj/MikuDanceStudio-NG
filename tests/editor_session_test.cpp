@@ -429,7 +429,8 @@ int main(int argc, char** argv) {
     }
     for (bool occupied : {false, true}) {
         EditorSession invalid;
-        CHECK(invalid.Edit(
+        const auto revision = invalid.Revision();
+        CHECK(!invalid.Edit(
             "invalid-camera-scale-index",
             [occupied](auto& d, auto&) {
                 auto key = d.cameraKeys.dense[0];
@@ -443,9 +444,11 @@ int main(int argc, char** argv) {
                 return true;
             },
             reason));
-        const auto revision = invalid.Revision();
-        CHECK(!invalid.ScaleCameraKeys(CameraScaleIdentity, reason) &&
-              reason == "camera-key-scale-pool-index" && invalid.Revision() == revision);
+        // Resource limits now reject impossible indices at the shared document
+        // boundary, before a particular editing command can see them.
+        CHECK(invalid.Revision() == revision && invalid.Document().cameraKeys.sparse.empty() &&
+              invalid.Document().cameraKeys.unused.empty());
+        CHECK(invalid.ScaleCameraKeys(CameraScaleIdentity, reason));
     }
     for (const char* file : {"facial.pmd", "articulated.pmx"})
         for (const auto& coefficients :
@@ -519,7 +522,8 @@ int main(int argc, char** argv) {
     }
     for (bool occupied : {false, true}) {
         EditorSession invalid;
-        CHECK(invalid.Edit(
+        const auto revision = invalid.Revision();
+        CHECK(!invalid.Edit(
             "gravity-invalid-pool-index",
             [occupied](auto& d, auto&) {
                 auto key = d.gravityKeys.dense[0];
@@ -534,9 +538,10 @@ int main(int argc, char** argv) {
                 return true;
             },
             reason));
-        const auto revision = invalid.Revision();
-        CHECK(!invalid.RegisterGravity(reason) && reason == "gravity-registration-invalid-tracks");
-        CHECK(invalid.Revision() == revision && invalid.Document().cameraKeys.dense[0].selected);
+        CHECK(invalid.Revision() == revision && invalid.Document().gravityKeys.sparse.empty() &&
+              invalid.Document().gravityKeys.unused.empty() &&
+              !invalid.Document().cameraKeys.dense[0].selected);
+        CHECK(invalid.RegisterGravity(reason));
     }
     {
         EditorSession gravity;

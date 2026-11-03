@@ -3,6 +3,7 @@
 #include "editor_physics_selection_fixture.hpp"
 #include "editor_reduction_fixture.hpp"
 #include "editor_morph_purge_fixture.hpp"
+#include "editor_key_capacity_fixture.hpp"
 #include <QApplication>
 #include <QAbstractButton>
 #include <QFile>
@@ -18,6 +19,8 @@
 #include <QTimer>
 #include <QStyleFactory>
 #include <QThread>
+#include <QSettings>
+#include <QTemporaryDir>
 #include <iostream>
 using namespace mikudancestudio;
 using namespace editor;
@@ -816,6 +819,75 @@ int main(int argc, char** argv) {
         }
         CHECK(owner.LastError().isEmpty() && !owner.isVisible() &&
               owner.RenderWindow()->Submissions() == 0);
+    }
+    {
+        // Exercise the production modal path without touching user settings or
+        // showing a native editor window. The test uses Qt's offscreen plugin.
+        QTemporaryDir settings;
+        CHECK(settings.isValid());
+        const auto previousFormat = QSettings::defaultFormat();
+        const auto previousOrganization = app.organizationName();
+        const auto previousApplication = app.applicationName();
+        app.setOrganizationName("MDS-Capacity-Test");
+        app.setApplicationName("Offscreen");
+        QSettings::setDefaultFormat(QSettings::IniFormat);
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
+        for (const char* language : {"en", "ja", "zh_CN"}) {
+            qt::EditorWindow overflow(std::filesystem::absolute(argv[2]));
+            CHECK(overflow.SetLanguage(language));
+            qt::Language messages;
+            CHECK(messages.Set(language));
+            auto* frameTimer = overflow.findChild<QChronoTimer*>("editor.frameTimer");
+            CHECK(frameTimer);
+            frameTimer->stop();
+            CHECK(overflow.Session().ImportModel(root / "articulated.pmx", reason));
+            for (bool model : {false, true}) {
+                CHECK(overflow.Session().Edit(
+                    "capacity UI",
+                    [&](auto& d, auto&) {
+                        if (model)
+                            FillKeyCapacity(d.models[0].displayKeys, 0);
+                        else
+                            FillKeyCapacity(d.cameraKeys, 0);
+                        d.timeline.currentFrame = 21000;
+                        return true;
+                    },
+                    reason));
+                CHECK(overflow.Session().SelectModel(model ? 0 : 255, reason));
+                overflow.Refresh();
+                const auto frames = overflow.Session().Runtime().Counters().frames;
+                bool visited = false;
+                QTimer::singleShot(10, [&] {
+                    auto* dialog = qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+                    if (!dialog)
+                        return;
+                    const auto capacity = model ? 1000 : 600000;
+                    const auto text = messages
+                                          .Text(model ? "dialog.model_key_capacity.message"
+                                                      : "dialog.key_capacity.message")
+                                          .arg(capacity);
+                    visited = dialog->text() == text && dialog->icon() == QMessageBox::NoIcon &&
+                              dialog->windowTitle() == messages.Text("dialog.key_capacity.title") &&
+                              dialog->standardButtons() == QMessageBox::Ok &&
+                              dialog->parentWidget() == &overflow;
+                    if (std::string(language) == "en")
+                        visited &=
+                            dialog->text() ==
+                            (model
+                                 ? "You cannot regist over 1000 point\nPlease execute 'delete unused frame'"
+                                 : "You cannot regist over 600000point.\nPlease execute 'delete unused frame'");
+                    dialog->done(QMessageBox::Ok);
+                });
+                overflow.Dispatch(model ? panel::kRegisterModelDisplayButton
+                                        : panel::kRegisterCameraButton);
+                CHECK(visited && overflow.LastError().isEmpty() && overflow.Session().Dirty() &&
+                      overflow.Session().Runtime().Counters().frames == frames &&
+                      !overflow.isVisible() && overflow.RenderWindow()->Submissions() == 0);
+            }
+        }
+        QSettings::setDefaultFormat(previousFormat);
+        app.setOrganizationName(previousOrganization);
+        app.setApplicationName(previousApplication);
     }
     CHECK(!window.isVisible() && window.RenderWindow()->Submissions() == 0);
     std::cout

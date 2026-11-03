@@ -363,14 +363,16 @@ bool PreservePmmSessionState(const PmmSceneDocument& source, PmmSceneDocument& t
         // The preservation writer also accepts legacy tracks outside the
         // topology editor's stricter contract. Validate only this transient
         // cache here; do not impose PmmTrackChains on unchanged disk records.
-        if (from.unused.size() > 100000)
+        using T = typename std::decay_t<decltype(from.dense)>::value_type;
+        if (to.dense.size() > PmmKeyCapacity<T> ||
+            from.unused.size() > PmmKeyCapacity<T> - to.dense.size())
             return false;
         if (!from.unused.empty()) {
             std::set<std::uint32_t> occupied;
             for (const auto& record : to.sparse)
                 occupied.insert(std::uint32_t(record.index));
             for (const auto& [index, key] : from.unused)
-                if (index < to.dense.size() || index >= to.dense.size() + 100000 || key.frame ||
+                if (index < to.dense.size() || index >= PmmKeyCapacity<T> || key.frame ||
                     occupied.count(index))
                     return false;
         }

@@ -13,6 +13,7 @@
 #include "editor_morph_scale_fixture.hpp"
 #include "editor_morph_purge_fixture.hpp"
 #include "editor_blink_fixture.hpp"
+#include "editor_key_capacity_fixture.hpp"
 #include "editor_camera_scale_fixture.hpp"
 #include "gravity_edit_reference.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
@@ -2294,6 +2295,328 @@ unsigned MorphCapacity(OriginalPhysicsModule& original, const std::filesystem::p
                 }
     return cases;
 }
+unsigned capacityMessages, advertisedCapacity;
+bool modelCapacity;
+int WINAPI CapacityMessage(HWND, LPCSTR text, LPCSTR title, UINT flags) {
+    char expected[200];
+    std::snprintf(expected, sizeof expected,
+                  modelCapacity
+                      ? "You cannot regist over %u point\nPlease execute 'delete unused frame'"
+                      : "You cannot regist over %upoint.\nPlease execute 'delete unused frame'",
+                  advertisedCapacity);
+    Check(!flags && !std::strcmp(title, "register frame") && !std::strcmp(text, expected),
+          "native capacity message bytes");
+    ++capacityMessages;
+    return IDOK;
+}
+unsigned DisplayCapacity(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    const unsigned char ret = 0xc3;
+    Patch paint(original.Function<void*>(0x60ea0), &ret, 1);
+    auto message = &CapacityMessage;
+    Patch prompt(original.Function<void*>(0x128618), &message, sizeof message);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    std::vector<mdl::BoneKey> bones(mdl::kBoneKeyCapacity);
+    unsigned cases = 0;
+    advertisedCapacity = 1000;
+    modelCapacity = true;
+    for (const char* file : {"articulated.pmd", "articulated.pmx"})
+        for (unsigned free : {0u, 1u})
+            for (unsigned frame : {0u, 2u, 3u, 21000u}) {
+                EditorSession portable;
+                std::string reason;
+                Check(portable.ImportModel(root / file, reason), reason.c_str());
+                Check(portable.Edit(
+                          "display capacity",
+                          [&](auto& d, auto&) {
+                              FillKeyCapacity(d.models[0].displayKeys, free);
+                              d.timeline.currentFrame = int(frame);
+                              d.models[0].selection.loadComplete = 0;
+                              for (auto& enabled : d.models[0].ikPose)
+                                  enabled = 0;
+                              return true;
+                          },
+                          reason),
+                      reason.c_str());
+                const auto before = portable.Document();
+                const auto& source = before.models[0];
+                NativeAuxiliary native(source, portable.Runtime().Resource(0)->SourceKind() ==
+                                                   ModelKind::Pmx);
+                const auto copy = [&](unsigned index, const auto& key) {
+                    auto& out = native.displays[index];
+                    out.frame = key.frame;
+                    out.previous = key.previous;
+                    out.next = key.next;
+                    out.visible = key.visible;
+                    out.allocated = key.allocated;
+                    native.ik[index] = key.ikEnabled;
+                    out.ikStates = native.ik[index].data();
+                };
+                copy(0, source.displayKeys.dense[0]);
+                for (const auto& key : source.displayKeys.sparse)
+                    copy(unsigned(key.index), key.value);
+                native.model->maxFrame = source.selection.maxFrame;
+                native.model->loadComplete = source.selection.loadComplete;
+                native.model->physicsFlags = 1;
+                native.model->boneKeys = bones.data();
+                for (auto& key : bones)
+                    key.allocated = 1;
+                for (unsigned i = 0; i < native.chains.size(); ++i)
+                    native.chains[i].enabled = source.ikPose[i];
+                std::memset(app.get(), 0, sizeof(*app));
+                app->modelSlots[0] = native.model.get();
+                app->currentFrame = int(frame);
+                app->lastRegisteredFrame = before.timeline.lastRegisteredFrame;
+                capacityMessages = 0;
+                original.Function<void (*)(HWND, WPARAM)>(0x3f550)(
+                    nullptr, panel::kRegisterModelDisplayButton);
+                unsigned failed = UINT_MAX;
+                const auto frames = portable.Runtime().Counters().frames;
+                const bool undo = portable.CanUndo(), redo = portable.CanRedo();
+                Check(portable.Register({{Track::Display, 0, 0, frame}}, reason, &failed),
+                      reason.c_str());
+                Check(failed == capacityMessages && app->sceneModified == 1 && portable.Dirty() &&
+                          app->lastRegisteredFrame ==
+                              portable.Document().timeline.lastRegisteredFrame &&
+                          portable.Runtime().Counters().frames == frames &&
+                          portable.CanUndo() == undo && portable.CanRedo() == redo,
+                      "native full display command side effects");
+                Check(std::all_of(bones.begin(), bones.end(),
+                                  [](const auto& k) { return !k.allocated; }),
+                      "native full display clears complete bone pool");
+                native.Compare(portable.Document().models[0]);
+                ++cases;
+            }
+    return cases;
+}
+unsigned GlobalCapacity(OriginalPhysicsModule& original) {
+    const unsigned char ret = 0xc3;
+    Patch paint(original.Function<void*>(0x60ea0), &ret, 1);
+    Patch controls(original.Function<void*>(0x62bb0), &ret, 1);
+    Patch timeline(original.Function<void*>(0x5f7f0), &ret, 1);
+    auto message = &CapacityMessage;
+    Patch prompt(original.Function<void*>(0x128618), &message, sizeof message);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    std::vector<mdl::CameraKey> camera(10000);
+    std::vector<mdl::LightKey> light(10000);
+    std::vector<mdl::SelfShadowKey> shadow(10000);
+    std::vector<mdl::GravityKey> gravity(10000);
+    std::vector<mdl::AccessoryKey> accessories(10000);
+    unsigned cases = 0;
+    modelCapacity = false;
+    for (auto kind : {Track::Camera, Track::Light})
+        for (unsigned free : {0u, 1u})
+            for (unsigned frame : {0u, 2u, 3u, 21000u}) {
+                EditorSession portable;
+                std::string reason;
+                Check(portable.Edit(
+                          "global capacity",
+                          [&](auto& d, auto&) {
+                              if (kind == Track::Camera)
+                                  FillKeyCapacity(d.cameraKeys, free);
+                              else
+                                  FillKeyCapacity(d.lightKeys, free);
+                              d.timeline.currentFrame = int(frame);
+                              return true;
+                          },
+                          reason),
+                      reason.c_str());
+                const auto before = portable.Document();
+                std::memset(app.get(), 0, sizeof(*app));
+                app->cameraKeyTrack = camera.data();
+                app->lightKeyTrack = light.data();
+                app->selfShadowKeyTrack = shadow.data();
+                app->gravityKeyTrack = gravity.data();
+                for (auto& keys : app->accKeyTracks)
+                    keys = accessories.data();
+                const auto marks = [](auto& pool) {
+                    for (auto& key : pool) {
+                        key = {};
+                        key.selected = 1;
+                    }
+                };
+                marks(camera);
+                marks(light);
+                marks(shadow);
+                marks(gravity);
+                marks(accessories);
+                const auto cameraPut = [&](unsigned i, const auto& key) {
+                    auto& out = camera[i];
+                    out.frame = key.frame;
+                    out.previous = key.previous;
+                    out.next = key.next;
+                    out.distance = key.distance;
+                    out.fov = int(key.fov);
+                    out.parentModel = key.parentModel;
+                    out.parentBone = key.parentBone;
+                    out.perspective = key.perspective;
+                    out.selected = key.selected;
+                    std::copy(key.eye.begin(), key.eye.end(), out.eye);
+                    std::copy(key.target.begin(), key.target.end(), out.target);
+                    std::memcpy(out.interpolation, key.interpolation.data(), 24);
+                };
+                const auto lightPut = [&](unsigned i, const auto& key) {
+                    auto& out = light[i];
+                    out.frame = key.frame;
+                    out.previous = key.previous;
+                    out.next = key.next;
+                    out.selected = key.selected;
+                    std::copy(key.color.begin(), key.color.end(), out.color);
+                    std::copy(key.direction.begin(), key.direction.end(), out.direction);
+                };
+                cameraPut(0, before.cameraKeys.dense[0]);
+                lightPut(0, before.lightKeys.dense[0]);
+                for (const auto& key : before.cameraKeys.sparse)
+                    cameraPut(unsigned(key.index), key.value);
+                for (const auto& key : before.lightKeys.sparse)
+                    lightPut(unsigned(key.index), key.value);
+                std::copy_n(before.cameraState.begin(), 3, app->cameraPosition);
+                app->cameraPitch = before.cameraState[6];
+                app->cameraYaw = before.cameraState[7];
+                app->cameraRoll = before.cameraState[8];
+                app->cameraDistance = before.cameraState[5];
+                app->cameraFov = float(before.envelope.settings.cameraFov);
+                app->cameraPerspective = before.cameraPerspective;
+                app->cameraParentModel = before.appearance.cameraParentModel;
+                app->cameraParentBone = before.appearance.cameraParentBone;
+                std::copy_n(before.lightState.begin(), 3, app->reservedLightColor);
+                std::copy_n(before.lightState.begin() + 3, 3, app->reservedLightDirection);
+                app->currentFrame = int(frame);
+                app->lastRegisteredFrame = before.timeline.lastRegisteredFrame;
+                reinterpret_cast<unsigned char*>(app.get())[0xa1b90] = 1;
+                capacityMessages = 0;
+                advertisedCapacity = kind == Track::Camera ? 600000 : 10000;
+                original.Function<void (*)(HWND, WPARAM)>(0x3f550)(
+                    nullptr, kind == Track::Camera ? panel::kRegisterCameraButton
+                                                   : panel::kRegisterLightButton);
+                unsigned failed = UINT_MAX;
+                Check(portable.Register({{kind, 255, 0, frame}}, reason, &failed), reason.c_str());
+                Check(failed == capacityMessages && app->sceneModified == 1 && portable.Dirty() &&
+                          app->lastRegisteredFrame ==
+                              portable.Document().timeline.lastRegisteredFrame,
+                      "native full global command side effects");
+                const auto check = [&](const auto& pool, const auto& track, const auto& convert) {
+                    using T = typename std::decay_t<decltype(track.dense)>::value_type;
+                    std::map<unsigned, const T*> keys{{0, &track.dense[0]}};
+                    for (const auto& key : track.sparse)
+                        keys.emplace(unsigned(key.index), &key.value);
+                    // Reuse the field converter to require exact native bytes,
+                    // including the reserved fields that registration preserves.
+                    for (unsigned i = 0; i < pool.size(); ++i) {
+                        const bool alive = i == 0 || pool[i].frame != 0;
+                        const auto found = keys.find(i);
+                        Check(alive == (found != keys.end()), "native global occupied slots");
+                        if (alive) {
+                            const auto saved = pool[i];
+                            convert(i, *found->second);
+                            Check(!std::memcmp(&saved, &pool[i], sizeof saved),
+                                  "native global key payload");
+                        } else
+                            Check(!pool[i].selected, "native unoccupied global marks cleared");
+                    }
+                };
+                if (kind == Track::Camera)
+                    check(camera, portable.Document().cameraKeys, cameraPut);
+                else
+                    check(light, portable.Document().lightKeys, lightPut);
+                Check(std::all_of(accessories.begin(), accessories.end(),
+                                  [](const auto& k) { return !k.selected; }),
+                      "native global command clears every accessory pool");
+                ++cases;
+            }
+    return cases;
+}
+void BoneCapacity(OriginalPhysicsModule& original, const std::filesystem::path& root) {
+    auto message = &CapacityMessage;
+    Patch prompt(original.Function<void*>(0x128618), &message, sizeof message);
+    EditorSession portable;
+    std::string reason;
+    Check(portable.ImportModel(root / "articulated.pmx", reason), reason.c_str());
+    Check(portable.Edit(
+              "bone capacity",
+              [&](auto& d, auto&) {
+                  FillKeyCapacity(d.models[0].boneKeys, 0);
+                  d.timeline.currentFrame = 3;
+                  for (auto& pose : d.models[0].bonePose)
+                      pose.flags[1] = 1;
+                  return true;
+              },
+              reason),
+          reason.c_str());
+    const auto& source = portable.Document().models[0];
+    const auto roots = unsigned(source.bonePose.size());
+    auto native = std::make_unique<mdl::ModelRecord>();
+    std::vector<mdl::BoneRecord> bones(roots);
+    std::vector<mdl::BoneKey> records(mdl::kBoneKeyCapacity);
+    std::vector<mdl::MorphKey> morphs(mdl::kMorphKeyCapacity);
+    std::vector<mdl::DisplayKey> displays(mdl::kDisplayKeyCapacity);
+    std::vector<unsigned char> edited(roots, 1), selected(roots, 1);
+    native->boneCount = roots;
+    native->boneTable = bones.data();
+    native->boneKeys = records.data();
+    native->morphKeys = morphs.data();
+    native->displayKeys = displays.data();
+    native->bonePhysicsState = edited.data();
+    native->boneSelection = selected.data();
+    native->UndoCursor() = native->LatestUndoCursor() = 29;
+    native->maxFrame = source.selection.maxFrame;
+    native->physicsFlags = 1;
+    const auto put = [&](unsigned index, const auto& key) {
+        auto& out = records[index];
+        out.frame = key.frame;
+        out.previous = key.previous;
+        out.next = key.next;
+        std::copy(key.position.begin(), key.position.end(), out.position);
+        std::copy(key.rotation.begin(), key.rotation.end(), out.rotation);
+        std::memcpy(out.interpolation, key.interpolation.data(), 16);
+        out.allocated = key.allocated;
+        out.physicsDisabled = key.physicsDisabled;
+    };
+    std::vector<KeyAddress> keys;
+    for (unsigned i = 0; i < roots; ++i) {
+        put(i, source.boneKeys.dense[i]);
+        std::copy_n(source.bonePose[i].components.begin(), 3, bones[i].trans);
+        std::copy_n(source.bonePose[i].components.begin() + 3, 4, bones[i].rotQuat);
+        keys.push_back({Track::Bone, 0, i, 3});
+    }
+    for (const auto& key : source.boneKeys.sparse)
+        put(unsigned(key.index), key.value);
+    advertisedCapacity = unsigned(mdl::kBoneKeyCapacity);
+    modelCapacity = true;
+    capacityMessages = 0;
+    original.Function<void (*)(mdl::ModelRecord*, int, int)>(0xc7ea0)(native.get(), 3, 0);
+    unsigned failed = UINT_MAX;
+    Check(portable.Register(keys, reason, &failed), reason.c_str());
+    Check(failed == roots && capacityMessages == roots && portable.CanUndo() &&
+              native->UndoCursor() == 0 && native->undoRings[0].slots[0].recordCount == 0,
+          "native full bone command retains empty-capture undo entry");
+    const auto& after = portable.Document().models[0];
+    Check(native->maxFrame == after.selection.maxFrame &&
+              std::all_of(edited.begin(), edited.end(), [](auto b) { return !b; }) &&
+              std::all_of(after.bonePose.begin(), after.bonePose.end(),
+                          [](const auto& b) { return !b.flags[1]; }),
+          "native full bone edit markers and watermark");
+    for (unsigned i = 0; i < records.size(); ++i) {
+        const auto saved = records[i];
+        put(i, i < roots ? after.boneKeys.dense[i] : after.boneKeys.sparse[i - roots].value);
+        Check(!std::memcmp(&saved, &records[i], sizeof saved),
+              "native full bone pool unchanged apart from marks");
+    }
+    Check(portable.Undo(reason) && portable.Redo(reason), "full bone empty-capture undo/redo");
+    auto free = *original.Function<void (**)(void*)>(0x128450);
+    for (auto& ring : native->undoRings)
+        for (auto& slot : ring.slots) {
+            if (slot.bonePose)
+                free(slot.bonePose);
+            if (slot.keySnapshots)
+                free(slot.keySnapshots);
+        }
+    std::puts(
+        "Original full 600000-slot bone command: failures, complete pool, markers and empty-capture history passed");
+}
 unsigned CameraScaleCommands(OriginalPhysicsModule& original, const std::filesystem::path& root) {
     const unsigned char ret = 0xc3;
     Patch seek(original.Function<void*>(0x59c30), &ret, 1);
@@ -2578,6 +2901,13 @@ int wmain(int argc, wchar_t** argv) try {
           "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
     if (argc == 4) {
+        if (std::wcscmp(argv[3], L"--key-capacity") == 0) {
+            std::printf(
+                "%u original full display and %u original full global capacity commands passed\n",
+                DisplayCapacity(original, argv[2]), GlobalCapacity(original));
+            BoneCapacity(original, argv[2]);
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--frame-audio") == 0) {
             std::printf(
                 "%u original frame-WAV commands, %u time blocks and %u restart sequences passed\n",

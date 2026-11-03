@@ -128,7 +128,7 @@ public:
     bool SetCameraReference(unsigned mode, std::string&);
     bool SetFollowCamera(bool enabled, std::string&);
     int ActiveBone() const;
-    bool Register(const std::vector<KeyAddress>&, std::string&);
+    bool Register(const std::vector<KeyAddress>&, std::string&, unsigned* failedKeys = nullptr);
     bool Delete(const std::set<KeyAddress>&, std::string&);
     bool DeleteUnusedFrames(unsigned& deleted, std::string&);
     bool InsertFrameLine(Track, std::string&, bool fromMenu = false);
