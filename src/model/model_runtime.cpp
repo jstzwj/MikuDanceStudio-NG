@@ -299,8 +299,10 @@ bool ModelResource::Create(const format::ModelDocument& source,
         if (groups.size() > 255)
             return Fail(reason, "display-group-limit");
     }
-    if (source.kind == format::ModelKind::Pmd)
+    if (source.kind == format::ModelKind::Pmd) {
         resource->pmdToonNames_ = source.pmd.toonNames;
+        resource->pmdSource_ = std::make_shared<const format::PmdDocument>(source.pmd);
+    }
     resource->document_ = model;
     for (auto& vertex : resource->document_.vertices)
         if (vertex.weightType == 3) {

@@ -55,6 +55,7 @@ public:
     bool SetFrameLimit(unsigned limit);
     bool SetGroundShadowColor(float value);
     bool SetSelfShadowEnabled(bool enabled);
+    bool SetModelPath(std::uint8_t, std::vector<char>);
     bool SetAccessoryOrder(const std::vector<format::PmmAccessoryOrderEntry>&, int split);
     bool SetOutlineColor(const std::array<std::uint8_t, 3>& rgb);
     void SetGroupExpanded(std::uint8_t slot, unsigned group, bool expanded);

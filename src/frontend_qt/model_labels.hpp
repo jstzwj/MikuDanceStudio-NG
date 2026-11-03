@@ -26,6 +26,26 @@ inline QString ModelTrackLabel(const editor::EditorSession& session, std::uint8_
                 if (index < names.size())
                     return QString::fromUtf8(editor::EnglishNameDisplay(names[index]).c_str());
             }
+    if (english)
+        if (const auto* pmd = resource->PmdSource()) {
+            const char* raw = nullptr;
+            if (morph && index < pmd->morphs.size())
+                raw = pmd->englishPresence.hasEnglish
+                          ? (index && index - 1 < pmd->englishMorphNames.size()
+                                 ? pmd->englishMorphNames[index - 1].data()
+                                 : "")
+                          : pmd->morphs[index].header.name;
+            else if (!morph && index < pmd->bones.size())
+                raw = pmd->englishPresence.hasEnglish && index < pmd->englishBoneNames.size()
+                          ? pmd->englishBoneNames[index].data()
+                          : pmd->bones[index].pmdName;
+            if (raw) {
+                std::size_t count = 0;
+                while (count < 19 && raw[count])
+                    ++count;
+                return QString::fromUtf8(editor::EnglishNameDisplay({raw, count}).c_str());
+            }
+        }
     const auto& names = morph ? resource->Document().morphs.at(index).names
                               : resource->Document().bones.at(index).names;
     std::string utf8;

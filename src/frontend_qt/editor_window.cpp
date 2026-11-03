@@ -928,6 +928,8 @@ QString EditorWindow::ChooseFile(FileKind kind, bool save, const QString& title,
     dialog.setFileMode(save ? QFileDialog::AnyFile : QFileDialog::ExistingFile);
     dialog.setOption(QFileDialog::DontConfirmOverwrite, !confirmOverwrite);
     dialog.setOption(QFileDialog::DontUseNativeDialog, testing_);
+    if (save && filter.startsWith("Polygon Model files"))
+        dialog.setDefaultSuffix("pmd");
     if (!suggestedName.isEmpty())
         dialog.selectFile(suggestedName);
     if (dialog.exec() != QDialog::Accepted || dialog.selectedFiles().isEmpty())
@@ -937,6 +939,24 @@ QString EditorWindow::ChooseFile(FileKind kind, bool save, const QString& title,
     return path;
 }
 void EditorWindow::FileAction(const QString& id, const QString& inputPath) {
+    if (id == "model.enhanced_save") {
+        const auto resource = session_.Runtime().Resource(session_.Selected().model);
+        if (!resource || resource->SourceKind() != format::ModelKind::Pmd || session_.Playing())
+            return;
+        const auto path =
+            inputPath.isEmpty()
+                ? ChooseFile(FileKind::Model, true, language_.Text("enhance.save_title"),
+                             "Polygon Model files(*.pmd);;All Files(*.*)")
+                : inputPath;
+        if (!path.isEmpty()) {
+            std::string reason;
+            Result(session_.SaveEnhancedModel(session_.Selected().model, Path(path), AtomicSave,
+                                              reason),
+                   reason);
+            Refresh();
+        }
+        return;
+    }
     if (id == "file.lipsync") {
         const auto path = inputPath.isEmpty()
                               ? ChooseFile(FileKind::Vsq, false, language_.Text("dialog.vsq.title"),
@@ -1494,6 +1514,9 @@ QString EditorWindow::ModelLabel(std::uint8_t slot) const {
     return {};
 }
 void EditorWindow::EnglishNames() {
+    const auto resource = session_.Runtime().Resource(session_.Selected().model);
+    if (!resource || resource->SourceKind() != format::ModelKind::Pmd || session_.Playing())
+        return;
     if (englishDialog_ || session_.Selected().model == 255 || session_.Playing())
         return;
     englishDialog_ = new EnglishNameDialog(session_, language_, this);

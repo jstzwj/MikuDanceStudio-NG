@@ -27,20 +27,7 @@ std::string EnglishNameBytes(std::string_view utf8, std::size_t limit) {
     return result;
 }
 std::string EnglishNameDisplay(std::string_view bytes) {
-    std::string result;
-    for (std::size_t i = 0; i < bytes.size() && bytes[i];) {
-        const auto c = static_cast<unsigned char>(bytes[i]);
-        const std::size_t length = (c >= 0x81 && c <= 0x9f) || (c >= 0xe0 && c <= 0xfc) ? 2 : 1;
-        std::string decoded;
-        if (i + length <= bytes.size() && text::DecodeCp932(bytes.substr(i, length), decoded)) {
-            result += decoded;
-            i += length;
-        } else {
-            result += "\xef\xbf\xbd";
-            ++i;
-        }
-    }
-    return result;
+    return text::DecodeCp932Display(bytes);
 }
 bool EditorSession::ModelEnglishNames(std::uint8_t slot, format::PmmModelEnglishNames& output,
                                       std::string& reason) const {
@@ -69,6 +56,37 @@ bool EditorSession::ModelEnglishNames(std::uint8_t slot, format::PmmModelEnglish
             names.morphs.push_back(decode(morph.names[1], 19));
         for (const auto& group : resource->DisplayGroups())
             names.groups.push_back(EnglishNameBytes(group.names[1], 49));
+        if (const auto* pmd = resource->PmdSource()) {
+            // Native ANSI edits may end in half of a CP932 character. Keep the
+            // exact stored bytes through a save/reload; only display is lossy.
+            const auto raw = [](const char* bytes, std::size_t maximum) {
+                std::size_t length = 0;
+                while (length < maximum && bytes[length])
+                    ++length;
+                return std::string(bytes, length);
+            };
+            const bool english = pmd->englishPresence.hasEnglish;
+            names.comment =
+                raw(english ? pmd->englishModel.comment : pmd->header.comment.data(), 255);
+            for (unsigned i = 0; i < pmd->bones.size(); ++i)
+                names.bones[i] = raw(english && i < pmd->englishBoneNames.size()
+                                         ? pmd->englishBoneNames[i].data()
+                                         : pmd->bones[i].pmdName,
+                                     19);
+            for (unsigned i = 0; i < pmd->morphs.size(); ++i)
+                names.morphs[i] = english && i == 0
+                                      ? std::string()
+                                      : raw(english && i && i - 1 < pmd->englishMorphNames.size()
+                                                ? pmd->englishMorphNames[i - 1].data()
+                                                : pmd->morphs[i].header.name,
+                                            19);
+            const unsigned first = pmd->facialTargets.empty() ? 2 : 3;
+            for (unsigned i = 0; i < pmd->groupNames.size(); ++i)
+                names.groups[i + first] = raw(english && i < pmd->englishGroupNames.size()
+                                                  ? pmd->englishGroupNames[i].data()
+                                                  : pmd->groupNames[i].data(),
+                                              49);
+        }
     }
     names.name.assign(model->sourceName.begin(), model->sourceName.end());
     names.name.resize(std::min({names.name.size(), names.name.find('\0'), std::size_t(49)}));

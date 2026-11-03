@@ -686,6 +686,10 @@ bool SceneRuntime::SetModelEdgeScale(std::uint8_t slot, float value) {
     return impl_ && !impl_->failed && impl_->session &&
            impl_->session->SetModelEdgeScale(slot, value);
 }
+bool SceneRuntime::SetModelPath(std::uint8_t slot, std::vector<char> path) {
+    return impl_ && !impl_->failed && impl_->session &&
+           impl_->session->SetModelPath(slot, std::move(path));
+}
 bool SceneRuntime::SetModelEnglishNames(std::uint8_t slot,
                                         std::shared_ptr<const format::PmmModelEnglishNames> names) {
     return impl_ && !impl_->failed && impl_->session &&

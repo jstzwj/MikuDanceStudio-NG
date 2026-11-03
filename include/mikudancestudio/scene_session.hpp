@@ -98,6 +98,17 @@ public:
             }
         return false;
     }
+    bool SetModelPath(std::uint8_t slot, std::vector<char> path) {
+        if (!loaded_ || path.size() > 255)
+            return false;
+        for (auto& model : scene_.models)
+            if (model.slot == slot) {
+                model.path.fill(0);
+                std::copy(path.begin(), path.end(), model.path.begin());
+                return true;
+            }
+        return false;
+    }
     bool SetModelEnglishNames(std::uint8_t slot,
                               std::shared_ptr<const PmmModelEnglishNames> names) {
         if (!loaded_ || !names || names->name.size() > 49)

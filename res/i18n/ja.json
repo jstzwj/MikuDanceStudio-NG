@@ -659,5 +659,6 @@
   "dialog.enhance.title": "モデル拡張",
   "dialog.enhance.preserve": "編集結果は'拡張モデル保存'で新しいモデルとして保存して下さい",
   "dialog.enhance.quit_title": "終了",
-  "dialog.enhance.quit": "'拡張モデル保存'していない拡張編集したモデルがあります\n\n終了してよろしいですか？"
+  "dialog.enhance.quit": "'拡張モデル保存'していない拡張編集したモデルがあります\n\n終了してよろしいですか？",
+  "enhance.save_title": "拡張モデル保存"
 }

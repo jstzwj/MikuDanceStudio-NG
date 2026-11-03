@@ -659,5 +659,6 @@
   "dialog.enhance.title": "enhance model",
   "dialog.enhance.preserve": "Please preserve the edit result as a new model by 'save enhanced model'.",
   "dialog.enhance.quit_title": "quit",
-  "dialog.enhance.quit": "There is a enhanced model not preserved by 'save enhanced model'.\n\nDo you realy quit?"
+  "dialog.enhance.quit": "There is a enhanced model not preserved by 'save enhanced model'.\n\nDo you realy quit?",
+  "enhance.save_title": "save enhanced model"
 }

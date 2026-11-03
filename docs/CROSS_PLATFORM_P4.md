@@ -3548,3 +3548,65 @@ This increment does not complete P4 or C1.
 Local `ALL_BUILD` plus the optional native observer target passed. All **48 P4
 gates passed (204.29 seconds)** after the final source changes; the six touched
 integration gates and all 16 native observer profiles also passed separately.
+
+The English-name revision `239f9fc` subsequently passed all three Portable editor
+jobs in [CI 41570670275](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41570670275),
+plus Portable formats, Portable rendering and Bullet regressions.
+
+## Enhanced PMD saving (2026-11-03)
+
+Command 263 now saves the loaded PMD snapshot, including live English names,
+through the frontend's atomic writer. The original file may have changed or
+disappeared after loading. The source document is retained as immutable model
+data; saving restores base-Morph positions in private scratch, normalizes edge
+bytes and remaps duplicate base-Morph references to their first matching entry.
+English, toon and physics sections are written explicitly in little endian and
+reparsed before publication. English metadata retains truncated CP932 bytes
+through save/reload; its replacement-glyph decoder is display-only. Strict disk
+path and motion-name codecs are unchanged.
+
+The save dialog shares the original Model folder history, PMD filter/default
+extension, overwrite confirmation and English/Japanese title, with a Chinese
+translation. Confirmed saves update the model's PMM reference and absolute save
+path. The loaded texture directory remains unchanged, matching the original's
+separate modelDirectory. Canceled dialogs retain both modification flags. After
+an attempted write, the original command clears the enhanced-model reminder and
+marks the PMM modified, including an open/write failure. Failed writes preserve
+paths, poses, resources and bone history. Invalid/unsupported input is rejected
+before the writer is invoked. The enhancement submenu is PMD-only in MMD; the
+Qt frontend now also disables it for PMX, while shared metadata APIs retain
+their independently tested PMX support. Menu implementation is **90/103**.
+
+The optional `--enhanced-save` observer runs **16 complete original dispatcher
+commands** with four generated models, Cancel/OK and injected open errors. It
+executes the original PMD writer at RVA B59B0; CRT IO is captured in memory and
+dialogs/menu calls are intercepted. No original window is shown. All defined
+stream bytes match, including geometry, material fields, IK, Morphs, display
+groups, English names, toons, rigid bodies and shuffled joint limits. The native
+writer leaves stack residue after NUL in its 20-byte material filenames; only
+that undefined suffix is zeroed before comparison. The four canonical stream
+hashes are frozen as `355e96c5890e21aa`, `612e73fbdf2dae67`, `911300e0acc5fca2`
+and `5efddf4560884ffa`. No floating-point tolerance is applied to serialization.
+
+This comparison exposed an existing x64 legacy ABI error: RigidRecord::bodyId
+is an int32 at offset 96, rather than intptr_t. Native save reads linear/angle
+damping, restitution and friction at 100/104/108/112. The corrected declaration
+now pins all four offsets; body pointer 120, inverse transform 128, record size
+192 and the x86 layout are retained. This is a legacy record-layout correction,
+not a change to the portable physics solver or its numerical baselines.
+
+The public regression covers fixed stream hashes, malformed count/reference
+rejection, base-Morph preservation, truncated CP932, English save/reload, PMM
+save/reopen, unavailable source files, failed atomic writes, playback and unload.
+Offscreen Qt tests cover three-language save/cancel dialogs, PMX gating and
+reload without CPU evaluation or history changes. Toon/physics enhancement,
+combined scenes and complete input/layout/C1 acceptance continue separately.
+
+Validation: all **50 local P4 gates passed (203.57 seconds)**. Final serializer
+changes passed the six affected integration/runtime gates, and the display-only
+CP932 follow-up passed all four affected Qt gates (16.19 seconds). Both original
+16-case observers passed. The final Qt application and legacy Win32 application
+built successfully; a separate x86 compilation/execution confirmed the 172-byte
+rigid record and all four damping/contact offsets. The P2 31-case report retained
+its input hashes and existing numerical contract. No visible window or audible
+test output was used.

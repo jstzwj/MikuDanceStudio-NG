@@ -659,5 +659,6 @@
   "dialog.enhance.title": "模型扩展",
   "dialog.enhance.preserve": "请使用“保存扩展模型”将编辑结果保存为新模型。",
   "dialog.enhance.quit_title": "退出",
-  "dialog.enhance.quit": "有扩展编辑的模型尚未通过“保存扩展模型”保存。\n\n确定退出吗？"
+  "dialog.enhance.quit": "有扩展编辑的模型尚未通过“保存扩展模型”保存。\n\n确定退出吗？",
+  "enhance.save_title": "保存扩展模型"
 }

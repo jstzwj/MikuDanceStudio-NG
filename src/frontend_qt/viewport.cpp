@@ -12,6 +12,8 @@ namespace mikudancestudio::qt {
 render::SceneRenderSources EditorRenderSources(const editor::EditorAssets& assets) {
     render::SceneRenderSources out;
     out.models = assets.modelPaths;
+    for (const auto& [slot, path] : assets.modelTexturePaths)
+        out.models[slot] = path;
     out.accessories = assets.accessoryPaths;
     out.picture = assets.picture;
     out.sharedToons =
@@ -84,6 +86,7 @@ bool Viewport::ReloadTextures(std::string& reason) {
     const auto& assets = session_.Assets();
     if (loadedAssets_ && assets.models == loaded_.models &&
         assets.accessories == loaded_.accessories && assets.modelPaths == loaded_.modelPaths &&
+        assets.modelTexturePaths == loaded_.modelTexturePaths &&
         assets.accessoryPaths == loaded_.accessoryPaths && assets.picture == loaded_.picture) {
         if (!producer_.ReloadTextures(session_.Runtime(), EditorRenderSources(assets), builtins_,
                                       reason))
@@ -153,6 +156,7 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
     const auto& assets = session_.Assets();
     if (!loadedAssets_ || assets.models != loaded_.models ||
         assets.accessories != loaded_.accessories || assets.modelPaths != loaded_.modelPaths ||
+        assets.modelTexturePaths != loaded_.modelTexturePaths ||
         assets.accessoryPaths != loaded_.accessoryPaths || assets.picture != loaded_.picture) {
         if (!producer_.Load(session_.Runtime(), EditorRenderSources(assets), builtins_, reason))
             return false;

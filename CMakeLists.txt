@@ -51,6 +51,7 @@ target_sources(mikudancestudio_formats PRIVATE src/io/text_encoding.cpp src/io/v
 target_sources(mikudancestudio_formats PRIVATE src/io/model_geometry.cpp)
 target_sources(mikudancestudio_formats PRIVATE src/io/model_sections.cpp)
 target_sources(mikudancestudio_formats PRIVATE src/io/model_reader.cpp)
+target_sources(mikudancestudio_formats PRIVATE src/io/pmd_writer.cpp)
 target_sources(mikudancestudio_formats PRIVATE src/io/vsq_format.cpp)
 target_sources(mikudancestudio_formats PRIVATE src/io/pmm_format.cpp)
   target_sources(mikudancestudio_formats PRIVATE src/io/pmm_document.cpp)

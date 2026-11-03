@@ -71,6 +71,22 @@ bool EncodeCp932(std::string_view utf8, std::string& output) {
     output=std::move(result);
     return true;
 }
+std::string DecodeCp932Display(std::string_view bytes) {
+    std::string result;
+    for (std::size_t i = 0; i < bytes.size() && bytes[i];) {
+        const auto c = static_cast<unsigned char>(bytes[i]);
+        const std::size_t length = (c >= 0x81 && c <= 0x9f) || (c >= 0xe0 && c <= 0xfc) ? 2 : 1;
+        std::string decoded;
+        if (i + length <= bytes.size() && DecodeCp932(bytes.substr(i, length), decoded)) {
+            result += decoded;
+            i += length;
+        } else {
+            result += "\xef\xbf\xbd";
+            ++i;
+        }
+    }
+    return result;
+}
 bool DecodeUtf16Le(const std::uint8_t* bytes, std::size_t size, std::string& output) {
     if (size % 2 || (!bytes && size))
         return false;

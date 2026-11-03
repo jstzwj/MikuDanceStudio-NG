@@ -247,7 +247,7 @@ int BodyComboIndex(const Rigid& rb) {
     return static_cast<int>(rb.bodyId);
 }
 void SetBodyComboIndex(Rigid& rb, int index) {
-    rb.bodyId = static_cast<std::intptr_t>(index);
+    rb.bodyId = index;
 }
 // JointRecord::constraint doubles as the joint-list combo index while the
 // dialog owns the records.

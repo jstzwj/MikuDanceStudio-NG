@@ -294,7 +294,7 @@ struct RigidRecord {
     std::uint8_t kinematicFlag; // 81   set when mode == 2
     std::uint8_t staticFlag;    // 82   set when mode == 0
     unsigned char padMode;
-    std::intptr_t bodyId; // 84   Bullet debug ID; editor scratch copies reuse this as a combo index
+    std::int32_t bodyId;  // 84   Integer Bullet debug ID (also 32-bit on x64); editor combo index
     float linearDamping;  // 88
     float angularDamping; // 92
     float restitution;    // 96
@@ -428,6 +428,14 @@ static_assert(offsetof(mikudancestudio::mdl::RigidRecord, rotation) == 0x4C,
               "RigidRecord.rotation x64 ABI");
 static_assert(offsetof(mikudancestudio::mdl::RigidRecord, bodyId) == 96,
               "RigidRecord.bodyId x64 ABI");
+static_assert(offsetof(mikudancestudio::mdl::RigidRecord, linearDamping) == 100,
+              "RigidRecord.linearDamping x64 ABI");
+static_assert(offsetof(mikudancestudio::mdl::RigidRecord, angularDamping) == 104,
+              "RigidRecord.angularDamping x64 ABI");
+static_assert(offsetof(mikudancestudio::mdl::RigidRecord, restitution) == 108,
+              "RigidRecord.restitution x64 ABI");
+static_assert(offsetof(mikudancestudio::mdl::RigidRecord, friction) == 112,
+              "RigidRecord.friction x64 ABI");
 static_assert(offsetof(mikudancestudio::mdl::RigidRecord, body) == 120, "RigidRecord.body x64 ABI");
 static_assert(offsetof(mikudancestudio::mdl::RigidRecord, invTransform) == 128,
               "RigidRecord.invTransform x64 ABI");

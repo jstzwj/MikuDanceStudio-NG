@@ -671,6 +671,7 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     if (next.document.envelope.header.version == PmmVersion::V1 && next.document.v1TailStage < 11)
         next.document.appearance.floorVisible = Document().appearance.floorVisible;
     next.assets.modelPaths = resolver.Resolved();
+    next.assets.modelTexturePaths = next.assets.modelPaths;
     for (std::size_t i = 0; i < session.Models().size(); ++i) {
         auto slot = next.document.models[i].slot;
         if (!session.Models()[i] ||
@@ -847,6 +848,15 @@ bool EditorSession::ImportModel(const std::filesystem::path& path, std::string& 
         model.selection.comboIndex = std::uint8_t(next.document.models.size() + 1);
         model.previousDisplayOrder = std::uint8_t(next.document.models.size());
         const auto modelName = [&](unsigned language) {
+            if (const auto* source = resource->PmdSource()) {
+                const char* name = language && source->englishPresence.hasEnglish
+                                       ? source->englishModel.name
+                                       : source->header.name.data();
+                std::size_t length = 0;
+                while (length < 19 && name[length])
+                    ++length;
+                return std::vector<char>(name, name + length);
+            }
             const auto& bytes = resource->Document().texts.fields[language];
             std::string decoded;
             text::DecodeUtf16Le(bytes.data(), bytes.size(), decoded);
@@ -863,6 +873,7 @@ bool EditorSession::ImportModel(const std::filesystem::path& path, std::string& 
         next.document.modelRegistrations.clear();
         next.assets.models[std::uint8_t(slot)] = resource;
         next.assets.modelPaths[std::uint8_t(slot)] = absolute;
+        next.assets.modelTexturePaths[std::uint8_t(slot)] = absolute;
         next.selection = {};
         next.selection.model = std::uint8_t(slot);
         if (!ReadPmmSelectedKeys(next.document, next.selection.model, next.selection.keys)) {

@@ -69,6 +69,7 @@ public:
         return result;
     }
     format::ModelKind SourceKind() const { return sourceKind_; }
+    const format::PmdDocument* PmdSource() const { return pmdSource_.get(); }
     const std::array<std::array<char, 100>, 10>& PmdToonNames() const { return pmdToonNames_; }
 
 private:
@@ -77,6 +78,7 @@ private:
     friend class ModelTimeline;
     friend class ModelEvaluation;
     format::PmxDocument document_;
+    std::shared_ptr<const format::PmdDocument> pmdSource_;
     format::ModelKind sourceKind_ = format::ModelKind::Pmx;
     std::array<std::array<char, 100>, 10> pmdToonNames_{};
     std::vector<cpu_model::Bone> skeleton_;

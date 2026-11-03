@@ -47,6 +47,8 @@ struct EditorAssets {
     std::map<std::uint8_t, std::shared_ptr<const runtime::ModelResource>> models;
     std::map<std::uint8_t, std::shared_ptr<const runtime::AccessoryResource>> accessories;
     std::map<std::uint8_t, std::filesystem::path> modelPaths, accessoryPaths;
+    // Loaded texture directory survives "save enhanced model" to another folder.
+    std::map<std::uint8_t, std::filesystem::path> modelTexturePaths;
     std::filesystem::path wave;
     std::filesystem::path picturePath;
     std::shared_ptr<const rhi::RgbaImage> picture;
@@ -75,6 +77,8 @@ public:
     bool New(std::string&);
     bool Open(const std::filesystem::path&, std::string&);
     bool Save(const std::filesystem::path&, const AtomicWrite&, std::string&);
+    bool SaveEnhancedModel(std::uint8_t, const std::filesystem::path&, const AtomicWrite&,
+                           std::string&);
     bool ImportModel(const std::filesystem::path&, std::string&);
     bool ImportAccessory(const std::filesystem::path&, std::string&);
     bool ImportWave(const std::filesystem::path&, std::string&);

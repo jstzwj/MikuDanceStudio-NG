@@ -27,7 +27,7 @@ int main(int argc, char** argv) {
     CHECK(file.open(QIODevice::ReadOnly));
     const auto references = QJsonDocument::fromJson(file.readAll()).object();
     for (const char* language : {"en", "ja", "zh_CN"})
-        for (const char* model : {"english.pmd", "english.pmx"}) {
+        for (const char* model : {"english.pmd", "lips.pmd", "english.pmx"}) {
             qt::EditorWindow window(std::filesystem::absolute(argv[2]), true);
             CHECK(window.SetLanguage(language));
             auto& session = window.Session();
@@ -40,6 +40,12 @@ int main(int argc, char** argv) {
             CHECK(command() && !command()->isEnabled());
             CHECK(session.ImportModel(root / model, reason));
             window.Refresh();
+            if (session.Runtime().Resource(0)->SourceKind() == format::ModelKind::Pmx) {
+                CHECK(!command()->isEnabled()); // Native enhancement submenu is PMD-only.
+                command()->trigger();
+                CHECK(!window.findChild<QDialog*>("mmd.englishNames"));
+                continue;
+            }
             CHECK(command()->isEnabled());
             const auto revision = session.Revision(), frames = session.Runtime().Counters().frames;
             const auto resource = session.Runtime().Resource(0);

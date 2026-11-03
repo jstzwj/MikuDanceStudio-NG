@@ -25,6 +25,8 @@ const char* FileCommand(int command) {
         return "file.pose_open";
     case MDS_CMD_SAVE_POSE:
         return "file.pose_save";
+    case MDS_CMD_SAVE_ENHANCED_MODEL:
+        return "model.enhanced_save";
     case MDS_CMD_LOAD_MOTION:
         return "file.motion_open";
     case MDS_CMD_SAVE_MOTION:
@@ -95,6 +97,7 @@ bool ModelCommand(int command) {
     case MDS_CMD_LOAD_LIP_SYNC:
         return true;
     case MDS_CMD_EDIT_ENGLISH_NAMES:
+    case MDS_CMD_SAVE_ENHANCED_MODEL:
         return true;
     default:
         return false;
@@ -246,10 +249,19 @@ void EditorWindow::BuildMenus() {
 void EditorWindow::RefreshMenus() {
     const auto& doc = session_.Document();
     const bool model = session_.Selected().model != 255;
+    if (model)
+        if (auto* enhance = findChild<QMenu*>("menu.enhance")) {
+            const auto resource = session_.Runtime().Resource(session_.Selected().model);
+            enhance->setEnabled(resource && resource->SourceKind() == format::ModelKind::Pmd);
+        }
     for (const auto& [command, action] : menuActions_) {
         bool enabled = Implemented(command);
         if (ModelCommand(command))
             enabled &= model && !session_.Playing();
+        if (command == MDS_CMD_EDIT_ENGLISH_NAMES || command == MDS_CMD_SAVE_ENHANCED_MODEL) {
+            const auto resource = session_.Runtime().Resource(session_.Selected().model);
+            enabled &= resource && resource->SourceKind() == format::ModelKind::Pmd;
+        }
         if (command == MDS_CMD_EDGE_THICKNESS)
             enabled &= model;
         if (command == MDS_CMD_ACCESSORY_SETTINGS)
