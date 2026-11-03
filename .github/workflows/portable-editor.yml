@@ -26,7 +26,7 @@ on:
         default: false
       system_ime:
         type: boolean
-        description: Qualify real IBus/libpinyin input in a private Linux display and DBus session
+        description: Qualify real Chinese/Japanese IBus input in private Linux display and DBus sessions
         default: false
 concurrency:
   group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}
@@ -242,9 +242,10 @@ jobs:
         env:
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: |
-          sudo apt-get install -y ibus ibus-libpinyin dbus-x11 xdotool
+          sudo apt-get install -y ibus ibus-libpinyin ibus-anthy dbus-x11 xdotool
           cmake --build out/p4 --target qt_system_ime_test --parallel 3
           xvfb-run -a dbus-run-session -- python tests/test_system_ime.py --test out/p4/qt_system_ime_test --report out/p4/system-ime.json
+          xvfb-run -a dbus-run-session -- python tests/test_system_ime.py --test out/p4/qt_system_ime_test --engine anthy --report out/p4/system-ime-anthy.json
       - name: Native PulseAudio silent clock
         run: |
           sudo apt-get install -y pulseaudio pulseaudio-utils
