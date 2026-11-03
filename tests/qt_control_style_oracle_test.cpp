@@ -548,6 +548,8 @@ int main(int argc, char** argv) try {
                                      RDW_UPDATENOW);
                     UpdateWindow(control);
                     QCoreApplication::processEvents();
+                    if (focused)
+                        Check(GetFocus() == control, "native list retains focus before capture");
                 }
                 const auto expected = NativeImage(control, visible, borderOnly);
                 if (focused) {

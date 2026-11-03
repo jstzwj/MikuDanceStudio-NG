@@ -111,7 +111,7 @@ bool DrawWindowsComboText(QImage& background, const QRect& rect, const QFont& fo
     return true;
 }
 bool DrawWindowsListRow(QPainter& painter, const QRect& rect, const QFont& font,
-                        const QString& text, bool selected, bool enabled) {
+                        const QString& text, bool selected, bool enabled, bool keyboardFocus) {
     const auto ratio = painter.device()->devicePixelRatioF();
     const int width = qRound(rect.width() * ratio), height = qRound(rect.height() * ratio);
     if (width <= 0 || height <= 0)
@@ -149,6 +149,13 @@ bool DrawWindowsListRow(QPainter& painter, const QRect& rect, const QFont& font,
         // back into that margin. BUTTON's measured-label clipping is different.
         DrawTextW(dc, caption.c_str(), int(caption.size()), &rectangle,
                   DT_LEFT | DT_TOP | DT_SINGLELINE | DT_NOPREFIX | DT_NOCLIP);
+        if (keyboardFocus) {
+            // LISTBOX inverts alternate pixels around the complete current
+            // item, including text at the top edge. Keep the native XOR phase
+            // and colors rather than painting a Qt focus panel over the row.
+            RECT focus{0, 0, width, height};
+            DrawFocusRect(dc, &focus);
+        }
         GdiFlush();
         QImage image(static_cast<unsigned char*>(bits), width, height, width * 4,
                      QImage::Format_RGB32);

@@ -101,10 +101,11 @@ public:
                const QModelIndex& index) const override {
 #ifdef _WIN32
         if (QGuiApplication::platformName() == "windows" &&
-            !(option.state & QStyle::State_HasFocus) &&
             DrawWindowsListRow(
                 *painter, option.rect, option.font, index.data(Qt::DisplayRole).toString(),
-                option.state & QStyle::State_Selected, option.state & QStyle::State_Enabled))
+                option.state & QStyle::State_Selected, option.state & QStyle::State_Enabled,
+                (option.state & QStyle::State_HasFocus) &&
+                    (option.state & QStyle::State_KeyboardFocusChange)))
             return;
 #endif
         auto row = option;
