@@ -43,16 +43,22 @@ public:
                         FALSE, 0);
     }
     ~ShutdownDiagnostic() {
-        if (done_)
-            SetEvent(done_);
-        if (worker_.joinable())
-            worker_.join();
+        Cancel();
         if (done_)
             CloseHandle(done_);
         if (main_)
             CloseHandle(main_);
     }
+    void Cancel() {
+        if (done_)
+            SetEvent(done_);
+        if (worker_.joinable())
+            worker_.join();
+    }
     void Arm() {
+        Cancel();
+        if (done_)
+            ResetEvent(done_);
         const auto path = qEnvironmentVariable("MDS_IME_DIAGNOSTIC_PATH").toStdWString();
         if (!done_ || path.empty())
             return;
@@ -213,7 +219,20 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "%s: %s\n", context.category, message.toUtf8().constData());
             std::fflush(stderr);
         });
+#ifdef _WIN32
+    if (qEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
+        qEnvironmentVariable("MDS_QT_ISOLATED_DISPLAY") == "1") {
+        std::fprintf(stderr, "IME constructing QApplication\n");
+        std::fflush(stderr);
+        shutdownDiagnostic.Arm();
+    }
+#endif
     QApplication app(argc, argv);
+#ifdef _WIN32
+    shutdownDiagnostic.Cancel();
+    std::fprintf(stderr, "IME QApplication ready\n");
+    std::fflush(stderr);
+#endif
     bool platformInput = (QGuiApplication::platformName() == "xcb" &&
                           qEnvironmentVariable("QT_IM_MODULE") == "ibus") ||
                          (QGuiApplication::platformName() == "cocoa" &&
