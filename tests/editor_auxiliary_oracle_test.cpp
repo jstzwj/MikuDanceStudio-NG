@@ -455,6 +455,68 @@ struct NativeSamplerDevice : SnapshotDeviceFixture {
         return S_OK;
     }
 };
+struct AboutObservation {
+    HWND owner = nullptr;
+    std::string text, title;
+    UINT flags = 0;
+    unsigned calls = 0;
+} aboutMessage;
+int WINAPI AboutMessage(HWND owner, LPCSTR text, LPCSTR title, UINT flags) {
+    aboutMessage = {owner, text, title, flags, aboutMessage.calls + 1};
+    return IDOK;
+}
+unsigned AboutCommands(OriginalPhysicsModule& original) {
+    auto message = &AboutMessage;
+    Patch import(original.Function<void*>(0x128618), &message, sizeof message);
+    auto app = std::make_unique<MMDAppState>();
+    auto* pointer = app.get();
+    Patch context(original.Function<void*>(0x1445f8), &pointer, sizeof pointer);
+    unsigned cases = 0;
+    for (bool english : {false, true})
+        for (bool floating : {false, true})
+            for (bool playing : {false, true})
+                for (int command : {MDS_CMD_ABOUT, MDS_CMD_ABOUT_PHYSICS}) {
+                    std::memset(app.get(), 0, sizeof(*app));
+                    auto* raw = reinterpret_cast<unsigned char*>(app.get());
+                    raw[0xa1b90] = english; // Original locale byte, not the reconstructed wrapper.
+                    app->floatingWindow = floating ? reinterpret_cast<HWND>(2) : nullptr;
+                    app->playbackActive = playing;
+                    app->sceneModified = 0x7d;
+                    app->physicsResetPending = 1;
+                    app->currentFrame = 123;
+                    auto expected = std::make_unique<MMDAppState>(*app);
+                    const bool physics = command == MDS_CMD_ABOUT_PHYSICS;
+                    auto* expectedRaw = reinterpret_cast<unsigned char*>(expected.get());
+                    *reinterpret_cast<int*>(expectedRaw + (physics ? 0x48 : 0x58)) = 1;
+                    if (!physics)
+                        *reinterpret_cast<int*>(expectedRaw + 0xc0) = 1;
+                    aboutMessage = {};
+                    original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, command);
+                    Check(aboutMessage.calls == 1 &&
+                              !std::memcmp(app.get(), expected.get(), sizeof(*app)),
+                          "original about dialog changes only native input latches");
+                    Check(aboutMessage.owner ==
+                                  (!physics && floating ? reinterpret_cast<HWND>(2) : nullptr) &&
+                              aboutMessage.flags == (physics ? MB_TOPMOST : MB_OK),
+                          "original about ownership and flags");
+                    const std::string title =
+                        physics
+                            ? english
+                                  ? "about physical engine"
+                                  : "\x95\xa8\x97\x9d\x83\x47\x83\x93\x83\x57\x83\x93\x82\xc9\x82\xc2\x82\xa2\x82\xc4"
+                            : "About";
+                    const std::string body =
+                        physics
+                            ? "Bullet Physics Library Ver.2.75\n\nhttp://www.bulletphysics.com/"
+                            : std::string(
+                                  "MikuMikuDance Ver.9.32\n  (64bitOS Version)\n\nprogrammed by ") +
+                                  (english ? "Yu Higuchi" : "\x94\xf3\x8c\xfb\x97\x44");
+                    Check(aboutMessage.title == title && aboutMessage.text == body,
+                          "original about text");
+                    ++cases;
+                }
+    return cases;
+}
 unsigned WireframeCommands(OriginalPhysicsModule& original) {
     switchMenuCommand = MDS_CMD_TOGGLE_WIREFRAME;
     auto menu = &ShadowMenu;
@@ -2146,6 +2208,10 @@ int wmain(int argc, wchar_t** argv) try {
           "usage: editor_auxiliary_oracle_test original.exe generated-fixture [--mouth-shift]");
     OriginalPhysicsModule original(argv[1]);
     if (argc == 4) {
+        if (std::wcscmp(argv[3], L"--about") == 0) {
+            std::printf("%u original about command comparisons passed\n", AboutCommands(original));
+            return 0;
+        }
         if (std::wcscmp(argv[3], L"--mipmap") == 0) {
             std::printf("%u original mipmap command comparisons passed\n",
                         MipmapCommands(original));
@@ -2205,6 +2271,7 @@ int wmain(int argc, wchar_t** argv) try {
     std::printf("%u original file folder comparisons passed\n", FileFolderCommands(original));
     std::printf("%u original mipmap command comparisons passed\n", MipmapCommands(original));
     std::printf("%u original wireframe command comparisons passed\n", WireframeCommands(original));
+    std::printf("%u original about command comparisons passed\n", AboutCommands(original));
     unsigned count = 0;
     for (const char* file : {"articulated.pmd", "articulated.pmx", "facial.pmd"}) {
         EditorSession session;

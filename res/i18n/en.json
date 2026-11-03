@@ -631,5 +631,8 @@
   "dialog.blink.report": "%1 blinking is registerd",
   "dialog.blink.report_title": "register blinking",
   "dialog.blink.capacity": "You cannot regist over 20000 point\nPlease execute 'delete unused frame'",
-  "dialog.blink.capacity_title": "register frame"
+  "dialog.blink.capacity_title": "register frame",
+  "dialog.about.title": "About",
+  "dialog.about_physics.title": "about physical engine",
+  "dialog.about.body": "MikuDanceStudio-NG Ver.%1\n\nBased on MikuMikuDance Ver.9.32\nprogrammed by Yu Higuchi"
 }

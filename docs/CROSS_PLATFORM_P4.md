@@ -3222,3 +3222,22 @@ register their off-camera root state. Both affected GPU gates and the VAC gate
 passed the focused rerun, retaining their strict history/pixel assertions.
 P4/C1 remains in progress; these checks do not close the remaining input,
 combined-scene output, layout and command gates.
+
+## About dialogs and modal ownership (2026-11-03)
+
+Commands 201 and 267 are connected, bringing implemented original-menu entries
+to **85/103**. Both use icon-free, plain-text OK dialogs. Physics information
+retains the original Bullet 2.75 text and URL, localized title, main-window
+ownership and always-on-top flag. Product information belongs to the detached
+viewport when present; it identifies the actual NG build version from `VERSION`
+and credits the original MMD 9.32 author, rather than identifying this fork as
+the original executable. Modal time does not advance the editor's frame timer.
+
+The optional auxiliary oracle's `--about` filter passed **16 original complete
+command comparisons**: both commands × English/Japanese × docked/detached ×
+paused/playing. It intercepts MessageBoxA, compares the actual title/body/flags/
+owner and the entire application state, allowing only the native input latches.
+Qt's matching offscreen gate checks all three translations and the same
+ownership/playback combinations, with unchanged document, appearance and CPU
+update count. No local window is shown. Native system message-box geometry is
+not inferred from this behavior check; broader layout/font gates remain open.

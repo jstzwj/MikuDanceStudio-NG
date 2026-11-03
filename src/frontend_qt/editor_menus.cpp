@@ -138,6 +138,8 @@ bool Implemented(int command) {
     case MDS_CMD_TOGGLE_PREVIOUS_FOLDER:
     case MDS_CMD_TOGGLE_MIPMAP:
     case MDS_CMD_TOGGLE_WIREFRAME:
+    case MDS_CMD_ABOUT:
+    case MDS_CMD_ABOUT_PHYSICS:
         return true;
     default:
         return false;
@@ -308,6 +310,27 @@ void EditorWindow::MenuCommand(int command) {
     if (found == menuActions_.end() || !found->second->isEnabled())
         return;
     idleRenderState_ = 1;
+    if (command == MDS_CMD_ABOUT || command == MDS_CMD_ABOUT_PHYSICS) {
+        const bool physics = command == MDS_CMD_ABOUT_PHYSICS;
+        const auto title =
+            language_.Text(physics ? "dialog.about_physics.title" : "dialog.about.title");
+        const auto text =
+            physics ? QString("Bullet Physics Library Ver.2.75\n\nhttp://www.bulletphysics.com/")
+                    : language_.Text("dialog.about.body").arg(QStringLiteral(MDS_PRODUCT_VERSION));
+        QMessageBox dialog(QMessageBox::NoIcon, title, text, QMessageBox::Ok,
+                           !physics && separate_ ? separate_ : this);
+        dialog.setObjectName(physics ? "mmd.aboutPhysics" : "mmd.about");
+        dialog.setTextFormat(Qt::PlainText);
+        if (physics)
+            dialog.setWindowFlag(Qt::WindowStaysOnTopHint);
+        const bool running = timer_.isActive();
+        timer_.stop();
+        dialog.exec();
+        clock_.restart();
+        if (running)
+            RefreshFrameTimer();
+        return;
+    }
     if (command == MDS_CMD_TOGGLE_WIREFRAME) {
         session_.SetWireframe(!session_.DisplayOptions().wireframe);
         RefreshMenus();

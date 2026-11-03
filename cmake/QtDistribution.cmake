@@ -2,6 +2,7 @@
 include(GNUInstallDirs)
 file(STRINGS "${root}/VERSION" mds_product_version LIMIT_COUNT 1)
 target_compile_definitions(MikuDanceStudioNG PRIVATE MDS_PRODUCT_VERSION="${mds_product_version}")
+target_compile_definitions(mikudancestudio_frontend_qt PUBLIC MDS_PRODUCT_VERSION="${mds_product_version}")
 set_target_properties(MikuDanceStudioNG PROPERTIES
     MACOSX_BUNDLE TRUE
     MACOSX_BUNDLE_GUI_IDENTIFIER "io.github.jstzwj.MikuDanceStudioNG"

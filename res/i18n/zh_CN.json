@@ -631,5 +631,8 @@
   "dialog.blink.report": "已添加 %1 次眨眼",
   "dialog.blink.report_title": "添加眨眼",
   "dialog.blink.capacity": "关键帧数量不能超过 20000。\n请执行“删除无用帧”。",
-  "dialog.blink.capacity_title": "登记关键帧"
+  "dialog.blink.capacity_title": "登记关键帧",
+  "dialog.about.title": "About",
+  "dialog.about_physics.title": "关于物理引擎",
+  "dialog.about.body": "MikuDanceStudio-NG Ver.%1\n\n基于 MikuMikuDance Ver.9.32\n原作者：Yu Higuchi"
 }

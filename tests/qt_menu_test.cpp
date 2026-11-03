@@ -14,6 +14,8 @@
 #include <QResizeEvent>
 #include <QMenuBar>
 #include <QPointer>
+#include <QMessageBox>
+#include <QTimer>
 #include <QStyleFactory>
 #include <QThread>
 #include <iostream>
@@ -464,7 +466,71 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 83);
+    CHECK(implemented == 85);
+    for (const char* language : {"en", "ja", "zh_CN"}) {
+        qt::EditorWindow about(std::filesystem::absolute(argv[2]), true);
+        CHECK(about.SetLanguage(language));
+        for (bool separate : {false, true}) {
+            const auto action = [&](int id) {
+                for (auto* a : about.findChildren<QAction*>())
+                    if (a->property("mmdCommandId").toInt() == id)
+                        return a;
+                return static_cast<QAction*>(nullptr);
+            };
+            if (separate)
+                action(MDS_CMD_TOGGLE_SEPARATE_WINDOW)->trigger();
+            for (bool playing : {false, true}) {
+                if (playing)
+                    CHECK(about.Session().Play(reason));
+                about.Refresh();
+                for (int id : {MDS_CMD_ABOUT, MDS_CMD_ABOUT_PHYSICS}) {
+                    const auto revision = about.Session().Revision();
+                    const auto updates = about.Session().Runtime().Counters().frames;
+                    const auto appearance = about.Session().AppearanceRevision();
+                    const bool physics = id == MDS_CMD_ABOUT_PHYSICS;
+                    bool visited = false;
+                    QTimer::singleShot(0, [&] {
+                        auto* dialog =
+                            qobject_cast<QMessageBox*>(QApplication::activeModalWidget());
+                        if (!dialog)
+                            return;
+                        const auto expectedTitle =
+                            physics
+                                ? about.CurrentLanguage() == "en" ? QString("about physical engine")
+                                  : about.CurrentLanguage() == "ja"
+                                      ? QString::fromUtf8(
+                                            u8"\u7269\u7406\u30a8\u30f3\u30b8\u30f3\u306b\u3064\u3044\u3066")
+                                      : QString::fromUtf8(u8"\u5173\u4e8e\u7269\u7406\u5f15\u64ce")
+                                : QString("About");
+                        visited =
+                            dialog->icon() == QMessageBox::NoIcon &&
+                            dialog->standardButtons() == QMessageBox::Ok &&
+                            dialog->windowTitle() == expectedTitle &&
+                            dialog->windowFlags().testFlag(Qt::WindowStaysOnTopHint) == physics &&
+                            dialog->parentWidget() ==
+                                (!physics && separate ? about.SeparateWindow() : &about) &&
+                            dialog->textFormat() == Qt::PlainText;
+                        visited &=
+                            physics
+                                ? dialog->text() ==
+                                      "Bullet Physics Library Ver.2.75\n\nhttp://www.bulletphysics.com/"
+                                : dialog->text().startsWith(
+                                      "MikuDanceStudio-NG Ver." MDS_PRODUCT_VERSION "\n") &&
+                                      dialog->text().contains("MikuMikuDance Ver.9.32");
+                        dialog->done(QMessageBox::Ok);
+                    });
+                    CHECK(action(id)->isEnabled());
+                    action(id)->trigger();
+                    CHECK(visited && about.Session().Revision() == revision &&
+                          about.Session().Runtime().Counters().frames == updates &&
+                          about.Session().AppearanceRevision() == appearance &&
+                          about.Session().Playing() == playing);
+                }
+                about.Session().Pause();
+            }
+        }
+        CHECK(!about.isVisible() && !about.SeparateWindow()->isVisible());
+    }
     for (const char* language : {"en", "ja", "zh_CN"})
         for (int id : {MDS_CMD_DELETE_MOUTH_FRAMES, MDS_CMD_DELETE_EYE_FRAMES,
                        MDS_CMD_DELETE_EYEBROW_FRAMES}) {
