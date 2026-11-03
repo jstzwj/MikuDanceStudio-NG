@@ -1120,12 +1120,37 @@
     "d3d11_warp": {
       "accepted": false,
       "reference": "same frozen native hardware reference, unchanged thresholds",
-      "rest_alpha_rounding_pixels": 8684,
+      "rest_alpha_rounding_pixels": 0,
       "rest_other_pixels": 45,
       "rest_coverage_differences": 5,
-      "cause": "Observed Alpha 179 versus native 178; remaining coplanar depth/line ties. Required wider portability qualification remains open."
+      "cause": "Uniform material Alpha perspective interpolation drift fixed in shared pixel constants; remaining coplanar depth/line ties fail unchanged strict reference criteria.",
+      "posed_other_pixels": 8,
+      "posed_coverage_differences": 0,
+      "previous_rest_alpha_rounding_pixels": 8684
     },
-    "metal": "not yet run against this frozen capture",
-    "software_vulkan": "not yet run against this frozen capture"
+    "metal": {
+      "accepted": false,
+      "run": 41618794476,
+      "revision": "d88adbe",
+      "rest_outside_tolerance_elements": 24,
+      "posed_outside_tolerance_elements": 21,
+      "coverage_differences": [
+        0,
+        0
+      ],
+      "note": "Before uniform-Alpha correction; rerun required"
+    },
+    "software_vulkan": {
+      "accepted": false,
+      "run": 41618786844,
+      "revision": "d88adbe",
+      "rest_outside_tolerance_elements": 8658,
+      "posed_outside_tolerance_elements": 957,
+      "coverage_differences": [
+        2,
+        0
+      ],
+      "note": "Before uniform-Alpha correction; rerun required"
+    }
   }
 }

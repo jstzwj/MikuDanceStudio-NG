@@ -101,6 +101,33 @@ void CheckLineCoverage(Device& device, unsigned width) {
             CHECK(covered == expected);
         }
 }
+void CheckUniformAlpha(Device& device, unsigned width) {
+    for (bool lighting : {false, true}) {
+        auto frame = Frame(width, 0, BatchCull::None, false);
+        auto& shader = frame.passes.back().draws.front().pipeline.shader;
+        shader.nativeDiffuse[3] = .7f;
+        shader.lighting = lighting;
+        shader.globalAmbient = {1, 1, 1, 1};
+        shader.materialAmbient = {.25f, .75f, .5f, .7f};
+        // Vary homogeneous W to exercise perspective interpolation of a
+        // material constant exactly at a sensitive UNORM conversion boundary.
+        shader.projection[11] = .25f;
+        const sampling_fixture::Vertex vertices[] = {
+            {-.75f, -.75f, .2f}, {0, .75f, .4f}, {.75f, -.75f, .8f}};
+        auto& bytes = frame.resources[0].bytes;
+        bytes.resize(sizeof vertices);
+        std::memcpy(bytes.data(), vertices, sizeof vertices);
+        const auto image = Render(device, frame);
+        unsigned covered = 0;
+        for (std::size_t at = 0; at < image.bytes.size(); at += 4)
+            if (image.bytes[at] != 255 || image.bytes[at + 1] != 255 ||
+                image.bytes[at + 2] != 255) {
+                CHECK(image.bytes[at + 3] == 178);
+                ++covered;
+            }
+        CHECK(covered > 1000);
+    }
+}
 }
 int main(int argc, char** argv) try {
     CHECK(argc == 2);
@@ -115,6 +142,7 @@ int main(int argc, char** argv) try {
         auto device = CreateOffscreenBackendDevice(width, 64, options);
         CHECK(device && device.device->RasterFeatures().wireframe);
         CheckLineCoverage(*device.device,width);
+        CheckUniformAlpha(*device.device, width);
         for (unsigned pipeline = 0; pipeline < 3; ++pipeline)
             for (auto cull : {BatchCull::None, BatchCull::Clockwise, BatchCull::CounterClockwise})
                 for (bool blend : {false, true}) {

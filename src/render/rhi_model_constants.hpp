@@ -1,6 +1,7 @@
 #pragma once
 #include "mikudancestudio/rhi_model_pipeline.hpp"
 #include "mikudancestudio/rhi_model_shader_constants.hpp"
+#include <cstring>
 
 namespace mikudancestudio::rhi::detail {
 struct PostProcessConstants {
@@ -130,6 +131,14 @@ inline bool BuildModelConstants(const ModelPipeline& p, const ModelViewport& vie
         vc.coordinates[i] = static_cast<unsigned>(s.layout.stages[i].coordinates);
         pc.stages[i] = {s.layout.stages[i].role != MaterialTextureRole::None,
                         static_cast<unsigned>(s.layout.stages[i].color), 0, 0};
+    }
+    // A material Alpha is uniform across the draw. Interpolating its replicated
+    // vertex value can perturb half-byte UNORM/blend boundaries on software
+    // rasterizers. Vertex colors retain their actual varying Alpha semantics.
+    if (!measured && (p.vertexLayout != VertexLayout::PositionColor ||
+                      (s.lighting && !(s.colorVertex && s.materialSources[0] == 1)))) {
+        pc.stages[0][2] = 1;
+        std::memcpy(&pc.stages[0][3], &s.nativeDiffuse[3], sizeof(float));
     }
     vc.coordinates[3] = s.colorVertex ? 256u : 0u;
     for (unsigned i = 0; i < 4; ++i)

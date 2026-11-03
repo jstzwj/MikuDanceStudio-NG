@@ -4,7 +4,8 @@
 Texture2D textures[3] : register(t0);
 SamplerState samplers[3] : register(s0);
 cbuffer Cascade : register(b0) {
-    // x: enabled, y: Add(3) / Modulate(2), z/w reserved.
+    // x: enabled, y: Add(3) / Modulate(2).
+    // Stage 0 z/w: uniform material Alpha enabled / float bits.
     uint4 stages[3];
     // x: alpha-test disabled/half-up/nearest-even (0/1/2), y: comparison, z: byte ref,
     // w: native specular-stage enabled (measured compatibility only).
@@ -46,6 +47,7 @@ float4 main(PixelInput input) : SV_TARGET {
     return float4(0,0,0,1);
 #endif
     float4 color = input.litDiffuse;
+    if (stages[0].z) color.a = asfloat(stages[0].w);
 #if MDS_MODEL_DX9_COMPATIBILITY && defined(MDS_MODEL_SPECULAR)
     float3 measuredFinal = 0;
     bool measured = false;

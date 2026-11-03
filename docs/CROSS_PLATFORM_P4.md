@@ -84,7 +84,7 @@ This closes that command's integration gap, not the complete clipboard/input gat
 |---|---|
 | Shared editing and serialization | Generated roundtrips, independent command/kernel gates, 84 global and 112 model clipboard-chain checkpoints passed; public frozen chain regression included |
 | Qt original layout and multilingual interface | Initial three-platform command/language regression passed; full original parity pending |
-| C1 scene rendering | Independent original baseline and composite each pass 48 explicit native-hardware cases on DX11/DX12/Vulkan; WARP frozen-reference Alpha/depth differences remain open; broader device qualification pending |
+| C1 scene rendering | Independent original baseline and composite each pass 48 explicit native-hardware cases on DX11/DX12/Vulkan; uniform material Alpha drift fixed; remaining WARP/Metal/software-Vulkan reference differences remain open |
 | WAV and synchronization | Qualified Windows silent profile and new CoreAudio/PulseAudio 120-second runs passed; latest Windows hosted runner has no audio device and reports unavailable; Linux uses an explicit 50 ms virtual queue; physical speaker latency and the default two-second cold null-sink profile are unqualified |
 | Fixed-step image sequence export and cancellation | Generated 30fps sequence, strict repeat and cancellation passed on three platforms |
 | Three-platform open/edit/play/save/reopen/export | Combined PMD/PMX, accessory/screen, WAV, physics, all-key-pool edit/save/reopen/export workflow passed at c097942; independent output qualification remains separate |
@@ -4105,3 +4105,29 @@ editor workflow [41618771314](https://github.com/jstzwj/MikuDanceStudio-NG/actio
 passed all three platforms. Its explicit Metal and software Vulkan reference
 qualifications were run separately and failed strict comparison; those failures
 remain visible and are not replaced by the ordinary editor-suite result.
+
+## Uniform material Alpha transport
+
+The 8,684 Alpha-only WARP differences reported above were traced to perspective
+interpolation of a draw-uniform material value, rather than an unavoidable blend
+rounding difference. Interpolating replicated `.7f` vertex Alpha can cross the
+half-byte UNORM boundary. The shared pixel shader now obtains material Alpha
+directly from its constants when the fixed-function material source is uniform.
+Actual varying vertex Alpha and texture Alpha retain their existing semantics;
+the separately measured compatibility policy is unchanged.
+
+A public perspective regression checks lit/unlit material Alpha at two sizes,
+including byte-exact repeated submission. It passed DX11/DX12 hardware and WARP,
+and hardware Vulkan. The original frozen references still pass on all three
+Windows hardware backends. WARP's remaining failures are **45 rest / 8 posed
+pixels**, with five/zero coverage differences; none are the former Alpha-only
+drift. Strict RGB/Alpha/coverage criteria and original PNGs are unchanged.
+The optional local software-Vulkan device is unavailable, so its qualification
+must run on the Linux runner instead. Local ALL_BUILD and **70 P4 gates passed
+(272.68 seconds)** after this correction.
+
+The preceding explicit native-reference CI runs recorded Metal failures of
+24/21 out-of-tolerance channel elements (zero coverage differences) and Linux
+software-Vulkan failures of 8,658/957 elements (two/zero coverage differences).
+These are pre-Alpha-fix results and remain unaccepted until rerun and resolved.
+Ordinary P4 regression success is not a substitute for this separate comparison.
