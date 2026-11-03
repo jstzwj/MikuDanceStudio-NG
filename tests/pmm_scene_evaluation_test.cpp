@@ -1,4 +1,5 @@
 #include "mikudancestudio/pmm_scene_evaluation.hpp"
+#include "mikudancestudio/pmm_key_limits.hpp"
 #include <cstdlib>
 #include <cmath>
 #include <cstdio>
@@ -632,6 +633,11 @@ int main() {
     Check(evaluated.models[0].morphValues[0] == 1.0f &&
           evaluated.lightState[0] == 0.8f);
     scene.models[0].morphKeys.sparse[0].value.previous = 42;
+    // Native mouth shifting can retain a cleared predecessor at the first
+    // active Morph key. Playback follows the still-valid forward chain.
+    Check(EvaluatePmmSceneFrame(scene, 5, evaluated));
+    Check(EvaluatePmmSceneFrame(scene, 20, evaluated));
+    scene.models[0].morphKeys.sparse[0].value.previous = PmmKeyCapacity<PmmMorphKey>;
     Check(!EvaluatePmmSceneFrame(scene, 5, evaluated));
     Check(evaluated.frame == 20); // failure preserves the previous output
 }
