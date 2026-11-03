@@ -10,8 +10,107 @@
 #include <Windows.h>
 #include <uxtheme.h>
 #include <vssym32.h>
+#include <cstring>
 
 namespace mikudancestudio::qt {
+namespace {
+class WindowsCanvas {
+public:
+    HDC dc = nullptr;
+    QImage image;
+    WindowsCanvas(int width, int height) {
+        if (width <= 0 || height <= 0 || !(dc = CreateCompatibleDC(nullptr)))
+            return;
+        BITMAPINFO info{};
+        info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        info.bmiHeader.biWidth = width;
+        info.bmiHeader.biHeight = -height;
+        info.bmiHeader.biPlanes = 1;
+        info.bmiHeader.biBitCount = 32;
+        void* bits = nullptr;
+        bitmap_ = CreateDIBSection(dc, &info, DIB_RGB_COLORS, &bits, nullptr, 0);
+        if (!bitmap_ || !bits)
+            return;
+        previous_ = SelectObject(dc, bitmap_);
+        if (!previous_ || previous_ == HGDI_ERROR) {
+            previous_ = nullptr;
+            return;
+        }
+        image = QImage(static_cast<unsigned char*>(bits), width, height, width * 4,
+                       QImage::Format_RGB32);
+    }
+    ~WindowsCanvas() {
+        if (previous_)
+            SelectObject(dc, previous_);
+        if (bitmap_)
+            DeleteObject(bitmap_);
+        if (dc)
+            DeleteDC(dc);
+    }
+    WindowsCanvas(const WindowsCanvas&) = delete;
+    WindowsCanvas& operator=(const WindowsCanvas&) = delete;
+
+private:
+    HBITMAP bitmap_ = nullptr;
+    HGDIOBJ previous_ = nullptr;
+};
+}
+bool DrawWindowsListBorder(QPainter& painter, const QRect& rect, QStyle::State state) {
+    const auto ratio = painter.device()->devicePixelRatioF();
+    const auto theme = OpenThemeDataForDpi(nullptr, L"ListBox", UINT(qRound(96 * ratio)));
+    if (!theme)
+        return false;
+    WindowsCanvas canvas(qRound(rect.width() * ratio), qRound(rect.height() * ratio));
+    bool painted = false;
+    if (!canvas.image.isNull()) {
+        canvas.image.fill(Qt::white);
+        const RECT rectangle{0, 0, canvas.image.width(), canvas.image.height()};
+        const int partState = !(state & QStyle::State_Enabled) ? LBPSN_DISABLED
+                              : state & QStyle::State_HasFocus ? LBPSN_FOCUSED
+                                                               : LBPSN_NORMAL;
+        painted = SUCCEEDED(DrawThemeBackground(theme, canvas.dc, LBCP_BORDER_NOSCROLL, partState,
+                                                &rectangle, nullptr));
+        GdiFlush();
+        if (painted) {
+            canvas.image.setDevicePixelRatio(ratio);
+            painter.save();
+            painter.setClipRegion(QRegion(rect).subtracted(QRegion(rect.adjusted(2, 2, -2, -2))),
+                                  Qt::IntersectClip);
+            painter.drawImage(rect.topLeft(), canvas.image);
+            painter.restore();
+        }
+    }
+    CloseThemeData(theme);
+    return painted;
+}
+bool DrawWindowsComboText(QImage& background, const QRect& rect, const QFont& font,
+                          const QString& text, bool enabled) {
+    WindowsCanvas canvas(background.width(), background.height());
+    if (canvas.image.isNull())
+        return false;
+    std::memcpy(canvas.image.bits(), background.constBits(), background.sizeInBytes());
+    const auto ratio = background.devicePixelRatioF();
+    const auto family = QFontInfo(font).family().toStdWString();
+    const auto nativeFont = CreateFontW(
+        -qRound(QFontInfo(font).pixelSize() * ratio), 0, 0, 0, font.bold() ? FW_BOLD : FW_NORMAL,
+        font.italic(), font.underline(), font.strikeOut(), DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+        CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, family.c_str());
+    if (!nativeFont)
+        return false;
+    const auto previous = SelectObject(canvas.dc, nativeFont);
+    SetBkMode(canvas.dc, TRANSPARENT);
+    SetTextColor(canvas.dc, GetSysColor(enabled ? COLOR_WINDOWTEXT : COLOR_GRAYTEXT));
+    RECT rectangle{qRound(rect.left() * ratio), qRound(rect.top() * ratio),
+                   qRound((rect.right() + 1) * ratio), qRound((rect.bottom() + 1) * ratio)};
+    const auto caption = text.toStdWString();
+    DrawTextW(canvas.dc, caption.c_str(), int(caption.size()), &rectangle,
+              DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+    GdiFlush();
+    std::memcpy(background.bits(), canvas.image.constBits(), background.sizeInBytes());
+    SelectObject(canvas.dc, previous);
+    DeleteObject(nativeFont);
+    return true;
+}
 bool DrawWindowsListRow(QPainter& painter, const QRect& rect, const QFont& font,
                         const QString& text, bool selected, bool enabled) {
     const auto ratio = painter.device()->devicePixelRatioF();

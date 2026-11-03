@@ -6,6 +6,9 @@
 #include <QStyleFactory>
 #include <QStyleOptionButton>
 #include <QStyleOptionSlider>
+#include <QStyleOptionComboBox>
+#include <QImage>
+#include <QPainter>
 #include <QVariant>
 #include <QWidget>
 #ifdef _WIN32
@@ -21,6 +24,15 @@ public:
     }
     QRect subControlRect(ComplexControl control, const QStyleOptionComplex* option, SubControl part,
                          const QWidget* widget) const override {
+#ifdef _WIN32
+        if (control == CC_ComboBox && part == SC_ComboBoxEditField && widget &&
+            widget->property("mmdControlId").isValid() &&
+            baseStyle()->objectName() == "windowsvista")
+            if (const auto* combo = qstyleoption_cast<const QStyleOptionComboBox*>(option))
+                if (!combo->editable && combo->direction == Qt::LeftToRight)
+                    return QProxyStyle::subControlRect(control, option, part, widget)
+                        .adjusted(0, 0, -1, 0);
+#endif
         if (control == CC_Slider && widget && widget->property("mmdNativeTrackbar").toBool())
             if (const auto* slider = qstyleoption_cast<const QStyleOptionSlider*>(option)) {
                 const auto geometry = SliderGeometry(*slider);
@@ -59,6 +71,10 @@ public:
 #ifdef _WIN32
         if (element == PE_Frame && widget && widget->property("mmdNativeSunkenBorder").toBool() &&
             baseStyle()->objectName() == "windowsvista") {
+            // USER32 WM_PRINT on a never-shown list uses its classic edge.
+            // Real displayed LISTBOX windows use the active ListBox theme.
+            if (widget->isVisible() && DrawWindowsListBorder(*painter, option->rect, option->state))
+                return;
             DrawWindowsSunkenBorder(*painter, option->rect);
             return;
         }
@@ -87,6 +103,31 @@ public:
     void drawControl(ControlElement element, const QStyleOption* option, QPainter* painter,
                      const QWidget* widget) const override {
 #ifdef _WIN32
+        if (element == CE_ComboBoxLabel && widget && widget->property("mmdControlId").isValid() &&
+            baseStyle()->objectName() == "windowsvista")
+            if (const auto* combo = qstyleoption_cast<const QStyleOptionComboBox*>(option)) {
+                if (!combo->editable && combo->currentIcon.isNull() &&
+                    combo->direction == Qt::LeftToRight && !(combo->state & State_HasFocus)) {
+                    const auto ratio = painter->device()->devicePixelRatioF();
+                    QImage background(qRound(combo->rect.width() * ratio),
+                                      qRound(combo->rect.height() * ratio), QImage::Format_RGB32);
+                    background.setDevicePixelRatio(ratio);
+                    background.fill(combo->palette.window().color());
+                    auto blank = *combo;
+                    blank.rect.moveTopLeft({0, 0});
+                    blank.currentText.clear();
+                    QPainter backdrop(&background);
+                    QProxyStyle::drawComplexControl(CC_ComboBox, &blank, &backdrop, widget);
+                    backdrop.end();
+                    const auto field =
+                        subControlRect(CC_ComboBox, &blank, SC_ComboBoxEditField, widget);
+                    if (DrawWindowsComboText(background, field, widget->font(), combo->currentText,
+                                             combo->state & State_Enabled)) {
+                        painter->drawImage(combo->rect.topLeft(), background);
+                        return;
+                    }
+                }
+            }
         if ((element == CE_PushButton || element == CE_CheckBox || element == CE_RadioButton) &&
             widget && widget->property("mmdControlId").isValid() &&
             baseStyle()->objectName() == "windowsvista")

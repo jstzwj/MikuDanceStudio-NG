@@ -33,6 +33,8 @@ static void Check(bool value, const char* reason) {
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
+#include <QStyleOptionComboBox>
 #include <QSysInfo>
 namespace {
 class ResourceDialog final : public mikudancestudio::qt::TemplateDialog {
@@ -293,6 +295,7 @@ int main(int argc, char** argv) try {
         &kNumericModelPhysicsJa,
     };
     unsigned mismatches = 0, cases = 0, templates = 0, borderCases = 0, borderMismatches = 0;
+    QJsonArray comboLayouts;
     for (std::size_t templateIndex = 0; templateIndex < sizeof descriptions / sizeof *descriptions;
          ++templateIndex) {
         const auto* description = descriptions[templateIndex];
@@ -419,6 +422,24 @@ int main(int argc, char** argv) try {
             if (auto* edit = qobject_cast<QLineEdit*>(widget))
                 edit->clear();
             if (auto* combo = qobject_cast<QComboBox*>(widget)) {
+                COMBOBOXINFO geometry{sizeof(COMBOBOXINFO)};
+                Check(GetComboBoxInfo(control, &geometry), "native combo geometry");
+                QStyleOptionComboBox option;
+                option.initFrom(combo);
+                option.editable = combo->isEditable();
+                const auto edit = combo->style()->subControlRect(
+                    QStyle::CC_ComboBox, &option, QStyle::SC_ComboBoxEditField, combo);
+                const auto& item = geometry.rcItem;
+                Check(edit == QRect(item.left, item.top, item.right - item.left,
+                                    item.bottom - item.top),
+                      "native combo item rectangle");
+                comboLayouts.append(QJsonObject{
+                    {"template", description->id},
+                    {"control", id},
+                    {"native",
+                     QJsonArray{int(item.left), int(item.top), int(item.right), int(item.bottom)}},
+                    {"qt",
+                     QJsonArray{edit.left(), edit.top(), edit.right() + 1, edit.bottom() + 1}}});
                 combo->clear();
                 SendMessageW(control, CB_RESETCONTENT, 0, 0);
                 if (content) {
@@ -564,11 +585,13 @@ int main(int argc, char** argv) try {
         {"trackbarGeometryCases", int(geometryCases)},
         {"textGeometryCases", int(textGeometryCases)},
         {"textGeometryKeyboardFocus", text},
-        {"comparison", visible && !content ? "exact RGB, EDIT normal/disabled including nonclient"
-                               : "exact RGB, normal/disabled/pressed, checked/unchecked"},
+        {"comparison", visible && !content
+                           ? "exact RGB, EDIT normal/disabled including nonclient"
+                           : "exact RGB, normal/disabled/pressed, checked/unchecked"},
         {"keyboardFocusCues", false},
         {"textGlyphs", text || content},
         {"listContent", content},
+        {"comboLayouts", comboLayouts},
         {"windowsShown", visible}};
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
     report.insert("reference", "Win32 controls using frozen original resource styles");
