@@ -3,10 +3,13 @@
 #include <vector>
 #include <cstdio>
 #include <stdexcept>
+#include <memory>
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
 #include <commctrl.h>
+#include <uxtheme.h>
+#include <vssym32.h>
 
 static void Check(bool value, const char* reason) {
     if (!value)
@@ -25,6 +28,7 @@ static void Check(bool value, const char* reason) {
 #include <QStyle>
 #include <QStyleOptionFrame>
 #include <QStyleOptionSlider>
+#include <QStyleOptionButton>
 #include <QProxyStyle>
 #include <QFile>
 #include <QJsonDocument>
@@ -134,25 +138,105 @@ unsigned TrackbarGeometryCorpus() {
     DestroyWindow(parent);
     return cases;
 }
+unsigned ButtonTextGeometryCorpus(const std::filesystem::path& output) {
+    const auto parent = CreateWindowExW(0, L"#32770", L"", WS_POPUP, 0, 0, 200, 100, nullptr,
+                                        nullptr, nullptr, nullptr);
+    Check(parent && !IsWindowVisible(parent), "never-shown button text corpus");
+    unsigned cases = 0, mismatches = 0;
+    for (const auto family : {L"Arial", L"Tahoma", L"MS PGothic", L"MS UI Gothic"}) {
+        const auto font = CreateFontW(-12, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+                                      0, 0, DEFAULT_QUALITY, 0, family);
+        Check(font != nullptr, "button text corpus font");
+        for (int height = 12; height <= 24; ++height)
+            for (const int kind : {0, 1, 2})
+                for (const auto caption : {L"ABC", L"\u30b8\u30e7\u30a4\u30f3\u30c8"}) {
+                    const bool radio = kind == 1, push = kind == 2;
+                    const auto control =
+                        CreateWindowExW(0, L"BUTTON", caption,
+                                        WS_CHILD | WS_VISIBLE |
+                                            (push    ? BS_PUSHBUTTON
+                                             : radio ? BS_AUTORADIOBUTTON
+                                                     : BS_AUTOCHECKBOX),
+                                        0, 0, 100, height, parent, nullptr, nullptr, nullptr);
+                    Check(control && !IsWindowVisible(control), "never-shown text corpus control");
+                    SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), FALSE);
+                    SendMessageW(control, WM_CHANGEUISTATE,
+                                 MAKEWPARAM(UIS_SET, UISF_HIDEFOCUS | UISF_HIDEACCEL), 0);
+                    std::unique_ptr<QAbstractButton> button(
+                        push    ? static_cast<QAbstractButton*>(new QPushButton)
+                        : radio ? static_cast<QAbstractButton*>(new QRadioButton)
+                                : static_cast<QAbstractButton*>(new QCheckBox));
+                    button->setText(QString::fromWCharArray(caption));
+                    button->setProperty("mmdControlId", 1);
+                    QFont qfont(QString::fromWCharArray(family));
+                    qfont.setPixelSize(12);
+                    button->setFont(qfont);
+                    button->resize(100, height);
+                    for (const int state : {0, 1, 2}) {
+                        const bool enabled = state != 1, focused = state == 2;
+                        button->setEnabled(enabled);
+                        EnableWindow(control, enabled);
+                        SendMessageW(control, focused ? WM_SETFOCUS : WM_KILLFOCUS, 0, 0);
+                        SendMessageW(control, WM_CHANGEUISTATE,
+                                     MAKEWPARAM(focused ? UIS_CLEAR : UIS_SET, UISF_HIDEFOCUS), 0);
+                        const auto expected = NativeImage(control, false);
+                        QImage actual(button->size(), QImage::Format_RGB32);
+                        actual.fill(qApp->palette().window().color());
+                        if (focused) {
+                            QStyleOptionButton option;
+                            option.initFrom(button.get());
+                            option.text = button->text();
+                            option.state |=
+                                QStyle::State_HasFocus | QStyle::State_KeyboardFocusChange;
+                            QPainter painter(&actual);
+                            button->style()->drawControl(push    ? QStyle::CE_PushButton
+                                                         : radio ? QStyle::CE_RadioButton
+                                                                 : QStyle::CE_CheckBox,
+                                                         &option, &painter, button.get());
+                        } else
+                            button->render(&actual);
+                        const auto different = Difference(actual, expected);
+                        if (different) {
+                            const auto prefix = QString::fromStdWString(output.wstring()) +
+                                                QString("/text-geometry-%1").arg(cases);
+                            actual.save(prefix + "-qt.png");
+                            expected.save(prefix + "-native.png");
+                            std::fprintf(stderr,
+                                         "text geometry case=%u height=%d radio=%d diff=%u\n",
+                                         cases, height, radio, different);
+                        }
+                        mismatches += different != 0;
+                        ++cases;
+                    }
+                    DestroyWindow(control);
+                }
+        DeleteObject(font);
+    }
+    DestroyWindow(parent);
+    Check(!mismatches, "independent native button text geometry corpus");
+    return cases;
+}
 }
 int main(int argc, char** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     QApplication app(argc, argv);
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
     const bool visible = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-nonclient";
-    Check(argc == 2 || visible, "usage: [--isolated-nonclient] output-directory");
+    const bool text = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--text";
+    Check(argc == 2 || visible || text, "usage: [--isolated-nonclient|--text] output-directory");
     Check(!visible || (qEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
                        qEnvironmentVariable("MDS_QT_ISOLATED_DISPLAY") == "1"),
           "visible control qualification requires an isolated GitHub runner");
 #else
     constexpr bool visible = false;
-    Check(argc == 3, "usage: original.exe output-directory");
+    const bool text = argc == 4 && QString::fromLocal8Bit(argv[1]) == "--text";
+    Check(argc == 3 || text, "usage: [--text] original.exe output-directory");
 #endif
     Check(QGuiApplication::platformName() == "windows", "real Windows QPA required");
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
     const auto instance = GetModuleHandleW(nullptr);
 #else
-    OriginalPhysicsModule original(std::filesystem::u8path(argv[1]));
+    OriginalPhysicsModule original(std::filesystem::u8path(argv[text ? 2 : 1]));
     const auto instance = reinterpret_cast<HINSTANCE>(original.Function<void*>(0));
 #endif
     const auto output = std::filesystem::absolute(std::filesystem::u8path(argv[argc - 1]));
@@ -161,6 +245,7 @@ int main(int argc, char** argv) try {
     INITCOMMONCONTROLSEX common{sizeof common, ICC_BAR_CLASSES};
     Check(InitCommonControlsEx(&common), "initialize original trackbar class");
     const auto geometryCases = visible ? 0 : TrackbarGeometryCorpus();
+    const auto textGeometryCases = text ? ButtonTextGeometryCorpus(output) : 0;
     using namespace mikudancestudio::ui;
     const NumericTemplate* descriptions[] = {
         &kNumericBoneEn,
@@ -257,6 +342,10 @@ int main(int argc, char** argv) try {
             const bool other = entry.kind == NumericControlKind::Combobox ||
                                entry.kind == NumericControlKind::Listbox ||
                                entry.kind == NumericControlKind::Slider;
+            if (text && entry.kind != NumericControlKind::Button &&
+                entry.kind != NumericControlKind::Checkbox &&
+                entry.kind != NumericControlKind::Radio)
+                continue;
             if (visible ? entry.kind != NumericControlKind::Edit
                         : (entry.kind != NumericControlKind::Edit &&
                            entry.kind != NumericControlKind::Button &&
@@ -299,10 +388,26 @@ int main(int argc, char** argv) try {
             const auto control = GetDlgItem(native, id);
 #endif
             Check(control && (visible || !IsWindowVisible(control)), "native reference control");
-            SetWindowTextW(control, L""); // Isolate theme paint from font qualification.
+            if (!text)
+                SetWindowTextW(control, L""); // Isolate theme paint from font qualification.
             auto* button = qobject_cast<QAbstractButton*>(widget);
-            if (button)
-                button->setText({});
+            if (button) {
+                if (text) {
+#ifndef MDS_SYSTEM_CONTROL_REFERENCE
+                    std::wstring caption(GetWindowTextLengthW(control) + 1, L'\0');
+                    caption.resize(GetWindowTextW(control, caption.data(), int(caption.size())));
+                    if (QString::fromStdWString(caption) != button->text())
+                        std::fprintf(stderr, "caption mismatch template=%d control=%d\n",
+                                     description->id, id);
+                    Check(QString::fromStdWString(caption) == button->text(),
+                          "actual original caption");
+#endif
+                    SetWindowTextW(control, button->text().toStdWString().c_str());
+                    SendMessageW(control, WM_CHANGEUISTATE,
+                                 MAKEWPARAM(UIS_SET, UISF_HIDEFOCUS | UISF_HIDEACCEL), 0);
+                } else
+                    button->setText({});
+            }
             if (auto* edit = qobject_cast<QLineEdit*>(widget))
                 edit->clear();
             if (auto* combo = qobject_cast<QComboBox*>(widget)) {
@@ -431,9 +536,12 @@ int main(int argc, char** argv) try {
         {"gdiBorderCases", int(borderCases)},
         {"gdiBorderMismatches", int(borderMismatches)},
         {"trackbarGeometryCases", int(geometryCases)},
+        {"textGeometryCases", int(textGeometryCases)},
+        {"textGeometryKeyboardFocus", text},
         {"comparison", visible ? "exact RGB, EDIT normal/disabled including nonclient"
                                : "exact RGB, normal/disabled/pressed, checked/unchecked"},
-        {"textAndKeyboardFocusCues", false},
+        {"keyboardFocusCues", false},
+        {"textGlyphs", text},
         {"windowsShown", visible}};
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
     report.insert("reference", "Win32 controls using frozen original resource styles");

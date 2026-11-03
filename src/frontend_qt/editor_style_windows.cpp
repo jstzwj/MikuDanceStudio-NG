@@ -3,6 +3,8 @@
 #include <QImage>
 #include <QPainter>
 #include <QStyleOptionSlider>
+#include <QStyleOptionButton>
+#include <QFontInfo>
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
@@ -10,6 +12,132 @@
 #include <vssym32.h>
 
 namespace mikudancestudio::qt {
+bool DrawWindowsButton(QPainter& painter, const QStyleOptionButton& option, const QFont& font,
+                       const QRect* indicator, bool radio, bool showMnemonic) {
+    const auto ratio = painter.device()->devicePixelRatioF();
+    const int width = qRound(option.rect.width() * ratio),
+              height = qRound(option.rect.height() * ratio);
+    const auto theme = OpenThemeDataForDpi(nullptr, L"Button", UINT(qRound(96 * ratio)));
+    if (!theme || width <= 0 || height <= 0) {
+        if (theme)
+            CloseThemeData(theme);
+        return false;
+    }
+    const auto dc = CreateCompatibleDC(nullptr);
+    BITMAPINFO info{};
+    info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    info.bmiHeader.biWidth = width;
+    info.bmiHeader.biHeight = -height;
+    info.bmiHeader.biPlanes = 1;
+    info.bmiHeader.biBitCount = 32;
+    info.bmiHeader.biCompression = BI_RGB;
+    void* bits = nullptr;
+    const auto bitmap =
+        dc ? CreateDIBSection(dc, &info, DIB_RGB_COLORS, &bits, nullptr, 0) : nullptr;
+    bool painted = false;
+    if (bitmap && bits) {
+        const auto previous = SelectObject(dc, bitmap);
+        QImage image(static_cast<unsigned char*>(bits), width, height, width * 4,
+                     QImage::Format_RGB32);
+        image.fill(option.palette.window().color());
+        RECT rectangle{0, 0, width, height};
+        int state = !(option.state & QStyle::State_Enabled)               ? PBS_DISABLED
+                    : option.state & QStyle::State_Sunken                 ? PBS_PRESSED
+                    : option.state & QStyle::State_MouseOver              ? PBS_HOT
+                    : option.features & QStyleOptionButton::DefaultButton ? PBS_DEFAULTED
+                                                                          : PBS_NORMAL;
+        int part = BP_PUSHBUTTON;
+        RECT textRectangle = rectangle;
+        if (indicator) {
+            part = radio ? BP_RADIOBUTTON : BP_CHECKBOX;
+            state = !(option.state & QStyle::State_Enabled)  ? 4
+                    : option.state & QStyle::State_Sunken    ? 3
+                    : option.state & QStyle::State_MouseOver ? 2
+                                                             : 1;
+            state += option.state & QStyle::State_NoChange ? 8
+                     : option.state & QStyle::State_On     ? 4
+                                                           : 0;
+            RECT mark{qRound(indicator->left() * ratio), qRound(indicator->top() * ratio),
+                      qRound((indicator->right() + 1) * ratio),
+                      qRound((indicator->bottom() + 1) * ratio)};
+            painted = SUCCEEDED(DrawThemeBackground(theme, dc, part, state, &mark, nullptr));
+            textRectangle.left = qRound((indicator->right() + 1 + 3) * ratio);
+        } else
+            painted = SUCCEEDED(DrawThemeBackground(theme, dc, part, state, &rectangle, nullptr));
+        const auto family = QFontInfo(font).family().toStdWString();
+        const auto nativeFont =
+            CreateFontW(-qRound(QFontInfo(font).pixelSize() * ratio), 0, 0, 0,
+                        font.bold() ? FW_BOLD : FW_NORMAL, font.italic(), font.underline(),
+                        font.strikeOut(), DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+                        DEFAULT_QUALITY, DEFAULT_PITCH, family.c_str());
+        if (nativeFont) {
+            const auto oldFont = SelectObject(dc, nativeFont);
+            const auto text = option.text.toStdWString();
+            SetBkMode(dc, TRANSPARENT);
+            const auto background = option.palette.window().color();
+            SetBkColor(dc, RGB(background.red(), background.green(), background.blue()));
+            RECT content{};
+            const auto saved = SaveDC(dc);
+            if (!indicator && SUCCEEDED(GetThemeBackgroundContentRect(theme, dc, part, state,
+                                                                      &rectangle, &content))) {
+                IntersectClipRect(dc, content.left, content.top, content.right, content.bottom);
+                textRectangle = content;
+            }
+            TEXTMETRICW metrics{};
+            GetTextMetricsW(dc, &metrics);
+            const auto prefix = showMnemonic ? 0u : DT_HIDEPREFIX;
+            if (indicator) {
+                // Native zero-leading cells round their centered text upward;
+                // cells with internal leading use integer truncation. Short
+                // controls retain the theme mark's minimum label height.
+                // Keep the native measured text bounds:
+                // ClearType overhang outside that box is clipped by BUTTON.
+                textRectangle.top = (height - metrics.tmHeight) / 2;
+                if (!metrics.tmInternalLeading && height >= metrics.tmHeight)
+                    textRectangle.top = (height - metrics.tmHeight + 1) / 2;
+                SIZE markSize{};
+                if (SUCCEEDED(
+                        GetThemePartSize(theme, dc, part, state, nullptr, TS_TRUE, &markSize)) &&
+                    height >= metrics.tmHeight && height <= markSize.cy)
+                    textRectangle.top = (markSize.cy - metrics.tmHeight + 1) / 2;
+                textRectangle.bottom = textRectangle.top + metrics.tmHeight;
+                auto measured = textRectangle;
+                DrawTextW(dc, text.c_str(), int(text.size()), &measured,
+                          DT_LEFT | DT_SINGLELINE | prefix | DT_CALCRECT);
+                textRectangle.right = std::min(textRectangle.right, measured.right);
+            }
+            COLORREF textColor =
+                GetSysColor(option.state & QStyle::State_Enabled ? COLOR_BTNTEXT : COLOR_GRAYTEXT);
+            GetThemeColor(theme, part, state, TMT_TEXTCOLOR, &textColor);
+            SetTextColor(dc, textColor);
+            DrawTextW(dc, text.c_str(), int(text.size()), &textRectangle,
+                      (indicator ? DT_LEFT : DT_CENTER) | DT_VCENTER | DT_SINGLELINE | prefix);
+            if ((option.state & QStyle::State_HasFocus) &&
+                (option.state & QStyle::State_KeyboardFocusChange)) {
+                auto focus = textRectangle;
+                if (indicator)
+                    InflateRect(&focus, 1, 1);
+                IntersectRect(&focus, &focus, &rectangle);
+                DrawFocusRect(dc, &focus);
+            }
+            RestoreDC(dc, saved);
+            SelectObject(dc, oldFont);
+            DeleteObject(nativeFont);
+        } else
+            painted = false;
+        GdiFlush();
+        if (painted) {
+            image.setDevicePixelRatio(ratio);
+            painter.drawImage(option.rect.topLeft(), image);
+        }
+        SelectObject(dc, previous);
+        DeleteObject(bitmap);
+    }
+    if (dc)
+        DeleteDC(dc);
+    CloseThemeData(theme);
+    return painted;
+}
 bool DrawWindowsTrackbar(QPainter& painter, const QStyleOptionSlider& option,
                          const ui::TrackbarGeometry& geometry) {
     const auto ratio = painter.device()->devicePixelRatioF();

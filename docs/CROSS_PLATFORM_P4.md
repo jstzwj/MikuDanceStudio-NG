@@ -88,8 +88,10 @@ Windows paints the native themed downward thumb even with `TBS_NOTICKS`; the
 ground-shadow dialog no longer incorrectly enables tick marks. Qt drag tests
 cover both end stops in all three languages and four scale profiles.
 Separately, isolated Windows CI run **41637849989** qualifies 460 complete
-empty EDIT normal/disabled captures, including nonclient paint. These results
-exclude text glyphs, focus cues, hover animations and non-Windows theme paint;
+empty EDIT normal/disabled captures, including nonclient paint. The button text
+qualification described below adds 426 actual-caption states and 936 independent
+font/height/focus cases. Other populated control families, hover animations and
+non-Windows theme paint remain outside this qualification;
 see [control evidence](evidence/cross-platform-p4-controls.json).
 
 Real Linux IME qualification is available explicitly with the `system_ime`
@@ -107,6 +109,14 @@ at `46b2bd1`: Hiragana preedit, conversion to the Japanese candidate, IME-owned
 commit/cancel and the subsequent editor command. The distro engine runs with its
 system Python/PyGObject runtime and an explicitly selected Hiragana input mode.
 This does not qualify Windows/macOS native IMEs.
+
+Native Windows/Microsoft Japanese IME and macOS/Kotoeri drivers now run only on
+isolated hosted runners. Run **41651244757** established actual Kotoeri Hiragana
+preedit and candidate conversion, but candidate Return did not commit. Its
+Windows test failed on a status-file replacement race. These are unsuccessful
+qualifications; the driver retains event order and the next revision corrects
+the snapshot race and native control-key characters. Neither profile is counted
+as accepted until its complete commit/cancel/editor-command sequence passes.
 
 The selected-target clipboard command (250, F) is now connected to the shared
 session and all three Qt languages. It pastes only copied bone/accessory keys
@@ -4258,3 +4268,33 @@ additional insertion/selection checkpoints**, bringing its hidden EDIT corpus to
 **1,954**. Qt exercises keyboard paste, typed text and undo in all three languages
 and all four DPI profiles. Local ALL_BUILD and all **29 affected Qt gates passed
 (163.68 seconds)** without showing windows.
+
+## Button text and keyboard focus
+
+Original-layout Windows push/check/radio buttons now draw their labels through
+the same native theme/GDI font path as USER32. Qt's own ClearType compositing
+introduced different channel rounding even at identical glyph positions. The
+adapter also preserves theme content clipping, measured label bounds and the
+font-cell/short-indicator vertical placement. Icons, menus, command links and
+right-to-left controls retain the established Qt path. Other platforms retain
+their existing renderer; this Windows fix does not establish cross-platform
+glyph identity.
+
+The optional original-resource oracle now accepts `--text` and first requires
+every actual original caption to equal the Qt caption. All **426 populated
+button states across 38 English/Japanese templates** pass exact RGB comparison,
+as does the public `qt_control_text` P4 gate. An independent native corpus adds
+**936 exact cases**: Arial, Tahoma, MS PGothic and MS UI Gothic at 12 pixels;
+13 heights from 12 through 24; push/check/radio; ASCII/Japanese labels; normal,
+disabled and keyboard-focus states. Native focus messages address never-shown
+test controls only; no actual desktop focus/input/capture occurs. The focus
+rectangle uses the control's actual background color rather than the memory
+DC's default white.
+
+ALL_BUILD and all **72 P4 gates passed (283.72 seconds)** with the text gate.
+The final focus/font corpus also passed against both independent Win32 controls
+and actual hash-verified original dialog resources; both public control gates
+passed again (21.62 seconds). Empty-control, trackbar and EDIT-border gates
+remain unchanged. Populated EDIT/list/combo text, other DPI/font profiles,
+physical monitor transitions, non-Windows appearance and the strict failing GPU
+profiles remain open; P4/C1 is not accepted.

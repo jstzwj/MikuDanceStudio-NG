@@ -86,6 +86,28 @@ public:
     }
     void drawControl(ControlElement element, const QStyleOption* option, QPainter* painter,
                      const QWidget* widget) const override {
+#ifdef _WIN32
+        if ((element == CE_PushButton || element == CE_CheckBox || element == CE_RadioButton) &&
+            widget && widget->property("mmdControlId").isValid() &&
+            baseStyle()->objectName() == "windowsvista")
+            if (const auto* button = qstyleoption_cast<const QStyleOptionButton*>(option)) {
+                if (!button->icon.isNull() ||
+                    (button->features & (QStyleOptionButton::Flat | QStyleOptionButton::HasMenu |
+                                         QStyleOptionButton::CommandLinkButton)) ||
+                    button->direction != Qt::LeftToRight)
+                    return QProxyStyle::drawControl(element, option, painter, widget);
+                const auto indicator =
+                    subElementRect(element == CE_RadioButton ? SE_RadioButtonIndicator
+                                                             : SE_CheckBoxIndicator,
+                                   option, widget)
+                        .intersected(widget->rect());
+                if (DrawWindowsButton(*painter, *button, widget->font(),
+                                      element == CE_PushButton ? nullptr : &indicator,
+                                      element == CE_RadioButton,
+                                      styleHint(SH_UnderlineShortcut, option, widget)))
+                    return;
+            }
+#endif
         // Win32 keeps the default-button outline on an inactive dialog too.
         // Qt's Vista style otherwise drops it. Do not activate the real window
         // or start a default-button pulse for an inactive dialog.

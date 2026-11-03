@@ -5,10 +5,15 @@
 #include <QStyle>
 class QPainter;
 class QStyleOptionSlider;
+class QStyleOptionButton;
+class QFont;
 namespace mikudancestudio::ui {
 struct TrackbarGeometry;
 }
 namespace mikudancestudio::qt {
+bool DrawWindowsButton(QPainter&, const QStyleOptionButton&, const QFont&,
+                       const QRect* indicator = nullptr, bool radio = false,
+                       bool showMnemonic = false);
 bool DrawWindowsTrackbar(QPainter&, const QStyleOptionSlider&, const ui::TrackbarGeometry&);
 void ConfigureWindowsListPalette(QPalette& palette);
 bool DrawWindowsButtonIndicator(QPainter&, const QRect&, const QColor&, QStyle::State, bool radio);

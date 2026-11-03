@@ -1,7 +1,7 @@
 {
   "date": "2026-11-03",
   "accepted": true,
-  "scope": "Windows common-controls steady theme paint only; full P4 remains unaccepted",
+  "scope": "Windows common-controls steady theme paint and qualified button text/focus; full P4 remains unaccepted",
   "original_sha256": "07516fd3bf1e6b1339836b6773a156f61bdd6f848eeb621fdda012375df313a1",
   "windows_build": "26100.9457",
   "original_resources": {
@@ -37,20 +37,23 @@
     "windowsShown": false
   },
   "exclusions": [
-    "Text glyphs and keyboard-focus cues",
+    "Text/focus outside the qualified button corpus, including populated EDIT/list/combo controls",
     "Animations",
     "macOS and Linux theme paint",
     "Physical monitor transitions"
   ],
   "validation": {
     "all_build": true,
-    "p4_passed": 71,
+    "p4_passed": 72,
     "p4_failed": 0,
-    "seconds": 290.17,
-    "local_log": "out/p4-style-all-tests.log",
+    "seconds": 283.72,
+    "local_log": "out/p4-text-all-tests.log",
     "final_qt_passed": 29,
     "final_qt_seconds": 156.95,
-    "final_qt_log": "out/p4-trackbar-final-tests.log"
+    "final_qt_log": "out/p4-trackbar-final-tests.log",
+    "final_control_passed": 2,
+    "final_control_seconds": 21.62,
+    "final_control_log": "out/p4-text-final-tests.log"
   },
   "relocated_package": {
     "assets": "assets",
@@ -130,5 +133,46 @@
     "comparison": "Exact TBM_GETCHANNELRECT and TBM_GETTHUMBRECT; 4 widths, 9 heights, ticks/no ticks, 3 ranges, 4 positions",
     "logical_dpi": 96,
     "windowsShown": false
+  },
+  "button_text": {
+    "original_resources": {
+      "cases": 426,
+      "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+      "gdiBorderCases": 0,
+      "gdiBorderMismatches": 0,
+      "keyboardFocusCues": false,
+      "mismatches": 0,
+      "os": "Windows 11 Version 24H2",
+      "platform": "windows",
+      "qt": "6.8.3",
+      "reference": "actual hash-verified original dialog resources",
+      "style": "windowsvista",
+      "templates": 38,
+      "textGeometryCases": 936,
+      "textGeometryKeyboardFocus": true,
+      "textGlyphs": true,
+      "trackbarGeometryCases": 864,
+      "windowsShown": false
+    },
+    "public_regression": {
+      "cases": 426,
+      "comparison": "exact RGB, normal/disabled/pressed, checked/unchecked",
+      "gdiBorderCases": 0,
+      "gdiBorderMismatches": 0,
+      "keyboardFocusCues": false,
+      "mismatches": 0,
+      "os": "Windows 11 Version 24H2",
+      "platform": "windows",
+      "qt": "6.8.3",
+      "reference": "Win32 controls using frozen original resource styles",
+      "style": "windowsvista",
+      "templates": 38,
+      "textGeometryCases": 936,
+      "textGeometryKeyboardFocus": true,
+      "textGlyphs": true,
+      "trackbarGeometryCases": 864,
+      "windowsShown": false
+    },
+    "geometry_scope": "Arial, Tahoma, MS PGothic and MS UI Gothic at 12px; heights 12..24, push/check/radio, ASCII/Japanese text, normal/disabled/keyboard-focus states; no window exposed or real focus changed"
   }
 }
