@@ -404,7 +404,7 @@ void EditorWindow::FinishSidebarDrag() {
     canvas_->setCursor(sidebarCursor_);
 }
 bool EditorWindow::eventFilter(QObject* object, QEvent* event) {
-    if (HandleEditComposition(object, event) || HandleEditDeleteTail(object, event)) {
+    if (HandleEditComposition(object, event) || HandleEditNavigation(object, event)) {
         idleRenderState_ = 1;
         return true;
     }

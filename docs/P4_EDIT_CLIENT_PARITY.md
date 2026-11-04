@@ -3,6 +3,11 @@
 Status: partial qualification. This record does not accept P4/C1 or complete
 EDIT appearance and input behavior.
 
+2026-11-04 keyboard correction: the new [original EDIT navigation corpus](P4_EDIT_NAVIGATION.md)
+supersedes the `1.5`-only Ctrl+Delete generalization below. Mixed-text single/multiline
+navigation, Ctrl+A, Ctrl+Backspace, Ctrl+Delete and selection direction now have
+144,135 passing local comparisons; shown paint and native IME remain separate.
+
 ## Reference correction
 
 The former public control oracle constructed `EDIT` windows directly with the

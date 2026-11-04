@@ -35,6 +35,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/editor_files.cpp"
         "${root}/src/frontend_qt/editor_dialogs.cpp"
         "${root}/src/frontend_qt/editor_input.cpp"
+        "${root}/src/frontend_qt/edit_navigation.cpp"
         "${root}/src/frontend_qt/editor_font.cpp"
         "${root}/src/frontend_qt/editor_style.cpp"
         "${root}/src/frontend_qt/editor_menus.cpp"
@@ -127,6 +128,13 @@ function(mds_add_qt_editor)
         set_tests_properties(qt_language_switch PROPERTIES LABELS "p4;offscreen;qt;language"
             TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_editor_chrome_test "${root}/tests/qt_editor_chrome_test.cpp")
+        qt_add_executable(qt_edit_navigation_test "${root}/tests/qt_edit_navigation_test.cpp")
+        target_link_libraries(qt_edit_navigation_test PRIVATE mikudancestudio_frontend_qt Qt6::Test)
+        add_test(NAME qt_edit_navigation COMMAND qt_edit_navigation_test
+            "${root}/tests/reference/original-edit-keys.json"
+            "${root}/tests/reference/original-multiline-keys.json")
+        set_tests_properties(qt_edit_navigation PROPERTIES LABELS "p4;offscreen;qt;input;oracle"
+            TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         target_link_libraries(qt_editor_chrome_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
             target_sources(qt_editor_chrome_test PRIVATE "${root}/res/frontend_qt/windows.manifest")

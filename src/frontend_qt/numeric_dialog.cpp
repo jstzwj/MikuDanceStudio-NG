@@ -302,6 +302,7 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
                                                                           : Qt::ScrollBarAlwaysOff);
             field->setTabChangesFocus(true);
             field->setProperty("mmdWantReturn", (control.style & 0x1000u) != 0);
+            field->setProperty("mmdMultilineDelCharacter", english_ ? 0x2302 : 0x7f);
             multiline_[control.id] = field;
             field->installEventFilter(this);
             widget = field;
@@ -422,7 +423,7 @@ void TemplateDialog::Prefill(int id, const QString& text) {
     field->setText(text.left(qsizetype(length)));
 }
 bool TemplateDialog::eventFilter(QObject* object, QEvent* event) {
-    if (HandleEditComposition(object, event) || HandleEditDeleteTail(object, event))
+    if (HandleEditComposition(object, event) || HandleEditNavigation(object, event))
         return true;
     if (auto* edit = qobject_cast<QPlainTextEdit*>(object))
         if (event->type() == QEvent::KeyPress) {
