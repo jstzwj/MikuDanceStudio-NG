@@ -1,0 +1,415 @@
+{
+  "schema": 1,
+  "date": "2026-11-04",
+  "base_revision": "1d9f0d88efe7feeb4cd2bee0bed7640a668ca167",
+  "worktree_sources": true,
+  "p4_c1_accepted": false,
+  "policy": "User superseded strict complete-scene RGB acceptance with screenshot visual equivalence. Copy, repeats, floating shadow/depth and resource contracts remain strict.",
+  "local_safety": "Offscreen or never-shown windows; no developer desktop activation, capture or input injection.",
+  "source_sha256": {
+    ".github/workflows/portable-editor.yml": "6722a814016e751d7248eca67bbf117a684031c22b2e2499b4fc43e23ddd4d7d",
+    "cmake/QtEditor.cmake": "7ebb92158841e649c77ffb1978b929a1c68ac6ec00a1de3eb93e0ea653696fd9",
+    "res/frontend_qt/windows.manifest": "0d2d7b419b966f258f020a5720a0cb4a769e842f80ba0857f5dc5c31f47d0ec6",
+    "src/frontend_qt/edit_navigation.cpp": "9eaa99b54ad72775c124556332352142103be1ddac550b67da0cda289a1257c6",
+    "src/frontend_qt/edit_navigation.hpp": "f9a5ed1df15cc7bacebbd2f3896e6d1c3dc9ad271175e4b1efeae7abafc86a45",
+    "src/frontend_qt/numeric_dialog.cpp": "96f35d42a1d6413300226ef680925560b6ac711e005902d890c61b1c8b4d76e5",
+    "tests/qt_edit_navigation_test.cpp": "f5de0bb8a9bfd7cebf9888491438995c22afcf177c72496bebd7a34c53c16c1d",
+    "tests/qt_system_ime_test.cpp": "f3ff3ae9ff39cebe5611c0b6bea01ac65a34846d72fbcba47af1e816283b65d4",
+    "tests/composite_visual_compare.hpp": "652890c71d2446919be453d2438057dcdea7160a8fe1ad2a285797d5394b8343",
+    "tests/composite_visual_compare_test.cpp": "9159ca79b99e5858012259a152fce33c31d00ebb98a3f81608bb5f6fbadf821f",
+    "tests/editor_composite_render_test.cpp": "f027a8b4822c8477514edfe5fb3f940cb16e6d8576cd32226f6459e72b891fdb",
+    "tools/observe_edit_navigation.py": "e0a4ccd29dda1e7bcd8a34361977a72fadc97aab75123fd4d520160465ac250d",
+    "tools/analyze_editor_composite.py": "fcf3f5c36142cddb52daa072c8291188d89703b785da9ce5a514dcb74e9e4175"
+  },
+  "build": {
+    "all": "passed",
+    "log": {
+      "path": "out/build/p4-completion-all-build.log",
+      "sha256": "fb43db68a0815b1cb31a2186f37f348c6a1a95787916deda7bb7b89427d5bd70"
+    },
+    "explicit_targets": "qt_system_ime_test, qt_edit_navigation_test, editor_composite_render_test, composite_visual_compare_test built; native IME not executed locally",
+    "explicit_log": {
+      "path": "out/build/p4-final-targets.log",
+      "sha256": "5114d6bd1521d983686ea491ae2c741bba56d16ec504cde5b82ede8747d70ded"
+    }
+  },
+  "ordinary_p4": {
+    "name": "Win32-MSBuild",
+    "tests": "82",
+    "failures": "0",
+    "disabled": "0",
+    "skipped": "0",
+    "hostname": "XiaHan",
+    "time": "393",
+    "timestamp": "2026-11-04T17:37:40",
+    "artifact": {
+      "path": "out/build/p4-completion.xml",
+      "sha256": "e6f13fcfb24b2506e98138119369599dfd8f1d3d8f173ee7518ff3def3cb6624"
+    },
+    "failed": []
+  },
+  "affected_recheck": {
+    "name": "Win32-MSBuild",
+    "tests": "2",
+    "failures": "0",
+    "disabled": "0",
+    "skipped": "0",
+    "hostname": "XiaHan",
+    "time": "9",
+    "timestamp": "2026-11-04T17:47:41",
+    "artifact": {
+      "path": "out/build/p4-final-targets.xml",
+      "sha256": "8216e8dcf5f1270986cb92c0cee5b448bffdf949a38e116dbf381712c02b2cb9"
+    },
+    "failed": []
+  },
+  "keyboard": {
+    "comparisons": 144135,
+    "ime_bypass_checks": 30,
+    "original_executable_sha256": "07516fd3bf1e6b1339836b6773a156f61bdd6f848eeb621fdda012375df313a1",
+    "corpora": [
+      {
+        "path": "tests/reference/original-edit-keys.json",
+        "sha256": "fbb193ecac0aa78d339dad1f4334cc7cc0602f9d41f7f4385de0a6c4381ac165"
+      },
+      {
+        "path": "tests/reference/original-multiline-keys.json",
+        "sha256": "1664569ee325629abb03942a7264b9dc4bc2799754f02fb10d177952fd177748"
+      }
+    ]
+  },
+  "current_scene_profiles": [
+    {
+      "backend": "d3d11",
+      "driver": "hardware",
+      "exitCode": 0,
+      "capture": "out/build/p4-visual-current/d3d11-hardware",
+      "frames": [
+        {
+          "name": "rest",
+          "capture": {
+            "path": "out\\build\\p4-visual-current\\d3d11-hardware\\rest.rgba",
+            "sha256": "6ad6f1053a94138fcaaa4450283291c27dc06d3befc15bc24cb0214a429aabe4"
+          },
+          "strict": {
+            "outside_components": 0,
+            "coverage_differences": 0,
+            "maximum": 1
+          },
+          "visual": {
+            "mean": 0.107113,
+            "large_pixel_fraction": 0.0,
+            "block_mean_maximum": 1.0,
+            "alpha_differences": 0.0,
+            "accepted": 1.0
+          }
+        },
+        {
+          "name": "posed",
+          "capture": {
+            "path": "out\\build\\p4-visual-current\\d3d11-hardware\\posed.rgba",
+            "sha256": "13c5cfbf4ec3d0e16cc3dae437e8211ab87ed18d8f6c615c4549b80b5b01f8be"
+          },
+          "strict": {
+            "outside_components": 0,
+            "coverage_differences": 0,
+            "maximum": 1
+          },
+          "visual": {
+            "mean": 0.110494,
+            "large_pixel_fraction": 0.0,
+            "block_mean_maximum": 1.0,
+            "alpha_differences": 0.0,
+            "accepted": 1.0
+          }
+        }
+      ],
+      "repeat": "byte exact; required by render test"
+    },
+    {
+      "backend": "d3d11",
+      "driver": "software",
+      "exitCode": 0,
+      "capture": "out/build/p4-visual-current/d3d11-software",
+      "frames": [
+        {
+          "name": "rest",
+          "capture": {
+            "path": "out\\build\\p4-visual-current\\d3d11-software\\rest.rgba",
+            "sha256": "fe745663097ad7fdc12fd6138b98410dd8104c3db9ef23edcd969dbc02e0092f"
+          },
+          "strict": {
+            "outside_components": 141,
+            "coverage_differences": 5,
+            "maximum": 255
+          },
+          "visual": {
+            "mean": 0.123358,
+            "large_pixel_fraction": 0.000171661,
+            "block_mean_maximum": 10.8594,
+            "alpha_differences": 7.0,
+            "accepted": 1.0
+          }
+        },
+        {
+          "name": "posed",
+          "capture": {
+            "path": "out\\build\\p4-visual-current\\d3d11-software\\posed.rgba",
+            "sha256": "08f72d2997a16908fa25fcf7eb0d8510485dd7ff853168d3dcd7a8f295a6801f"
+          },
+          "strict": {
+            "outside_components": 24,
+            "coverage_differences": 0,
+            "maximum": 86
+          },
+          "visual": {
+            "mean": 0.121415,
+            "large_pixel_fraction": 0.000121122,
+            "block_mean_maximum": 4.03125,
+            "alpha_differences": 0.0,
+            "accepted": 1.0
+          }
+        }
+      ],
+      "repeat": "byte exact; required by render test"
+    },
+    {
+      "backend": "d3d12",
+      "driver": "hardware",
+      "exitCode": 0,
+      "capture": "out/build/p4-visual-current/d3d12-hardware",
+      "frames": [
+        {
+          "name": "rest",
+          "capture": {
+            "path": "out\\build\\p4-visual-current\\d3d12-hardware\\rest.rgba",
+            "sha256": "6ad6f1053a94138fcaaa4450283291c27dc06d3befc15bc24cb0214a429aabe4"
+          },
+          "strict": {
+            "outside_components": 0,
+            "coverage_differences": 0,
+            "maximum": 1
+          },
+          "visual": {
+            "mean": 0.107113,
+            "large_pixel_fraction": 0.0,
+            "block_mean_maximum": 1.0,
+            "alpha_differences": 0.0,
+            "accepted": 1.0
+          }
+        },
+        {
+          "name": "posed",
+          "capture": {
+            "path": "out\\build\\p4-visual-current\\d3d12-hardware\\posed.rgba",
+            "sha256": "13c5cfbf4ec3d0e16cc3dae437e8211ab87ed18d8f6c615c4549b80b5b01f8be"
+          },
+          "strict": {
+            "outside_components": 0,
+            "coverage_differences": 0,
+            "maximum": 1
+          },
+          "visual": {
+            "mean": 0.110494,
+            "large_pixel_fraction": 0.0,
+            "block_mean_maximum": 1.0,
+            "alpha_differences": 0.0,
+            "accepted": 1.0
+          }
+        }
+      ],
+      "repeat": "byte exact; required by render test"
+    },
+    {
+      "backend": "d3d12",
+      "driver": "software",
+      "exitCode": 0,
+      "capture": "out/build/p4-visual-current/d3d12-software",
+      "frames": [
+        {
+          "name": "rest",
+          "capture": {
+            "path": "out\\build\\p4-visual-current\\d3d12-software\\rest.rgba",
+            "sha256": "fe745663097ad7fdc12fd6138b98410dd8104c3db9ef23edcd969dbc02e0092f"
+          },
+          "strict": {
+            "outside_components": 141,
+            "coverage_differences": 5,
+            "maximum": 255
+          },
+          "visual": {
+            "mean": 0.123358,
+            "large_pixel_fraction": 0.000171661,
+            "block_mean_maximum": 10.8594,
+            "alpha_differences": 7.0,
+            "accepted": 1.0
+          }
+        },
+        {
+          "name": "posed",
+          "capture": {
+            "path": "out\\build\\p4-visual-current\\d3d12-software\\posed.rgba",
+            "sha256": "08f72d2997a16908fa25fcf7eb0d8510485dd7ff853168d3dcd7a8f295a6801f"
+          },
+          "strict": {
+            "outside_components": 24,
+            "coverage_differences": 0,
+            "maximum": 86
+          },
+          "visual": {
+            "mean": 0.121415,
+            "large_pixel_fraction": 0.000121122,
+            "block_mean_maximum": 4.03125,
+            "alpha_differences": 0.0,
+            "accepted": 1.0
+          }
+        }
+      ],
+      "repeat": "byte exact; required by render test"
+    },
+    {
+      "backend": "vulkan",
+      "driver": "hardware",
+      "exitCode": 0,
+      "capture": "out/build/p4-visual-current/vulkan-hardware",
+      "frames": [
+        {
+          "name": "rest",
+          "capture": {
+            "path": "out\\build\\p4-visual-current\\vulkan-hardware\\rest.rgba",
+            "sha256": "6ad6f1053a94138fcaaa4450283291c27dc06d3befc15bc24cb0214a429aabe4"
+          },
+          "strict": {
+            "outside_components": 0,
+            "coverage_differences": 0,
+            "maximum": 1
+          },
+          "visual": {
+            "mean": 0.107113,
+            "large_pixel_fraction": 0.0,
+            "block_mean_maximum": 1.0,
+            "alpha_differences": 0.0,
+            "accepted": 1.0
+          }
+        },
+        {
+          "name": "posed",
+          "capture": {
+            "path": "out\\build\\p4-visual-current\\vulkan-hardware\\posed.rgba",
+            "sha256": "13c5cfbf4ec3d0e16cc3dae437e8211ab87ed18d8f6c615c4549b80b5b01f8be"
+          },
+          "strict": {
+            "outside_components": 0,
+            "coverage_differences": 0,
+            "maximum": 1
+          },
+          "visual": {
+            "mean": 0.110494,
+            "large_pixel_fraction": 0.0,
+            "block_mean_maximum": 1.0,
+            "alpha_differences": 0.0,
+            "accepted": 1.0
+          }
+        }
+      ],
+      "repeat": "byte exact; required by render test"
+    }
+  ],
+  "visual_review": {
+    "inspected": "DX9 reference versus WARP, Metal and software-Vulkan rest/posed captures; current WARP overviews inspected again after rebuilding. No visible scene/material/orientation regression; isolated grid/shadow edge differences.",
+    "current_warp_overviews": [
+      {
+        "path": "docs/evidence/p4-visual-rest.png",
+        "sha256": "7aad52c23438063bf6a8550c75917fa200acefb770d12052e890a9335f706c41"
+      },
+      {
+        "path": "docs/evidence/p4-visual-posed.png",
+        "sha256": "32392dfea668baf173d9b37248155e043fbaba38844c265ac558f04a2ed4f59c"
+      }
+    ],
+    "historical_platform_analysis": [
+      {
+        "platform": "metal",
+        "fresh_revision": false,
+        "report": {
+          "path": "out/build/p4-visual-metal-historical/analysis.json",
+          "sha256": "375b41129100f8a7a9502230a55b0b5ce5d725154c1b50149abdb03d84cc7605"
+        },
+        "strict_accepted": false,
+        "visual_accepted": true,
+        "frames": {
+          "rest": {
+            "mean": 0.10986836751302083,
+            "large_pixel_fraction": 3.0517578125e-05,
+            "block_mean_maximum": 6.53125,
+            "alpha_differences": 0,
+            "accepted": true
+          },
+          "posed": {
+            "mean": 0.12093546710270657,
+            "large_pixel_fraction": 0.00010598192251207437,
+            "block_mean_maximum": 5.078125,
+            "alpha_differences": 0,
+            "accepted": true
+          }
+        }
+      },
+      {
+        "platform": "linux",
+        "fresh_revision": false,
+        "report": {
+          "path": "out/build/p4-visual-linux-historical/analysis.json",
+          "sha256": "e650c8f3300f3e0a037a420aa0427b3b484cde53c102cc69a62bd4125cd45a19"
+        },
+        "strict_accepted": false,
+        "visual_accepted": true,
+        "frames": {
+          "rest": {
+            "mean": 0.11091232299804688,
+            "large_pixel_fraction": 3.4332275390625e-05,
+            "block_mean_maximum": 6.53125,
+            "alpha_differences": 2,
+            "accepted": true
+          },
+          "posed": {
+            "mean": 0.13421348796600505,
+            "large_pixel_fraction": 0.0002725249436024769,
+            "block_mean_maximum": 9.40625,
+            "alpha_differences": 0,
+            "accepted": true
+          }
+        }
+      }
+    ]
+  },
+  "distribution": {
+    "status": "passed",
+    "directory": "out/dist",
+    "report": {
+      "path": "out/build/p4-current-distribution.json",
+      "sha256": "97a5f20bd964c512fccb3a787e5067bc1577c329ec2c259f2420b4734dc7a725"
+    },
+    "profiles": [
+      {
+        "platform": "offscreen",
+        "styleBase": "fusion",
+        "visible": false
+      },
+      {
+        "platform": "windows",
+        "styleBase": "windowsvista",
+        "visible": false
+      }
+    ],
+    "archive": {
+      "path": "out/releases/MikuDanceStudio-NG-10.15-windows-x64.zip",
+      "sha256": "75b8f42631b68126b4f9f488e19c8970d7262d5f26e7eb81c4c1f7cd271e162c"
+    }
+  },
+  "pending": [
+    "Fresh consolidated three-platform CI, including Metal arena changes",
+    "Windows real IME in all three languages with natural exit",
+    "Complete shown control/focus/scroll/multiline/hover qualification",
+    "Actual monitor/DPI and non-Windows font appearance"
+  ]
+}

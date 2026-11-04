@@ -3,6 +3,7 @@
 #include "mikudancestudio/rhi_backend.hpp"
 #include "mikudancestudio/rhi_scene_renderer.hpp"
 #include "self_shadow_compare.hpp"
+#include "composite_visual_compare.hpp"
 #include "../src/render/rhi_model_constants.hpp"
 #include <cmath>
 #include <cstring>
@@ -126,10 +127,17 @@ int main(int argc, char** argv) try {
         expected.description = {image.width, image.height, rhi::TextureFormat::Rgba8};
         expected.bytes.assign(image.pixels.begin(), image.pixels.end());
         const auto diff = shadow_acceptance::Compare(actual, expected);
+        const auto visual = composite_visual::Compare(actual, expected);
         std::cout << (posed ? "posed" : "rest")
                   << " native composite: outside=" << diff.outsideTolerance
                   << " coverage=" << diff.coverageDifferences << " max=" << diff.maximum << '\n';
-        accepted &= diff.Accepted();
+        std::cout << "visual composite: mean=" << visual.mean
+                  << " largeFraction=" << visual.largePixelFraction
+                  << " blockMaximum=" << visual.blockMeanMaximum
+                  << " alphaDifferences=" << visual.alphaDifferences
+                  << " accepted=" << visual.Accepted() << '\n';
+        const bool strict = std::getenv("MDS_COMPOSITE_STRICT") != nullptr;
+        accepted &= strict ? diff.Accepted() : visual.Accepted();
         Require(bool(renderer.Submit(prepared, done)), "repeat composite submission");
         Require(renderer.ReadTarget(1, frame.finalColor, repeated), "repeat composite read");
         Require(actual.bytes == repeated.bytes, "repeat composite must be byte exact");
@@ -137,6 +145,15 @@ int main(int argc, char** argv) try {
             // Keep each actual draw prefix for diagnosis on another GPU. This
             // never changes the final image/reference or its acceptance rule.
             auto partial = frame;
+            if (options.backend == rhi::Backend::D3D11)
+                for (auto& target : partial.targets)
+                    if (target.description.format == rhi::TextureFormat::DepthStencil) {
+                        // The negotiated depth contract deliberately forbids
+                        // raw transfer. Name DX11's identical physical format
+                        // explicitly for this diagnostic copy of the frame.
+                        target.description.format = rhi::TextureFormat::Depth24Stencil8;
+                        target.description.access |= std::uint32_t(rhi::TextureAccess::CopySource);
+                    }
             const auto directory = std::filesystem::u8path(argv[3]);
             const std::string stem = posed ? "posed" : "rest";
             std::ofstream positions(directory / (stem + "-positions.tsv"));
@@ -235,19 +252,37 @@ int main(int argc, char** argv) try {
                     Require(bool(result), result.reason);
                     rhi::AttachmentReadback pixels;
                     Require(renderer.ReadTarget(1, frame.finalColor, pixels), "read draw prefix");
+                    if (n == draws.size())
+                        Require(pixels.bytes == actual.bytes,
+                                "diagnostic final prefix must retain the original frame bytes");
                     const auto name =
                         std::string(posed ? "posed" : "rest") + "-prefix-" + std::to_string(n);
                     std::ofstream dump(directory / (name + ".rgba"), std::ios::binary);
                     dump.write(reinterpret_cast<const char*>(pixels.bytes.data()),
                                pixels.bytes.size());
                     Require(bool(dump), "write draw prefix");
+                    if (options.backend == rhi::Backend::D3D11 && pass.depthStencil) {
+                        // DX11's negotiated attachment is D24_UNORM_S8_UINT.
+                        // Preserve its raw bits beside color to distinguish
+                        // coverage/shading from depth/stencil rejection. This
+                        // diagnostic never changes the frame or comparison.
+                        rhi::AttachmentReadback depth;
+                        Require(renderer.ReadTarget(1, pass.depthStencil->target, depth),
+                                "read DX11 draw-prefix depth/stencil");
+                        Require(depth.bytes.size() == std::size_t(size) * size * 4,
+                                "DX11 packed D24S8 byte count");
+                        std::ofstream raw(directory / (name + ".d24s8"), std::ios::binary);
+                        raw.write(reinterpret_cast<const char*>(depth.bytes.data()),
+                                  depth.bytes.size());
+                        Require(bool(raw), "write DX11 draw-prefix depth/stencil");
+                    }
                 }
             }
             positions.flush();
             Require(bool(positions), "complete position probe manifest");
         }
     }
-    Require(accepted, "original composite pixels differ");
+    Require(accepted, "original composite acceptance failed");
     return 0;
 } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';

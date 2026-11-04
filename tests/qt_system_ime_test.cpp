@@ -134,51 +134,89 @@ private:
     HANDLE main_ = nullptr;
     std::thread worker_;
 };
-QString ActivateJapaneseIme(HWND window) {
-    using Microsoft::WRL::ComPtr;
-    ComPtr<ITfInputProcessorProfiles> profiles;
-    auto result = CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr, CLSCTX_INPROC_SERVER,
-                                   IID_PPV_ARGS(&profiles));
-    if (FAILED(result))
-        return QString("TSF profiles: 0x%1").arg(unsigned(result), 8, 16, QLatin1Char('0'));
-    ComPtr<IEnumTfLanguageProfiles> available;
-    result = profiles->EnumLanguageProfiles(0x411, &available);
-    if (FAILED(result))
-        return "Japanese TSF profile enumeration failed";
-    TF_LANGUAGEPROFILE profile{};
-    ULONG fetched = 0;
-    while (available->Next(1, &profile, &fetched) == S_OK && fetched) {
-        if (profile.catid != GUID_TFCAT_TIP_KEYBOARD)
-            continue;
-        ComPtr<ITfInputProcessorProfileMgr> manager;
-        result = profiles.As(&manager);
-        if (SUCCEEDED(result))
-            result = manager->ActivateProfile(TF_PROFILETYPE_INPUTPROCESSOR, 0x411, profile.clsid,
-                                              profile.guidProfile, nullptr,
-                                              TF_IPPMF_ENABLEPROFILE |
-                                                  TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE);
+class JapaneseImeSession {
+public:
+    QString Activate(HWND window) {
+        using Microsoft::WRL::ComPtr;
+        ComPtr<ITfInputProcessorProfiles> profiles;
+        auto result = CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr,
+                                       CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&profiles));
         if (FAILED(result))
-            return QString("TSF activation: 0x%1").arg(unsigned(result), 8, 16, QLatin1Char('0'));
-        const auto context = ImmGetContext(window);
-        if (!context)
-            return "Japanese IME has no native input context";
-        const auto opened = ImmSetOpenStatus(context, TRUE);
-        DWORD previousConversion = 0, previousSentence = 0;
-        ImmGetConversionStatus(context, &previousConversion, &previousSentence);
-        std::fprintf(stderr, "Japanese IME initial conversion=0x%lx sentence=0x%lx\n",
-                     previousConversion, previousSentence);
-        const auto converted = ImmSetConversionStatus(
-            context, IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE | IME_CMODE_ROMAN,
-            IME_SMODE_PLAURALCLAUSE);
-        DWORD conversion = 0, sentence = 0;
-        ImmGetConversionStatus(context, &conversion, &sentence);
-        std::fprintf(stderr, "Japanese IME conversion=0x%lx sentence=0x%lx open=%d\n", conversion,
-                     sentence, ImmGetOpenStatus(context));
-        ImmReleaseContext(window, context);
-        return opened && converted ? QString() : QString("Cannot select native Hiragana mode");
+            return QString("TSF profiles: 0x%1").arg(unsigned(result), 8, 16, QLatin1Char('0'));
+        ComPtr<IEnumTfLanguageProfiles> available;
+        result = profiles->EnumLanguageProfiles(0x411, &available);
+        if (FAILED(result))
+            return "Japanese TSF profile enumeration failed";
+        TF_LANGUAGEPROFILE profile{};
+        ULONG fetched = 0;
+        while (available->Next(1, &profile, &fetched) == S_OK && fetched) {
+            if (profile.catid != GUID_TFCAT_TIP_KEYBOARD)
+                continue;
+            ComPtr<ITfInputProcessorProfileMgr> manager;
+            result = profiles.As(&manager);
+            if (SUCCEEDED(result))
+                result = manager->ActivateProfile(
+                    TF_PROFILETYPE_INPUTPROCESSOR, 0x411, profile.clsid, profile.guidProfile,
+                    nullptr, TF_IPPMF_ENABLEPROFILE | TF_IPPMF_DONTCARECURRENTINPUTLANGUAGE);
+            if (FAILED(result))
+                return QString("TSF activation: 0x%1")
+                    .arg(unsigned(result), 8, 16, QLatin1Char('0'));
+            active_ = profile;
+            activated_ = true;
+            const auto context = ImmGetContext(window);
+            if (!context)
+                return "Japanese IME has no native input context";
+            const auto opened = ImmSetOpenStatus(context, TRUE);
+            DWORD previousConversion = 0, previousSentence = 0;
+            ImmGetConversionStatus(context, &previousConversion, &previousSentence);
+            std::fprintf(stderr, "Japanese IME initial conversion=0x%lx sentence=0x%lx\n",
+                         previousConversion, previousSentence);
+            const auto converted = ImmSetConversionStatus(
+                context, IME_CMODE_NATIVE | IME_CMODE_FULLSHAPE | IME_CMODE_ROMAN,
+                IME_SMODE_PLAURALCLAUSE);
+            DWORD conversion = 0, sentence = 0;
+            ImmGetConversionStatus(context, &conversion, &sentence);
+            std::fprintf(stderr, "Japanese IME conversion=0x%lx sentence=0x%lx open=%d\n",
+                         conversion, sentence, ImmGetOpenStatus(context));
+            ImmReleaseContext(window, context);
+            return opened && converted ? QString() : QString("Cannot select native Hiragana mode");
+        }
+        return "No installed Japanese TSF keyboard profile";
     }
-    return "No installed Japanese TSF keyboard profile";
-}
+    QString Finish(HWND window) {
+        if (!activated_)
+            return {};
+        // Balance the test-owned thread-scoped ActivateProfile while its GUI
+        // event loop, COM apartment and original input window still exist. The
+        // editor itself never programmatically changes the user's TSF profile.
+        std::fprintf(stderr, "IME close native composition/open state\n");
+        std::fflush(stderr);
+        if (const auto context = ImmGetContext(window)) {
+            ImmNotifyIME(context, NI_COMPOSITIONSTR, CPS_CANCEL, 0);
+            ImmSetOpenStatus(context, FALSE);
+            ImmReleaseContext(window, context);
+        }
+        Microsoft::WRL::ComPtr<ITfInputProcessorProfileMgr> manager;
+        auto result = CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr,
+                                       CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&manager));
+        if (FAILED(result))
+            return "Cannot release test-owned TSF profile manager";
+        std::fprintf(stderr, "IME deactivate test-owned thread profile\n");
+        std::fflush(stderr);
+        result = manager->DeactivateProfile(TF_PROFILETYPE_INPUTPROCESSOR, 0x411, active_.clsid,
+                                            active_.guidProfile, nullptr, 0);
+        if (FAILED(result))
+            return QString("TSF deactivation: 0x%1").arg(unsigned(result), 8, 16, QLatin1Char('0'));
+        activated_ = false;
+        std::fprintf(stderr, "IME test-owned profile released\n");
+        std::fflush(stderr);
+        return {};
+    }
+
+private:
+    TF_LANGUAGEPROFILE active_{};
+    bool activated_ = false;
+};
 #endif
 class InputObserver final : public QObject {
 public:
@@ -229,6 +267,15 @@ int main(int argc, char** argv) {
 #endif
     QApplication app(argc, argv);
 #ifdef _WIN32
+    JapaneseImeSession nativeIme;
+    OSVERSIONINFOW version{};
+    version.dwOSVersionInfoSize = sizeof(version);
+#pragma warning(push)
+#pragma warning(disable : 4996)
+    GetVersionExW(&version);
+#pragma warning(pop)
+    std::fprintf(stderr, "IME manifest OS compatibility=%lu.%lu build=%lu\n",
+                 version.dwMajorVersion, version.dwMinorVersion, version.dwBuildNumber);
     std::fprintf(stderr, "IME QApplication ready\n");
     std::fflush(stderr);
 #endif
@@ -309,7 +356,7 @@ int main(int argc, char** argv) {
 #ifdef _WIN32
                 else if (request["action"] == "activate-ime")
                     reason =
-                        ActivateJapaneseIme(reinterpret_cast<HWND>(dialog.winId())).toStdString();
+                        nativeIme.Activate(reinterpret_cast<HWND>(dialog.winId())).toStdString();
 #endif
 #ifdef __APPLE__
                 else if (request["action"] == "activate-ime")
@@ -350,10 +397,12 @@ int main(int argc, char** argv) {
         if (const auto context = ImmGetContext(reinterpret_cast<HWND>(dialog.winId()))) {
             DWORD conversion = 0, sentence = 0;
             ImmGetConversionStatus(context, &conversion, &sentence);
-            report.insert("nativeIme", QJsonObject{
-                {"conversion", int(conversion)}, {"sentence", int(sentence)},
-                {"open", bool(ImmGetOpenStatus(context))},
-                {"keyboardLayout", QString::number(quintptr(GetKeyboardLayout(0)), 16)}});
+            report.insert("nativeIme",
+                          QJsonObject{{"conversion", int(conversion)},
+                                      {"sentence", int(sentence)},
+                                      {"open", bool(ImmGetOpenStatus(context))},
+                                      {"keyboardLayout",
+                                       QString::number(quintptr(GetKeyboardLayout(0)), 16)}});
             ImmReleaseContext(reinterpret_cast<HWND>(dialog.winId()), context);
         }
 #endif
@@ -394,12 +443,15 @@ int main(int argc, char** argv) {
             const auto result = unchanged && dialog.Active() && reason.empty() ? 0 : 1;
 #ifdef _WIN32
             shutdownDiagnostic.Arm();
+            const auto releaseError = nativeIme.Finish(reinterpret_cast<HWND>(dialog.winId()));
+            if (!releaseError.isEmpty()) {
+                std::fprintf(stderr, "%s\n", releaseError.toUtf8().constData());
+                app.exit(1);
+                return;
+            }
 #endif
-            // Activation belongs to this GUI thread, so it never replaced
-            // another app's profile or worker-thread input contexts. Let
-            // normal focus/window destruction release this input
-            // context instead of synchronously switching layouts during TSF
-            // teardown. Deliver the hide/focus notifications before quitting.
+            // Deliver focus/hide notifications before normal window and
+            // QApplication destruction. No forced process exit is accepted.
             field->clearFocus();
             dialog.hide();
             std::fprintf(stderr, "IME finish snapshot published; leaving event loop\n");

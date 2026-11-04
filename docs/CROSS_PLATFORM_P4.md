@@ -4,13 +4,34 @@ Status: **in progress**. P4 and C1 have not been accepted. The current work also
 includes strict MMD v9.32 layout/behavior parity and multilingual UI, as requested
 on 2026-11-01. These are acceptance requirements, not claims about this revision.
 
+2026-11-04 continuation: [original EDIT keyboard comparisons](P4_EDIT_NAVIGATION.md)
+now cover 144,135 passing local cases. The user subsequently approved complete-scene
+visual equivalence in place of the strict RGB profile; the [visual policy](P4_VISUAL_COMPOSITE.md)
+retains strict diagnostics and separate copy/depth contracts. Windows IME and the
+remaining shown UI/font/DPI checks must still pass before P4 can be accepted.
+
+The fresh local suite passes **82/82** P4 tests, followed by a passing navigation
+and visual-counterexample recheck. Release packaging and relocated startup pass.
+Five local full-composite profiles (DX11/DX12 hardware and WARP; Vulkan hardware)
+pass the visual policy with byte-exact repeats. Source, binary and capture hashes
+are recorded in [current local evidence](evidence/p4-visual-input-local.json).
+Native Windows IME shutdown and complete shown UI qualification remain pending;
+they are not included in that 82-test result.
+
+The latest [PMM compatibility repair and gap review](P4_PMM_COMPATIBILITY.md)
+records three actual v1 projects, nine backend/language checks and nine imported
+project resize/device-replacement profiles. The 80 ordinary tests are covered
+after an obsolete import-rejection assertion was updated and affected tests
+rechecked. Strict WARP still fails; native Windows IME, complete visible control
+parity and the remaining text-key behaviors remain unaccepted.
+
 Main-window screenshot corrections restore push-like controls, native slider
 geometry, the empty waveform rows and viewport/readout captions. The Qt window
 implementation is now split by responsibility. See the scoped
 [UI alignment record](QT_UI_ALIGNMENT.md) and [source review](SOURCE_STRUCTURE.md).
 Development packages now use `out/dist`, independently of the CMake build folder.
-The local Release build passes 75/75 ordinary P4 tests plus the relocated package
-check; this scoped result does not close the acceptance gaps below.
+An earlier local Release run passed 75/75 ordinary P4 tests plus the relocated
+package check; this scoped result does not close the acceptance gaps below.
 
 Latest consolidated run [41704895198](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41704895198)
 passed 74 Windows, 70 Linux and 65 macOS ordinary P4 tests. Linux/macOS real IME,

@@ -276,13 +276,17 @@ function(mds_add_qt_editor)
         set_tests_properties(p4_scene_frame_contract PROPERTIES LABELS "p4;headless" TIMEOUT 120)
         add_executable(editor_scene_gate_test "${root}/tests/editor_scene_gate_test.cpp")
         add_executable(editor_composite_render_test "${root}/tests/editor_composite_render_test.cpp")
+        add_executable(composite_visual_compare_test "${root}/tests/composite_visual_compare_test.cpp")
+        target_link_libraries(composite_visual_compare_test PRIVATE mikudancestudio_rhi)
+        add_test(NAME composite_visual_compare COMMAND composite_visual_compare_test)
+        set_tests_properties(composite_visual_compare PROPERTIES LABELS "p4;headless;portable" TIMEOUT 30)
         target_link_libraries(editor_composite_render_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render)
         add_test(NAME editor_composite_render COMMAND editor_composite_render_test
             "${root}/tests/data/p4_composite" "${root}/res/assets"
             "${CMAKE_BINARY_DIR}/native-reference")
-        # This frozen original reference qualifies the captured native HAL
-        # profile. Software rasterizers have independently recorded blend/depth
-        # differences; invoke this strict gate explicitly on qualified hardware.
+        # User-approved visual complete-scene policy; retain all strict counts.
+        # Set MDS_COMPOSITE_STRICT=1 to require the previous numerical profile.
+        # Resource copies, repeated submits and shadow-depth gates are separate.
         set_tests_properties(editor_composite_render PROPERTIES LABELS "offscreen;gpu;native-reference" TIMEOUT 120)
         target_link_libraries(editor_scene_gate_test PRIVATE mikudancestudio_editor_core mikudancestudio_scene_render)
         add_test(NAME editor_scene_gate COMMAND ${Python3_EXECUTABLE}
