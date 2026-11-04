@@ -22,6 +22,32 @@ void Canvas::SetFullScreen(bool value) {
     fullScreen_ = value;
     update();
 }
+QString Canvas::ViewportTitle() const {
+    const bool english = language_.Code() == "en";
+    QString title = language_.Text("viewport.camera_light_accessory");
+    if (session_.Playing())
+        title = language_.Text("viewport.playing");
+    else if (session_.Selected().model == 255) {
+        for (const auto& accessory : session_.Document().accessories)
+            if (accessory.slot == session_.Selected().accessory) {
+                const auto end = std::find(accessory.name.begin(), accessory.name.end(), 0);
+                std::string decoded;
+                text::DecodeCp932(
+                    {accessory.name.data(), std::size_t(end - accessory.name.begin())}, decoded);
+                title += " / " + QString::fromUtf8(decoded.c_str());
+            }
+    } else {
+        const auto slot = session_.Selected().model;
+        title = ModelDisplayLabel(session_, slot, english);
+        for (const auto& model : session_.Document().models)
+            if (model.slot == slot && model.selection.selectedBone >= 0) {
+                const auto bone = ModelTrackLabel(
+                    session_, slot, unsigned(model.selection.selectedBone), false, english, true);
+                title += (english ? QStringLiteral(" : ") : QString(QChar(0xff1a))) + bone;
+            }
+    }
+    return title;
+}
 void Canvas::paintEvent(QPaintEvent*) {
     QPainter p(this);
     if (fullScreen_) {
@@ -82,31 +108,7 @@ void Canvas::paintEvent(QPaintEvent*) {
         fill({inset, viewport.y + viewport.height, width(), viewport.y + viewport.height + 32,
               0x787878, 0xc8c8c8, true});
         const bool english = language_.Code() == "en";
-        QString title = language_.Text("viewport.camera_light_accessory");
-        if (session_.Playing())
-            title = language_.Text("viewport.playing");
-        else if (options.cameraMode) {
-            for (const auto& accessory : session_.Document().accessories)
-                if (accessory.slot == session_.Selected().accessory) {
-                    const auto end = std::find(accessory.name.begin(), accessory.name.end(), 0);
-                    std::string decoded;
-                    text::DecodeCp932(
-                        {accessory.name.data(), std::size_t(end - accessory.name.begin())},
-                        decoded);
-                    title += " / " + QString::fromUtf8(decoded.c_str());
-                }
-        } else {
-            const auto slot = session_.Selected().model;
-            title = ModelDisplayLabel(session_, slot, english);
-            for (const auto& model : session_.Document().models)
-                if (model.slot == slot && model.selection.selectedBone >= 0) {
-                    const auto bone =
-                        ModelTrackLabel(session_, slot, unsigned(model.selection.selectedBone),
-                                        false, english, true);
-                    if (!bone.isEmpty())
-                        title += " : " + bone;
-                }
-        }
+        const QString title = ViewportTitle();
         p.setPen(Qt::white);
         p.setFont(GlyphFont(language_.Code(), english ? 20 : 16));
         p.drawText(QRect(inset + 10, viewport.y - (english ? 22 : 20),

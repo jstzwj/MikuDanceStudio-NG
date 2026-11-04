@@ -69,7 +69,7 @@
 #include <cstdio>
 #include <cstring>
 
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/cpu_bone_transform.hpp"
 #include <utility>

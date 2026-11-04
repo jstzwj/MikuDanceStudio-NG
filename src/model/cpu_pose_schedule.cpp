@@ -1,7 +1,7 @@
 #include "mikudancestudio/cpu_pose_schedule.hpp"
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/cpu_scene_simulation.hpp"
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include <cstdlib>
 #include "mikudancestudio/ported_funcs.hpp"
 

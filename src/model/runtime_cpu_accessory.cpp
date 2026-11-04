@@ -1,6 +1,6 @@
 #include "../render/legacy_model_cpu_math.hpp"
 #include "mikudancestudio/runtime_cpu_accessory.hpp"
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include <wrl/client.h>
 #include <algorithm>
 #include <cmath>

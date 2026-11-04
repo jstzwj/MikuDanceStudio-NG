@@ -9,6 +9,7 @@ class Canvas final : public QWidget {
 public:
     Canvas(Language&, editor::EditorSession&, const std::filesystem::path& assets, QWidget* parent,
            bool viewportOnly = false);
+    QString ViewportTitle() const;
     void SetDetached(bool);
     void SetFullScreen(bool);
 

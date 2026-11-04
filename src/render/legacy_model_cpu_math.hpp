@@ -1,5 +1,5 @@
 #pragma once
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include "mikudancestudio/render_model_inputs.hpp"
 #include <cstring>
 #include "mikudancestudio/mmd_math.hpp"

@@ -2,7 +2,7 @@
 #include "mikudancestudio/model_input_bridge.hpp"
 #include "mikudancestudio/mmd_app.hpp"
 #include "mikudancestudio/model.hpp"
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include "mikudancestudio/model_cpu_preview.hpp"
 #include "mikudancestudio/mme_bridge.hpp"
 #include "mikudancestudio/render_snapshot.hpp"
@@ -43,9 +43,9 @@ void UpdateCpuRenderFrame(MMDApp* app, const float* world, const float* lightRot
         camera.perspective = app->CameraPerspective();
         camera.parentModel = app->CameraParentModel();
         camera.parentBone = app->CameraParentBone();
-        frame.scene.lightState = {app->LightColor()[0], app->LightColor()[1], app->LightColor()[2],
-                                  app->LightDirection()[0], app->LightDirection()[1],
-                                  app->LightDirection()[2]};
+        frame.scene.lightState = {app->LightColor()[0],     app->LightColor()[1],
+                                  app->LightColor()[2],     app->LightDirection()[0],
+                                  app->LightDirection()[1], app->LightDirection()[2]};
     }
     std::copy_n(world, 16, frame.world.begin());
     std::copy_n(lightRotation, 16, frame.lightRotation.begin());

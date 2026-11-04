@@ -5,8 +5,11 @@
 #include "btBulletDynamicsCommon.h"
 #include <cstring>
 #include <cmath>
+#include <type_traits>
 namespace mikudancestudio::cpu_keyframe {
-template <class Traits> struct Kernel {
+// Alternate services isolate curve evaluation and physics notifications while
+// exercising the same seeking algorithm. Production uses the default services.
+template <class Traits, class Services = void> struct Kernel {
     using Model = typename Traits::Model;
     using Bone = typename Traits::Bone;
     using BoneKey = typename Traits::BoneKey;
@@ -137,10 +140,17 @@ template <class Traits> struct Kernel {
     }
 
     static float BoneEase(const Model* model, int channel, int keyIdx, float t) {
-        return format::EvaluatePmmBoneCurve(model->boneKeys[keyIdx].interpolation, channel, t);
+        if constexpr (std::is_void_v<Services>)
+            return format::EvaluatePmmBoneCurve(model->boneKeys[keyIdx].interpolation, channel, t);
+        else
+            return Services::BoneEase(model, channel, keyIdx, t);
     }
 
     static void NotifyBonePhysicsMode(Model* model, int boneIdx, unsigned char mode) {
+        if constexpr (!std::is_void_v<Services>) {
+            Services::NotifyBonePhysicsMode(model, boneIdx, mode);
+            return;
+        }
         Rigid* const rigids = model->rigidTable;
         const int cnt = static_cast<int>(model->rigidCount);
         for (int i = 0; i < cnt; ++i) {

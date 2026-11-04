@@ -2,7 +2,7 @@
 
 #include "scene_memory_device.hpp"
 
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include "mikudancestudio/mmd_app.hpp"
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/panel_controls.hpp"
@@ -504,10 +504,11 @@ struct Fixture {
     IDirect3DDevice9* device = nullptr;
     std::filesystem::path directory;
     bool ready = false;
-    explicit Fixture(bool allowMemoryDevice = false,
-                     DWORD vertexProcessing = D3DCREATE_SOFTWARE_VERTEXPROCESSING,
-                     IDirect3D9* explicitApi = nullptr,
-                     const std::function<IDirect3DDevice9*(IDirect3DDevice9*)>& decorateDevice = {}) {
+    explicit Fixture(
+        bool allowMemoryDevice = false,
+        DWORD vertexProcessing = D3DCREATE_SOFTWARE_VERTEXPROCESSING,
+        IDirect3D9* explicitApi = nullptr,
+        const std::function<IDirect3DDevice9*(IDirect3DDevice9*)>& decorateDevice = {}) {
         app->state = {};
         wchar_t temp[MAX_PATH]{}, unique[MAX_PATH]{};
         Check(GetTempPathW(MAX_PATH, temp) && GetTempFileNameW(temp, L"mds", 0, unique),

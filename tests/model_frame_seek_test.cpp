@@ -1,5 +1,6 @@
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
+#include "native_keyframe_kernel.hpp"
 
 #include <cstdint>
 #include <cstdio>
@@ -22,20 +23,28 @@ template <typename T> void Capture(const T& value) {
 
 // Isolate seeking from Bullet and curve evaluation. Record notification order
 // and the pose at each notification, including calls before working-pose copies.
-namespace mikudancestudio {
-void SeekPortableSceneModel(mdl::ModelRecord*, int) {}
-void NotifyBonePhysicsMode(mdl::ModelRecord* model, int index, unsigned char mode) {
-    Capture(index);
-    Capture(mode);
-    Capture(model->boneTable[index]);
+namespace {
+struct SeekServices {
+    static void NotifyBonePhysicsMode(mikudancestudio::mdl::ModelRecord* model, int index,
+                                      unsigned char mode) {
+        Capture(index);
+        Capture(mode);
+        Capture(model->boneTable[index]);
+    }
+    static float BoneEase(const mikudancestudio::mdl::ModelRecord*, int channel, int key,
+                          float fraction) {
+        Capture(channel);
+        Capture(key);
+        Capture(fraction);
+        return fraction * (channel == 3 ? 0.875f : 0.75f);
+    }
+};
+int SeekWithServices(mikudancestudio::mdl::ModelRecord& model, int frame, int mode) {
+    using Kernel =
+        mikudancestudio::cpu_keyframe::Kernel<mikudancestudio::NativeKeyframeTraits, SeekServices>;
+    return Kernel::SeekModelFrame(model, frame, mode);
 }
-float BoneEase(const mdl::ModelRecord*, int channel, int key, float fraction) {
-    Capture(channel);
-    Capture(key);
-    Capture(fraction);
-    return fraction * (channel == 3 ? 0.875f : 0.75f);
-}
-} // namespace mikudancestudio
+} // namespace
 
 static bool CheckPositionRounding() {
     using namespace mikudancestudio;
@@ -68,7 +77,7 @@ static bool CheckPositionRounding() {
             keys[1].position[axis] = test.next;
         }
         // The curve substitute returns (4/10)*0.75 == 0.3f for each axis.
-        SeekModelFrame(*model, 4, 0);
+        SeekWithServices(*model, 4, 0);
         for (float position : bone.trans) {
             std::uint32_t bits;
             std::memcpy(&bits, &position, sizeof(bits));
@@ -159,7 +168,7 @@ int main() {
                         key.next = k < 2 ? m + (k + 1) * 2 : 0;
                         key.value = (k - 0.3125f) * (m + 0.1f);
                     }
-                const int result = SeekModelFrame(*model, frame, mode);
+                const int result = SeekWithServices(*model, frame, mode);
                 Capture(result);
                 Capture(model->loadComplete);
                 Capture(bones);

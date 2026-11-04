@@ -30,7 +30,7 @@
 
 #include "mikudancestudio/mmd_app.hpp"
 #include "mikudancestudio/render_self_shadow.hpp"
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include "mikudancestudio/mme_bridge.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
 
@@ -78,7 +78,7 @@ bool InitToonTextures(MMDApp* app) {
     s.ToonTexture(0) = tex0;
 
     // edge-colour table defaults (this+655632, exact original values)
-    std::memcpy(s.state.toonEdgeTable,render::DefaultToonShadowColors.data(),
+    std::memcpy(s.state.toonEdgeTable, render::DefaultToonShadowColors.data(),
                 sizeof(render::DefaultToonShadowColors));
 
     // slots 1..10: toonNN.bmp with embedded PNG fallback, colour from pixel

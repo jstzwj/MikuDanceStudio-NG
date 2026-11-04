@@ -1,4 +1,6 @@
 #include "editor_window.hpp"
+#include "editor_canvas.hpp"
+#include "model_labels.hpp"
 #include "mikudancestudio/menu_commands.h"
 #include <QApplication>
 #include <QImage>
@@ -35,7 +37,15 @@ int main(int argc, char** argv) try {
     std::string reason;
     const auto model = qt::Path(QString::fromLocal8Bit(argv[2]));
     Check(session.ImportModel(model, reason), reason.c_str());
+    Check(session.SelectBones({0}, 0, reason), reason.c_str());
     window.Refresh();
+    qt::Canvas* canvas = nullptr;
+    for (auto* widget : window.findChildren<QWidget*>())
+        if (auto* candidate = dynamic_cast<qt::Canvas*>(widget)) {
+            canvas = candidate;
+            break;
+        }
+    Check(canvas, "editor canvas");
     const auto resource = session.Runtime().Resource(0);
     const auto revision = session.Revision();
     const auto frames = session.Runtime().Counters().frames;
@@ -91,6 +101,12 @@ int main(int argc, char** argv) try {
             Check(window.CurrentLanguage() == code, "activation applied requested language");
             Check(menus() == originalMenus && actions() == originalActions,
                   "language changes preserve the menu tree without accumulating actions");
+            const bool english = std::string(code) == "en";
+            const auto expectedTitle = qt::ModelDisplayLabel(session, 0, english) +
+                                       (english ? QStringLiteral(" : ") : QString(QChar(0xff1a))) +
+                                       qt::ModelTrackLabel(session, 0, 0, false, english, true);
+            Check(canvas->ViewportTitle() == expectedTitle,
+                  "selected bone title uses localized names and original fullwidth separator");
             QImage capture(window.size(), QImage::Format_RGB32);
             window.render(&capture);
             QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);

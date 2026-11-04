@@ -1076,8 +1076,8 @@ unsigned AudioDisableCommands(OriginalPhysicsModule& original) {
                     const auto* wanted = reinterpret_cast<const unsigned char*>(expected.get());
                     for (std::size_t i = 0; i < sizeof(*app); ++i)
                         if (actual[i] != wanted[i])
-                            std::fprintf(stderr, "audio switch byte %zx: actual=%u expected=%u\n", i,
-                                         unsigned(actual[i]), unsigned(wanted[i]));
+                            std::fprintf(stderr, "audio switch byte %zx: actual=%u expected=%u\n",
+                                         i, unsigned(actual[i]), unsigned(wanted[i]));
                 }
                 Check(shadowMenuWrites == 1 &&
                           !std::memcmp(app.get(), expected.get(), sizeof(*app)),
@@ -1968,9 +1968,13 @@ unsigned MorphPurgeCommands(OriginalPhysicsModule& original, const std::filesyst
                             bool shifting = false) {
     if (shifting) {
         const auto parse = *original.Function<int (**)(const char*)>(0x128478);
-        for (const auto& [text, value] : std::vector<std::pair<const char*, int>>{
-                 {" -15tail", -15}, {"+7.5", 7}, {"nonsense", 0}, {"--1", 0},
-                 {"2147483648", INT_MAX}, {"-2147483649", INT_MIN}})
+        for (const auto& [text, value] :
+             std::vector<std::pair<const char*, int>>{{" -15tail", -15},
+                                                      {"+7.5", 7},
+                                                      {"nonsense", 0},
+                                                      {"--1", 0},
+                                                      {"2147483648", INT_MAX},
+                                                      {"-2147483649", INT_MIN}})
             Check(parse(text) == value, "original frame-shift integer prefix/overflow");
     }
     const unsigned char ret = 0xc3;
@@ -2090,15 +2094,20 @@ unsigned MorphPurgeCommands(OriginalPhysicsModule& original, const std::filesyst
                                 model->morphKeyCursors = cursors.data();
                                 model->morphTrackActive = active.data();
                                 const auto playback = [&] {
-                                    original.Function<void (*)(mdl::ModelRecord*, float, int)>(0xd0320)(model, 0, 0);
-                                    original.Function<void (*)(mdl::ModelRecord*, float, int)>(0xd08c0)(model, .1f, 0);
+                                    original.Function<void (*)(mdl::ModelRecord*, float, int)>(
+                                        0xd0320)(model, 0, 0);
+                                    original.Function<void (*)(mdl::ModelRecord*, float, int)>(
+                                        0xd08c0)(model, .1f, 0);
                                     PmmScenePlaybackState state;
-                                    Check(StartPmmScenePlayback(portable.Document(), state), "shifted playback start");
-                                    Check(AdvancePmmScenePlayback(portable.Document(), .1f, state,
-                                                                 {true, true, PmmPlaybackArithmetic::NativeFloat}),
+                                    Check(StartPmmScenePlayback(portable.Document(), state),
+                                          "shifted playback start");
+                                    Check(AdvancePmmScenePlayback(
+                                              portable.Document(), .1f, state,
+                                              {true, true, PmmPlaybackArithmetic::NativeFloat}),
                                           "shifted playback advance");
                                     for (unsigned i = 0; i < native.poses.size(); ++i)
-                                        Check(!std::memcmp(&state.pose.models[0].morphValues[i], &native.poses[i].value, sizeof(float)),
+                                        Check(!std::memcmp(&state.pose.models[0].morphValues[i],
+                                                           &native.poses[i].value, sizeof(float)),
                                               "original playback after mouth shift/reuse differs");
                                 };
                                 playback();
@@ -2118,19 +2127,26 @@ unsigned MorphPurgeCommands(OriginalPhysicsModule& original, const std::filesyst
                                 Check(channel < native.poses.size(), "mouth fixture channel");
                                 Check(portable.Seek(30, reason), reason.c_str());
                                 Check(portable.SetMorph(0, channel, .375f, reason), reason.c_str());
-                                native.Register(original, portable.Document().models[0], Track::Morph, 30, channel);
+                                native.Register(original, portable.Document().models[0],
+                                                Track::Morph, 30, channel);
                                 const bool registered = portable.RegisterMorph(0, channel, reason);
                                 Check(registered, reason.c_str());
                                 native.Compare(portable.Document().models[0]);
-                                original.Function<int (*)(mdl::ModelRecord*, int, int)>(0xcbd90)(model, 2, 0);
+                                original.Function<int (*)(mdl::ModelRecord*, int, int)>(0xcbd90)(
+                                    model, 2, 0);
                                 const bool sought = portable.Seek(2, reason);
                                 Check(sought, reason.c_str());
                                 const auto& reused = portable.Document().models[0].morphPose;
                                 for (unsigned i = 0; i < reused.size(); ++i) {
-                                    if (std::memcmp(&reused[i], &native.poses[i].value, sizeof(float)))
-                                        std::fprintf(stderr, "reuse %s reverse=%u length=%u shift=%d channel=%u portable=%.9g native=%.9g\n",
-                                                     file, unsigned(reverse), length, shift, i, reused[i], native.poses[i].value);
-                                    Check(!std::memcmp(&reused[i], &native.poses[i].value, sizeof(float)),
+                                    if (std::memcmp(&reused[i], &native.poses[i].value,
+                                                    sizeof(float)))
+                                        std::fprintf(
+                                            stderr,
+                                            "reuse %s reverse=%u length=%u shift=%d channel=%u portable=%.9g native=%.9g\n",
+                                            file, unsigned(reverse), length, shift, i, reused[i],
+                                            native.poses[i].value);
+                                    Check(!std::memcmp(&reused[i], &native.poses[i].value,
+                                                       sizeof(float)),
                                           "original seek after freed-slot reuse differs");
                                 }
                                 playback();
@@ -2216,7 +2232,7 @@ unsigned BlinkCommands(OriginalPhysicsModule& original, const std::filesystem::p
                 NativeAuxiliary native(before, portable.Runtime().Resource(0)->SourceKind() ==
                                                    ModelKind::Pmx);
                 auto* model = native.model.get();
-                model->physicsFlags = 1;
+                model->englishUI = 1;
                 model->maxFrame = before.selection.maxFrame;
                 for (const auto& key : before.morphKeys.sparse) {
                     auto& out = native.morphs[unsigned(key.index)];
@@ -2284,14 +2300,16 @@ unsigned BlinkCommands(OriginalPhysicsModule& original, const std::filesystem::p
             app->physicsResetPending = 1;
             auto expected = std::make_unique<MMDAppState>(*app);
             const std::uint32_t enter = 1;
-            std::memcpy(reinterpret_cast<unsigned char*>(expected.get()) + 0xc0, &enter, sizeof enter);
+            std::memcpy(reinterpret_cast<unsigned char*>(expected.get()) + 0xc0, &enter,
+                        sizeof enter);
             blinkDialogs = blinkMissing = nativeBlinkCalls = 0;
             original.Function<void (*)(HWND, WPARAM)>(0x3f550)(nullptr, MDS_CMD_REGISTER_BLINKING);
             if (blinkDialogs != unsigned(!missing) || blinkMissing != unsigned(missing) ||
                 nativeBlinkCalls || std::memcmp(app.get(), expected.get(), sizeof(*app)) ||
                 std::memcmp(model, modelBefore.get(), sizeof(*model))) {
-                std::fprintf(stderr, "blink cancel %s missing=%u dialogs=%u messages=%u random=%u\n",
-                             file, unsigned(missing), blinkDialogs, blinkMissing, nativeBlinkCalls);
+                std::fprintf(stderr,
+                             "blink cancel %s missing=%u dialogs=%u messages=%u random=%u\n", file,
+                             unsigned(missing), blinkDialogs, blinkMissing, nativeBlinkCalls);
                 const auto differences = [](const void* a, const void* b, std::size_t size) {
                     const auto* x = static_cast<const unsigned char*>(a);
                     const auto* y = static_cast<const unsigned char*>(b);
@@ -2341,7 +2359,7 @@ unsigned MorphCapacity(OriginalPhysicsModule& original, const std::filesystem::p
                     const auto before = portable.Document().models[0];
                     const bool pmx = portable.Runtime().Resource(0)->SourceKind() == ModelKind::Pmx;
                     NativeAuxiliary native(before, pmx);
-                    native.model->physicsFlags = 1;
+                    native.model->englishUI = 1;
                     native.model->maxFrame = before.selection.maxFrame;
                     for (auto& key : native.morphs)
                         key.allocated = 0;
@@ -2429,7 +2447,7 @@ unsigned DisplayCapacity(OriginalPhysicsModule& original, const std::filesystem:
                     copy(unsigned(key.index), key.value);
                 native.model->maxFrame = source.selection.maxFrame;
                 native.model->loadComplete = source.selection.loadComplete;
-                native.model->physicsFlags = 1;
+                native.model->englishUI = 1;
                 native.model->boneKeys = bones.data();
                 for (auto& key : bones)
                     key.allocated = 1;
@@ -2634,7 +2652,7 @@ void BoneCapacity(OriginalPhysicsModule& original, const std::filesystem::path& 
     native->boneSelection = selected.data();
     native->UndoCursor() = native->LatestUndoCursor() = 29;
     native->maxFrame = source.selection.maxFrame;
-    native->physicsFlags = 1;
+    native->englishUI = 1;
     const auto put = [&](unsigned index, const auto& key) {
         auto& out = records[index];
         out.frame = key.frame;
@@ -2901,7 +2919,7 @@ unsigned VsqCommands(OriginalPhysicsModule& original, const std::filesystem::pat
                       reason.c_str());
             const auto& source = portable.Document().models[0];
             NativeAuxiliary native(source, std::string(file) == "lips.pmx");
-            native.model->physicsFlags = 1;
+            native.model->englishUI = 1;
             native.model->boneKeys = bones.data();
             native.model->maxFrame = source.selection.maxFrame;
             for (auto& key : bones)
@@ -3002,7 +3020,7 @@ unsigned ModelPasteCapacity(OriginalPhysicsModule& original, const std::filesyst
             const auto& source = portable.Document().models[0];
             NativeAuxiliary native(source, true);
             Check(native.chains.empty(), "model partial-paste fixture needs no IK");
-            native.model->physicsFlags = 1;
+            native.model->englishUI = 1;
             native.model->boneKeys = bones.data();
             native.model->maxFrame = source.selection.maxFrame;
             for (auto& key : bones)

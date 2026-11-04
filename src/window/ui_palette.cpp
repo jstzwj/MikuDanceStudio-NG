@@ -1,5 +1,5 @@
 // ===========================================================================
-// VA 0x0042CEB0 - HandlePaletteChanged  (original: sub_42CEB0, ~0x4ED bytes)
+// VA 0x0042CEB0 - PaintTimelinePanelBackground  (original: sub_42CEB0, ~0x4ED bytes)
 // ===========================================================================
 // Timeline-strip painter of the left panel.  Called with the paint DC from
 // HandleWindowPaint 0x47C0A0 (wm_paint.cpp @ 0x47C206, right after the
@@ -20,15 +20,12 @@
 //   each result feeds FillPanelBottom (0x40DF10) as the gradient edge
 //   colour; the "from" colours are the colour-table slots 0xA05E0/4,
 //   0xA05F0/4, 0xA05E8/C, 0xA05F8/C (colour.txt pair table, see
-//   offsets.hpp kDwordCol656xxx) or a previous lerp result.
+//   ThemeColorAt indices) or a previous lerp result.
 //   Then three option-flag driven variable-width blocks (flags 0x2F8/0x2F9/
 //   0x2FC, 0x2FA/0x2FD, 0x2FE/0x2FB = kByteOptflag0..6) that accumulate an
 //   x-offset, followed by three closing rows (colours 0xA0618/C, 0xA0620/4).
 //
-// The "palette" name is historical (from the message-0x318 stub list); the
-// function performs no palette API calls - it is the timeline strip painter.
-// Original returns the BOOL of the last FillPanelBottom; the declared
-// signature is void.
+// The original returns the last FillPanelBottom result; callers ignore it.
 //
 // Reference: ../translated/MikuMikuDance/fcn_0042ceb0.cpp (superseded by
 // the IDA disassembly for the exact rect/colour/lerp arguments)
@@ -50,7 +47,7 @@ namespace mikudancestudio {
 namespace {
 
 // Shift-JIS (cp932) label bytes from .rdata, used by the Japanese-UI branch
-// of HandlePaletteChanged2 (0x42C140).  Bytes match the original exactly
+// of PaintViewportStatus (0x42C140).  Bytes match the original exactly
 // (byte_52C6DC / byte_52C728 / byte_52C7E0 / byte_52C7EC / byte_52C808 /
 // byte_52C8A4 / byte_52C8B0 / byte_52C8C0).
 constexpr char kJpPlaying[] = "\x8d\xc4\x90\xb6\x92\x86";                      // playing
@@ -65,10 +62,11 @@ constexpr char kJpCamLightAccessoryPanel[] =
     "\xb6\xd2\xd7\xa5\x8f\xc6\x96\xbe\xa5\xb1\xb8\xbe\xbb\xd8"; // camera/lighting/accessory
 constexpr char kJpCamLightAccessoryPanelFmt[] =
     "\xb6\xd2\xd7\xa5\x8f\xc6\x96\xbe\xa5\xb1\xb8\xbe\xbb\xd8\x20\x2f\x20\x25\x73"; // camera/lighting/accessory / %s
+constexpr char kJpModelBoneFmt[] = "%s\x81\x46%s"; // model name + fullwidth colon + bone name
 
 } // namespace
 
-void HandlePaletteChanged(HDC hdc) {
+void PaintTimelinePanelBackground(HDC hdc) {
     MMDApp* app = g_Block;
     RECT rc;
     GetClientRect(reinterpret_cast<HWND>(app->state.hwnd), &rc);
@@ -81,7 +79,7 @@ void HandlePaletteChanged(HDC hdc) {
 }
 
 // ===========================================================================
-// VA 0x0042C140 - HandlePaletteChanged2  (original: sub_42C140, 0x6C5 bytes)
+// VA 0x0042C140 - PaintViewportStatus  (original: sub_42C140, 0x6C5 bytes)
 // ===========================================================================
 // Status-overlay painter of the panel top: two gradient background bars, a
 // 49x24 "playing" icon blit, and the model/camera status text lines.
@@ -108,9 +106,10 @@ void HandlePaletteChanged(HDC hdc) {
 //       / %s" / JP "camera/lighting/accessory / %s" into the 256-byte Buffer.
 //     - bone: model slots this+0x780 [byte this+0x910]; name at model+0x227A
 //       (EN) / model+0x2248 (JP); bone index model+0x2D90; bone record =
-//       (model+0x26BC) + sizeof(mikudancestudio::mdl::BoneRecord) *index, name at +0x14 (EN, "%s : %s").  The JP
-//       branch keeps the original quirk: sprintf_s with a "%s" format and
-//       TWO extra arguments, the second (bone record, no +0x14) is ignored.
+//       (model+0x26BC) + sizeof(mikudancestudio::mdl::BoneRecord) *index, name at +0x14 (EN, "%s : %s")
+//       or +0 (JP, "%s\x81\x46%s"). The JP separator is a CP932 fullwidth
+//       colon; IDA's ASCII string item truncates this format to the first "%s".
+//       Raw bytes at x64 EXE RVA 0x12D17C are 25 73 81 46 25 73 00.
 //     - trace-mode line pair when
 //       byte 0x9ED98 & (slotidx == this+0xA0430) & (this+0xA0430 >= 0);
 //       second line (r=0xFF, g=b=0x32) at x+1/y-1 repeats the text.
@@ -119,15 +118,7 @@ void HandlePaletteChanged(HDC hdc) {
 //   Each mode ends with two 14px label lines; EN paths return early, JP
 //   paths fall through to the shared "angle" (kJpAngle) tail call.
 //
-// The "palette" name is historical (from the message-0x318 stub list); the
-// function performs no palette API calls - it is the status overlay painter.
-// Original returns the LONG of the last DrawGlyph; the declared signature
-// is void.
-//
-// Reference: ../translated/MikuMikuDance/fcn_0042c140.cpp (superseded by
-// the IDA disassembly for strings/coordinates)
-// =========================================================================//
-void HandlePaletteChanged2(HDC hdc) {
+void PaintViewportStatus(HDC hdc) {
     MMDApp* app = g_Block; // original `this` (ecx)
 
     // Target window and x base (0x42C160..0x42C1A6).
@@ -257,7 +248,13 @@ void HandlePaletteChanged2(HDC hdc) {
             mdl::ModelRecord* model = app->SelectedModel();
             if (model != nullptr) { // 0x42C660
                 const mikudancestudio::mdl::ModelRecord& record = *model;
-                sprintf_s(buffer, 0x100, "%s", record.name);
+                const std::int32_t boneIdx = record.selectedBone;
+                if (boneIdx < 0) {
+                    sprintf_s(buffer, 0x100, "%s", record.name);
+                } else {
+                    sprintf_s(buffer, 0x100, kJpModelBoneFmt, record.name,
+                              record.boneTable[boneIdx].name);
+                }
                 const int width = DrawGlyph(app, buffer, hdc, 16, xBase + 10, hideTop - 20, 0xFF,
                                             0xFF, 0xFF, 1); // 0x42C6F4
                 const std::int32_t traceTarget = app->CameraParentModel();

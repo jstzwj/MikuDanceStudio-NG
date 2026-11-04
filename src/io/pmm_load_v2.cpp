@@ -108,7 +108,7 @@
 #include "mikudancestudio/dialog_resources.h"
 #include "mikudancestudio/menu_commands.h"
 #include "mikudancestudio/accessory_layout.hpp"
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include "mikudancestudio/global_key_layout.hpp"
 #include "mikudancestudio/mme_bridge.hpp"
 #include "mikudancestudio/mmd_app.hpp"
@@ -1006,9 +1006,12 @@ static bool LoadSceneV2_ModelBlock(PmmV2LoadContext& ctx, int fd, PmmModelLoadWo
                       workspace.sourceName);
         else
             sprintf_s(s->state.statusText, 0x100, kJpQuoted, workspace.modelName);
-        const INT_PTR r = DialogBoxParamA(
-            hInst, MAKEINTRESOURCEA(s->EnglishUI() != 0 ? 0x32F : 0x32E), main, DialogFuncStub, 0);
-        if (r == 2 || r == 4) {
+        const INT_PTR r =
+            DialogBoxParamA(hInst,
+                            MAKEINTRESOURCEA(s->EnglishUI() != 0 ? MDS_DLG_PMM_MISSING_MODEL_EN
+                                                                 : MDS_DLG_PMM_MISSING_MODEL_JP),
+                            main, PmmMigrationDialogProc, 0);
+        if (r == IDCANCEL || r == 4) {
             AbortV2Load(s, fd, workspaces, modelCount);
             return false;
         } // 0x45426C
@@ -1232,16 +1235,18 @@ static bool LoadSceneV2_ModelBlock(PmmV2LoadContext& ctx, int fd, PmmModelLoadWo
             if (workspace.morphsMatch != 0 && workspace.bonesMatch != 0)
                 break;
 
-            const INT_PTR r =
-                DialogBoxParamA(hInst, MAKEINTRESOURCEA(s->EnglishUI() != 0 ? 0x331 : 0x330), main,
-                                DialogFuncStub, 0);
-            // x64 分派表（0x7FF7CB49AA72..0x7FF7CB49BB78）：
-            //   r==2/r==5 -> 中止装载（0x49AA88 jnz 0x49D73F）
-            //   r==3      -> 丢弃当前模型、弹文件对话框重载（0x49AA8E）
-            //   r==4      -> 跳过该模型（0x49B29D cmp 4）
-            //   其余值    -> 0x49B2A1 jnz 0x49BB78，与双匹配成立时
-            //                （0x49AA2F 的 jz）同一出口：继续状态装载
-            if (r == 2 || r == 5) {
+            const INT_PTR r = DialogBoxParamA(hInst,
+                                              MAKEINTRESOURCEA(s->EnglishUI() != 0
+                                                                   ? MDS_DLG_PMM_MODEL_MISMATCH_EN
+                                                                   : MDS_DLG_PMM_MODEL_MISMATCH_JP),
+                                              main, PmmMigrationDialogProc, 0);
+            // x64 dispatch table (0x7FF7CB49AA72..0x7FF7CB49BB78):
+            //   r==2/r==5 -> abort loading (0x49AA88 jnz 0x49D73F)
+            //   r==3      -> discard the current model and open a file dialog to reload (0x49AA8E)
+            //   r==4      -> skip this model (0x49B29D cmp 4)
+            //   other     -> 0x49B2A1 jnz 0x49BB78, the same exit as when both matches succeed
+            //                (jz at 0x49AA2F): continue loading state
+            if (r == IDCANCEL || r == 5) {
                 AbortV2Load(s, fd, workspaces, modelCount);
                 return false;
             }

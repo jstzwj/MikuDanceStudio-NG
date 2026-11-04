@@ -220,9 +220,9 @@ struct Fixture {
         model->vertexCount = 6;
         model->materialCount = 1;
         model->materials = materials.data();
-        model->vertexBuffer = &buffer;
-        model->vertexBuffer2 = &buffer;
-        model->indexBuffer = &buffer;
+        model->vertexBuffer = reinterpret_cast<IDirect3DVertexBuffer9*>(&buffer);
+        model->vertexBuffer2 = reinterpret_cast<IDirect3DVertexBuffer9*>(&buffer);
+        model->indexBuffer = reinterpret_cast<IDirect3DIndexBuffer9*>(&buffer);
         model->materialMorphPools.additive = add.data();
         model->materialMorphPools.multiplicative = mul.data();
         model->comboSelIndex = 1;
@@ -413,7 +413,7 @@ void TestAccessoryEffectInputs() {
     AccessoryMesh mesh{meshTable.data()};
     mdl::AccessoryRecord accessory{};
     InitAccessoryRecord(&accessory);
-    accessory.mesh = &mesh;
+    accessory.mesh = reinterpret_cast<ID3DXMesh*>(&mesh);
     accessory.scale = .5f;
     accessory.position[0] = 3;
     accessory.position[1] = 4;
@@ -467,7 +467,7 @@ void TestAccessoryScreenModes() {
     D3DMATERIAL9 material{};
     material.Diffuse = {1, 1, 1, 1};
     std::uint8_t type = 3;
-    accessory.mesh = &mesh;
+    accessory.mesh = reinterpret_cast<ID3DXMesh*>(&mesh);
     accessory.materials = &material;
     accessory.materialCount = 1;
     accessory.textureTypes = &type;

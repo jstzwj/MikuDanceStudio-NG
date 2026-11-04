@@ -1385,8 +1385,8 @@ bool TryModelBatchAdapter(MMDApp* app, mdl::ModelRecord* model, unsigned materia
             BlockCpuModelPreview(app, model, materialIndex,
                                  unsupported ? unsupported : "shader_input_capture_failed");
     }
-    auto* vb = mdl::ResourceAs<IDirect3DVertexBuffer9>(state.vertexBuffer);
-    auto* ib = mdl::ResourceAs<IDirect3DIndexBuffer9>(state.indexBuffer);
+    auto* vb = state.vertexBuffer;
+    auto* ib = state.indexBuffer;
     std::vector<std::uint8_t> vertices, indices;
     if (!MeshBytes(vb, ib, state.vertexCount, state.indexCount, vertices, indices))
         return false;

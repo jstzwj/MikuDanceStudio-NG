@@ -26,7 +26,7 @@
 #include <cstdio>
 #include <cstring>
 
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include "mikudancestudio/cpu_edge.hpp"
 #include "mikudancestudio/mmd_app.hpp"
 #include "mikudancestudio/model.hpp"
@@ -150,7 +150,8 @@ float PmxEdgeComponent(float position, float normal, float frameScale, float ver
     return mikudancestudio::mmd_math::pmxEdgeComponent(position, normal, frameScale, vertexScale,
                                                        materialSize);
 #else
-    return mikudancestudio::cpu_edge::PmxComponent(position, normal, frameScale, vertexScale, materialSize);
+    return mikudancestudio::cpu_edge::PmxComponent(position, normal, frameScale, vertexScale,
+                                                   materialSize);
 #endif
 }
 
@@ -709,8 +710,8 @@ void UpdatePmxModelVertexBuffers(MMDApp* app, mdl::ModelRecord* model, const flo
     auto* cpu = hasCpu
                     ? ProduceCpuGeometry(app, model, cpuDistance, app->state.selfShadowEnabled != 0)
                     : nullptr;
-    auto* mainVb = mdl::ResourceAs<IDirect3DVertexBuffer9>(state.vertexBuffer);
-    auto* edgeVb = mdl::ResourceAs<IDirect3DVertexBuffer9>(state.vertexBuffer2);
+    auto* mainVb = state.vertexBuffer;
+    auto* edgeVb = state.vertexBuffer2;
     if (mainVb == nullptr || edgeVb == nullptr)
         return;
     const UINT count = state.vertexCount;
@@ -831,8 +832,8 @@ bool UploadPreparedEditorGeometry(MMDApp* app, mdl::ModelRecord* model, const fl
         return true;
     const bool pmx = model->physicsMode == 2;
     const unsigned uv = pmx ? model->pmxAdditionalUvCount : 0;
-    auto* mainVb = mdl::ResourceAs<IDirect3DVertexBuffer9>(model->vertexBuffer);
-    auto* edgeVb = mdl::ResourceAs<IDirect3DVertexBuffer9>(model->vertexBuffer2);
+    auto* mainVb = model->vertexBuffer;
+    auto* edgeVb = model->vertexBuffer2;
     if (!mainVb || !edgeVb || uv > 4)
         return false;
     void* main = nullptr;
@@ -887,8 +888,8 @@ void UpdateModelVertexBuffers(MMDApp* app, mdl::ModelRecord* model, const float 
                                                            : frameWorld)
                                      : 0;
     auto* cpu = hasCpu ? ProduceCpuGeometry(app, model, cpuDistance, false) : nullptr;
-    auto* mainVb = mdl::ResourceAs<IDirect3DVertexBuffer9>(state.vertexBuffer);
-    auto* edgeVb = mdl::ResourceAs<IDirect3DVertexBuffer9>(state.vertexBuffer2);
+    auto* mainVb = state.vertexBuffer;
+    auto* edgeVb = state.vertexBuffer2;
     if (mainVb == nullptr || edgeVb == nullptr)
         return;
 

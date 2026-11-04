@@ -19,7 +19,8 @@ claim an independent, pixel-identical full-window comparison.
   a separate widget; this does not synthesize an audio waveform.
 - Restore the viewport camera/light/accessory or model/bone title, playback title,
   and camera/bone-position and angle readout captions. Their anchors and sizes
-  follow `src/window/ui_palette.cpp` (`HandlePaletteChanged2`). Captions are
+  follow `src/window/ui_palette.cpp` (`PaintViewportStatus`, formerly
+  `HandlePaletteChanged2`). Captions are
   included in the English, Japanese and Simplified Chinese catalogs.
 - Split the former 2,308-line Qt window implementation into painting, viewport,
   file operations, dialog and input translation units. The session/command owner
@@ -104,3 +105,9 @@ The local Windows Release build passes **77/77** P4-labelled tests after this
 repair, including the two new language-switch profiles. Sour Miku passes both
 production-mode profiles. Local logs and the read-only dump analysis are retained
 under `out/build`; no hosted workflow was requested for this repair.
+
+The 2026-11-04 upstream sync also brings the Japanese selected-bone title into
+Qt: model and bone names use a fullwidth colon; English retains its spaced
+ASCII colon. The loaded PMD/PMX language tests check the title consumed by the
+paint path as well as menu lifetime. See `UPSTREAM_SYNC_2026-11-04.md` for the
+source commits and the separate legacy compatibility validation scope.

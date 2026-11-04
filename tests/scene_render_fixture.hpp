@@ -34,7 +34,7 @@ void Hr(HRESULT result, const char* operation) {
 constexpr UINT kSize = 512;
 constexpr DWORD kBackground = 0xFFB0B8C0;
 constexpr UINT kD3dxDefault = static_cast<UINT>(-1);
-constexpr int kPngFormat = 3; // D3DXIMAGE_FILEFORMAT::D3DXIFF_PNG in d3dx9_32.
+constexpr D3DXIMAGE_FILEFORMAT kPngFormat = D3DXIFF_PNG;
 struct SharedToons {
     MMDApp& app;
     std::array<Com<IDirect3DTexture9>, 11> textures;
@@ -184,14 +184,14 @@ struct OriginalModel {
         using SkinCall =
             void (*)(mdl::ModelRecord*, const float*, const float*, float, unsigned char);
         module.Function<SkinCall>(0xC13C0)(model.get(), &world._11, eye, app.CameraFov(),
-                                         app.state.selfShadowEnabled);
+                                           app.state.selfShadowEnabled);
 #else
         // IDA caller 46DBE9: renderer, WORLD by value, camera pointer, FOV,
         // shadow byte. The callee returns with RET 50h (80 stack bytes).
         using SkinCall = void(__thiscall*)(mdl::ModelRecord*, D3DRenderer*, D3DMATRIX, const float*,
                                            float, unsigned char);
         module.Function<SkinCall>(0xB0C50)(model.get(), renderer.get(), world, eye, app.CameraFov(),
-                                         app.state.selfShadowEnabled);
+                                           app.state.selfShadowEnabled);
 #endif
     }
     void Materials(MMDApp& app) {

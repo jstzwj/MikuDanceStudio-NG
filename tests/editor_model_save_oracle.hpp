@@ -71,7 +71,7 @@ struct NativeEnhancedModel {
         std::memcpy(model->nameEn, d.englishModel.name, 20);
         std::memcpy(model->commentEn, d.englishModel.comment, 256);
         std::wcscpy(model->modelDirectory, L"C:\\fixture\\");
-        model->physicsFlags = 1;
+        model->englishUI = 1;
         for (unsigned i = 0; i < vertices.size(); ++i) {
             const auto& from = d.vertices[i];
             auto& to = vertices[i];

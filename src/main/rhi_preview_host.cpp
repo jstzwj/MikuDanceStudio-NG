@@ -8,7 +8,7 @@
 #include "mikudancestudio/scene_resources.hpp"
 #include "mikudancestudio/render_scene_frame.hpp"
 #include "mikudancestudio/rhi_scene_preview.hpp"
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include <algorithm>
 #include <chrono>
 #include <fstream>
@@ -424,7 +424,8 @@ int RunIndependentRhiPreview(int argc, wchar_t** argv) {
             RECT client{};
             GetClientRect(window.handle, &client);
             RenderFrame multipass;
-            if (multipassMode && !IsIconic(window.handle) && client.right > 0 && client.bottom > 0) {
+            if (multipassMode && !IsIconic(window.handle) && client.right > 0 &&
+                client.bottom > 0) {
                 target.width = unsigned(client.right);
                 target.height = unsigned(client.bottom);
                 frame.view.aspect = float(target.width) / target.height;
@@ -442,7 +443,7 @@ int RunIndependentRhiPreview(int argc, wchar_t** argv) {
                 throw std::runtime_error(preview.Reason());
             RgbaImage image;
             if (!(multipassMode ? preview.Draw(multipass, frames ? &image : nullptr)
-                             : preview.Draw(stream, frames ? &image : nullptr)))
+                                : preview.Draw(stream, frames ? &image : nullptr)))
                 throw std::runtime_error(preview.Reason());
             if (multipassMode && preview.State() == PreviewState::Ready)
                 producer.CommitFrame();

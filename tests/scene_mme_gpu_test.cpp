@@ -122,7 +122,7 @@ std::vector<DWORD> Offscreen(MmeRecordingDevice& device, UINT size,
 
 // Native EMM writers omit the path of scene-class carriers. Exercise both
 // that roundtrip and the distinction between an absent path and explicit none.
-template<class Sample>
+template <class Sample>
 void MappingDefaults(Fixture& f, NativeMmeOracle* native, const std::filesystem::path& output,
                      const std::filesystem::path& simple, const std::filesystem::path& multi,
                      Sample sample) {
@@ -163,15 +163,18 @@ technique Post < string Script="RenderColorTarget0=Screen;RenderDepthStencilTarg
 }
 )FX";
     auto load = [&](const std::filesystem::path& path) {
-        if (native) native->LoadMapping(path, f.window);
-        else Check(::mme::MmeEmmLoad(path.string().c_str()), "default EMM load");
+        if (native)
+            native->LoadMapping(path, f.window);
+        else
+            Check(::mme::MmeEmmLoad(path.string().c_str()), "default EMM load");
     };
     auto write = [&](const std::string& main, const std::string& owners = "") {
         const auto path = f.directory / "defaults.emm";
         std::ofstream file(path);
         file << "[Info]\nVersion=3\n[Object]\nPmd0=" << ExpGetPmdFilename(0)
              << "\nAcs0=" << ExpGetAcsFilename(0) << "\nAcs1=" << ExpGetAcsFilename(1)
-             << "\n[Effect]\n" << main << owners;
+             << "\n[Effect]\n"
+             << main << owners;
         file.close();
         Check(file.good(), "write default EMM");
         load(path);
@@ -184,13 +187,16 @@ technique Post < string Script="RenderColorTarget0=Screen;RenderDepthStencilTarg
     write(rows + "Acs0=" + carrier.string() + "\n", ownerRows);
     const auto assigned = sample("defaults_scene_explicit");
     const auto saved = output / "defaults_saved.emm";
-    if (native) native->SaveMapping(saved);
-    else Check(::mme::MmeEmmSave(saved.string().c_str()), "save default EMM");
+    if (native)
+        native->SaveMapping(saved);
+    else
+        Check(::mme::MmeEmmSave(saved.string().c_str()), "save default EMM");
     ::mme::EmmFile parsed;
     Check(parsed.Load(saved.string().c_str()), "parse default EMM roundtrip");
     bool omitted = false;
     for (const auto& section : parsed.effectSections()) {
-        if (!section.isDefault()) continue;
+        if (!section.isDefault())
+            continue;
         for (const auto& entry : section.entries) {
             for (const auto& object : parsed.objectRecords())
                 if (!object.isModel && object.objectPath == ExpGetAcsFilename(0) &&
@@ -222,7 +228,8 @@ technique Post < string Script="RenderColorTarget0=Screen;RenderDepthStencilTarg
     write("Default=" + simple.string() + "\nAcs0=none\nAcs1=none\n");
     SameImage(fallback, sample("defaults_global_omitted"), "new EMM default for absent model row");
     write("Default=none\nAcs0=none\nAcs1=none\n");
-    SameImage(none, sample("defaults_global_cleared"), "removed EMM default does not retain old effect");
+    SameImage(none, sample("defaults_global_cleared"),
+              "removed EMM default does not retain old effect");
     std::filesystem::remove(carrier);
     std::filesystem::remove(ordinary);
 }
@@ -407,6 +414,46 @@ int Run(const std::filesystem::path& modelFile, const std::filesystem::path& dll
     // shaders' actual inputs and target readbacks, as for external packages.
     recording.capturePasses = true;
     MappingDefaults(f, native.get(), output, simple, multi, sample);
+    Mapping(f, native.get(), "none", simple.string());
+    Check(sample("atomic_accessory_assigned").color != baseline.color,
+          "atomic accessory reload needs an assigned effect");
+    auto* reloadedAccessory = mdl::Accessory(app.AccessorySlot(0));
+    auto* previousMesh = static_cast<ID3DXMesh*>(reloadedAccessory->mesh);
+    ID3DXMesh* replacementMesh = nullptr;
+    Hr(previousMesh->CloneMeshFVF(previousMesh->GetOptions(), previousMesh->GetFVF(), f.device,
+                                  &replacementMesh),
+       "replace accessory geometry");
+    previousMesh->Release();
+    reloadedAccessory->mesh = replacementMesh;
+    SameImage(baseline, sample("atomic_accessory_replaced"),
+              "same-address accessory replacement retained its old effect assignment");
+    // A PMM reload can replace a model between frames at the same address.
+    // Keep the old geometry bound/alive to cover real D3D resource references
+    // in addition to the cache's own reference. The old assignment must die.
+    Mapping(f, native.get(), relative.string(), "none");
+    const auto beforeReplacement = sample("atomic_model_assigned");
+    Check(beforeReplacement.color != baseline.color, "atomic reload needs an assigned effect");
+    Com<IDirect3DVertexBuffer9> previousGeometry;
+    previousGeometry.p = static_cast<IDirect3DVertexBuffer9*>(model.vertexBuffer);
+    previousGeometry->AddRef();
+    ModelDispose(&model);
+    std::memset(&model, 0, sizeof(model));
+    ModelInitDefaults(&model);
+    Check(ModelLoadPMD(&model, f.window, path.c_str(), f.renderer.get(), 1, 0, 1, f.physics.get(),
+                       app.PathWorkspace()),
+          "reload model at the same address");
+    model.comboSelIndex = model.comboSelIndex2 = 1;
+    SeekModelFrame(model, 0, 0);
+    ModelApplyMorphs(&model);
+    SetPhysicsMode(&model, 0, app.ModelSlots(), 0);
+    SetPhysicsMode(&model, 1, app.ModelSlots(), 0);
+    model.toonFlag = 1;
+    UpdateModelVertexBuffers(&app, &model, &world._11);
+    Check(model.vertexBuffer != previousGeometry.p, "replacement must have new geometry");
+    SameImage(baseline, sample("atomic_model_replaced"),
+              "same-address model replacement retained its old effect assignment");
+    Mapping(f, native.get(), relative.string(), "none");
+    SameImage(fixedImage, sample("atomic_model_reassigned"), "same-address model reassignment");
     // Let the production host observe deletion before releasing the old ID.
     // Reapply the same EMM explicitly after loading the replacement model.
     app.ModelSlot(0) = nullptr;

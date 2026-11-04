@@ -3,7 +3,7 @@
 #include "mme_portable_api.h"
 #include "mme_legacy_api.h"
 #include "mme_standard_api.h"
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include "mikudancestudio/rhi_post_process.hpp"
 #include "../rhi_model_constants.hpp"
 #include "mikudancestudio/rhi_shared_targets.hpp"

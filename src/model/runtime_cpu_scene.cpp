@@ -4,7 +4,7 @@
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/physics_scene.hpp"
 #include "mikudancestudio/ported_funcs.hpp"
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include "mikudancestudio/model_cpu_bridge.hpp"
 #include "btBulletDynamicsCommon.h"
 #include <algorithm>
@@ -249,10 +249,15 @@ bool RuntimeCpuScene::Seek(std::uint32_t frame, std::string& reason) {
     impl->simulation.resetPending = 1;
     return impl->Frame(0, reason);
 }
-bool RuntimeCpuScene::SetPhysicsMode(unsigned mode,std::string& reason) {
-    if(!impl || impl->failed || mode>3){reason="invalid-physics-mode";return false;}
-    if(impl->session)return Edit([&](auto& doc){doc.physics.playbackMode=std::uint8_t(mode);},reason);
-    impl->simulation.physicsMode=int(mode);return Seek(std::uint32_t(impl->simulation.cursorSeconds*30.f),reason);
+bool RuntimeCpuScene::SetPhysicsMode(unsigned mode, std::string& reason) {
+    if (!impl || impl->failed || mode > 3) {
+        reason = "invalid-physics-mode";
+        return false;
+    }
+    if (impl->session)
+        return Edit([&](auto& doc) { doc.physics.playbackMode = std::uint8_t(mode); }, reason);
+    impl->simulation.physicsMode = int(mode);
+    return Seek(std::uint32_t(impl->simulation.cursorSeconds * 30.f), reason);
 }
 bool RuntimeCpuScene::StartPlayback(std::string& reason) {
     if (!impl || impl->failed) {

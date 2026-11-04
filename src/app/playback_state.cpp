@@ -15,7 +15,7 @@
 #include <cstring>
 
 #include "mikudancestudio/accessory_layout.hpp"
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include "mikudancestudio/mmd_app.hpp"
 #include "mikudancestudio/model_input_bridge.hpp"
 #include "mikudancestudio/ported_funcs.hpp"

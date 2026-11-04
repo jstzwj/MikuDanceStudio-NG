@@ -164,7 +164,7 @@ struct MMDAppState {
     void* lightKeyTrack;                           // x64 pin 984
     void* selfShadowKeyTrack;                      // x64 pin 992
     void* gravityKeyTrack;                         // x64 pin 1000
-    void* accKeyTracks[mdl::kAccessorySlotCount];   // x64 pin 1008
+    void* accKeyTracks[mdl::kAccessorySlotCount];  // x64 pin 1008
     mdl::ModelRecord* modelSlots[kModelSlotCount]; // x86 pin 1920 / x64 pin 3048
     unsigned char slotIdx;                         // x64 pin 5088
     RawPad<3> pad54;
@@ -233,7 +233,7 @@ struct MMDAppState {
     std::int32_t jointLineMap[200]; // x64 pin 648480
     // 255-entry display-object list (was buf9ddx): AccessoryRecord slots
     // plus model-timeline-selected objects (x64 pin 649280)
-    void* objectSlots[mdl::kAccessorySlotCount];
+    mdl::AccessoryRecord* objectSlots[mdl::kAccessorySlotCount];
     std::uint32_t lastRegisteredFrame; // x64 pin 651320
     // shared accessory/model-display list selection byte (was
     // selLightAccSlotOrUint32)
@@ -322,7 +322,7 @@ struct MMDAppState {
     std::uint8_t gravityTrackActive;  // +0x9E678
     RawPad<3> pad153d;
     // The former 800-byte pad holds the remaining 200 cursors, not unknown state.
-    std::uint32_t accessoryTrackCursor[mdl::kAccessorySlotCount]; // +0x9E67C / x64 652656
+    std::uint32_t accessoryTrackCursor[mdl::kAccessorySlotCount];        // +0x9E67C / x64 652656
     std::uint8_t reservedAccessoryTrackActive[mdl::kAccessorySlotCount]; // x64 0x9F96C..0x9FA6A
     // IsWindowEnabled snapshots of the 7 main-window playback controls
     // (0x1F1/0x1F2/0x1AF/0x1A5/0x1A6/0x190/0x191), restored after playback
@@ -354,11 +354,11 @@ struct MMDAppState {
     unsigned char playbackStartsAtCurrentFrame; // +0x9ED99
     unsigned char projectedShadowBlendEnabled;  // +0x9ED9A
     RawPad<1> pad164;
-    std::int32_t coordinateSystem; // x64 pin 654500 (0x9FCA4)
-    void* axisMeshObject;          // AccessoryRecord slot holding the axis gizmo
-                                   // X-file mesh (was sub04b0OrUint32) - x64 pin
-                                   // 654504 (0x9FCA8); no pad165 on x64, the pointer
-                                   // is already 8-aligned right after the dword
+    std::int32_t coordinateSystem;        // x64 pin 654500 (0x9FCA4)
+    mdl::AccessoryRecord* axisMeshObject; // AccessoryRecord slot holding the axis gizmo
+                                          // X-file mesh (was sub04b0OrUint32) - x64 pin
+                                          // 654504 (0x9FCA8); no pad165 on x64, the pointer
+                                          // is already 8-aligned right after the dword
 #if !defined(_M_X64)
     RawPad<4> pad166;
 #endif

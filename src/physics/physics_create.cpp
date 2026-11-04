@@ -48,7 +48,7 @@
 #include "mikudancestudio/cpu_physics_create.hpp"
 #include "BulletDynamics/ConstraintSolver/btGeneric6DofSpringConstraint.h"
 
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/physics_scene.hpp"
 #include "mikudancestudio/ported_funcs.hpp"

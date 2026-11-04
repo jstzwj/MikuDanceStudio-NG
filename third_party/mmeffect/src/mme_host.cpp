@@ -29,6 +29,8 @@
 #ifdef MIKUDANCESTUDIO_DIAG
 extern "C" int __cdecl MmeProbeLastLineDrawDisposition();
 #endif
+#include "mikudancestudio/model_layout.hpp"
+#include "mikudancestudio/accessory_layout.hpp"
 
 extern "C" void __cdecl MmeHostInitializeRuntime(HINSTANCE instance) {
     mme::MmeUiInitializeRuntime(instance);
@@ -214,21 +216,33 @@ static void MmeSyncHostObjects(IDirect3DDevice9* device) {
     // --- Build the set of currently live host object IDs ----------------------------------------
     int pmdNum = ExpGetPmdNum();
     int acsNum = ExpGetAcsNum();
-    std::map<unsigned long long, bool> liveIds;
-    for (int i = 0; i < pmdNum; i++)
-        liveIds[(unsigned long long)(uintptr_t)ExpGetPmdID(i)] = true;
-    for (int i = 0; i < acsNum; i++)
-        liveIds[(unsigned long long)(uintptr_t)ExpGetAcsID(i)] = true;
+    std::map<unsigned long long, IUnknown*> liveGeometry;
+    for (int i = 0; i < pmdNum; i++) {
+        auto* model = static_cast<mikudancestudio::mdl::ModelRecord*>(ExpGetPmdID(i));
+        liveGeometry[(unsigned long long)(uintptr_t)model] =
+            model ? static_cast<IUnknown*>(model->vertexBuffer) : nullptr;
+    }
+    for (int i = 0; i < acsNum; i++) {
+        auto* accessory = static_cast<mikudancestudio::mdl::AccessoryRecord*>(ExpGetAcsID(i));
+        liveGeometry[(unsigned long long)(uintptr_t)accessory] =
+            accessory ? static_cast<IUnknown*>(accessory->mesh) : nullptr;
+    }
 
-    // --- Stages 1+2: remove caches for disappeared objects (OnDeleteModel) -----------------------
-    mme::RemoveMissingHostObjects(g_host.objectList, g_host.objectById, liveIds,
-                                  [device](MmhCachedObject* obj) {
-                                      OnDeleteModel(device, obj->id);
-                                      if (obj->texRef != nullptr)
-                                          static_cast<IUnknown*>(obj->texRef)->Release();
-                                      g_mmh.objData.erase(obj->id);
-                                      delete obj;
-                                  });
+    // Original MMHack RVA 0x31B3..0x31E1 also checks geometry lifetime: a PMM
+    // reload may replace a model/accessory at the same address between frames.
+    // MMHack probes its wrapper's reference count; we compare the current
+    // geometry directly because unwrapped D3D resources may also be retained
+    // by the device's previous stream binding or a captured state block.
+    mme::RemoveStaleHostObjects(g_host.objectList, g_host.objectById,
+        liveGeometry, [](MmhCachedObject* obj, IUnknown* geometry) {
+            return obj->geometryRef == geometry;
+        }, [device](MmhCachedObject* obj) {
+            OnDeleteModel(device, obj->id);
+            if (obj->geometryRef != nullptr)
+                obj->geometryRef->Release();
+            g_mmh.objData.erase(obj->id);
+            delete obj;
+        });
 
     // --- Stage 3: cache new objects (OnCreateModel) ----------------------------------------------
     for (int i = 0; i < pmdNum; i++) {
@@ -238,6 +252,11 @@ static void MmeSyncHostObjects(IDirect3DDevice9* device) {
         MmhCachedObject* obj = new MmhCachedObject();
         obj->id = id;
         obj->isPmd = 1;
+        // Original RVA 0x35C0/0x35D7 captures the first registered geometry
+        // wrapper in the host record and retains it until deletion.
+        obj->geometryRef = liveGeometry.at(id);
+        if (obj->geometryRef)
+            obj->geometryRef->AddRef();
         // The embedded engine uses the Windows ANSI code page for paths,
         // not the exported API's fixed-size Shift-JIS buffer. Convert directly
         // from the loaded wide path so non-SJIS names cannot become empty.
@@ -268,6 +287,10 @@ static void MmeSyncHostObjects(IDirect3DDevice9* device) {
         MmhCachedObject* obj = new MmhCachedObject();
         obj->id = id;
         obj->isPmd = 0;
+        // Accessory counterpart: original RVA 0x377D/0x3795.
+        obj->geometryRef = liveGeometry.at(id);
+        if (obj->geometryRef)
+            obj->geometryRef->AddRef();
         // The embedded engine uses the Windows ANSI code page for paths,
         // not the exported API's fixed-size Shift-JIS buffer. Convert directly
         // from the loaded wide path so non-SJIS names cannot become empty.
@@ -604,7 +627,7 @@ void __cdecl MmeHostOnResetDevice(IDirect3DDevice9* device) {
     OnResetDevice(device);
 }
 
-// [FUN_180001db0 + FUN_180001c90] Device destruction bookkeeping: MMEffect!Cleanup, release texture references
+// [FUN_180001db0 + FUN_180001c90] Device destruction bookkeeping: MMEffect!Cleanup, release geometry references
 // captured by each cached object, clear object caches and the +0x1c flag. The tracked render target
 // (+0x20) is borrowed (already released inside BeginScene) and is deliberately not released again here.
 void __cdecl MmeHostDestroyDevice(IDirect3DDevice9* device) {
@@ -612,8 +635,8 @@ void __cdecl MmeHostDestroyDevice(IDirect3DDevice9* device) {
     // Initialize failed: it may already have allocated the context/engine.
     Cleanup(device);
     for (MmhCachedObject* obj : g_host.objectList) {
-        if (obj->texRef != nullptr)
-            static_cast<IUnknown*>(obj->texRef)->Release();
+        if (obj->geometryRef != nullptr)
+            obj->geometryRef->Release();
         delete obj;
     }
     g_host.objectList.clear();

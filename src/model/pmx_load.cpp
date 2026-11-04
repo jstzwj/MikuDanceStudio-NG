@@ -4,44 +4,44 @@
 // The PMX 2.0 binary parser, __thiscall on the 0x4CCF4 model block;
 // reached from ModelLoadPMD when the magic is "PMX".  Signature:
 //
-//   LoadPMX(model, renderSub, showInfoByte, a4, appPathBuf, fileHandle)
+//   LoadPMX(model, renderer, showLoadMessages, englishUI, paths, fileHandle)
 //
 // Structure (annotated with the model offsets the original stores):
-//   header   version==2.0, 8 index-size bytes -> m+8624..8631 in the
+//   header   version==2.0, 8 index-size bytes -> modelRecord+8624..8631 in the
 //            original's shuffled store order (enc, addlUV, vert, tex,
 //            MATERIAL@8630, bone@8628, morph@8629, rigid@8631); UTF16
 //            only (UTF8 is rejected); physicsMode is initialised to 2.
-//   names    4 size-prefixed UTF16 buffers -> m+9388/9392/9396/9400 with
-//            Shift-JIS mirrors at m+8776/8826/8876/9132 (0x407910).
-//   vertices m+4 count; vertex buffer stride/FVF ladder by additional-UV
+//   names    4 size-prefixed UTF16 buffers -> modelRecord+9388/9392/9396/9400 with
+//            Shift-JIS mirrors at modelRecord+8776/8826/8876/9132 (0x407910).
+//   vertices modelRecord+4 count; vertex buffer stride/FVF ladder by additional-UV
 //            count (32/48/64/80/96 bytes, FVF 274/524818/2622226/
-//            11011090/44565778); 188-byte records at m+9932 with SOA
+//            11011090/44565778); 188-byte records at modelRecord+9932 with SOA
 //            additional UVs and BDEF1/2/4 + SDEF weights (SDEF rebases
 //            R1/C around the weighted midpoint); shadow VB (FVF 66).
-//   faces    m+20 count; index buffer 32/16-bit by m+8626; array m+24.
+//   faces    modelRecord+20 count; index buffer 32/16-bit by modelRecord+8626; array modelRecord+24.
 //   textures local path table, freed after materials are composed.
-//   materials m+28 count, 2292-byte records at m+9924... (m+32), then a
+//   materials modelRecord+28 count, 2292-byte records at modelRecord+9924... (modelRecord+32), then a
 //            per-vertex material assignment pass by smallest edge size.
-//   bones    m+11652 count, 604-byte records at m+9916 (+ side arrays
-//            m+36/m+40/m+11668/m+11672), flags word +500 gates
+//   bones    modelRecord+11652 count, 604-byte records at modelRecord+9916 (+ side arrays
+//            modelRecord+36/modelRecord+40/modelRecord+11668/modelRecord+11672), flags word +500 gates
 //            tail/inherit/axis/local/external/IK fields; IK converted to
-//            the 24-byte chain records at m+9920 (count m+11656);
+//            the 24-byte chain records at modelRecord+9920 (count modelRecord+11656);
 //            InitBoneSortOrder (0x490070) runs next.
-//   morphs   m+11648 count, 136-byte records at m+9924, types 0..8
+//   morphs   modelRecord+11648 count, 136-byte records at modelRecord+9924, types 0..8
 //            (group/vertex/bone/UV+4 extra/material); post-parse
-//            bookkeeping arrays and counts m+8684..8704 / m+8724..8752.
-//   mat pools three 128-byte-per-material pools m+8756/8760/8764.
-//   frames   display frames -> facial group records m+9948 (m+11692
-//            count), group table m+9936 (m+9940 count), center bone
-//            m+14592, frame records m+9944 (m+11696 count).
-//   physics  rigid bodies m+12752 -> 172-byte records m+12744 +
-//            CreateRigidBody (0x4064F0) with scene *(m+60); joints
-//            m+12756 -> 140-byte records m+12748 + CreatePhysJoint
+//            bookkeeping arrays and counts modelRecord+8684..8704 / modelRecord+8724..8752.
+//   mat pools three 128-byte-per-material pools modelRecord+8756/8760/8764.
+//   frames   display frames -> facial group records modelRecord+9948 (modelRecord+11692
+//            count), group table modelRecord+9936 (modelRecord+9940 count), center bone
+//            modelRecord+14592, frame records modelRecord+9944 (modelRecord+11696 count).
+//   physics  rigid bodies modelRecord+12752 -> 172-byte records modelRecord+12744 +
+//            CreateRigidBody (0x4064F0) with scene *(modelRecord+60); joints
+//            modelRecord+12756 -> 140-byte records modelRecord+12748 + CreatePhysJoint
 //            (0x406010).  The original reads the joint limit floats in
 //            the shuffled order +60/+64/+68, +96/+100/+104, +84/+88/+92,
-//            +108..128 (m+72..80 stays zero) - ported verbatim.
-//   tail     animation pools m+9952/9956/9960, 1000-frame registry
-//            (28 bytes), interpolation defaults, m+11661 = 1,
+//            +108..128 (modelRecord+72..80 stays zero) - ported verbatim.
+//   tail     animation pools modelRecord+9952/9956/9960, 1000-frame registry
+//            (28 bytes), interpolation defaults, modelRecord+11661 = 1,
 //            PostLoadInit (0x49C850).
 // =========================================================================//
 #define WIN32_LEAN_AND_MEAN
@@ -59,7 +59,7 @@
 #include <fcntl.h>
 #include <io.h>
 
-#include "mikudancestudio/d3dx_dyn.hpp"
+#include "mikudancestudio/d3dx_api.hpp"
 #include "mikudancestudio/d3d_wrapper.hpp"
 #include "mikudancestudio/model.hpp"
 #include "mikudancestudio/model_format_header.hpp"
@@ -128,8 +128,8 @@ static const wchar_t kFmtPmxWrongMorphDataJp[] = L"\x30E2\x30C7\x30EB" // モデ
                                                  L"\x5F37\x5236\x7684\x306B"        // forcibly
                                                  L"\x5909\x63DB\x3057\x307E\x3059"; // convert
 
-IDirect3DDevice9* DevOf(D3DRenderer* sub) {
-    return sub->device; // wrapper + 120032
+IDirect3DDevice9* DevOf(D3DRenderer* renderer) {
+    return renderer->device; // wrapper + 120032
 }
 
 void InitializePmxMainVertices(const mdl::PmxVertex* source, std::int32_t count,
@@ -168,9 +168,10 @@ void InitializePmxEdgeVertices(const mdl::PmxVertex* source, std::int32_t count,
     }
 }
 
-bool ReadTextBuf(int fh, int& nullIdx, wchar_t*& output) {
+bool ReadTextBuf(int fileHandle, int& nullIdx, wchar_t*& output) {
     std::vector<std::uint8_t> bytes;
-    if (format::ReadPmxText(ReadModelFileBytes, &fh, bytes) != format::ModelHeaderStatus::Ok)
+    if (format::ReadPmxText(ReadModelFileBytes, &fileHandle, bytes) !=
+        format::ModelHeaderStatus::Ok)
         return false;
     if (!bytes.empty()) {
         output = static_cast<wchar_t*>(operator new(bytes.size() * 2));
@@ -187,7 +188,7 @@ bool ReadTextBuf(int fh, int& nullIdx, wchar_t*& output) {
 // MIKUDANCESTUDIO_DIAG, default OFF); the OFF stub keeps the call sites
 // valid and inlines away to nothing.
 #ifdef MIKUDANCESTUDIO_DIAG
-void TracePmxOffset(int fh, const char* phase, int index, int value) {
+void TracePmxOffset(int fileHandle, const char* phase, int index, int value) {
     char directory[MAX_PATH];
     const DWORD length =
         GetEnvironmentVariableA("MIKUDANCESTUDIO_PMX_TRACE_DIR", directory, MAX_PATH);
@@ -198,7 +199,7 @@ void TracePmxOffset(int fh, const char* phase, int index, int value) {
     FILE* stream = nullptr;
     if (fopen_s(&stream, path, "a") != 0 || stream == nullptr)
         return;
-    fprintf(stream, "%s index=%d value=%d offset=%ld\n", phase, index, value, _tell(fh));
+    fprintf(stream, "%s index=%d value=%d offset=%ld\n", phase, index, value, _tell(fileHandle));
     fclose(stream);
 }
 #else
@@ -208,17 +209,18 @@ inline void TracePmxOffset(int, const char*, int, int) {
 
 } // namespace
 
-bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::uint8_t englishUI,
-             PathResolutionWorkspace& paths, int fh, ModelResourceMode resources) {
+bool LoadPMX(mdl::ModelRecord* modelRecord, D3DRenderer* renderer, std::uint8_t showLoadMessages,
+             std::uint8_t englishUI, PathResolutionWorkspace& paths, int fileHandle,
+             ModelResourceMode resources) {
     const bool cpuOnly = resources == ModelResourceMode::CpuOnly;
-    if (!cpuOnly && (!sub || !DevOf(sub))) {
-        _close(fh);
+    if (!cpuOnly && (!renderer || !DevOf(renderer))) {
+        _close(fileHandle);
         return false;
     }
-    (void)englishUI; // dispatch argument mirrors model.physicsFlags
+    (void)englishUI; // dispatch argument mirrors model.englishUI
     (void)paths;
-    mdl::ModelRecord& model = *m;
-    const bool enData = model.physicsFlags != 0;
+    mdl::ModelRecord& model = *modelRecord;
+    const bool enData = model.englishUI != 0;
     HWND hwnd = static_cast<HWND>(model.hwnd);
     char text[256];
     int nullIdx = 0;
@@ -227,19 +229,19 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
 
     // ---- header -----------------------------------------------------------
     format::PmxHeader header;
-    const auto headerStatus = format::ReadPmxHeader(ReadModelFileBytes, &fh, header);
+    const auto headerStatus = format::ReadPmxHeader(ReadModelFileBytes, &fileHandle, header);
     if (headerStatus == format::ModelHeaderStatus::InvalidVersion) {
         if (enData)
             sprintf_s(text, 0x100, "PMX files version is different from 2.0.");
         else
             sprintf_s(text, 0x100, kMsgPmxVersionJp);
         MessageBoxA(hwnd, text, enData ? "open file" : kTitleOpenFailJp, 0);
-        _close(fh);
+        _close(fileHandle);
         return false;
     }
     if (headerStatus != format::ModelHeaderStatus::Ok &&
         headerStatus != format::ModelHeaderStatus::UnsupportedEncoding) {
-        _close(fh);
+        _close(fileHandle);
         return false;
     }
     model.physicsMode = 2;
@@ -257,7 +259,7 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                            "UTF16."
                          : kMsgPmxUtf8Jp);
         MessageBoxA(hwnd, text, enData ? "open file" : kTitleOpenFailJp, 0);
-        _close(fh);
+        _close(fileHandle);
         return false;
     }
 
@@ -272,8 +274,9 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
     const rsize_t kSjisSizes[4] = {sizeof model.name, sizeof model.nameEn, sizeof model.comment,
                                    sizeof model.commentEn};
     format::PmxTexts fileTexts;
-    if (format::ReadPmxTexts(ReadModelFileBytes, &fh, fileTexts) != format::ModelHeaderStatus::Ok) {
-        _close(fh);
+    if (format::ReadPmxTexts(ReadModelFileBytes, &fileHandle, fileTexts) !=
+        format::ModelHeaderStatus::Ok) {
+        _close(fileHandle);
         return false;
     }
     for (int i = 0; i < 4; ++i) {
@@ -282,7 +285,7 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
         wchar_t* buf;
         if (len != 0) {
             buf = static_cast<wchar_t*>(operator new(len + sizeof(wchar_t)));
-            (m)->pmxTextBuffers[static_cast<std::size_t>(kTextSlots[i])] = buf;
+            (modelRecord)->pmxTextBuffers[static_cast<std::size_t>(kTextSlots[i])] = buf;
             std::memcpy(buf, field.data(), len);
             buf[len / sizeof(wchar_t)] = L'\0';
         } else {
@@ -295,9 +298,9 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
             else
                 swprintf_s(buf, 0x14, L"Null_%02d", nullIdx++);
         }
-        WideToSjis(sub, sjisMirrors[i], buf, kSjisSizes[i]);
+        WideToSjis(renderer, sjisMirrors[i], buf, kSjisSizes[i]);
     }
-    if (showInfo) { // 0x4B7A56
+    if (showLoadMessages) { // 0x4B7A56
         const int r =
             MessageBoxW(hwnd,
                         model.pmxTextBuffers[static_cast<std::size_t>(
@@ -305,19 +308,19 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                                    : mdl::PmxTextBufferSlot::japaneseComment)],
                         enData ? L"Model Infomation" : L"\x30E2\x30C7\x30EB\x60C5\x5831", 0x40001u);
         if (r != 1) {
-            _close(fh);
+            _close(fileHandle);
             return false;
         }
     }
 
     // ---- vertices -----------------------------------------------------------
-    if (!format::ReadGeometryCount(ReadModelFileBytes, &fh, model.vertexCount)) {
-        _close(fh);
+    if (!format::ReadGeometryCount(ReadModelFileBytes, &fileHandle, model.vertexCount)) {
+        _close(fileHandle);
         return false;
     }
     const std::int32_t vertCount = static_cast<std::int32_t>(model.vertexCount);
     if (vertCount != 0) {
-        IDirect3DDevice9* dev = cpuOnly ? nullptr : DevOf(sub);
+        IDirect3DDevice9* dev = cpuOnly ? nullptr : DevOf(renderer);
         struct VbSpec {
             std::uint32_t stride, fvf;
         };
@@ -328,33 +331,29 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
         const std::uint32_t uvLadder =
             model.pmxAdditionalUvCount < 5 ? model.pmxAdditionalUvCount : 0;
         const VbSpec& s = kSpec[uvLadder];
-        IDirect3DVertexBuffer9* vb = nullptr;
+        IDirect3DVertexBuffer9*& vb = model.vertexBuffer;
         // pool = D3DPOOL_MANAGED: every addl-UV ladder branch writes the
         // 5th argument slot with 1 (x64 0x7FF7CB4CA1CF)
-        if (dev && (FAILED(dev->CreateVertexBuffer(s.stride * vertCount, 8, s.fvf, D3DPOOL_MANAGED,
-                                                   &vb, nullptr)) ||
-                    vb == nullptr)) {
+        if (dev && dev->CreateVertexBuffer(s.stride * vertCount, 8, s.fvf, D3DPOOL_MANAGED, &vb,
+                                           nullptr) != D3D_OK) {
             sprintf_s(text, 0x100,
                       enData ? "The performance of the graphics card doesn't suffice."
                              : kMsgNoPerfJp);
             MessageBoxA(hwnd, text, enData ? "open file" : kTitleOpenFailJp, 0);
-            _close(fh);
+            _close(fileHandle);
             return false;
         }
-        mdl::ResourceAs<IDirect3DVertexBuffer9>(model.vertexBuffer) = vb;
-        IDirect3DVertexBuffer9* vb2 = nullptr;
+        IDirect3DVertexBuffer9*& vb2 = model.vertexBuffer2;
         // edge VB: pool = 1 too (x64 0x7FF7CB4CA272)
-        if (dev && (FAILED(dev->CreateVertexBuffer(16 * vertCount, 8, 66, D3DPOOL_MANAGED, &vb2,
-                                                   nullptr)) ||
-                    vb2 == nullptr)) {
+        if (dev && dev->CreateVertexBuffer(16 * vertCount, 8, 66, D3DPOOL_MANAGED, &vb2, nullptr) !=
+                       D3D_OK) {
             sprintf_s(text, 0x100,
                       enData ? "The performance of the graphics card doesn't suffice."
                              : kMsgNoPerfJp);
             MessageBoxA(hwnd, text, enData ? "open file" : kTitleLoad2Jp, 0);
-            _close(fh);
+            _close(fileHandle);
             return false;
         }
-        mdl::ResourceAs<IDirect3DVertexBuffer9>(model.vertexBuffer2) = vb2;
 
         mdl::PmxVertex* verts =
             static_cast<mdl::PmxVertex*>(operator new(sizeof(*verts) * vertCount));
@@ -366,9 +365,9 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
         for (std::int32_t i = 0; i < vertCount; ++i) {
             mdl::PmxVertex& rec = verts[i];
             format::PmxVertexData vertex;
-            if (!format::ReadPmxVertex(ReadModelFileBytes, &fh, model.pmxAdditionalUvCount,
+            if (!format::ReadPmxVertex(ReadModelFileBytes, &fileHandle, model.pmxAdditionalUvCount,
                                        model.pmxBoneIndexSize, vertex)) {
-                _close(fh);
+                _close(fileHandle);
                 return false;
             }
             std::memcpy(rec.position, vertex.position, sizeof(vertex.position));
@@ -453,28 +452,27 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
     }
 
     // ---- faces ---------------------------------------------------------------
-    if (!format::ReadGeometryCount(ReadModelFileBytes, &fh, model.indexCount)) {
-        _close(fh);
+    if (!format::ReadGeometryCount(ReadModelFileBytes, &fileHandle, model.indexCount)) {
+        _close(fileHandle);
         return false;
     }
     const std::int32_t faceCount = static_cast<std::int32_t>(model.indexCount);
     if (faceCount != 0) {
-        IDirect3DDevice9* dev = cpuOnly ? nullptr : DevOf(sub);
+        IDirect3DDevice9* dev = cpuOnly ? nullptr : DevOf(renderer);
         const bool wideIdx = model.pmxVertexIndexSize >= 4;
-        IDirect3DIndexBuffer9* ib = nullptr;
-        if (dev && FAILED(dev->CreateIndexBuffer((wideIdx ? 4 : 2) * faceCount, 0,
-                                                 wideIdx ? D3DFMT_INDEX32 : D3DFMT_INDEX16,
-                                                 // x64 LoadPMX 0x7FF7CB4CB3D6: Pool immediate is 1
-                                                 // (D3DPOOL_MANAGED), not SYSTEMMEM.
-                                                 D3DPOOL_MANAGED, &ib, nullptr))) {
+        IDirect3DIndexBuffer9*& ib = model.indexBuffer;
+        if (dev && dev->CreateIndexBuffer((wideIdx ? 4 : 2) * faceCount, 0,
+                                          wideIdx ? D3DFMT_INDEX32 : D3DFMT_INDEX16,
+                                          // x64 LoadPMX 0x7FF7CB4CB3D6: Pool immediate is 1
+                                          // (D3DPOOL_MANAGED), not SYSTEMMEM.
+                                          D3DPOOL_MANAGED, &ib, nullptr) != D3D_OK) {
             sprintf_s(text, 0x100,
                       enData ? "The performance of the graphics card doesn't suffice."
                              : kMsgNoPerfJp);
             MessageBoxA(hwnd, text, "CreateIndexBuffer", 0);
-            _close(fh);
+            _close(fileHandle);
             return false;
         }
-        mdl::ResourceAs<IDirect3DIndexBuffer9>(model.indexBuffer) = ib;
         auto* indices = static_cast<std::int32_t*>(operator new(sizeof(std::int32_t) * faceCount));
         model.indices = indices;
         std::memset(indices, 0, sizeof(std::int32_t) * faceCount);
@@ -483,25 +481,25 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                       enData ? "The performance of the graphics card doesn't suffice."
                              : kMsgNoPerfJp);
             MessageBoxA(hwnd, text, "pIndBuf->Lock", 0);
-            _close(fh);
+            _close(fileHandle);
         };
         if (cpuOnly) {
             for (std::int32_t i = 0; i < faceCount; ++i)
-                if (!format::ReadPmxVertexIndex(ReadModelFileBytes, &fh, model.pmxVertexIndexSize,
-                                                indices[i]) ||
+                if (!format::ReadPmxVertexIndex(ReadModelFileBytes, &fileHandle,
+                                                model.pmxVertexIndexSize, indices[i]) ||
                     indices[i] < 0 || indices[i] >= vertCount) {
-                    _close(fh);
+                    _close(fileHandle);
                     return false;
                 }
         } else if (wideIdx) {
             std::uint32_t* gpuIndices = nullptr;
-            if (SUCCEEDED(ib->Lock(0, 0, reinterpret_cast<void**>(&gpuIndices), 0))) {
+            if (ib->Lock(0, 0, reinterpret_cast<void**>(&gpuIndices), 0) == D3D_OK) {
                 for (std::int32_t i = 0; i < faceCount; ++i) {
                     std::int32_t value;
-                    if (!format::ReadPmxVertexIndex(ReadModelFileBytes, &fh,
+                    if (!format::ReadPmxVertexIndex(ReadModelFileBytes, &fileHandle,
                                                     model.pmxVertexIndexSize, value)) {
                         ib->Unlock();
-                        _close(fh);
+                        _close(fileHandle);
                         return false;
                     }
                     indices[i] = value;
@@ -514,13 +512,13 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
             }
         } else {
             std::uint16_t* gpuIndices = nullptr;
-            if (SUCCEEDED(ib->Lock(0, 0, reinterpret_cast<void**>(&gpuIndices), 0))) {
+            if (ib->Lock(0, 0, reinterpret_cast<void**>(&gpuIndices), 0) == D3D_OK) {
                 for (std::int32_t i = 0; i < faceCount; ++i) {
                     std::int32_t value;
-                    if (!format::ReadPmxVertexIndex(ReadModelFileBytes, &fh,
+                    if (!format::ReadPmxVertexIndex(ReadModelFileBytes, &fileHandle,
                                                     model.pmxVertexIndexSize, value)) {
                         ib->Unlock();
-                        _close(fh);
+                        _close(fileHandle);
                         return false;
                     }
                     indices[i] = value;
@@ -536,8 +534,8 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
 
     // ---- textures (local path table) ----------------------------------------
     std::uint32_t texCount = 0;
-    if (!ReadModelFileCount(fh, 4, texCount)) {
-        _close(fh);
+    if (!ReadModelFileCount(fileHandle, 4, texCount)) {
+        _close(fileHandle);
         return false;
     }
     wchar_t** texPaths =
@@ -545,9 +543,9 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
     for (std::uint32_t t = 0; t < texCount; ++t) {
         texPaths[t] = nullptr;
         std::vector<std::uint8_t> pathBytes;
-        if (format::ReadPmxText(ReadModelFileBytes, &fh, pathBytes) !=
+        if (format::ReadPmxText(ReadModelFileBytes, &fileHandle, pathBytes) !=
             format::ModelHeaderStatus::Ok) {
-            _close(fh);
+            _close(fileHandle);
             return false;
         }
         if (!pathBytes.empty()) {
@@ -563,8 +561,8 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
         strcpy_s(model.pmdToonFileNames[i], sizeof(model.pmdToonFileNames[i]), kToonNames[i]);
 
     // ---- materials -------------------------------------------------------------
-    if (!ReadModelFileCount(fh, 4, model.materialCount)) {
-        _close(fh);
+    if (!ReadModelFileCount(fileHandle, 4, model.materialCount)) {
+        _close(fileHandle);
         return false;
     }
     const std::int32_t matCount = static_cast<std::int32_t>(model.materialCount);
@@ -576,15 +574,17 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
         wchar_t emptyPath[2] = L"";
         for (std::int32_t i = 0; i < matCount; ++i) {
             mdl::ModelMaterialRecord& mat = materials[i];
-            if (format::SkipPmxText(ReadModelFileBytes, &fh) != format::ModelHeaderStatus::Ok ||
-                format::SkipPmxText(ReadModelFileBytes, &fh) != format::ModelHeaderStatus::Ok) {
-                _close(fh);
+            if (format::SkipPmxText(ReadModelFileBytes, &fileHandle) !=
+                    format::ModelHeaderStatus::Ok ||
+                format::SkipPmxText(ReadModelFileBytes, &fileHandle) !=
+                    format::ModelHeaderStatus::Ok) {
+                _close(fileHandle);
                 return false;
             }
             format::MaterialData disk;
-            if (!format::ReadPmxMaterial(ReadModelFileBytes, &fh, model.pmxTextureIndexSize,
+            if (!format::ReadPmxMaterial(ReadModelFileBytes, &fileHandle, model.pmxTextureIndexSize,
                                          disk)) {
-                _close(fh);
+                _close(fileHandle);
                 return false;
             }
             std::memcpy(mat.diffuse, disk.diffuse, sizeof(mat.diffuse));
@@ -604,7 +604,7 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                 } else {
                     swprintf_s(mat.texturePath, 0x118, L"%s%s", model.modelDirectory,
                                texPaths[idx]);
-                    if (!cpuOnly && !LoadTextureShared(sub, mat.texturePath))
+                    if (!cpuOnly && !LoadTextureShared(renderer, mat.texturePath))
                         wcscpy_s(mat.texturePath, 0x118, emptyPath);
                 }
             }
@@ -614,7 +614,7 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                 if (idx < 0 || idx >= static_cast<std::int32_t>(texCount) ||
                     (swprintf_s(mat.spherePath, 0x118, L"%s%s", model.modelDirectory,
                                 texPaths[idx]),
-                     (!cpuOnly && !LoadTextureShared(sub, mat.spherePath)))) {
+                     (!cpuOnly && !LoadTextureShared(renderer, mat.spherePath)))) {
                     wcscpy_s(mat.spherePath, 0x118, emptyPath);
                 }
             }
@@ -624,7 +624,7 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                 const std::int32_t idx = disk.toonIndex;
                 if (idx >= 0) {
                     swprintf_s(mat.toonPath, 0x200, L"%s%s", model.modelDirectory, texPaths[idx]);
-                    if (!cpuOnly && !LoadTextureShared(sub, mat.toonPath)) {
+                    if (!cpuOnly && !LoadTextureShared(renderer, mat.toonPath)) {
                         wcscpy_s(mat.toonPath, 0x200, emptyPath);
                         mat.toonReference = 0xFF;
                     }
@@ -674,15 +674,15 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
     if (texPaths)
         operator delete(texPaths);
 
-    TracePmxOffset(fh, "materials-end", matCount, static_cast<int>(texCount));
+    TracePmxOffset(fileHandle, "materials-end", matCount, static_cast<int>(texCount));
 
     // ---- bones ---------------------------------------------------------------
-    if (!ReadModelFileCount(fh, 4, model.boneCount)) {
-        _close(fh);
+    if (!ReadModelFileCount(fileHandle, 4, model.boneCount)) {
+        _close(fileHandle);
         return false;
     }
     const std::int32_t boneCount = static_cast<std::int32_t>(model.boneCount);
-    TracePmxOffset(fh, "bones-begin", boneCount, 0);
+    TracePmxOffset(fileHandle, "bones-begin", boneCount, 0);
     const std::uint8_t boneIdxSize = model.pmxBoneIndexSize;
     std::int32_t ikBoneCount = 0;
     std::int32_t centerBone = -1;
@@ -705,11 +705,11 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
         mikudancestudio::mdl::BoneRecord* bones = model.boneTable;
         for (std::int32_t i = 0; i < boneCount; ++i) {
             mikudancestudio::mdl::BoneRecord* bone = &bones[i];
-            if (!ReadTextBuf(fh, nullIdx, bone->jpText)) {
-                _close(fh);
+            if (!ReadTextBuf(fileHandle, nullIdx, bone->jpText)) {
+                _close(fileHandle);
                 return false;
             }
-            WideToSjis(sub, reinterpret_cast<char*>(bone),
+            WideToSjis(renderer, reinterpret_cast<char*>(bone),
                        reinterpret_cast<const wchar_t*>(bone->jpText), 0x14);
             // center bone detection (SJIS memcmp, 9 bytes with NUL; x64
             // 0x7FF7CB4CC36D: operation center first, center as pre-flag
@@ -720,22 +720,22 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
             } else if (!centerFound && !std::memcmp(bone->name, kNameCenterJp, 9)) {
                 model.centerBone = i;
             }
-            if (!ReadTextBuf(fh, nullIdx, bone->enText)) {
-                _close(fh);
+            if (!ReadTextBuf(fileHandle, nullIdx, bone->enText)) {
+                _close(fileHandle);
                 return false;
             }
-            WideToSjis(sub, reinterpret_cast<char*>(bone->nameEn),
+            WideToSjis(renderer, reinterpret_cast<char*>(bone->nameEn),
                        reinterpret_cast<const wchar_t*>(bone->enText), 0x14);
             format::BoneData disk;
-            if (!format::ReadPmxBone(ReadModelFileBytes, &fh, boneIdxSize, disk)) {
-                _close(fh);
+            if (!format::ReadPmxBone(ReadModelFileBytes, &fileHandle, boneIdxSize, disk)) {
+                _close(fileHandle);
                 return false;
             }
             std::memcpy(bone->position, disk.position, sizeof(bone->position));
             bone->parent = disk.parent;
             bone->layer = disk.layer;
-            if (m->maxBoneLayer < bone->layer)
-                m->maxBoneLayer = bone->layer;
+            if (modelRecord->maxBoneLayer < bone->layer)
+                modelRecord->maxBoneLayer = bone->layer;
             bone->flags = disk.flags;
             if (bone->flags & mdl::kBoneFlagTailIsBone) {
                 bone->tailBone = disk.tailBone;
@@ -797,10 +797,10 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                 bone->matWorld[f] = (f % 5 == 0) ? 1.0f : 0.0f;
             bone->slotIndex = -1;
             bone->rigidIdx = -296;
-            TracePmxOffset(fh, "bone-end", i, bone->flags);
+            TracePmxOffset(fileHandle, "bone-end", i, bone->flags);
         }
 
-        // IK -> 24-byte chain records (m+9920, count m+11656) ---------------
+        // IK -> 24-byte chain records (modelRecord+9920, count modelRecord+11656) ---------------
         model.ikChainCount = ikBoneCount;
         if (ikBoneCount > 0) {
             model.ikChains =
@@ -875,54 +875,57 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
             }
         }
     }
-    InitBoneSortOrder(m); // 0x490070
+    InitBoneSortOrder(modelRecord); // 0x490070
 
     // ---- morphs -----------------------------------------------------------
     std::uint8_t* vmap = static_cast<std::uint8_t*>(vertCount ? operator new(vertCount) : nullptr);
     std::memset(vmap, 0, vertCount);
-    if (!ReadModelFileCount(fh, 4, model.morphCount)) {
-        _close(fh);
+    if (!ReadModelFileCount(fileHandle, 4, model.morphCount)) {
+        _close(fileHandle);
         return false;
     }
     const std::int32_t morphCount = static_cast<std::int32_t>(model.morphCount);
-    TracePmxOffset(fh, "morphs-begin", morphCount, 0);
+    TracePmxOffset(fileHandle, "morphs-begin", morphCount, 0);
     std::int32_t boneMorphTotal = 0, uvMorphTotal = 0, uv2Total = 0, uv3Total = 0, uv4Total = 0,
                  uv5Total = 0;
     const std::uint8_t vertIdxSize = model.pmxVertexIndexSize;
     const std::uint8_t morphIdxSize = model.pmxMorphIndexSize;
     const std::uint8_t matIdxSize = model.pmxMaterialIndexSize;
     const format::PmxMorphIndexSizes morphSizes{vertIdxSize, boneIdxSize, morphIdxSize, matIdxSize};
-    auto readOffset = [&fh, morphSizes](std::uint8_t type, format::PmxMorphOffsetData& output) {
-        return format::ReadPmxMorphOffset(ReadModelFileBytes, &fh, type, morphSizes, output);
+    auto readOffset = [&fileHandle, morphSizes](std::uint8_t type,
+                                                format::PmxMorphOffsetData& output) {
+        return format::ReadPmxMorphOffset(ReadModelFileBytes, &fileHandle, type, morphSizes,
+                                          output);
     };
     if (morphCount > 0) {
         model.morphs =
             static_cast<mdl::MorphRecord*>(operator new(sizeof(mdl::MorphRecord) * morphCount));
         std::memset(model.morphs, 0, sizeof(mdl::MorphRecord) * morphCount);
         // track cursors/flags beside the table (x64 0x7FF7CB4CD40D/CD42A
-        // -> m+88/96) - ModelKeyframeAdvance writes morphTrackActive[morph]
-        void* w1 = operator new(4 * morphCount);
-        std::memset(w1, 0, 4 * morphCount);
-        model.morphKeyCursors = static_cast<std::uint32_t*>(w1);
-        void* w2 = operator new(morphCount);
-        std::memset(w2, 0, morphCount);
-        model.morphTrackActive = static_cast<unsigned char*>(w2);
+        // -> modelRecord+88/96) - ModelKeyframeAdvance writes morphTrackActive[morph]
+        auto* cursors =
+            static_cast<std::uint32_t*>(operator new(sizeof(*model.morphKeyCursors) * morphCount));
+        std::memset(cursors, 0, sizeof(*cursors) * morphCount);
+        model.morphKeyCursors = cursors;
+        auto* activeTracks = static_cast<std::uint8_t*>(operator new(morphCount));
+        std::memset(activeTracks, 0, morphCount);
+        model.morphTrackActive = activeTracks;
         for (std::int32_t i = 0; i < morphCount; ++i) {
-            TracePmxOffset(fh, "morph-record-begin", i, 0);
-            mdl::MorphRecord& morph = (m)->morphs[i];
-            if (!ReadTextBuf(fh, nullIdx, morph.jpText)) {
-                _close(fh);
+            TracePmxOffset(fileHandle, "morph-record-begin", i, 0);
+            mdl::MorphRecord& morph = (modelRecord)->morphs[i];
+            if (!ReadTextBuf(fileHandle, nullIdx, morph.jpText)) {
+                _close(fileHandle);
                 return false;
             }
-            WideToSjis(sub, morph.name, morph.jpText, 0x14);
-            if (!ReadTextBuf(fh, nullIdx, morph.enText)) {
-                _close(fh);
+            WideToSjis(renderer, morph.name, morph.jpText, 0x14);
+            if (!ReadTextBuf(fileHandle, nullIdx, morph.enText)) {
+                _close(fileHandle);
                 return false;
             }
-            WideToSjis(sub, morph.nameEn, morph.enText, 0x14);
+            WideToSjis(renderer, morph.nameEn, morph.enText, 0x14);
             format::PmxMorphHeaderData diskHeader;
-            if (!format::ReadPmxMorphHeader(ReadModelFileBytes, &fh, diskHeader)) {
-                _close(fh);
+            if (!format::ReadPmxMorphHeader(ReadModelFileBytes, &fileHandle, diskHeader)) {
+                _close(fileHandle);
                 return false;
             }
             morph.panel = static_cast<mdl::MorphPanel>(diskHeader.panel);
@@ -930,10 +933,10 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
             morph.offsetCount = diskHeader.offsetCount;
             const std::int32_t cnt = morph.offsetCount;
             const std::uint8_t type = morph.type;
-            TracePmxOffset(fh, "morph-header", i,
+            TracePmxOffset(fileHandle, "morph-header", i,
                            (static_cast<int>(type) << 24) | (cnt & 0x00FFFFFF));
             if (cnt == 0) {
-                TracePmxOffset(fh, "morph-record-end", i, 0);
+                TracePmxOffset(fileHandle, "morph-record-end", i, 0);
                 continue;
             }
             switch (type) {
@@ -946,7 +949,7 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                     mdl::PmxGroupMorphEntry& entry = morph.groupEntries[o];
                     format::PmxMorphOffsetData disk;
                     if (!readOffset(type, disk)) {
-                        _close(fh);
+                        _close(fileHandle);
                         return false;
                     }
                     entry.morphIndex = disk.index;
@@ -978,7 +981,7 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                     mdl::PmdVertexMorphEntry& entry = morph.vertexEntries[o];
                     format::PmxMorphOffsetData disk;
                     if (!readOffset(type, disk)) {
-                        _close(fh);
+                        _close(fileHandle);
                         return false;
                     }
                     entry.vertexIndex = disk.index;
@@ -996,7 +999,7 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                     mdl::PmxBoneMorphEntry& entry = morph.boneEntries[o];
                     format::PmxMorphOffsetData disk;
                     if (!readOffset(type, disk)) {
-                        _close(fh);
+                        _close(fileHandle);
                         return false;
                     }
                     entry.boneIndex = disk.index;
@@ -1054,7 +1057,7 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                     mdl::PmxUvMorphEntry& entry = morph.uvEntries[family][o];
                     format::PmxMorphOffsetData disk;
                     if (!readOffset(type, disk)) {
-                        _close(fh);
+                        _close(fileHandle);
                         return false;
                     }
                     entry.vertexIndex = disk.index;
@@ -1108,7 +1111,7 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                     mdl::PmxMaterialMorphEntry& entry = morph.materialEntries[o];
                     format::PmxMorphOffsetData disk;
                     if (!readOffset(type, disk)) {
-                        _close(fh);
+                        _close(fileHandle);
                         return false;
                     }
                     entry.materialIndex = disk.index;
@@ -1129,7 +1132,7 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
             default: // 9/10 skipped
                 break;
             }
-            TracePmxOffset(fh, "morph-record-end", i,
+            TracePmxOffset(fileHandle, "morph-record-end", i,
                            (static_cast<int>(type) << 24) | (cnt & 0x00FFFFFF));
         }
     }
@@ -1310,8 +1313,8 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
 
     // ---- display frames --------------------------------------------------------
     std::uint32_t frameCount = 0;
-    if (!ReadModelFileCount(fh, 4, frameCount)) {
-        _close(fh);
+    if (!ReadModelFileCount(fileHandle, 4, frameCount)) {
+        _close(fileHandle);
         return false;
     }
     struct FrameTmp {
@@ -1326,14 +1329,14 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
     std::memset(frames, 0, sizeof(FrameTmp) * frameCount);
     std::int32_t boneEntryTotal = 0, morphEntryTotal = 0;
     for (std::uint32_t f = 0; f < frameCount; ++f) {
-        if (!ReadTextBuf(fh, nullIdx, frames[f].name) ||
-            !ReadTextBuf(fh, nullIdx, frames[f].nameEn)) {
-            _close(fh);
+        if (!ReadTextBuf(fileHandle, nullIdx, frames[f].name) ||
+            !ReadTextBuf(fileHandle, nullIdx, frames[f].nameEn)) {
+            _close(fileHandle);
             return false;
         }
-        if (!format::ReadPmxDisplayHeader(ReadModelFileBytes, &fh, frames[f].special,
+        if (!format::ReadPmxDisplayHeader(ReadModelFileBytes, &fileHandle, frames[f].special,
                                           frames[f].count)) {
-            _close(fh);
+            _close(fileHandle);
             return false;
         }
         if (frames[f].count > 0) {
@@ -1343,9 +1346,9 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
             for (int e = 0; e < frames[f].count; ++e) {
                 mdl::PmxDisplayFrameEntry& entry = frames[f].entries[e];
                 format::PmxDisplayEntryData disk;
-                if (!format::ReadPmxDisplayEntry(ReadModelFileBytes, &fh, boneIdxSize, morphIdxSize,
-                                                 disk)) {
-                    _close(fh);
+                if (!format::ReadPmxDisplayEntry(ReadModelFileBytes, &fileHandle, boneIdxSize,
+                                                 morphIdxSize, disk)) {
+                    _close(fileHandle);
                     return false;
                 }
                 entry.type = disk.type;
@@ -1359,7 +1362,7 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
         }
     }
 
-    // facial group records (m+9948): morph entries of ALL frames; the count
+    // facial group records (modelRecord+9948): morph entries of ALL frames; the count
     // is stored byte-truncated with no special gate (x64 0x7FF7CB4D0234)
     const int morphGroupCount = static_cast<unsigned char>(morphEntryTotal);
     model.facialFrameCount = static_cast<std::uint8_t>(morphGroupCount);
@@ -1391,7 +1394,7 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
     if (frameCount > 0 && frames[0].count > 0 && frames[0].entries[0].type == 0) {
         model.displayRootBone = frames[0].entries[0].index;
     }
-    // group name table (m+9936)
+    // group name table (modelRecord+9936)
     model.groupCount = static_cast<std::uint8_t>(frameCount);
     if (model.facialFrameCount)
         model.groupCount = static_cast<std::uint8_t>(frameCount + 1);
@@ -1420,13 +1423,13 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
         }
         for (int g = start; g < groups; ++g) {
             const int frameIndex = model.facialFrameCount ? g - 1 : g;
-            WideToSjis(sub, displayGroups[g].name, frames[frameIndex].name,
+            WideToSjis(renderer, displayGroups[g].name, frames[frameIndex].name,
                        sizeof(displayGroups[g].name));
-            WideToSjis(sub, displayGroups[g].nameEn, frames[frameIndex].nameEn,
+            WideToSjis(renderer, displayGroups[g].nameEn, frames[frameIndex].nameEn,
                        sizeof(displayGroups[g].nameEn));
         }
     }
-    // bone frame records (m+9944): bone entries from frame 2 on
+    // bone frame records (modelRecord+9944): bone entries from frame 2 on
     model.displayBoneCount = boneEntryTotal;
     if (boneEntryTotal > 0) {
         auto* boneFrames =
@@ -1464,14 +1467,14 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
         operator delete(frames);
 
     // ---- rigid bodies -----------------------------------------------------------
-    if (!ReadModelFileCount(fh, 4, model.rigidCount)) {
-        _close(fh);
+    if (!ReadModelFileCount(fileHandle, 4, model.rigidCount)) {
+        _close(fileHandle);
         return false;
     }
     if (model.rigidCount > 0) {
         PhysicsScene* physScene = model.scenePtr;
-        SetPhysicsMode(m, 0, nullptr, 0); // 0x4A9220
-        SetPhysicsMode(m, 1, nullptr, 0);
+        SetPhysicsMode(modelRecord, 0, nullptr, 0); // 0x4A9220
+        SetPhysicsMode(modelRecord, 1, nullptr, 0);
         const std::uint8_t rigidIdxSize = model.pmxRigidIndexSize;
         const std::int32_t rcount = static_cast<std::int32_t>(model.rigidCount);
         model.rigidTable =
@@ -1479,20 +1482,20 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
         std::memset(model.rigidTable, 0, sizeof(mdl::RigidRecord) * rcount);
         mikudancestudio::mdl::BoneRecord* bones = model.boneTable;
         for (std::int32_t i = 0; i < rcount; ++i) {
-            TracePmxOffset(fh, "rigid-record-begin", i, rcount);
+            TracePmxOffset(fileHandle, "rigid-record-begin", i, rcount);
             mdl::RigidRecord& rb = model.rigidTable[i];
-            if (!ReadTextBuf(fh, nullIdx, rb.jpText)) {
-                _close(fh);
+            if (!ReadTextBuf(fileHandle, nullIdx, rb.jpText)) {
+                _close(fileHandle);
                 return false;
             }
-            WideToSjis(sub, rb.name, rb.jpText, 0x14);
-            if (!ReadTextBuf(fh, nullIdx, rb.enText)) {
-                _close(fh);
+            WideToSjis(renderer, rb.name, rb.jpText, 0x14);
+            if (!ReadTextBuf(fileHandle, nullIdx, rb.enText)) {
+                _close(fileHandle);
                 return false;
             }
             format::RigidData disk;
-            if (!format::ReadPmxRigid(ReadModelFileBytes, &fh, boneIdxSize, disk)) {
-                _close(fh);
+            if (!format::ReadPmxRigid(ReadModelFileBytes, &fileHandle, boneIdxSize, disk)) {
+                _close(fileHandle);
                 return false;
             }
             rb.boneIndex = disk.boneIndex;
@@ -1559,35 +1562,35 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                 d.multiply(&inv, &inv, &t2);
                 std::memcpy(rb.invTransform, &inv, sizeof(rb.invTransform));
             }
-            TracePmxOffset(fh, "rigid-record-end", i, rcount);
+            TracePmxOffset(fileHandle, "rigid-record-end", i, rcount);
         }
 
         // ---- joints ------------------------------------------------------------
-        if (!ReadModelFileCount(fh, 4, model.jointCount)) {
-            _close(fh);
+        if (!ReadModelFileCount(fileHandle, 4, model.jointCount)) {
+            _close(fileHandle);
             return false;
         }
-        TracePmxOffset(fh, "joints-begin", model.jointCount, rcount);
+        TracePmxOffset(fileHandle, "joints-begin", model.jointCount, rcount);
         if (model.jointCount > 0) {
             const std::int32_t jcount = static_cast<std::int32_t>(model.jointCount);
             model.jointTable =
                 static_cast<mdl::JointRecord*>(operator new(sizeof(mdl::JointRecord) * jcount));
             std::memset(model.jointTable, 0, sizeof(mdl::JointRecord) * jcount);
             for (std::int32_t i = 0; i < jcount; ++i) {
-                TracePmxOffset(fh, "joint-record-begin", i, jcount);
+                TracePmxOffset(fileHandle, "joint-record-begin", i, jcount);
                 mdl::JointRecord& jt = model.jointTable[i];
-                if (!ReadTextBuf(fh, nullIdx, jt.jpText)) {
-                    _close(fh);
+                if (!ReadTextBuf(fileHandle, nullIdx, jt.jpText)) {
+                    _close(fileHandle);
                     return false;
                 }
-                WideToSjis(sub, jt.name, jt.jpText, 0x14);
-                if (!ReadTextBuf(fh, nullIdx, jt.enText)) {
-                    _close(fh);
+                WideToSjis(renderer, jt.name, jt.jpText, 0x14);
+                if (!ReadTextBuf(fileHandle, nullIdx, jt.enText)) {
+                    _close(fileHandle);
                     return false;
                 }
                 format::JointData disk;
-                if (!format::ReadPmxJoint(ReadModelFileBytes, &fh, rigidIdxSize, disk)) {
-                    _close(fh);
+                if (!format::ReadPmxJoint(ReadModelFileBytes, &fileHandle, rigidIdxSize, disk)) {
+                    _close(fileHandle);
                     return false;
                 }
                 jt.rigidA = disk.rigidA;
@@ -1650,11 +1653,11 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
                         jt.springs[0], jt.springs[1], jt.springs[2], jt.springs[3], jt.springs[4],
                         jt.springs[5]);
                 }
-                TracePmxOffset(fh, "joint-record-end", i, jcount);
+                TracePmxOffset(fileHandle, "joint-record-end", i, jcount);
             }
         }
     }
-    _close(fh);
+    _close(fileHandle);
 
     // ---- animation pools -------------------------------------------------------
     model.boneKeys =
@@ -1700,10 +1703,10 @@ bool LoadPMX(mdl::ModelRecord* m, D3DRenderer* sub, std::uint8_t showInfo, std::
         key.rotation[3] = 1.0f;
     }
     if (!cpuOnly)
-        InitializeModelCpuGeometry(g_Block, m);
+        InitializeModelCpuGeometry(g_Block, modelRecord);
     model.loadComplete = 1;
     if (!cpuOnly)
-        PostLoadInit(m); // 0x49C850
+        PostLoadInit(modelRecord); // 0x49C850
     return true;
 }
 

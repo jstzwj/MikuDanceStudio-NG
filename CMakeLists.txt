@@ -1077,7 +1077,7 @@ target_include_directories(MMEffect PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/mmeffect/include
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/mmeffect/src/mmhack   # mmhack_state.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/include          # d3dx_dyn.hpp (runtime d3dx9 forwarding)
+    ${CMAKE_CURRENT_SOURCE_DIR}/include          # d3dx_api.hpp (typed forwarding to PE imports)
 )
 target_compile_definitions(MMEffect PUBLIC MIKUDANCESTUDIO_MME_EMBEDDED=1)
 target_link_libraries(MMEffect PUBLIC D3DXRuntime)
@@ -1196,10 +1196,10 @@ if(BUILD_TESTING)
     target_link_libraries(mmdxshow_protocol_test PRIVATE ole32 strmiids)
     add_dependencies(mmdxshow_protocol_test MMDxShow)
     add_test(NAME mmdxshow_protocol COMMAND mmdxshow_protocol_test $<TARGET_FILE:MMDxShow>)
-    add_executable(model_frame_seek_test tests/model_frame_seek_test.cpp
-        src/model/model_frame_seek.cpp)
-    target_include_directories(model_frame_seek_test PRIVATE include)
-    target_link_libraries(model_frame_seek_test PRIVATE mikudancestudio_formats)
+    add_executable(model_frame_seek_test tests/model_frame_seek_test.cpp)
+    target_include_directories(model_frame_seek_test PRIVATE include src/model)
+    target_link_libraries(model_frame_seek_test PRIVATE
+        mikudancestudio_formats BULLET275::BULLET275)
     add_test(NAME model_frame_seek COMMAND model_frame_seek_test)
     add_executable(model_playback_physics_test tests/model_playback_physics_test.cpp)
     target_link_libraries(model_playback_physics_test PRIVATE mikudancestudio_core MMEffect dsound)

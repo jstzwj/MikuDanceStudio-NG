@@ -260,9 +260,10 @@ void PreRenderTargetCopy(MMDApp* app, IDirect3DDevice9* device, IDirect3DSurface
     MmeHostPreRenderTargetCopy(device, source);
 }
 bool PrepareEffectAssignments(MMDApp* app) {
-    if (!g_deviceRegistered) return true;
-    auto* renderer=app->Renderer();
-    return renderer && MmeHostPrepareEffectAssignments(renderer->device)!=0;
+    if (!g_deviceRegistered)
+        return true;
+    auto* renderer = app->Renderer();
+    return renderer && MmeHostPrepareEffectAssignments(renderer->device) != 0;
 }
 void BeginPortableFrameClock() {
     if (g_deviceRegistered)
@@ -362,9 +363,9 @@ LineDrawBridgeProbe ProbeIndexedDrawBridge() {
 // ---------------------------------------------------------------------------
 // Accessory mesh drawing (observable equivalent of ID3DXMesh::DrawSubset)
 // ---------------------------------------------------------------------------
-HRESULT DrawAccessorySubset(MMDApp* app, void* accessory, unsigned long material) {
+HRESULT DrawAccessorySubset(MMDApp* app, mdl::AccessoryRecord* accessory, unsigned long material) {
     IDirect3DDevice9* device = app->Renderer()->device;
-    auto* mesh = static_cast<ID3DXMesh*>(mdl::Accessory(accessory)->mesh);
+    auto* mesh = accessory->mesh;
     if (mesh == nullptr)
         return E_FAIL;
     if (!EffectsActive()) {

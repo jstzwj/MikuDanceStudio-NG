@@ -36,7 +36,7 @@ unsigned ModelClipboardChains(OriginalPhysicsModule& original, const std::filesy
             std::array<mdl::BoneOrderEntry, 1> order{};
             model->boneOrderTable = order.data();
             model->boneOrderCount = 1; // Native loader's implicit root selector.
-            model->physicsFlags = 1;
+            model->englishUI = 1;
             model->maxFrame = source.selection.maxFrame;
             for (unsigned i = 0; i < poses.size(); ++i) {
                 Check(source.boneNames[i].size() <= sizeof poses[i].name, "bone name capacity");

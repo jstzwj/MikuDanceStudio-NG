@@ -10,7 +10,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 FORBIDDEN_HEADERS = {'windows.h', 'd3d9.h', 'd3dx9.h', 'mikudancestudio/model.hpp',
                      'mikudancestudio/mmd_app.hpp', 'mikudancestudio/ported_funcs.hpp',
-                     'mikudancestudio/d3dx_dyn.hpp'}
+                     'mikudancestudio/d3dx_api.hpp'}
 FORBIDDEN_LIBRARIES = ('d3d', 'd3dx', 'dxgi', 'vulkan', 'moltenvk', 'opengl', 'mmeffect',
                        'user32', 'gdi32', 'ole32', 'oleaut32', 'combase', 'qt', 'sdl')
 SYSTEM_C_HEADERS = {'assert.h', 'ctype.h', 'float.h', 'limits.h', 'math.h', 'memory.h',
