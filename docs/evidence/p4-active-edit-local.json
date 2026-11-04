@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "time_utc": "2026-11-04T13:12:58.599132+00:00",
+  "scope": "Never-shown/offscreen local Windows; no desktop input",
+  "p4_c1_accepted": false,
+  "ordinary": {
+    "name": "Win32-MSBuild",
+    "tests": "84",
+    "failures": "0",
+    "disabled": "0",
+    "skipped": "0",
+    "hostname": "XiaHan",
+    "time": "458",
+    "timestamp": "2026-11-04T21:04:25",
+    "artifact": {
+      "path": "out/build/p4-final-local.xml",
+      "sha256": "50931e359789efc7199087c28723de1c72edaa48c2b1911791c0a7f861c33e49"
+    }
+  },
+  "all_build": {
+    "path": "out/build/p4-final-build.log",
+    "sha256": "3450f6ca5b41ffd2b0b2ac6112ab3b16b44930b2adc4f3f4dae60e4041a222e2"
+  },
+  "deploy": {
+    "path": "out/build/p4-final-deploy.log",
+    "sha256": "b95e7daae1f2446d92b2652f3550bbd66ac50f983f078026d1c43bf5c79309c7"
+  },
+  "distribution": {
+    "path": "out/build/p4-final-distribution.log",
+    "sha256": "f47b956555fcef035d47966ccd907eaf7ede8dbd9e85d6c90d64b769134544b2"
+  },
+  "active_edit_replay": {
+    "cases": 3450,
+    "mismatches": 0,
+    "reference_run": "41828328950",
+    "fresh_shown_qualification": false,
+    "log": {
+      "path": "out/build/edit-focus-replay-qualified.log",
+      "sha256": "4e9553e055091b423da793dbefccf48b524353cf1d1370e26578f0997c08adde"
+    },
+    "report": {
+      "path": "out/build/edit-focus-replay-qualified/report.json",
+      "sha256": "bed16905ce617c1c416613db28d760a1853d89b59d90f4c3688675f2b2db23fd"
+    }
+  },
+  "native_multiline": {
+    "cases": 864,
+    "frozen_reference": {
+      "path": "tests/reference/original-multiline-navigation.json",
+      "sha256": "c8465c50e4250da87eb7532d6e62c8ac112c74ded4ce312af60b268b0ffe8a04"
+    },
+    "generator": {
+      "path": "tools/observe_multiline_navigation.py",
+      "sha256": "765f02258638c41c3ce7e7880b07d29e991f9e6ece2cca0ab513267884fe51b8"
+    }
+  },
+  "sources": [
+    {
+      "path": "src/frontend_qt/numeric_dialog.cpp",
+      "sha256": "82f0f968db981c08a47b23bf5588ab2c5e2b83a9745a93a05d0fc7b9c3bfbc65"
+    },
+    {
+      "path": "src/frontend_qt/editor_style_windows.cpp",
+      "sha256": "47324abad7da4f07952cdf3aaf955afd68a4bcb4be8e5076a27afa0e76a42682"
+    },
+    {
+      "path": "src/frontend_qt/editor_font.cpp",
+      "sha256": "58a96518962e8975482a2c91c17f37e79d32d9eba311dd431c30ca63bace7aaf"
+    }
+  ],
+  "editor": {
+    "path": "out/dist/MikuDanceStudioNG.exe",
+    "sha256": "c8277b5a9572cd1db634549d1a5f4e0161f8fe1bdd2079c19da3cea654f118a1"
+  },
+  "archive": {
+    "path": "out/releases/MikuDanceStudio-NG-10.15-windows-x64.zip",
+    "sha256": "d99866eda00e7b214df92d322ecb67af80abe66bc086e94ef5461362ac880748"
+  },
+  "limitations": [
+    "Local real Japanese TSF profile unavailable; no installation or native IME changes made.",
+    "Replay checks saved native client pixels; theme border excluded across OS themes.",
+    "Actual focus/hover and updated non-Windows fonts pending remote qualification.",
+    "QT_SCALE_FACTOR is not a physical monitor/DPI transition qualification."
+  ]
+}

@@ -171,6 +171,7 @@ jobs:
             @('--isolated-nonclient', 'out/p4/control-style-nonclient'),
             @('--isolated-edit-text', 'out/p4/control-edit-visible'),
             @('--isolated-edit-focus', 'out/p4/control-edit-focus'),
+            @('--isolated-edit-hover', 'out/p4/control-edit-hover'),
             @('--isolated-content', 'out/p4/control-content-visible'),
             @('--isolated-list-focus', 'out/p4/control-list-focus'),
             @('--isolated-content-focus', 'out/p4/control-content-focus')
@@ -211,12 +212,13 @@ jobs:
           Start-Process "$env:WINDIR/System32/ctfmon.exe" -WindowStyle Hidden
           cmake --build out/p4 --config Release --target qt_system_ime_test native_ime_shutdown_test --parallel 3
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          # Same activation/composition/cancel/teardown with a Win32 EDIT and
-          # no QApplication/QPA, to distinguish an OS IME failure from Qt.
-          python tests/test_native_ime_shutdown.py --test out/p4/native_ime_shutdown_test.exe --report out/p4/system-ime-native-reference.json
-          $referenceExit = $LASTEXITCODE
           python tests/test_native_system_ime.py --test out/p4/qt_system_ime_test.exe --report out/p4/system-ime-ms-ime.json
           $editorExit = $LASTEXITCODE
+          # Run the editor first: a failed reference teardown can leave the
+          # shared OS broker blocked and invalidate a following editor scenario.
+          # The reference never turns an editor failure into a passing result.
+          python tests/test_native_ime_shutdown.py --test out/p4/native_ime_shutdown_test.exe --report out/p4/system-ime-native-reference.json
+          $referenceExit = $LASTEXITCODE
           Get-Process ctfmon,imebroker,TextInputHost -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,SessionId,Path | ConvertTo-Json | Set-Content out/p4/system-ime-processes.json -Encoding UTF8
           Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-15)} -ErrorAction SilentlyContinue | Where-Object { $_.Message -match 'imebroker|imjp|ctfmon' } | Select-Object TimeCreated,Id,ProviderName,Message | ConvertTo-Json | Set-Content out/p4/system-ime-events.json -Encoding UTF8
           if ($editorExit -ne 0) { exit $editorExit }

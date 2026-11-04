@@ -4,7 +4,7 @@
 
 更新时间：2026-11-04。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
 
-本轮补齐原版文本键盘行为，已通过 144,135 组本地隐藏／离屏对照；整帧 RGB 按最新用户要求改为截图视觉一致性验收，保留严格差分诊断及原有复制／深度契约。一次综合 CI 的 Windows WARP、Metal 和软件 Vulkan 整帧门禁及新截图视觉复核均通过；macOS 72／72 常规回归通过。Windows／Linux 各有一项新增测试未读取 CI 后端设置，已修正并完成本地 DX12 WARP 复验，未追加远程重跑。备注栏的文字、光标与 Tab 几何新增 438 个原版检查点通过。Windows 原生 IME 仍在 MS 日文输入法退出时阻塞；可见输入框差异已收敛到最外侧一像素边框，内部文字全部一致。完整可见界面、实际 DPI／非 Windows 字体仍需验收，P4 保持实施中。见 [文本记录](docs/P4_EDIT_NAVIGATION.md)、[整帧视觉门槛](docs/P4_VISUAL_COMPOSITE.md) 与 [本次验收证据](docs/evidence/p4-visual-input-41810541646.json)。
+Latest P4 qualification (2026-11-04): consolidated run 41828328950 passes 83/83 Windows, 77/77 Linux and 72/72 macOS ordinary tests, all three complete-scene visual gates and relocated packages. All 5,060 empty/populated shown Windows EDIT states now match exactly. Active EDIT repairs pass 3,450 saved native client replays locally; multiline navigation adds 864 original comparisons. Windows native IME natural exit, fresh active-field/non-Windows font qualification and actual monitor/DPI transitions still prevent P4/C1 acceptance. See [current implementation and scope](docs/P4_ACTIVE_EDIT_QUALIFICATION.md).
 
 实施状态：**P0 已完成**。三平台基础构建、两轮精确文件／数值回归、统一 Bullet 包装与分配／销毁验证、macOS 无窗口 Vulkan 探测均已执行；Windows x64／x86 编辑器构建通过。能力表、最低环境决策、依赖图、证据和仍未覆盖的范围见 [P0 实施与验收记录](docs/CROSS_PLATFORM_P0.md)。
 
@@ -14,7 +14,7 @@
 
 **P3 已完成**：生产 Vulkan 加载器、Surface、运行时 SPIR-V 编译与 P2 快照的共享 RHI 消费链路已接通。Windows 隐藏窗口、macOS Cocoa、Linux X11／Wayland 呈现及三平台离屏门禁均实际通过，常规呈现帧没有图像回读；Sour Miku 静态／动画的 DX11／DX12／Vulkan 最终输出逐字节一致。验收证据、CPU 性能基线与基础场景支持边界见 [P3 实施记录](docs/CROSS_PLATFORM_P3.md)。
 
-**P4 实施中，尚未验收 C1**：共享编辑命令、PMM 编辑保存、骨骼选择与历史、Qt 三语言界面、视口呈现、WAV 时钟与图像序列导出已有三平台回归证据。PMD＋PMX、附件／屏幕纹理、WAV、物理及全部关键帧池的编辑→播放→保存→重开→导出组合闭环已通过三平台 CI；94／103 项原版菜单已实现，余下九项属于后续媒体／Kinect 阶段。最新补齐 IME 预编辑与命令顺序、隐藏原生消息输入、屏幕／DPI 变化中的拖动收尾，以及原版全局 84 个、模型模式 112 个剪贴板链式检查点，修复插值透明度导致编辑失败。独立原版模型／自阴影及组合场景的显式硬件配置各通过 48 项；公开参考图在 DX11／DX12／Vulkan 硬件配置通过，WARP、Metal 和软件 Vulkan 的严格整帧比较仍未通过。Windows 原生按钮主题已补齐 38 类原版对话框的 426 个稳态对照，材质 Alpha 插值误差已修复。完整原生输入及字体／控件外观资格仍需继续验收。当前完成范围和未关闭门禁见 [P4 实施与验收记录](docs/CROSS_PLATFORM_P4.md)；三平台 Qt 开发包已产出，完整 C1 编辑器尚未验收。
+**P4 remains in progress; C1 is not accepted.** Shared editing, PMM save/reopen, bone selection/history, three-language Qt UI, RHI presentation, WAV and image-sequence export have three-platform regression evidence. The combined PMD/PMX/accessory/screen/WAV/physics/all-key-pool workflow passes. 94/103 original menu commands are implemented; nine belong to later media/Kinect phases. Complete-scene output uses the user-approved visual policy with strict diagnostics retained, and passes on hardware plus Windows WARP/Metal/software Vulkan. The remaining acceptance requirements are native Windows IME and complete original UI/input/font/DPI qualification. [P4 acceptance record](docs/CROSS_PLATFORM_P4.md) distinguishes current gates from the historical increments below.
 
 最新增量：Windows 原版控件对照已扩至 574 个按钮／空下拉框／列表／滑块稳态案例；滑块另有 864 个独立原生几何对照，旧的 460 个空输入框边框对照因参考创建方式错误已撤回原版外观资格，现已改为直接创建原版对话框资源。38 类对话框的 426 个带文字按钮状态及 936 个独立字体／高度／键盘焦点对照已精确匹配；另有 24 个带文字列表状态通过原版隐藏窗口对照。隔离 Windows CI 的 73 项 P4 回归、68 个显示状态列表／下拉框案例及六个真实键盘焦点列表案例全部通过。发布包携带固定版本 Noto CJK 字体及许可证；Linux 的真实中文 libpinyin、日文 Anthy，以及 macOS 的 Kotoeri 输入法已分别通过三语言的预编辑、转换、提交、取消及正常退出测试。Windows 原生输入法的英文场景已通过，但清理输入上下文时阻塞，完整三语言资格仍未通过。其他控件文字、非 Windows 外观及尚未通过的 GPU 整帧配置仍需继续验收。
 

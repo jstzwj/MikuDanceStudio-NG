@@ -137,7 +137,6 @@ public:
             if (FAILED(result))
                 return QString("TSF activation: 0x%1")
                     .arg(unsigned(result), 8, 16, QLatin1Char('0'));
-            active_ = profile;
             activated_ = true;
             const auto context = ImmGetContext(window);
             if (!context)
@@ -162,9 +161,9 @@ public:
     QString Finish(HWND window) {
         if (!activated_)
             return {};
-        // Balance the test-owned thread-scoped ActivateProfile while its GUI
-        // event loop, COM apartment and original input window still exist. The
-        // editor itself never programmatically changes the user's TSF profile.
+        // ActivateProfile selects an input method; it is not a reference-counted
+        // acquisition. Do not inject DeactivateProfile into a natural-exit test:
+        // the editor closes its windows and lets IMM/TSF perform normal teardown.
         std::fprintf(stderr, "IME close native composition/open state\n");
         std::fflush(stderr);
         if (const auto context = ImmGetContext(window)) {
@@ -172,25 +171,13 @@ public:
             ImmSetOpenStatus(context, FALSE);
             ImmReleaseContext(window, context);
         }
-        Microsoft::WRL::ComPtr<ITfInputProcessorProfileMgr> manager;
-        auto result = CoCreateInstance(CLSID_TF_InputProcessorProfiles, nullptr,
-                                       CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&manager));
-        if (FAILED(result))
-            return "Cannot release test-owned TSF profile manager";
-        std::fprintf(stderr, "IME deactivate test-owned thread profile\n");
-        std::fflush(stderr);
-        result = manager->DeactivateProfile(TF_PROFILETYPE_INPUTPROCESSOR, 0x411, active_.clsid,
-                                            active_.guidProfile, nullptr, 0);
-        if (FAILED(result))
-            return QString("TSF deactivation: 0x%1").arg(unsigned(result), 8, 16, QLatin1Char('0'));
         activated_ = false;
-        std::fprintf(stderr, "IME test-owned profile released\n");
+        std::fprintf(stderr, "IME composition closed; native window/COM teardown follows\n");
         std::fflush(stderr);
         return {};
     }
 
 private:
-    TF_LANGUAGEPROFILE active_{};
     bool activated_ = false;
 };
 }

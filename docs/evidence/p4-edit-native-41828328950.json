@@ -1,0 +1,264 @@
+{
+  "schema": 1,
+  "run": "41828328950",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41828328950",
+  "revision": "487847ab753b097577978c2a73dad21164545e51",
+  "dispatch_count": 1,
+  "p4_c1_accepted": false,
+  "platforms": {
+    "windows": {
+      "ordinary": {
+        "name": "Win32-ninja",
+        "tests": "83",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "runnervmquqza",
+        "time": "311",
+        "timestamp": "2026-11-04T12:22:26",
+        "artifact": {
+          "path": "out/evidence/p4/p4-edit-native-41828328950/windows/p4/p4.xml",
+          "sha256": "71419e228e599c0182e2052fa8fb572438a3f692b3953c4b8b590eae4fe74a39"
+        },
+        "failed": []
+      },
+      "scene_visual": {
+        "name": "Win32-ninja",
+        "tests": "1",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "runnervmquqza",
+        "time": "0",
+        "timestamp": "2026-11-04T12:34:25",
+        "artifact": {
+          "path": "out/evidence/p4/p4-edit-native-41828328950/windows/p4/native-reference.xml",
+          "sha256": "ee0ac2c37f54c7e5ac09a8ff91c6db65942f61a8a27671263038c93bbe88c841"
+        },
+        "failed": []
+      },
+      "distribution": {
+        "path": "out/evidence/p4/p4-edit-native-41828328950/windows/distribution-check.json",
+        "sha256": "a5fef9ce1a8799b30fc3ee72474bb5b0584eea0d4d7bbf3a123613566dabe80f"
+      },
+      "ime": {
+        "system-ime-ms-ime": {
+          "accepted": false,
+          "completed_ui_languages": [],
+          "artifact": {
+            "path": "out/evidence/p4/p4-edit-native-41828328950/windows/p4/system-ime-ms-ime.json",
+            "sha256": "f5b0d863f2926408f5a0f44be687cceb9ec937d7b4ce2142f3bc1731ca2defe3"
+          }
+        },
+        "system-ime-native-reference": {
+          "accepted": false,
+          "completed_ui_languages": [],
+          "artifact": {
+            "path": "out/evidence/p4/p4-edit-native-41828328950/windows/p4/system-ime-native-reference.json",
+            "sha256": "8961f01d319cf8e78ea75c01852126e50cd6b351d25a74e6b35d99cdac9b951a"
+          }
+        }
+      },
+      "control_profiles": {
+        "control-content-focus": {
+          "cases": 28,
+          "mismatches": 0,
+          "editClientCases": 0,
+          "editClientMismatches": 0,
+          "windowsShown": true,
+          "artifact": {
+            "path": "out/evidence/p4/p4-edit-native-41828328950/windows/p4/control-content-focus/report.json",
+            "sha256": "3d0b832b5be766656651ab9ff9fe8196177ef1c23fa42c3ddba37be826463c7d"
+          }
+        },
+        "control-content-visible": {
+          "cases": 68,
+          "mismatches": 0,
+          "editClientCases": 0,
+          "editClientMismatches": 0,
+          "windowsShown": true,
+          "artifact": {
+            "path": "out/evidence/p4/p4-edit-native-41828328950/windows/p4/control-content-visible/report.json",
+            "sha256": "1dd0fe76492cacb113c170ef95e68afaf4b887aad823f272d7c53c08945b6442"
+          }
+        },
+        "control-edit-focus": {
+          "cases": 3450,
+          "mismatches": 3450,
+          "editClientCases": 0,
+          "editClientMismatches": 0,
+          "windowsShown": true,
+          "artifact": {
+            "path": "out/evidence/p4/p4-edit-native-41828328950/windows/p4/control-edit-focus/report.json",
+            "sha256": "0116cb4b88098b4ab52714121f84f2974befb2c62f1a8ce76e4afc2cf9427866"
+          }
+        },
+        "control-edit-visible": {
+          "cases": 4600,
+          "mismatches": 0,
+          "editClientCases": 0,
+          "editClientMismatches": 0,
+          "windowsShown": true,
+          "artifact": {
+            "path": "out/evidence/p4/p4-edit-native-41828328950/windows/p4/control-edit-visible/report.json",
+            "sha256": "2018afc4e95e6246d801068d6a9ff28d916b62d38cc9254f2d620befde90f42b"
+          }
+        },
+        "control-list-focus": {
+          "cases": 6,
+          "mismatches": 0,
+          "editClientCases": 0,
+          "editClientMismatches": 0,
+          "windowsShown": true,
+          "artifact": {
+            "path": "out/evidence/p4/p4-edit-native-41828328950/windows/p4/control-list-focus/report.json",
+            "sha256": "ef93a9adf4409f7248e7961f0ef7f42e3c30035408796833195964d6ab4d6835"
+          }
+        },
+        "control-style": {
+          "cases": 574,
+          "mismatches": 0,
+          "editClientCases": 460,
+          "editClientMismatches": 0,
+          "windowsShown": false,
+          "artifact": {
+            "path": "out/evidence/p4/p4-edit-native-41828328950/windows/p4/control-style/report.json",
+            "sha256": "c7762fa4770ebf1de89f9482ce7fd7129bf75880736c755b565dafa0117bf4a9"
+          }
+        },
+        "control-style-nonclient": {
+          "cases": 460,
+          "mismatches": 0,
+          "editClientCases": 0,
+          "editClientMismatches": 0,
+          "windowsShown": true,
+          "artifact": {
+            "path": "out/evidence/p4/p4-edit-native-41828328950/windows/p4/control-style-nonclient/report.json",
+            "sha256": "957a500e39204996b17025b1215ddaa0ae863d3c6aa5a62c81b6fb6f4f467ff1"
+          }
+        }
+      }
+    },
+    "macos": {
+      "ordinary": {
+        "name": "Darwin-c++",
+        "tests": "72",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "iad20-fj919-cf89e3c9-9e57-4dad-9c13-811cd082d50d-0AC9D4BA1476.local",
+        "time": "139",
+        "timestamp": "2026-11-04T12:20:57",
+        "artifact": {
+          "path": "out/evidence/p4/p4-edit-native-41828328950/macos/p4/p4.xml",
+          "sha256": "78c144e697e2fd7e55152cafe71dda865aef937b2674e72f2798831d7257a1b2"
+        },
+        "failed": []
+      },
+      "scene_visual": {
+        "name": "Darwin-c++",
+        "tests": "1",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "iad20-fj919-cf89e3c9-9e57-4dad-9c13-811cd082d50d-0AC9D4BA1476.local",
+        "time": "1",
+        "timestamp": "2026-11-04T12:23:42",
+        "artifact": {
+          "path": "out/evidence/p4/p4-edit-native-41828328950/macos/p4/native-reference.xml",
+          "sha256": "f9ec76517396593e34cfb00d8937af06dc262ccbd9f77897c620caa1c1b03f0e"
+        },
+        "failed": []
+      },
+      "distribution": {
+        "path": "out/evidence/p4/p4-edit-native-41828328950/macos/distribution-check.json",
+        "sha256": "f78d74abea39eec47e19296bddda0e80c2505eeff0b74dcca885d14820cf856b"
+      },
+      "ime": {
+        "system-ime-kotoeri": {
+          "accepted": true,
+          "completed_ui_languages": [
+            "en",
+            "ja",
+            "zh_CN"
+          ],
+          "artifact": {
+            "path": "out/evidence/p4/p4-edit-native-41828328950/macos/p4/system-ime-kotoeri.json",
+            "sha256": "b856023fb08788dbac2627a3c743ef5ef2febbea520e75a864c2f9484e0a950c"
+          }
+        }
+      },
+      "control_profiles": {}
+    },
+    "linux": {
+      "ordinary": {
+        "name": "Linux-c++",
+        "tests": "77",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "runnervmcwoy2",
+        "time": "432",
+        "timestamp": "2026-11-04T12:21:30",
+        "artifact": {
+          "path": "out/evidence/p4/p4-edit-native-41828328950/linux/p4/p4.xml",
+          "sha256": "e63adebe55cb268d163e462af7e20399e780c58db8182a0345314665884e99c3"
+        },
+        "failed": []
+      },
+      "scene_visual": {
+        "name": "Linux-c++",
+        "tests": "1",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "runnervmcwoy2",
+        "time": "1",
+        "timestamp": "2026-11-04T12:29:08",
+        "artifact": {
+          "path": "out/evidence/p4/p4-edit-native-41828328950/linux/p4/native-reference.xml",
+          "sha256": "1d3302bf0b1b46c6796ea9fa49da1e163dd1ed20311c709f5c185a9fa56c3731"
+        },
+        "failed": []
+      },
+      "distribution": {
+        "path": "out/evidence/p4/p4-edit-native-41828328950/linux/distribution-check.json",
+        "sha256": "04fafb5b949bd4fbe142eeb3d1c3381f9534da2ee4627dde92fa8489af4d3269"
+      },
+      "ime": {
+        "system-ime-anthy": {
+          "accepted": true,
+          "completed_ui_languages": [
+            "en",
+            "ja",
+            "zh_CN"
+          ],
+          "artifact": {
+            "path": "out/evidence/p4/p4-edit-native-41828328950/linux/p4/system-ime-anthy.json",
+            "sha256": "67b1ef3b0f760c6e7d977fc84e9fdb0136b323e714c416708a5d555b06d00d80"
+          }
+        },
+        "system-ime": {
+          "accepted": true,
+          "completed_ui_languages": [
+            "en",
+            "ja",
+            "zh_CN"
+          ],
+          "artifact": {
+            "path": "out/evidence/p4/p4-edit-native-41828328950/linux/p4/system-ime.json",
+            "sha256": "193c6880710ca5de85340eea03adcd9043ac72eebb25fed6f08206c6df8bc605"
+          }
+        }
+      },
+      "control_profiles": {}
+    }
+  },
+  "windows_analysis": {
+    "border": "Correct native DrawThemeBackground EP_EDITBORDER_NOSCROLL/EPSN repair: all 460 empty and 4600 populated shown EDIT states exact.",
+    "active_edit": "3450 active states failed: glyph/caret origin, inversion, right-edge scrolling and clipping. Saved native PNGs used for never-shown local replay; new shown qualification still required.",
+    "native_reference": "Win32 EDIT without QApplication/QPA composed, converted, committed and canceled Japanese; test-owned DeactivateProfile blocked in imjpapi. This does not qualify ordinary application teardown.",
+    "qt_scenario": "Ran after the failed native reference; conversion failed. Shared broker contamination is possible, not established. No new Qt lifecycle conclusion.",
+    "followup": "Editor runs first; natural-exit tests no longer inject DeactivateProfile (selection is not a reference-counted acquisition). Earlier natural-destruction failures remain historical evidence."
+  }
+}

@@ -44,6 +44,11 @@ from the frontend's business commands and paint code.
 The local 2026-11-04 run passed **144,135** independent navigation, selection,
 read-only and undo/redo comparisons, plus 30 IME-preedit filter-bypass checks,
 without showing a window. Complete cross-platform qualification remains pending.
+The subsequent Windows multiline corpus adds 576 independent native observations
+and **864** three-language replay checks for Up/Down, Home/End and PageUp/PageDown,
+including Shift selections and clamped page overlap. See the
+[active EDIT continuation](P4_ACTIVE_EDIT_QUALIFICATION.md) for exact scope.
+
 This result does not qualify shown focus/caret paint, mouse word selection,
 IME candidate placement or actual monitor/DPI transitions, and does not accept P4.
 

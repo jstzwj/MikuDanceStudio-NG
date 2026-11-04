@@ -3,6 +3,12 @@
 Status: partial qualification. This record does not accept P4/C1 or complete
 EDIT appearance and input behavior.
 
+Latest: the [active EDIT continuation](P4_ACTIVE_EDIT_QUALIFICATION.md) records
+the corrected shown border qualification (5,060 exact states), active-field
+repairs, never-shown capture replays, multiline page behavior and current IME
+limitations. Historical remaining-qualification paragraphs below retain the
+scope and failures of their original revisions.
+
 The subsequent multiline layout repair uses the original English/Japanese
 resources' `EM_GETRECT` and `EM_POSFROMCHAR`, observed without showing or focusing
 windows. The original client origin is `(6, 3)` in outer-control pixels and the

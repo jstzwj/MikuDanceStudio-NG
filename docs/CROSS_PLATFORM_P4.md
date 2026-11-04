@@ -10,33 +10,41 @@ visual equivalence in place of the strict RGB profile; the [visual policy](P4_VI
 retains strict diagnostics and separate copy/depth contracts. Windows IME and the
 remaining shown UI/font/DPI checks must still pass before P4 can be accepted.
 
-The fresh local suite passes **82/82** P4 tests, followed by a passing navigation
+The fresh local suite passes **84/84** P4 tests, followed by a passing navigation
 and visual-counterexample recheck. Release packaging and relocated startup pass.
 Five local full-composite profiles (DX11/DX12 hardware and WARP; Vulkan hardware)
 pass the visual policy with byte-exact repeats. Source, binary and capture hashes
-are recorded in [current local evidence](evidence/p4-visual-input-local.json).
+are recorded in [current local UI evidence](evidence/p4-active-edit-local.json); the five render profiles
+are recorded separately in [scene evidence](evidence/p4-visual-input-local.json).
 Native Windows IME shutdown and complete shown UI qualification remain pending;
 they are not included in that 82-test result.
 
-Consolidated run [41810541646](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41810541646)
-passes the complete-scene visual gate on **Windows WARP, Metal and software
-Vulkan**; all six new screenshots were reviewed. macOS passes 72/72 ordinary
-tests. Windows passes 81/82 and Linux 76/77: the new frame-budget test omitted
-the explicit CI backend/driver/library options. That test-host defect is now
-corrected and locally rechecked on DX12 WARP; those two CI jobs are not described
-as passing. Linux libpinyin/Anthy and macOS Kotoeri pass all three languages and
-natural exit; all three relocated packages pass.
+Consolidated run [41828328950](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41828328950)
+passes **83/83 Windows, 77/77 Linux and 72/72 macOS** ordinary tests, the
+complete-scene visual gates on Windows WARP/Metal/software Vulkan and all three
+relocated packages. The frame-budget test-host correction is now remotely
+confirmed. Linux libpinyin/Anthy and macOS Kotoeri pass all three languages and
+natural exit. The preceding run's results remain in the
+[historical evidence](evidence/p4-visual-input-41810541646.json).
 
-Windows shown lists/combos and focus profiles pass 102 exact cases. All 460 empty
-and 4,600 populated EDIT cases differ only at the outermost one-pixel border;
-their entire interior, including glyphs, is identical. Native edges have distinct
-normal/disabled/hot colors while the current theme-property query returns one
-fallback color. This remains an appearance defect, with all original screenshots
-retained. Native Windows IME still blocks inside Microsoft IME, now during the
-test-owned TSF deactivation; the modern compatibility manifest did not fix it.
-Neither failure is waived. Subsequent local multiline geometry, lifecycle and
-frame-budget rechecks are scoped in the [run evidence](evidence/p4-visual-input-41810541646.json).
-There was one consolidated dispatch; no additional remote rerun is claimed.
+Windows passes 460 empty and 4,600 populated **shown** EDIT cases exactly,
+including the repaired theme border, plus 102 shown list/combo/focus states.
+The newly added 3,450 active EDIT cases failed; local fixes now pass all 3,450
+saved native client replays without exposure. Glyph/caret geometry, inversion,
+horizontal-scroll margins and clipping were corrected. Fresh shown qualification
+is still required. Multiline navigation adds 864 passing local comparisons.
+Packaged Noto line metrics and the original Japanese shadow-off caption are
+corrected; cross-platform updated-font qualification remains separate.
+
+The pure Win32 EDIT reference, without QApplication/QPA, composed/converted/
+committed/canceled Japanese but then blocked in its explicit test-owned TSF
+deactivation. The subsequent Qt conversion failed; neither test accepts Windows
+IME. Follow-up qualification runs the editor first and exercises natural teardown
+without an injected DeactivateProfile. Existing genuine native-window destruction
+failures remain historical evidence. Exact scope, artifact hashes and remaining
+physical DPI/shown UI requirements are in the
+[active EDIT continuation](P4_ACTIVE_EDIT_QUALIFICATION.md) and
+[current run evidence](evidence/p4-edit-native-41828328950.json).
 
 The latest [PMM compatibility repair and gap review](P4_PMM_COMPATIBILITY.md)
 records three actual v1 projects, nine backend/language checks and nine imported
@@ -265,7 +273,7 @@ This closes that command's integration gap, not the complete clipboard/input gat
 |---|---|
 | Shared editing and serialization | Generated roundtrips, independent command/kernel gates, 84 global and 112 model clipboard-chain checkpoints passed; public frozen chain regression included |
 | Qt original layout and multilingual interface | Initial three-platform command/language regression passed; full original parity pending |
-| C1 scene rendering | Independent original baseline and composite each pass 48 explicit native-hardware cases on DX11/DX12/Vulkan; uniform material Alpha drift fixed; remaining WARP/Metal/software-Vulkan reference differences remain open |
+| C1 scene rendering | Independent original baseline and composite each pass 48 explicit native-hardware cases; Windows WARP/Metal/software Vulkan now pass the user-approved full-scene visual policy. Strict RGB differences remain diagnostic; copy/repeat/depth/resource gates retain their existing criteria |
 | WAV and synchronization | Qualified Windows silent profile and new CoreAudio/PulseAudio 120-second runs passed; latest Windows hosted runner has no audio device and reports unavailable; Linux uses an explicit 50 ms virtual queue; physical speaker latency and the default two-second cold null-sink profile are unqualified |
 | Fixed-step image sequence export and cancellation | Generated 30fps sequence, strict repeat and cancellation passed on three platforms |
 | Three-platform open/edit/play/save/reopen/export | Combined PMD/PMX, accessory/screen, WAV, physics, all-key-pool edit/save/reopen/export workflow passed at c097942; independent output qualification remains separate |
