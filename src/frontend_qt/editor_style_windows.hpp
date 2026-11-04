@@ -9,6 +9,7 @@ class QStyleOptionButton;
 class QFont;
 class QString;
 class QImage;
+class QWidget;
 namespace mikudancestudio::ui {
 struct TrackbarGeometry;
 }
@@ -23,8 +24,9 @@ bool DrawWindowsComboText(QImage&, const QRect&, const QFont&, const QString&, b
                           bool keyboardFocus);
 bool DrawWindowsButton(QPainter&, const QStyleOptionButton&, const QFont&,
                        const QRect* indicator = nullptr, bool radio = false,
-                       bool showMnemonic = false);
-bool DrawWindowsTrackbar(QPainter&, const QStyleOptionSlider&, const ui::TrackbarGeometry&);
+                       bool showMnemonic = false, const QWidget* widget = nullptr);
+bool DrawWindowsTrackbar(QPainter&, const QStyleOptionSlider&, const ui::TrackbarGeometry&,
+                         const QWidget* widget = nullptr);
 void ConfigureWindowsListPalette(QPalette& palette);
 bool DrawWindowsButtonIndicator(QPainter&, const QRect&, const QColor&, QStyle::State, bool radio);
 void DrawWindowsWindowBorder(QPainter&, const QRect&);

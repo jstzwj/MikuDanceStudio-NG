@@ -5,6 +5,17 @@
 #include <QString>
 
 namespace mikudancestudio::qt {
+inline QString ModelDisplayLabel(const editor::EditorSession& session, std::uint8_t slot,
+                                 bool english) {
+    for (const auto& model : session.Document().models)
+        if (model.slot == slot)
+            return QString::fromUtf8(
+                editor::EnglishNameDisplay(
+                    english ? std::string(model.sourceName.begin(), model.sourceName.end())
+                            : std::string(model.name.begin(), model.name.end()))
+                    .c_str());
+    return {};
+}
 inline QString ModelTrackLabel(const editor::EditorSession& session, std::uint8_t slot,
                                unsigned index, bool morph, bool english,
                                bool documentIndex = false) {

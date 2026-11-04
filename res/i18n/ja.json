@@ -758,5 +758,10 @@
   "dialog.physics.angle_limit": "Bulletの仕様上、y軸の角度制限は-90<y<90の間しか設定できません",
   "dialog.physics.add_title": "ジョイント追加",
   "dialog.physics.no_body": "剛体が一つもありません\n先に剛体を追加して下さい",
-  "dialog.physics.capacity": "物理レコード数が上限です。"
+  "dialog.physics.capacity": "物理レコード数が上限です。",
+  "viewport.camera_light_accessory": "ｶﾒﾗ･照明･ｱｸｾｻﾘ",
+  "viewport.playing": "再生中",
+  "viewport.camera_position": "カメラ中心",
+  "viewport.bone_position": "ボーン位置",
+  "viewport.angle": "角度"
 }

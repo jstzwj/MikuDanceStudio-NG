@@ -758,5 +758,10 @@
   "dialog.physics.angle_limit": "y-axis limit must between -90 to 90",
   "dialog.physics.add_title": "add joint",
   "dialog.physics.no_body": "There is no Body.\nPlease add body first.",
-  "dialog.physics.capacity": "Physics record capacity reached."
+  "dialog.physics.capacity": "Physics record capacity reached.",
+  "viewport.camera_light_accessory": "camera light accessary",
+  "viewport.playing": "Playing",
+  "viewport.camera_position": "camera",
+  "viewport.bone_position": "bone place",
+  "viewport.angle": "angle"
 }

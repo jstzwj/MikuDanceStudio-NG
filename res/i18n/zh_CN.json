@@ -758,5 +758,10 @@
   "dialog.physics.angle_limit": "y 轴角度限制必须在 -90 到 90 度之间",
   "dialog.physics.add_title": "添加约束",
   "dialog.physics.no_body": "没有刚体，请先添加刚体。",
-  "dialog.physics.capacity": "物理记录数量已达上限。"
+  "dialog.physics.capacity": "物理记录数量已达上限。",
+  "viewport.camera_light_accessory": "相机・光照・附件",
+  "viewport.playing": "播放中",
+  "viewport.camera_position": "相机中心",
+  "viewport.bone_position": "骨骼位置",
+  "viewport.angle": "角度"
 }

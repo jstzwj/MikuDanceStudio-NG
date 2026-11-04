@@ -30,6 +30,11 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/timeline.cpp"
         "${root}/src/frontend_qt/interpolation.cpp"
         "${root}/src/frontend_qt/editor_window.cpp"
+        "${root}/src/frontend_qt/editor_canvas.cpp"
+        "${root}/src/frontend_qt/editor_viewport.cpp"
+        "${root}/src/frontend_qt/editor_files.cpp"
+        "${root}/src/frontend_qt/editor_dialogs.cpp"
+        "${root}/src/frontend_qt/editor_input.cpp"
         "${root}/src/frontend_qt/editor_font.cpp"
         "${root}/src/frontend_qt/editor_style.cpp"
         "${root}/src/frontend_qt/editor_menus.cpp"
@@ -100,6 +105,14 @@ function(mds_add_qt_editor)
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${root}/res/assets" "$<TARGET_FILE_DIR:MikuDanceStudioNG>/assets")
     include("${root}/cmake/QtDistribution.cmake")
     if(BUILD_TESTING)
+        qt_add_executable(qt_editor_chrome_test "${root}/tests/qt_editor_chrome_test.cpp")
+        target_link_libraries(qt_editor_chrome_test PRIVATE mikudancestudio_frontend_qt)
+        if(WIN32)
+            target_sources(qt_editor_chrome_test PRIVATE "${root}/res/frontend_qt/windows.manifest")
+        endif()
+        add_test(NAME qt_editor_chrome COMMAND qt_editor_chrome_test "${root}/res/assets" "${CMAKE_BINARY_DIR}/editor-chrome")
+        set_tests_properties(qt_editor_chrome PROPERTIES LABELS "p4;offscreen;qt;appearance"
+            TIMEOUT 90 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_editor_font_test "${root}/tests/qt_editor_font_test.cpp")
         target_link_libraries(qt_editor_font_test PRIVATE mikudancestudio_frontend_qt)
         qt_add_executable(qt_system_ime_test EXCLUDE_FROM_ALL "${root}/tests/qt_system_ime_test.cpp")

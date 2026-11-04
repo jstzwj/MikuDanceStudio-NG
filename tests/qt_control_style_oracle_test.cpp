@@ -151,42 +151,77 @@ unsigned TrackbarGeometryCorpus() {
                                         nullptr, nullptr, nullptr);
     Check(parent != nullptr, "hidden geometry parent");
     unsigned cases = 0;
-    for (const int width : {64, 170, 193, 513})
-        for (const int height : {11, 12, 15, 19, 20, 23, 24, 26, 32})
-            for (const bool ticks : {false, true}) {
-                const auto control = CreateWindowExW(
-                    0, TRACKBAR_CLASSW, L"", WS_CHILD | WS_VISIBLE | (ticks ? 0 : TBS_NOTICKS), 0,
-                    0, width, height, parent, nullptr, nullptr, nullptr);
-                Check(control && !IsWindowVisible(control), "never-shown geometry trackbar");
-                for (const auto range :
-                     {std::pair{0, 100}, std::pair{0, 200}, std::pair{-100, 100}}) {
-                    SendMessageW(control, TBM_SETRANGE, FALSE, MAKELONG(range.first, range.second));
-                    for (const int percent : {0, 37, 50, 100}) {
-                        const int value =
-                            range.first + (range.second - range.first) * percent / 100;
-                        SendMessageW(control, TBM_SETPOS, TRUE, value);
-                        const auto geometry = mikudancestudio::ui::DialogTrackbarGeometry(
-                            width, height, ticks, range.first, range.second, value);
-                        for (const bool thumb : {false, true}) {
-                            RECT r{};
-                            SendMessageW(control, thumb ? TBM_GETTHUMBRECT : TBM_GETCHANNELRECT, 0,
-                                         reinterpret_cast<LPARAM>(&r));
-                            const auto expected = thumb ? geometry.thumb : geometry.channel;
-                            if (r.left != expected.x || r.top != expected.y ||
-                                r.right - r.left != expected.width ||
-                                r.bottom - r.top != expected.height) {
-                                std::fprintf(
-                                    stderr,
-                                    "trackbar geometry %dx%d ticks=%d range=%d..%d value=%d thumb=%d\n",
-                                    width, height, ticks, range.first, range.second, value, thumb);
-                                Check(false, "independent native trackbar geometry corpus");
+    for (const bool vertical : {false, true})
+        for (const int width : {64, 170, 193, 513})
+            for (const int height : {11, 12, 15, 19, 20, 23, 24, 26, 32})
+                for (const bool ticks : {false, true}) {
+                    const auto control =
+                        CreateWindowExW(0, TRACKBAR_CLASSW, L"",
+                                        WS_CHILD | WS_VISIBLE | (ticks ? 0 : TBS_NOTICKS) |
+                                            (vertical ? TBS_VERT : 0),
+                                        0, 0, vertical ? height : width, vertical ? width : height,
+                                        parent, nullptr, nullptr, nullptr);
+                    Check(control && !IsWindowVisible(control), "never-shown geometry trackbar");
+                    QSlider slider(vertical ? Qt::Vertical : Qt::Horizontal);
+                    slider.resize(vertical ? height : width, vertical ? width : height);
+                    slider.setProperty("mmdNativeTrackbar", true);
+                    for (const auto range :
+                         {std::pair{0, 100}, std::pair{0, 200}, std::pair{-100, 100}}) {
+                        SendMessageW(control, TBM_SETRANGE, FALSE,
+                                     MAKELONG(range.first, range.second));
+                        for (const int percent : {0, 37, 50, 100}) {
+                            const int value =
+                                range.first + (range.second - range.first) * percent / 100;
+                            SendMessageW(control, TBM_SETPOS, TRUE, value);
+                            const auto geometry = mikudancestudio::ui::DialogTrackbarGeometry(
+                                width, height, ticks, range.first, range.second, value);
+                            for (const bool thumb : {false, true}) {
+                                RECT r{};
+                                SendMessageW(control, thumb ? TBM_GETTHUMBRECT : TBM_GETCHANNELRECT,
+                                             0, reinterpret_cast<LPARAM>(&r));
+                                // TBM_GETCHANNELRECT documents horizontal coordinates even
+                                // for TBS_VERT; GETTHUMBRECT already returns client coordinates.
+                                if (vertical && !thumb) {
+                                    std::swap(r.left, r.top);
+                                    std::swap(r.right, r.bottom);
+                                }
+                                auto expected = thumb ? geometry.thumb : geometry.channel;
+                                if (vertical)
+                                    expected = {expected.y, expected.x, expected.height,
+                                                expected.width};
+                                if (r.left != expected.x || r.top != expected.y ||
+                                    r.right - r.left != expected.width ||
+                                    r.bottom - r.top != expected.height) {
+                                    std::fprintf(
+                                        stderr,
+                                        "trackbar geometry %dx%d vertical=%d ticks=%d range=%d..%d value=%d thumb=%d native=%ld,%ld,%ld,%ld expected=%d,%d,%d,%d\n",
+                                        width, height, vertical, ticks, range.first, range.second,
+                                        value, thumb, r.left, r.top, r.right - r.left,
+                                        r.bottom - r.top, expected.x, expected.y, expected.width,
+                                        expected.height);
+                                    Check(false, "independent native trackbar geometry corpus");
+                                }
+                                QStyleOptionSlider option;
+                                option.initFrom(&slider);
+                                option.orientation = slider.orientation();
+                                option.minimum = range.first;
+                                option.maximum = range.second;
+                                option.sliderPosition = value;
+                                option.tickPosition =
+                                    ticks ? QSlider::TicksBelow : QSlider::NoTicks;
+                                option.upsideDown = false;
+                                Check(slider.style()->subControlRect(
+                                          QStyle::CC_Slider, &option,
+                                          thumb ? QStyle::SC_SliderHandle : QStyle::SC_SliderGroove,
+                                          &slider) ==
+                                          QRect(r.left, r.top, r.right - r.left, r.bottom - r.top),
+                                      "Qt trackbar geometry matches native orientation");
                             }
+                            ++cases;
                         }
-                        ++cases;
                     }
+                    DestroyWindow(control);
                 }
-                DestroyWindow(control);
-            }
     DestroyWindow(parent);
     return cases;
 }
@@ -200,15 +235,16 @@ unsigned ButtonTextGeometryCorpus(const std::filesystem::path& output) {
                                       0, 0, DEFAULT_QUALITY, 0, family);
         Check(font != nullptr, "button text corpus font");
         for (int height = 12; height <= 24; ++height)
-            for (const int kind : {0, 1, 2})
+            for (const int kind : {0, 1, 2, 3})
                 for (const auto caption : {L"ABC", L"\u30b8\u30e7\u30a4\u30f3\u30c8"}) {
-                    const bool radio = kind == 1, push = kind == 2;
+                    const bool radio = kind == 1, pushLike = kind == 3, push = kind >= 2;
                     const auto control =
                         CreateWindowExW(0, L"BUTTON", caption,
                                         WS_CHILD | WS_VISIBLE |
-                                            (push    ? BS_PUSHBUTTON
-                                             : radio ? BS_AUTORADIOBUTTON
-                                                     : BS_AUTOCHECKBOX),
+                                            (pushLike ? BS_AUTOCHECKBOX | BS_PUSHLIKE
+                                             : push   ? BS_PUSHBUTTON
+                                             : radio  ? BS_AUTORADIOBUTTON
+                                                      : BS_AUTOCHECKBOX),
                                         0, 0, 100, height, parent, nullptr, nullptr, nullptr);
                     Check(control && !IsWindowVisible(control), "never-shown text corpus control");
                     SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font), FALSE);
@@ -219,13 +255,17 @@ unsigned ButtonTextGeometryCorpus(const std::filesystem::path& output) {
                         : radio ? static_cast<QAbstractButton*>(new QRadioButton)
                                 : static_cast<QAbstractButton*>(new QCheckBox));
                     button->setText(QString::fromWCharArray(caption));
+                    button->setCheckable(pushLike);
                     button->setProperty("mmdControlId", 1);
                     QFont qfont(QString::fromWCharArray(family));
                     qfont.setPixelSize(12);
                     button->setFont(qfont);
                     button->resize(100, height);
-                    for (const int state : {0, 1, 2}) {
-                        const bool enabled = state != 1, focused = state == 2;
+                    for (int state = 0; state < (pushLike ? 6 : 3); ++state) {
+                        const bool enabled = state % 3 != 1, focused = state % 3 == 2;
+                        button->setChecked(state >= 3);
+                        SendMessageW(control, BM_SETCHECK, state >= 3 ? BST_CHECKED : BST_UNCHECKED,
+                                     0);
                         button->setEnabled(enabled);
                         EnableWindow(control, enabled);
                         SendMessageW(control, focused ? WM_SETFOCUS : WM_KILLFOCUS, 0, 0);
@@ -240,6 +280,8 @@ unsigned ButtonTextGeometryCorpus(const std::filesystem::path& output) {
                             option.text = button->text();
                             option.state |=
                                 QStyle::State_HasFocus | QStyle::State_KeyboardFocusChange;
+                            if (button->isChecked())
+                                option.state |= QStyle::State_On;
                             QPainter painter(&actual);
                             button->style()->drawControl(push    ? QStyle::CE_PushButton
                                                          : radio ? QStyle::CE_RadioButton
@@ -284,8 +326,9 @@ int main(int argc, char** argv) try {
                       QString::fromLocal8Bit(argv[1]) == "--isolated-nonclient" ||
                       QString::fromLocal8Bit(argv[1]) == "--isolated-content" || focused);
     const bool text = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--text";
-    const bool content = argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--content" ||
-                                      QString::fromLocal8Bit(argv[1]) == "--isolated-content" || focused);
+    const bool content =
+        argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--content" ||
+                      QString::fromLocal8Bit(argv[1]) == "--isolated-content" || focused);
     Check(argc == 2 || visible || text || content || editText,
           "usage: [--isolated-nonclient|--text|--content] output-directory");
     Check(!visible || (qEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
@@ -684,10 +727,12 @@ int main(int argc, char** argv) try {
                 combo->clear();
                 SendMessageW(control, CB_RESETCONTENT, 0, 0);
                 if (content) {
-                    const auto caption = templateIndex % 2 ? QStringLiteral("\u65e5\u672c\u8a9e ABC")
-                                                           : QString("ABC 012345");
+                    const auto caption = templateIndex % 2
+                                             ? QStringLiteral("\u65e5\u672c\u8a9e ABC")
+                                             : QString("ABC 012345");
                     combo->addItem(caption);
-                    SendMessageW(control, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(caption.toStdWString().c_str()));
+                    SendMessageW(control, CB_ADDSTRING, 0,
+                                 reinterpret_cast<LPARAM>(caption.toStdWString().c_str()));
                     SendMessageW(control, CB_SETCURSEL, 0, 0);
                 }
             }

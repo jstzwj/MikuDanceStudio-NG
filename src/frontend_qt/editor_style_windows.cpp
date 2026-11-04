@@ -5,6 +5,7 @@
 #include <QStyleOptionSlider>
 #include <QStyleOptionButton>
 #include <QFontInfo>
+#include <QWidget>
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
@@ -14,6 +15,19 @@
 
 namespace mikudancestudio::qt {
 namespace {
+void ControlBackground(QImage& image, const QPalette& palette, qreal ratio, const QWidget* widget) {
+    image.setDevicePixelRatio(ratio);
+    image.fill(palette.window().color());
+    if (widget && widget->parentWidget() &&
+        widget->parentWidget()->property("mmdEditorCanvas").toBool()) {
+        // Render only our canvas background, never its children or the screen.
+        // Native controls inherit that panel gradient instead of an opaque
+        // default dialog rectangle around the thumb/button corners.
+        QPainter painter(&image);
+        widget->parentWidget()->render(&painter, {}, QRegion(widget->geometry()),
+                                       QWidget::DrawWindowBackground);
+    }
+}
 class WindowsCanvas {
 public:
     HDC dc = nullptr;
@@ -120,7 +134,8 @@ bool DrawControlBorder(QPainter& painter, const QRect& rect, QStyle::State state
     if (!theme)
         return false;
     const int partState = !(state & QStyle::State_Enabled) ? LBPSN_DISABLED
-                          : state & QStyle::State_HasFocus ? LBPSN_FOCUSED : LBPSN_NORMAL;
+                          : state & QStyle::State_HasFocus ? LBPSN_FOCUSED
+                                                           : LBPSN_NORMAL;
     COLORREF color{};
     const bool painted = SUCCEEDED(GetThemeColor(theme, part, partState, TMT_BORDERCOLOR, &color));
     CloseThemeData(theme);
@@ -246,7 +261,8 @@ bool DrawWindowsListRow(QPainter& painter, const QRect& rect, const QFont& font,
     return painted;
 }
 bool DrawWindowsButton(QPainter& painter, const QStyleOptionButton& option, const QFont& font,
-                       const QRect* indicator, bool radio, bool showMnemonic) {
+                       const QRect* indicator, bool radio, bool showMnemonic,
+                       const QWidget* widget) {
     const auto ratio = painter.device()->devicePixelRatioF();
     const int width = qRound(option.rect.width() * ratio),
               height = qRound(option.rect.height() * ratio);
@@ -272,9 +288,12 @@ bool DrawWindowsButton(QPainter& painter, const QStyleOptionButton& option, cons
         const auto previous = SelectObject(dc, bitmap);
         QImage image(static_cast<unsigned char*>(bits), width, height, width * 4,
                      QImage::Format_RGB32);
-        image.fill(option.palette.window().color());
+        ControlBackground(image, option.palette, ratio, widget);
         RECT rectangle{0, 0, width, height};
-        int state = !(option.state & QStyle::State_Enabled)               ? PBS_DISABLED
+        // A checked BS_PUSHLIKE retains its pressed theme even when disabled.
+        // Its input remains disabled; only the native visual state has priority.
+        int state = option.state & QStyle::State_On                       ? PBS_PRESSED
+                    : !(option.state & QStyle::State_Enabled)             ? PBS_DISABLED
                     : option.state & QStyle::State_Sunken                 ? PBS_PRESSED
                     : option.state & QStyle::State_MouseOver              ? PBS_HOT
                     : option.features & QStyleOptionButton::DefaultButton ? PBS_DEFAULTED
@@ -372,7 +391,7 @@ bool DrawWindowsButton(QPainter& painter, const QStyleOptionButton& option, cons
     return painted;
 }
 bool DrawWindowsTrackbar(QPainter& painter, const QStyleOptionSlider& option,
-                         const ui::TrackbarGeometry& geometry) {
+                         const ui::TrackbarGeometry& geometry, const QWidget* widget) {
     const auto ratio = painter.device()->devicePixelRatioF();
     const int width = qRound(option.rect.width() * ratio);
     const int height = qRound(option.rect.height() * ratio);
@@ -397,7 +416,7 @@ bool DrawWindowsTrackbar(QPainter& painter, const QStyleOptionSlider& option,
         const auto previous = SelectObject(dc, bitmap);
         QImage image(static_cast<unsigned char*>(bits), width, height, width * 4,
                      QImage::Format_RGB32);
-        image.fill(option.palette.window().color());
+        ControlBackground(image, option.palette, ratio, widget);
         const auto rectangle = [&](const ui::TrackbarRectangle& r) {
             return RECT{qRound(r.x * ratio), qRound(r.y * ratio), qRound((r.x + r.width) * ratio),
                         qRound((r.y + r.height) * ratio)};
@@ -410,18 +429,22 @@ bool DrawWindowsTrackbar(QPainter& painter, const QStyleOptionSlider& option,
                                   (option.state & QStyle::State_MouseOver)
                               ? TUS_HOT
                               : TUS_NORMAL;
-        painted =
-            SUCCEEDED(DrawThemeBackground(theme, dc, TKP_TRACK, TRS_NORMAL, &channel, nullptr));
+        const bool vertical = option.orientation == Qt::Vertical;
+        painted = SUCCEEDED(DrawThemeBackground(theme, dc, vertical ? TKP_TRACKVERT : TKP_TRACK,
+                                                TRS_NORMAL, &channel, nullptr));
         if (option.tickPosition != QSlider::NoTicks) {
             COLORREF color = GetSysColor(COLOR_3DSHADOW);
             GetThemeColor(theme, TKP_TICS, TSS_NORMAL, TMT_COLOR, &color);
             const auto brush = CreateSolidBrush(color);
             const auto tick = [&](int position, bool endpoint) {
-                const auto g =
-                    ui::DialogTrackbarGeometry(option.rect.width(), option.rect.height(), true,
-                                               option.minimum, option.maximum, position);
+                const auto g = ui::DialogTrackbarGeometry(
+                    vertical ? option.rect.height() : option.rect.width(),
+                    vertical ? option.rect.width() : option.rect.height(), true, option.minimum,
+                    option.maximum, position);
                 const int x = g.thumb.x + g.thumb.width / 2, y = g.thumb.y + g.thumb.height + 1;
-                const auto r = rectangle({x, y, 1, endpoint ? 4 : 3});
+                const auto r =
+                    rectangle(vertical ? ui::TrackbarRectangle{y, x, endpoint ? 4 : 3, 1}
+                                       : ui::TrackbarRectangle{x, y, 1, endpoint ? 4 : 3});
                 FillRect(dc, &r, brush);
             };
             tick(option.minimum, true);
@@ -435,8 +458,10 @@ bool DrawWindowsTrackbar(QPainter& painter, const QStyleOptionSlider& option,
         }
         // TBS_NOTICKS suppresses tick marks but retains the downward-pointing
         // horizontal thumb. Qt's NoTicks normally selects a rectangular thumb.
-        painted = painted && SUCCEEDED(DrawThemeBackground(theme, dc, TKP_THUMBBOTTOM, state,
-                                                           &thumb, nullptr));
+        painted =
+            painted &&
+            SUCCEEDED(DrawThemeBackground(theme, dc, vertical ? TKP_THUMBRIGHT : TKP_THUMBBOTTOM,
+                                          state, &thumb, nullptr));
         GdiFlush();
         if (painted) {
             image.setDevicePixelRatio(ratio);

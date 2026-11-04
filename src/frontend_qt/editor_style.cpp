@@ -52,9 +52,12 @@ public:
             if (const auto* slider = qstyleoption_cast<const QStyleOptionSlider*>(option)) {
                 const auto geometry = SliderGeometry(*slider);
                 if (metric == PM_SliderLength)
-                    return geometry.thumb.width;
+                    return slider->orientation == Qt::Vertical ? geometry.thumb.height
+                                                               : geometry.thumb.width;
                 if (metric == PM_SliderSpaceAvailable)
-                    return std::max(0, geometry.channel.width - geometry.thumb.width);
+                    return std::max(0, slider->orientation == Qt::Vertical
+                                           ? geometry.channel.height - geometry.thumb.height
+                                           : geometry.channel.width - geometry.thumb.width);
             }
         return QProxyStyle::pixelMetric(metric, option, widget);
     }
@@ -64,7 +67,7 @@ public:
         if (control == CC_Slider && widget && widget->property("mmdNativeTrackbar").toBool() &&
             baseStyle()->objectName() == "windowsvista")
             if (const auto* slider = qstyleoption_cast<const QStyleOptionSlider*>(option))
-                if (DrawWindowsTrackbar(*painter, *slider, SliderGeometry(*slider)))
+                if (DrawWindowsTrackbar(*painter, *slider, SliderGeometry(*slider), widget))
                     return;
 #endif
         QProxyStyle::drawComplexControl(control, option, painter, widget);
@@ -135,8 +138,7 @@ public:
                     QPainter backdrop(&background);
                     QProxyStyle::drawComplexControl(CC_ComboBox, &blank, &backdrop, widget);
                     backdrop.end();
-                    auto field =
-                        subControlRect(CC_ComboBox, &blank, SC_ComboBoxEditField, widget);
+                    auto field = subControlRect(CC_ComboBox, &blank, SC_ComboBoxEditField, widget);
                     if (DrawWindowsComboText(background, field, widget->font(), combo->currentText,
                                              combo->state & State_Enabled,
                                              combo->state & State_HasFocus)) {
@@ -162,7 +164,7 @@ public:
                 if (DrawWindowsButton(*painter, *button, widget->font(),
                                       element == CE_PushButton ? nullptr : &indicator,
                                       element == CE_RadioButton,
-                                      styleHint(SH_UnderlineShortcut, option, widget)))
+                                      styleHint(SH_UnderlineShortcut, option, widget), widget))
                     return;
             }
 #endif
@@ -188,9 +190,18 @@ private:
             slider.upsideDown
                 ? int(std::int64_t(slider.maximum) + slider.minimum - slider.sliderPosition)
                 : slider.sliderPosition;
-        return ui::DialogTrackbarGeometry(slider.rect.width(), slider.rect.height(),
-                                          slider.tickPosition != QSlider::NoTicks, slider.minimum,
-                                          slider.maximum, position);
+        const bool vertical = slider.orientation == Qt::Vertical;
+        auto geometry = ui::DialogTrackbarGeometry(
+            vertical ? slider.rect.height() : slider.rect.width(),
+            vertical ? slider.rect.width() : slider.rect.height(),
+            slider.tickPosition != QSlider::NoTicks, slider.minimum, slider.maximum, position);
+        if (vertical) {
+            const auto transpose = [](const ui::TrackbarRectangle& r) {
+                return ui::TrackbarRectangle{r.y, r.x, r.height, r.width};
+            };
+            geometry = {transpose(geometry.channel), transpose(geometry.thumb)};
+        }
+        return geometry;
     }
 };
 }

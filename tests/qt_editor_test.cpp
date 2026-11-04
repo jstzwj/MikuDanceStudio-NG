@@ -65,6 +65,16 @@ int main(int argc, char** argv) {
     for (const char* language : {"en", "ja", "zh_CN"}) {
         qt::EditorWindow auxiliary(std::filesystem::absolute(argv[2]), true);
         CHECK(auxiliary.SetLanguage(language));
+        for (const int id :
+             {panel::kPerspectiveCheckbox, panel::kEditOffCheckbox, panel::kEditMode1Checkbox,
+              panel::kEditMode2Checkbox, panel::kSelfShadowCheckbox, panel::kInfoCheckbox,
+              panel::kFrameVolumeCheckbox, panel::kCoordAxisCheckbox}) {
+            auto* toggle = qobject_cast<QPushButton*>(auxiliary.Control(id));
+            CHECK(toggle && toggle->isCheckable());
+        }
+        for (const int id : {panel::kFovSlider, panel::kLightColorSliderR,
+                             panel::kSelfShadowRangeSlider, panel::kFrameVolumeSlider})
+            CHECK(auxiliary.Control(id)->property("mmdNativeTrackbar").toBool());
         auto& session = auxiliary.Session();
         CHECK(session.ImportModel(root / "articulated.pmx", reason));
         CHECK(session.Seek(10, reason));
