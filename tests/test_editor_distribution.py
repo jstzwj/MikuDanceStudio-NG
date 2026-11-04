@@ -65,6 +65,9 @@ def main():
             if result.returncode:
                 break
             current = json.loads(report.read_text(encoding='utf-8'))
+            if not all(size in current.get('applicationIconSizes', [])
+                       for size in ([16, 16], [32, 32])):
+                raise RuntimeError('Relocated package could not load its embedded application icon')
             if current.get('platform') != qpa or current.get('visible'):
                 raise RuntimeError(f'Unexpected package platform/lifecycle: {current}')
             if qpa == 'windows' and current.get('styleBase') != 'windowsvista':

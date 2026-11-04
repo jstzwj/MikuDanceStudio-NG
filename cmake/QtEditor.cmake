@@ -96,8 +96,14 @@ function(mds_add_qt_editor)
         PREFIX "/i18n" BASE "${root}/res/i18n"
         FILES "${root}/res/i18n/en.json" "${root}/res/i18n/ja.json" "${root}/res/i18n/zh_CN.json")
     qt_add_executable(MikuDanceStudioNG "${root}/src/frontend_qt/main.cpp")
+    qt_add_resources(MikuDanceStudioNG application_icon
+        PREFIX "/icons" BASE "${root}/res/assets"
+        FILES "${root}/res/assets/app.ico")
     if(WIN32)
-        target_sources(MikuDanceStudioNG PRIVATE "${root}/res/frontend_qt/windows.manifest")
+        configure_file("${root}/res/frontend_qt/windows.rc.in"
+            "${CMAKE_CURRENT_BINARY_DIR}/generated/qt-editor-icon.rc" @ONLY)
+        target_sources(MikuDanceStudioNG PRIVATE "${root}/res/frontend_qt/windows.manifest"
+            "${CMAKE_CURRENT_BINARY_DIR}/generated/qt-editor-icon.rc")
     endif()
     target_link_libraries(MikuDanceStudioNG PRIVATE mikudancestudio_frontend_qt)
     include("${root}/cmake/EditorFonts.cmake")

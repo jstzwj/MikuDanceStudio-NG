@@ -1,0 +1,2 @@
+// The shell reads this resource without starting Qt or loading its image plugins.
+100 ICON "@root@/res/assets/app.ico"

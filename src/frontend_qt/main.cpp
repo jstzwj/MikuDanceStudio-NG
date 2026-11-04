@@ -2,6 +2,7 @@
 #include "editor_style.hpp"
 #include "editor_font.hpp"
 #include <QApplication>
+#include <QIcon>
 #include <QProxyStyle>
 #include <QCommandLineParser>
 #include <QDir>
@@ -75,9 +76,17 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
     }
     if (window.isVisible() || image.isNull() || !image.save(report + ".png"))
         return 6;
+    QJsonArray iconSizes;
+    for (const auto& size : QApplication::windowIcon().availableSizes()) {
+        if (QApplication::windowIcon().pixmap(size).isNull() ||
+            window.windowIcon().pixmap(size).isNull())
+            return 8;
+        iconSizes.append(QJsonArray{size.width(), size.height()});
+    }
     const auto proxy = qobject_cast<QProxyStyle*>(qApp->style());
     const auto styleBase = proxy ? proxy->baseStyle()->objectName() : qApp->style()->objectName();
     QJsonObject result{{"qt", qVersion()},
+                       {"applicationIconSizes", iconSizes},
                        {"bundledFonts", mikudancestudio::qt::InstallEditorFonts()},
                        {"platform", QGuiApplication::platformName()},
                        {"styleBase", styleBase},
@@ -109,6 +118,7 @@ int main(int argc, char** argv) {
     QCoreApplication::setOrganizationName("MikuDanceStudio");
     QCoreApplication::setApplicationName("MikuDanceStudio-NG");
     QCoreApplication::setApplicationVersion(MDS_PRODUCT_VERSION);
+    QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/app.ico")));
     mikudancestudio::qt::InstallEditorStyle(app);
     QCommandLineParser parser;
     parser.addHelpOption();
