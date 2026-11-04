@@ -43,7 +43,13 @@ QImage Client(HWND window) {
     if (!dc || !bitmap || !bits)
         throw std::runtime_error("native memory canvas");
     auto previous = SelectObject(dc, bitmap);
-    FillRect(dc, &bounds, GetSysColorBrush(COLOR_BTNFACE));
+    // Reproduce the real shown EDIT's erase background before WM_PRINTCLIENT;
+    // the message alone does not paint the outer formatting margin.
+    FillRect(dc, &bounds,
+             GetSysColorBrush(IsWindowEnabled(window) &&
+                                      !(GetWindowLongPtrW(window, GWL_STYLE) & ES_READONLY)
+                                  ? COLOR_WINDOW
+                                  : COLOR_BTNFACE));
     SendMessageW(window, WM_PRINTCLIENT, WPARAM(dc), PRF_CLIENT | PRF_ERASEBKGND);
     GdiFlush();
     auto image = QImage(static_cast<uchar*>(bits), bounds.right, bounds.bottom, bounds.right * 4,

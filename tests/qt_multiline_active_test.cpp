@@ -1,6 +1,8 @@
 #include "numeric_dialog.hpp"
+#include "multiline_hit.hpp"
 #include <QApplication>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QImage>
 #include <QJsonArray>
@@ -80,6 +82,58 @@ void Button(bool down) {
     Check(SendInput(1, &input, sizeof input) == 1, "isolated mouse event");
     QTest::qWait(20);
 }
+class MouseDelivery final {
+public:
+    MouseDelivery() {
+        hook_ = SetWindowsHookExW(WH_GETMESSAGE, Observe, nullptr, GetCurrentThreadId());
+        Check(hook_ != nullptr, "observe this isolated test thread's OS mouse delivery");
+    }
+    ~MouseDelivery() { UnhookWindowsHookEx(hook_); }
+    static void Move(HWND root, QPoint point) {
+        POINT previous{};
+        Check(GetCursorPos(&previous), "isolated current pointer position");
+        if (QPoint(previous.x, previous.y) == point) {
+            QTest::qWait(5);
+            return;
+        }
+        delivered_ = false;
+        expected_ = point;
+        root_ = root;
+        Check(SetCursorPos(point.x(), point.y()), "isolated pointer movement");
+        QElapsedTimer wait;
+        wait.start();
+        do {
+            QTest::qWait(5);
+        } while (!delivered_ && wait.elapsed() < 1000);
+        Check(delivered_, "actual OS mouse move delivered to the expected test window");
+    }
+
+private:
+    HHOOK hook_ = nullptr;
+    static inline bool delivered_ = false;
+    static inline QPoint expected_;
+    static inline HWND root_ = nullptr;
+    static LRESULT CALLBACK Observe(int code, WPARAM wParam, LPARAM lParam) {
+        if (code >= 0 && wParam == PM_REMOVE) {
+            const auto* message = reinterpret_cast<const MSG*>(lParam);
+            if (message->message == WM_MOUSEMOVE && GetAncestor(message->hwnd, GA_ROOT) == root_ &&
+                QPoint(message->pt.x, message->pt.y) == expected_)
+                delivered_ = true;
+        }
+        return CallNextHookEx(nullptr, code, wParam, lParam);
+    }
+};
+void NativeFocus(HWND root, HWND control) {
+    // Native references are not QWidgets. Clear the previous Qt active-window
+    // state before pumping activation, so it cannot restore the previous edit.
+    QApplication::setActiveWindow(nullptr);
+    SetForegroundWindow(root);
+    SetActiveWindow(root);
+    SetFocus(control);
+    QTest::qWait(30);
+    Check(GetFocus() == control && GetForegroundWindow() == root,
+          "native reference retains actual focus after pending Qt events");
+}
 // Uses actual OS mouse capture, not a directly addressed QMouseEvent replay.
 void Gesture(HWND root, QPoint start, QPoint end, bool doubleClick, bool shift) {
     // Each case is independent. Avoid the preceding click being interpreted
@@ -87,8 +141,7 @@ void Gesture(HWND root, QPoint start, QPoint end, bool doubleClick, bool shift) 
     QTest::qWait(int(GetDoubleClickTime()) + 30);
     Check(GetAncestor(GetForegroundWindow(), GA_ROOT) == root,
           "isolated input foreground belongs to the reference under test");
-    Check(SetCursorPos(start.x(), start.y()), "isolated mouse start");
-    QTest::qWait(20);
+    MouseDelivery::Move(root, start);
     const POINT point{start.x(), start.y()};
     Check(GetAncestor(WindowFromPoint(point), GA_ROOT) == root,
           "isolated input point belongs to the reference under test");
@@ -99,8 +152,7 @@ void Gesture(HWND root, QPoint start, QPoint end, bool doubleClick, bool shift) 
     if (!doubleClick)
         for (int step = 1; step <= 4; ++step) {
             const auto point = start + (end - start) * step / 4;
-            Check(SetCursorPos(point.x(), point.y()), "isolated mouse drag");
-            QTest::qWait(20);
+            MouseDelivery::Move(root, point);
         }
     Button(false);
     if (doubleClick) {
@@ -127,11 +179,12 @@ int main(int argc, char** argv) try {
     QApplication app(argc, argv);
     Check(argc == 2 && QGuiApplication::platformName() == "windows", "Windows QPA and output");
     app.setCursorFlashTime(0);
+    MouseDelivery delivery;
     Check(SetCursorPos(0, 0), "park isolated runner cursor");
     const QString output = QString::fromLocal8Bit(argv[1]);
     QDir().mkpath(output);
     QJsonArray paintRecords, mouseRecords;
-    unsigned paintFailures = 0, mouseFailures = 0;
+    unsigned paintFailures = 0, mouseFailures = 0, caretFailures = 0;
     for (const auto* code : {"en", "ja", "zh_CN"}) {
         qt::Language language;
         Check(language.Set(code), "UI language");
@@ -162,18 +215,18 @@ int main(int argc, char** argv) try {
                 const int first = state == 0 ? 0 : state == 1 ? 1 : text.size();
                 const int last = state < 2 ? first : state == 2 ? 0 : text.size() / 2;
                 Check(SetWindowTextW(control, caption.c_str()), "reference multiline contents");
-                SetActiveWindow(native);
-                SetFocus(control);
-                Check(GetFocus() == control, "native actual multiline focus");
+                NativeFocus(native, control);
                 const auto index = [&](int value) { return value + text.left(value).count('\n'); };
                 SendMessageW(control, EM_SETSEL, index(first), index(last));
                 if (state == 3)
                     SendMessageW(control, EM_LINESCROLL, 3, 2);
                 RedrawWindow(control, nullptr, nullptr, RDW_INVALIDATE | RDW_UPDATENOW);
                 QCoreApplication::processEvents();
+                Check(GetFocus() == control, "native actual focus before capture");
                 const auto expected = Client(control);
                 GUITHREADINFO info{sizeof info};
                 Check(GetGUIThreadInfo(GetCurrentThreadId(), &info), "native caret information");
+                Check(info.hwndCaret == control, "native reference owns actual caret");
                 const auto caret = QJsonArray{int(info.rcCaret.left), int(info.rcCaret.top),
                                               int(info.rcCaret.right), int(info.rcCaret.bottom)};
                 RECT formatting{};
@@ -206,26 +259,32 @@ int main(int argc, char** argv) try {
                 actual.save(output + '/' + stem + "-qt.png");
                 const auto qtCaret =
                     field->cursorRect().translated(field->viewport()->pos() - QPoint(2, 2));
-                paintRecords.append(QJsonObject{
-                    {"case", stem},
-                    {"different", int(different)},
-                    {"nativeCaret", caret},
-                    {"qtCaret", QJsonArray{qtCaret.x(), qtCaret.y(), qtCaret.right() + 1,
-                                           qtCaret.bottom() + 1}}});
+                const QJsonArray actualCaret{qtCaret.x(), qtCaret.y(), qtCaret.right() + 1,
+                                             qtCaret.bottom() + 1};
+                caretFailures += actualCaret != caret;
+                paintRecords.append(QJsonObject{{"case", stem},
+                                                {"different", int(different)},
+                                                {"nativeCaret", caret},
+                                                {"qtCaret", actualCaret}});
                 paintFailures += different != 0;
             }
             // Real click, drag in both directions, Shift-click and double click.
             for (unsigned gesture = 0; gesture < 5; ++gesture) {
                 Check(SetWindowTextW(control, caption.c_str()), "native mouse contents");
-                SetActiveWindow(native);
-                SetForegroundWindow(native);
-                SetFocus(control);
+                NativeFocus(native, control);
                 SendMessageW(control, EM_SETSEL, 0, 0);
                 SendMessageW(control, EM_LINESCROLL, -10000, -10000);
                 QTest::qWait(30);
                 const QPoint first(5, 6), last(35, 20);
                 const auto start = gesture == 2 ? last : first;
                 const auto end = gesture == 1 ? last : gesture == 2 ? first : start;
+                const auto nativeHit = [&](QPoint point) {
+                    const auto value =
+                        SendMessageW(control, EM_CHARFROMPOS, 0, MAKELPARAM(point.x(), point.y()));
+                    const auto nativeText = QString(text).replace("\n", "\r\n");
+                    return int(LOWORD(value)) - nativeText.left(LOWORD(value)).count('\r');
+                };
+                const QJsonArray nativeHits{nativeHit(start), nativeHit(end)};
                 POINT nativeOrigin{};
                 ClientToScreen(control, &nativeOrigin);
                 Gesture(native, start + QPoint(nativeOrigin.x, nativeOrigin.y),
@@ -241,6 +300,12 @@ int main(int argc, char** argv) try {
                 field->horizontalScrollBar()->setValue(0);
                 QTest::qWait(30);
                 const auto qtOrigin = field->mapToGlobal(QPoint(2, 2));
+                const auto qtHit = [&](QPoint point) {
+                    return qt::MultilineCursorForPosition(*field, point + QPoint(2, 2) -
+                                                                      field->viewport()->pos())
+                        .position();
+                };
+                const QJsonArray qtHits{qtHit(start), qtHit(end)};
                 Gesture(reinterpret_cast<HWND>(dialog.winId()), start + qtOrigin, end + qtOrigin,
                         gesture == 4, gesture == 3);
                 const auto selected = field->textCursor();
@@ -249,6 +314,8 @@ int main(int argc, char** argv) try {
                 mouseRecords.append(QJsonObject{{"language", code},
                                                 {"text", int(variant)},
                                                 {"gesture", int(gesture)},
+                                                {"nativeHitsBefore", nativeHits},
+                                                {"qtHitsBefore", qtHits},
                                                 {"native", expected},
                                                 {"qt", actual}});
             }
@@ -263,13 +330,14 @@ int main(int argc, char** argv) try {
                                            {"actualOsMouseCapture", true},
                                            {"paintFailures", int(paintFailures)},
                                            {"mouseFailures", int(mouseFailures)},
+                                           {"caretFailures", int(caretFailures)},
                                            {"paint", paintRecords},
                                            {"mouse", mouseRecords}})
                      .toJson());
     std::cout << paintRecords.size() << " actual focused client paints; " << paintFailures
               << " differences; " << mouseRecords.size() << " OS mouse gestures; " << mouseFailures
               << " differences\n";
-    return paintFailures || mouseFailures ? 1 : 0;
+    return paintFailures || mouseFailures || caretFailures ? 1 : 0;
 } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';
     return 1;

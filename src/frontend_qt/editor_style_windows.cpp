@@ -76,11 +76,9 @@ private:
 void DrawWindowsMultilineBackground(QPainter& painter, const QRect& rect,
                                     const QPlainTextEdit& edit) {
     const auto face = GetSysColor(COLOR_BTNFACE), white = GetSysColor(COLOR_WINDOW);
+    const auto color = edit.isEnabled() && !edit.isReadOnly() ? white : face;
     painter.fillRect(rect.adjusted(2, 2, -2, -2),
-                     QColor(GetRValue(face), GetGValue(face), GetBValue(face)));
-    if (edit.isEnabled() && !edit.isReadOnly())
-        painter.fillRect(rect.adjusted(3, 3, -3, -3),
-                         QColor(GetRValue(white), GetGValue(white), GetBValue(white)));
+                     QColor(GetRValue(color), GetGValue(color), GetBValue(color)));
 }
 bool DrawWindowsMultilineText(QPainter& painter, const QPlainTextEdit& edit,
                               const WindowsMultilineLayout* layout) {
@@ -108,14 +106,11 @@ bool DrawWindowsMultilineText(QPainter& painter, const QPlainTextEdit& edit,
         return false;
     }
     RECT clip{0, 0, canvas.image.width(), canvas.image.height()};
-    FillRect(canvas.dc, &clip, GetSysColorBrush(COLOR_BTNFACE));
-    if (edit.isEnabled() && !edit.isReadOnly()) {
-        const auto white = edit.rect().adjusted(3, 3, -3, -3).translated(-edit.viewport()->pos());
-        const RECT background{qRound(white.left() * ratio), qRound(white.top() * ratio),
-                              qRound((white.right() + 1) * ratio),
-                              qRound((white.bottom() + 1) * ratio)};
-        FillRect(canvas.dc, &background, GetSysColorBrush(COLOR_WINDOW));
-    }
+    // Shown EDIT erases its complete client background, including the margin
+    // outside EM_GETRECT. WM_PRINTCLIENT alone leaves that margin untouched.
+    FillRect(
+        canvas.dc, &clip,
+        GetSysColorBrush(edit.isEnabled() && !edit.isReadOnly() ? COLOR_WINDOW : COLOR_BTNFACE));
     SetBkMode(canvas.dc, TRANSPARENT);
     const auto background =
         GetSysColor(edit.isEnabled() && !edit.isReadOnly() ? COLOR_WINDOW : COLOR_BTNFACE);
