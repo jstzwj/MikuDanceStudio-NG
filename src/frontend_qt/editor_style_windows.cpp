@@ -213,7 +213,10 @@ bool DrawWindowsEditBorder(QPainter& painter, const QRect& rect, QStyle::State s
                           : state & QStyle::State_HasFocus  ? EPSN_FOCUSED
                           : state & QStyle::State_MouseOver ? EPSN_HOT
                                                             : EPSN_NORMAL;
-    canvas.image.fill(Qt::white);
+    // Rounded theme pixels blend with the dialog, not the EDIT's white client.
+    // USER32 first paints the parent background behind this nonclient image.
+    const auto parent = GetSysColor(COLOR_BTNFACE);
+    canvas.image.fill(QColor(GetRValue(parent), GetGValue(parent), GetBValue(parent)));
     const RECT bounds{0, 0, canvas.image.width(), canvas.image.height()};
     // Modern EDIT borders are theme images. TMT_BORDERCOLOR is an older
     // fallback property and can return the same Aero color for every state,

@@ -1,0 +1,259 @@
+{
+  "schema": 1,
+  "run": "41836114770",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41836114770",
+  "revision": "c811c4c",
+  "p4_c1_accepted": false,
+  "platforms": {
+    "windows": {
+      "ordinary": {
+        "name": "Win32-ninja",
+        "tests": "84",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "runnervmhao91",
+        "time": "247",
+        "timestamp": "2026-11-04T13:24:01",
+        "artifact": {
+          "path": "out/evidence/p4/p4-active-41836114770/windows/p4/p4.xml",
+          "sha256": "87127fa391fd13fcd3947523ceeb636b8d92a435dba6f654b11a53d1477796f3"
+        },
+        "failed": []
+      },
+      "scene_visual": {
+        "name": "Win32-ninja",
+        "tests": "1",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "runnervmhao91",
+        "time": "0",
+        "timestamp": "2026-11-04T13:51:41",
+        "artifact": {
+          "path": "out/evidence/p4/p4-active-41836114770/windows/p4/native-reference.xml",
+          "sha256": "730a9a774b605b652028e932c414e5751c3e4b2e05fe7939249b45ea3fb8f65c"
+        },
+        "failed": []
+      },
+      "ime": {
+        "system-ime-ms-ime": {
+          "accepted": true,
+          "completed_ui_languages": [
+            "en",
+            "ja",
+            "zh_CN"
+          ],
+          "artifact": {
+            "path": "out/evidence/p4/p4-active-41836114770/windows/p4/system-ime-ms-ime.json",
+            "sha256": "39df8967eb938f356949b8fbbb0632afd24f20a4e1169d453ac373a9baed1ca1"
+          }
+        },
+        "system-ime-native-reference": {
+          "accepted": true,
+          "completed_ui_languages": [],
+          "artifact": {
+            "path": "out/evidence/p4/p4-active-41836114770/windows/p4/system-ime-native-reference.json",
+            "sha256": "3aa73dd52778466de259eb6620dc5ce12fe9fe5a07cdb61fc4e12c6f8107c12e"
+          }
+        }
+      },
+      "distribution": {
+        "path": "out/evidence/p4/p4-active-41836114770/windows/distribution-check.json",
+        "sha256": "f1603e4502bf648bb8ead78661a59717c7dccb75608eb8d88925c38ae6419106"
+      },
+      "controls": {
+        "control-content-focus": {
+          "cases": 28,
+          "mismatches": 0,
+          "editCursorMismatches": 0,
+          "artifact": {
+            "path": "out/evidence/p4/p4-active-41836114770/windows/p4/control-content-focus/report.json",
+            "sha256": "fc9cb3499e9141727fe27fde9a4c5934c9db4ee798996820401269a0a60a86ea"
+          }
+        },
+        "control-content-visible": {
+          "cases": 68,
+          "mismatches": 0,
+          "editCursorMismatches": 0,
+          "artifact": {
+            "path": "out/evidence/p4/p4-active-41836114770/windows/p4/control-content-visible/report.json",
+            "sha256": "1848e0c12422939c00beada0830f23ac9e9872ce421598ff978308b3a3b0715d"
+          }
+        },
+        "control-edit-focus": {
+          "cases": 3450,
+          "mismatches": 3450,
+          "editCursorMismatches": 0,
+          "artifact": {
+            "path": "out/evidence/p4/p4-active-41836114770/windows/p4/control-edit-focus/report.json",
+            "sha256": "038eb13f5ce4a1eaedb0b4add61314eb4307f9f36e8d6f96473a5876a4a99895"
+          }
+        },
+        "control-edit-visible": {
+          "cases": 4600,
+          "mismatches": 4600,
+          "editCursorMismatches": 0,
+          "artifact": {
+            "path": "out/evidence/p4/p4-active-41836114770/windows/p4/control-edit-visible/report.json",
+            "sha256": "6531d89a71840a1a6277fd762490abc7f8ec9bbe22faed1ebf5a81ca2fcc4bea"
+          }
+        },
+        "control-list-focus": {
+          "cases": 6,
+          "mismatches": 0,
+          "editCursorMismatches": 0,
+          "artifact": {
+            "path": "out/evidence/p4/p4-active-41836114770/windows/p4/control-list-focus/report.json",
+            "sha256": "d0a146c10411123c6b876a64af3c027150cc9c76f2ac132bde985786032dc70d"
+          }
+        },
+        "control-style": {
+          "cases": 574,
+          "mismatches": 0,
+          "editCursorMismatches": 0,
+          "artifact": {
+            "path": "out/evidence/p4/p4-active-41836114770/windows/p4/control-style/report.json",
+            "sha256": "cc7d5f393ea5e876383b9189d6f65e2f51d6613afbd3ce7193870e217a99d504"
+          }
+        },
+        "control-style-nonclient": {
+          "cases": 460,
+          "mismatches": 460,
+          "editCursorMismatches": 0,
+          "artifact": {
+            "path": "out/evidence/p4/p4-active-41836114770/windows/p4/control-style-nonclient/report.json",
+            "sha256": "3aaaafaa4f0822efb0235a14411caa037e003d1ea5dab826a829fc3aefbbbc74"
+          }
+        }
+      }
+    },
+    "linux": {
+      "ordinary": {
+        "name": "Linux-c++",
+        "tests": "77",
+        "failures": "1",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "runnervmcwoy2",
+        "time": "424",
+        "timestamp": "2026-11-04T13:15:13",
+        "artifact": {
+          "path": "out/evidence/p4/p4-active-41836114770/linux/p4/p4.xml",
+          "sha256": "579625d6ba865c65dbf21ec1480ece516f8980db9fe677341c0d85903d62ac70"
+        },
+        "failed": [
+          "qt_editor_font"
+        ]
+      },
+      "scene_visual": {
+        "name": "Linux-c++",
+        "tests": "1",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "runnervmcwoy2",
+        "time": "1",
+        "timestamp": "2026-11-04T13:22:18",
+        "artifact": {
+          "path": "out/evidence/p4/p4-active-41836114770/linux/p4/native-reference.xml",
+          "sha256": "4de2d4613dbaf174a892c16d302439c3c39c5eea6210b0c49b6f690adeac2972"
+        },
+        "failed": []
+      },
+      "ime": {
+        "system-ime-anthy": {
+          "accepted": true,
+          "completed_ui_languages": [
+            "en",
+            "ja",
+            "zh_CN"
+          ],
+          "artifact": {
+            "path": "out/evidence/p4/p4-active-41836114770/linux/p4/system-ime-anthy.json",
+            "sha256": "67b1ef3b0f760c6e7d977fc84e9fdb0136b323e714c416708a5d555b06d00d80"
+          }
+        },
+        "system-ime": {
+          "accepted": true,
+          "completed_ui_languages": [
+            "en",
+            "ja",
+            "zh_CN"
+          ],
+          "artifact": {
+            "path": "out/evidence/p4/p4-active-41836114770/linux/p4/system-ime.json",
+            "sha256": "6c50b4dd2f6d34b6f748ea45648e472ae7a90e93070c60bb649c82520f1c4854"
+          }
+        }
+      },
+      "distribution": {
+        "path": "out/evidence/p4/p4-active-41836114770/linux/distribution-check.json",
+        "sha256": "34d50450473f58b79f68dbf52a1f090fd68ad325e670463433b47935a3c0cb2b"
+      },
+      "controls": {}
+    },
+    "macos": {
+      "ordinary": {
+        "name": "Darwin-c++",
+        "tests": "72",
+        "failures": "1",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "iad20-fj917-a1fe3256-dadf-4f26-a79b-f508a12683ee-3E4EA79AF300.local",
+        "time": "186",
+        "timestamp": "2026-11-04T13:15:12",
+        "artifact": {
+          "path": "out/evidence/p4/p4-active-41836114770/macos/p4/p4.xml",
+          "sha256": "5f867eff8b1974c483b256992d64437808fe587e443728465dd1f29fd98ecf43"
+        },
+        "failed": [
+          "qt_editor_font"
+        ]
+      },
+      "scene_visual": {
+        "name": "Darwin-c++",
+        "tests": "1",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "iad20-fj917-a1fe3256-dadf-4f26-a79b-f508a12683ee-3E4EA79AF300.local",
+        "time": "1",
+        "timestamp": "2026-11-04T13:18:19",
+        "artifact": {
+          "path": "out/evidence/p4/p4-active-41836114770/macos/p4/native-reference.xml",
+          "sha256": "ca8e9f470cbaa9c4c641c789fbbdbfae350eb4491cd45ce2dc02ab55b3241e85"
+        },
+        "failed": []
+      },
+      "ime": {
+        "system-ime-kotoeri": {
+          "accepted": true,
+          "completed_ui_languages": [
+            "en",
+            "ja",
+            "zh_CN"
+          ],
+          "artifact": {
+            "path": "out/evidence/p4/p4-active-41836114770/macos/p4/system-ime-kotoeri.json",
+            "sha256": "747a29d9a3b5b0882c9b9a958ed118f57efd616af893bde4ccd488830e6a5ba3"
+          }
+        }
+      },
+      "distribution": {
+        "path": "out/evidence/p4/p4-active-41836114770/macos/distribution-check.json",
+        "sha256": "362290f54872ead420ef9c9f46b27688e0aa7a48debb8d0e3569a7fc59d3c6f6"
+      },
+      "controls": {}
+    }
+  },
+  "diagnosis": {
+    "font": "macOS71/72, Linux76/77; the only failure is FrameNavigationFont inherits parent Noto style strategy. Explicit default policy repair passes local39/39.",
+    "windows": "84/84 ordinary. Microsoft IME passes en/ja/zh_CN including normal dialog/session/QApplication teardown; pure Win32 reference exits naturally too. Server2022 failure remains an environmental qualification limit, not a claimed universal repair.",
+    "edit_border": "460 empty/4600 populated interior exact. Remaining new-theme corner errors come from blending over white instead of parent COLOR_BTNFACE.",
+    "edit_focus": "206 of 3450 interiors differ only in state0/text0: observer calls Qt TabFocusReason (auto-selects all) but Win32 SetFocus (preserves selection). OtherFocusReason makes both captures exercise raw focus. Remaining errors are theme corners.",
+    "hover": "230 cases failed; images omitted by artifact allowlist, now added. Summary and raw per-case log retained.",
+    "review": "All six non-Windows three-language panel images inspected. CJK labels legible; portable Fusion combo padding truncates short labels and is repaired against22 native rectangles. Updated font inheritance/portable combo remote requalification pending.",
+    "physical_dpi": "No environment with two actual different-DPI monitors available; synthetic scale gates are not substituted."
+  }
+}

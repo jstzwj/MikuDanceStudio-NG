@@ -97,7 +97,27 @@ The follow-up runs the editor first. Natural-exit tests close composition and
 then destroy windows/COM normally, without injecting `DeactivateProfile`:
 `ActivateProfile` selects a profile, it does not acquire a reference requiring
 that operation. No forced exit, process leak or disabled IME counts as a pass.
-Earlier failures during actual native-window destruction remain valid historical
-evidence. Local development does not install/switch input methods or touch the
-user's desktop. Physical monitor/DPI transitions still require separate real
-environment qualification and cannot be inferred from `QT_SCALE_FACTOR`.
+Run [41836114770](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41836114770)
+on **Windows Server 2025** now passes all three editor UI languages with actual
+Microsoft IME and natural application exit. Its English/Japanese/Chinese logs
+reach dialog, session and QApplication destruction. The independent Win32 EDIT
+also completes COM teardown and returns zero. This qualifies that OS/input-method
+profile; the older Server 2022 failure remains a historical/environmental limit.
+Linux/macOS native IMEs again pass all three languages. All scene visual and
+package relocation checks pass; Windows ordinary tests pass 84/84. Linux/macOS
+have the single font-inheritance failure described above. The
+[run evidence](evidence/p4-active-41836114770.json) records each result separately.
+
+The newer Windows theme reveals rounded EDIT corners blending with the white
+client instead of the parent dialog. The memory image now starts with native
+`COLOR_BTNFACE`, as USER32 parent-background painting does. Another observer
+defect selected all Qt text with `TabFocusReason`, while Win32 `SetFocus` preserved
+the requested state-0 cursor. Both paths now request raw focus; actual Tab policy
+remains separate. All 4,600 populated inactive clients were exact; the 206 active
+client failures were confined to this first-focus selection mismatch. No failure
+is removed from the historical reports. Hover images and per-profile logs are
+now retained, and control reports upload before optional Windows language servicing.
+
+Local development does not install/switch input methods or touch the user's
+desktop. Physical monitor/DPI transitions still require separate real environment
+qualification and cannot be inferred from `QT_SCALE_FACTOR`.

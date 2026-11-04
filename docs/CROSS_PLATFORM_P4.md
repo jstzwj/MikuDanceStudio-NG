@@ -7,8 +7,9 @@ on 2026-11-01. These are acceptance requirements, not claims about this revision
 2026-11-04 continuation: [original EDIT keyboard comparisons](P4_EDIT_NAVIGATION.md)
 now cover 144,135 passing local cases. The user subsequently approved complete-scene
 visual equivalence in place of the strict RGB profile; the [visual policy](P4_VISUAL_COMPOSITE.md)
-retains strict diagnostics and separate copy/depth contracts. Windows IME and the
-remaining shown UI/font/DPI checks must still pass before P4 can be accepted.
+retains strict diagnostics and separate copy/depth contracts. Windows Server 2025
+native IME now passes all three UI languages and natural exit; remaining shown
+UI/font/DPI checks must still pass before P4 can be accepted.
 
 The fresh local suite passes **84/84** P4 tests, followed by a passing navigation
 and visual-counterexample recheck. Release packaging and relocated startup pass.
@@ -16,8 +17,8 @@ Five local full-composite profiles (DX11/DX12 hardware and WARP; Vulkan hardware
 pass the visual policy with byte-exact repeats. Source, binary and capture hashes
 are recorded in [current local UI evidence](evidence/p4-active-edit-local.json); the five render profiles
 are recorded separately in [scene evidence](evidence/p4-visual-input-local.json).
-Native Windows IME shutdown and complete shown UI qualification remain pending;
-they are not included in that 84-test result.
+Native IME and shown UI qualification are separate from that 84-test result;
+their current remote status is recorded below.
 
 Consolidated run [41828328950](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41828328950)
 passes **83/83 Windows, 77/77 Linux and 72/72 macOS** ordinary tests, the
@@ -45,6 +46,16 @@ failures remain historical evidence. Exact scope, artifact hashes and remaining
 physical DPI/shown UI requirements are in the
 [active EDIT continuation](P4_ACTIVE_EDIT_QUALIFICATION.md) and
 [current run evidence](evidence/p4-edit-native-41828328950.json).
+
+Follow-up [41836114770](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41836114770)
+passes Windows native IME in English/Japanese/Chinese with normal QApplication
+destruction, plus the independent Win32 EDIT's natural exit. It also passes
+84/84 ordinary Windows tests. Linux/macOS have exactly one ordinary failure each:
+frame controls inherit the CJK parent's font strategy. That implementation defect
+is repaired and 39 affected local Qt tests pass. The newer Windows theme's border
+corner blending and an inconsistent focus-reason observer are corrected, with
+fresh shown requalification pending. Physical monitor/DPI qualification is still
+unavailable. [Latest scoped evidence](evidence/p4-active-41836114770.json).
 
 The latest [PMM compatibility repair and gap review](P4_PMM_COMPATIBILITY.md)
 records three actual v1 projects, nine backend/language checks and nine imported

@@ -944,7 +944,10 @@ int main(int argc, char** argv) try {
                         dialog.activateWindow();
                         SetActiveWindow(reinterpret_cast<HWND>(dialog.winId()));
                         QApplication::setActiveWindow(&dialog);
-                        widget->setFocus(Qt::TabFocusReason);
+                        // Win32 SetFocus does not run the dialog manager's Tab
+                        // selection policy. QLineEdit's TabFocusReason selects
+                        // all text, invalidating the requested state-0 cursor.
+                        widget->setFocus(editFocus ? Qt::OtherFocusReason : Qt::TabFocusReason);
                         QCoreApplication::processEvents();
                         Check(widget->hasFocus(), "Qt control owns actual keyboard focus");
                     }

@@ -177,12 +177,22 @@ jobs:
             @('--isolated-content-focus', 'out/p4/control-content-focus')
           )
           $results = foreach ($profile in $profiles) {
-            & out/p4/qt_control_style_test.exe $profile[0] $profile[1] | Out-Host
+            & out/p4/qt_control_style_test.exe $profile[0] $profile[1] 2>&1 | Tee-Object -FilePath "$($profile[1]).log" | Out-Host
             [PSCustomObject]@{ profile = $profile[0]; exitCode = $LASTEXITCODE }
           }
           $results | ConvertTo-Json | Set-Content out/p4/control-qualification.json -Encoding UTF8
           if (@($results | Where-Object exitCode -ne 0).Count) { exit 1 }
           exit 0
+      - name: Retain control diagnostics before optional OS language servicing
+        if: ${{ !cancelled() && inputs.native_controls }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: p4-windows-control-reports
+          path: |
+            out/p4/control-*/report.json
+            out/p4/control-*.log
+            out/p4/control-qualification.json
+          if-no-files-found: error
       - name: Qualify native Japanese input and command ordering
         if: ${{ !cancelled() && inputs.system_ime }}
         timeout-minutes: 15
@@ -196,6 +206,8 @@ jobs:
             Set-WinUserLanguageList $languages -Force
           }
           $capability = Get-WindowsCapability -Online -Name 'Language.Basic~~~ja-JP~0.0.1.0'
+          $capability | Select-Object Name,State | ConvertTo-Json | Set-Content out/p4/system-ime-install.json -Encoding UTF8
+          Write-Host "Japanese IME capability before servicing: $($capability.State)"
           if ($capability.State -ne 'Installed') {
             $installed = Add-WindowsCapability -Online -Name 'Language.Basic~~~ja-JP~0.0.1.0'
             if ($installed.RestartNeeded) { throw 'Japanese IME installation requires a fresh logon/reboot; this runner cannot qualify it yet' }
@@ -263,6 +275,7 @@ jobs:
             out/p4/control-style-nonclient/
             out/p4/control-edit-visible/
             out/p4/control-edit-focus/
+            out/p4/control-edit-hover/
             out/p4/edit-content/
             out/p4/editor-chrome/
             out/p4/control-content-visible/

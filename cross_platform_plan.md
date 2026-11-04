@@ -4,7 +4,7 @@
 
 更新时间：2026-11-04。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
 
-Latest P4 qualification (2026-11-04): consolidated run 41828328950 passes 83/83 Windows, 77/77 Linux and 72/72 macOS ordinary tests, all three complete-scene visual gates and relocated packages. All 5,060 empty/populated shown Windows EDIT states now match exactly. Active EDIT repairs pass 3,450 saved native client replays locally; multiline navigation adds 864 original comparisons. Windows native IME natural exit, fresh active-field/non-Windows font qualification and actual monitor/DPI transitions still prevent P4/C1 acceptance. See [current implementation and scope](docs/P4_ACTIVE_EDIT_QUALIFICATION.md).
+Latest P4 qualification (2026-11-04): consolidated run 41828328950 passes 83/83 Windows, 77/77 Linux and 72/72 macOS ordinary tests, all three complete-scene visual gates and relocated packages. All 5,060 empty/populated shown Windows EDIT states now match exactly. Active EDIT repairs pass 3,450 saved native client replays locally; multiline navigation adds 864 original comparisons. Follow-up run 41836114770 passes Windows Server 2025 native IME in all three UI languages with natural exit. Its Linux/macOS font-policy regression, newer Windows border corners and observer focus-reason mismatch are repaired; final UI requalification and actual monitor/DPI transitions still prevent P4/C1 acceptance. See [current implementation and scope](docs/P4_ACTIVE_EDIT_QUALIFICATION.md).
 
 实施状态：**P0 已完成**。三平台基础构建、两轮精确文件／数值回归、统一 Bullet 包装与分配／销毁验证、macOS 无窗口 Vulkan 探测均已执行；Windows x64／x86 编辑器构建通过。能力表、最低环境决策、依赖图、证据和仍未覆盖的范围见 [P0 实施与验收记录](docs/CROSS_PLATFORM_P0.md)。
 
