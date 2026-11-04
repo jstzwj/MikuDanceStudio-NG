@@ -152,6 +152,9 @@ function(mds_add_qt_editor)
             qt_add_executable(qt_multiline_active_test "${root}/tests/qt_multiline_active_test.cpp"
                 "${root}/res/frontend_qt/windows.manifest" "${root}/res/templates/dialog/dialogs.rc")
             target_link_libraries(qt_multiline_active_test PRIVATE mikudancestudio_frontend_qt Qt6::Test gdi32 user32)
+            qt_add_executable(qt_monitor_transition_test "${root}/tests/qt_monitor_transition_test.cpp"
+                "${root}/res/frontend_qt/windows.manifest")
+            target_link_libraries(qt_monitor_transition_test PRIVATE mikudancestudio_frontend_qt Qt6::Test user32)
             add_test(NAME qt_multiline_paint COMMAND qt_multiline_paint_test "${CMAKE_BINARY_DIR}/multiline-paint")
             set_tests_properties(qt_multiline_paint PROPERTIES LABELS "p4;hidden;qt;appearance;oracle"
                 TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=windows")
