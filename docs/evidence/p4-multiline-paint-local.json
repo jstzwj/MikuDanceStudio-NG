@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "revision": "105695e",
+  "p4_c1_accepted": false,
+  "all_build": {
+    "passed": true,
+    "artifact": {
+      "path": "out/build/p4-multiline-final-build.log",
+      "sha256": "68f01895961f98b72a0bf8fa8a15f33670451fdfcaa7f295ac8dc890374e81a3"
+    }
+  },
+  "affected_qt_suite": {
+    "tests": 41,
+    "failures": 0,
+    "artifact": {
+      "path": "out/build/p4-multiline-final-qt.xml",
+      "sha256": "c06088a98879faf9531c9f380a83a64a2999b6396d9edd16362ad428c54bccad"
+    }
+  },
+  "multiline_paint": {
+    "cases": 432,
+    "failures": 0,
+    "capture": "WM_PRINTCLIENT of real resource EDIT; Qt production QWidget render; original client rectangle preserved",
+    "scope": "ASCII, no actual focus/exposure; three UI languages, six text variants, four enabled/readonly states, three scroll modes and two inactive selection modes",
+    "artifact": {
+      "path": "out/build/multiline-paint/report.json",
+      "sha256": "2d60cdfc8b6e51a3847d6efe85ffaed31fa272304bcd29111fb790cf7c6b05dd"
+    }
+  },
+  "prior_full_suite": "p4-menu-multiline-local.json records the preceding 85/86 result and unchanged-limit native-language recheck; no first-run failure is removed",
+  "observer_followup": {
+    "tests": 4,
+    "failures": 0,
+    "revision": "29cee2d",
+    "artifact": {
+      "path": "out/build/p4-observer-final.xml",
+      "sha256": "3f3a71a0181bc73904b543fde37dc8eb7830408736bc88aef347e2ed87f75765"
+    }
+  },
+  "remaining": [
+    "actual shown multiline active selection/caret/drag",
+    "full non-Windows appearance qualification",
+    "physical mixed-DPI monitor transitions"
+  ],
+  "sources": [
+    {
+      "path": "src/frontend_qt/editor_style_windows.cpp",
+      "sha256": "43db85eacdff7d7d31154e85883f94ef83652288d371730c21c5c1005c54684f"
+    },
+    {
+      "path": "src/frontend_qt/editor_style_windows.hpp",
+      "sha256": "db6a211ee6fc932796fe30f148da5e6e639c4ec9b2c66947702701c6070db30b"
+    },
+    {
+      "path": "src/frontend_qt/numeric_dialog.cpp",
+      "sha256": "7c28da610489284a0df36de73bf13c127d8cea675c37596f1fc86c058fa212db"
+    },
+    {
+      "path": "src/frontend_qt/editor_style.cpp",
+      "sha256": "dceb0008578003e495f502b3007e5a86d1a3119c2ee4842626700b2c3ab93a4c"
+    },
+    {
+      "path": "tests/qt_multiline_paint_test.cpp",
+      "sha256": "f6c7cd908b5494c9553d637db79aacde3c5eaf2265f4bacd9408b31c44dbc9a3"
+    },
+    {
+      "path": "cmake/QtEditor.cmake",
+      "sha256": "5963664948c70e42586e49a3e5d9cf1dda358b83f80740b0f93b3565d621ec06"
+    }
+  ],
+  "distribution": {
+    "passed": true,
+    "report": {
+      "path": "out/build/p4-multiline-final-distribution.json",
+      "sha256": "b3f69970c73ab47418bb31d9a4f7042022557e0ace8ef2c172e9e602f5c98b57"
+    },
+    "executable": {
+      "path": "out/dist/MikuDanceStudioNG.exe",
+      "sha256": "6aba05e75f4f123771cd36a6163493e364867b504715d34c3def99000b264df3"
+    },
+    "archive": {
+      "path": "out/releases/MikuDanceStudio-NG-10.15-windows-x64.zip",
+      "sha256": "2bf10d95f377ca74d30d633b6f112ee5104ce5e6f4f40b2a8d396e9723a6ce50"
+    }
+  }
+}

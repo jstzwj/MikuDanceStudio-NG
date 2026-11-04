@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "run": "41857117726",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41857117726",
+  "revision": "105695e",
+  "p4_c1_accepted": false,
+  "platforms": {
+    "windows": {
+      "ordinary": {
+        "tests": 87,
+        "failures": 1,
+        "failed": [
+          "qt_control_style"
+        ],
+        "artifact": {
+          "path": "out/evidence/p4/p4-multiline-41857117726/windows/p4/p4.xml",
+          "sha256": "6921742aec67bba2e77d93472f170235730f0f495e64a93784066df74b5084a1"
+        }
+      },
+      "distribution": {
+        "path": "out/evidence/p4/p4-multiline-41857117726/windows/distribution-check.json",
+        "sha256": "410dae2905b66c2b8ee541ae70fe8ea35fe8e8e9be9324a1dc2d68a31f496f6b"
+      },
+      "failure": "Hidden native reference becomes foreground during observer processing even while IsWindowVisible=0. WS_EX_NOACTIVATE alone does not block explicit activation. New guard awaits targeted qualification; no failure waived."
+    },
+    "linux": {
+      "ordinary": {
+        "tests": 78,
+        "failures": 0,
+        "failed": [],
+        "artifact": {
+          "path": "out/evidence/p4/p4-multiline-41857117726/linux/p4/p4.xml",
+          "sha256": "bc98b85e013d26aa4c18fc43dc2ba0fcd35aa5f642916ada68e896f212f5f1fa"
+        }
+      },
+      "distribution": {
+        "path": "out/evidence/p4/p4-multiline-41857117726/linux/distribution-check.json",
+        "sha256": "d9714cb32959d95d273e5175ae8f748aead7c718f309bbd82e0a0488ce5e3dee"
+      }
+    },
+    "macos": {
+      "executed": false,
+      "conclusion": "cancelled",
+      "reason": "Hosted macOS arm64 runner not acquired due to capacity; no job step executed.",
+      "annotations": {
+        "path": "out/build/p4-multiline-macos-queue.json",
+        "sha256": "e01a965c954c9e1659e2131e61c3de41352c575a24e8621ac3a3a5c272c977ef"
+      }
+    }
+  },
+  "policy": "No retry of macOS capacity or already-qualified IME/reference profiles. Windows observer/actual multiline follow-up is a targeted source-change qualification."
+}

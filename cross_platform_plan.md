@@ -2,9 +2,15 @@
 
 当前独立维护仓库：[MikuDanceStudio-NG](https://github.com/jstzwj/MikuDanceStudio-NG)，默认分支 `main`，由原仓库 `next@9afd91a` 保留完整历史迁入。下文初始 `main`／`next` 基线和历史验收链接均指迁移前的 MikuDanceStudio 仓库。
 
-更新时间：2026-11-04。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
+更新时间：2026-11-05。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
 
-Latest P4 qualification (2026-11-04): consolidated run 41828328950 passes 83/83 Windows, 77/77 Linux and 72/72 macOS ordinary tests, all three complete-scene visual gates and relocated packages. All 5,060 empty/populated shown Windows EDIT states now match exactly. Active EDIT repairs pass 3,450 saved native client replays locally; multiline navigation adds 864 original comparisons. Follow-up run 41836114770 passes Windows Server 2025 native IME in all three UI languages with natural exit. Its Linux/macOS font-policy regression, newer Windows border corners and observer focus-reason mismatch are repaired; final UI requalification and actual monitor/DPI transitions still prevent P4/C1 acceptance. See [current implementation and scope](docs/P4_ACTIVE_EDIT_QUALIFICATION.md).
+最新 P4 验收（2026-11-04）：41843478422 的 Windows 85/85 常规测试及七组显示态控件专项全部通过，包括 5,060 个空／带文字输入框、3,450 个焦点／选区／滚动案例、230 个悬停案例与 102 个列表／下拉框案例，均精确匹配原生对照。三平台整帧视觉及发布包搬迁通过；Linux 77/78、macOS 72/73 各剩菜单字体继承失败，修复正复验。41836114770 已通过 Windows Server 2025 原生 IME 三语言及自然退出。P4/C1 仍需完成多行／鼠标、非 Windows 外观及真实跨屏 DPI 验收。当前状态见 [P4 缺口验收表](docs/P4_ACCEPTANCE_STATUS.md)，历史证据见 [控件记录](docs/P4_ACTIVE_EDIT_QUALIFICATION.md)。
+
+后续 41851148562 已验证菜单字体修复：Linux 78/78，Windows 的字体及新增多行门禁通过，但隐藏观察器的激活判定失败，正在修正复验；macOS 因托管 runner 容量不足未启动。本地新增 50,232 个原版多行命中和 475 个直接 Shift 点击对照通过。ALL_BUILD、85/86 普通测试及唯一超时项的不放宽限制复验通过，`out/dist` 更新及搬迁通过。详见 [最新本地证据](docs/evidence/p4-menu-multiline-local.json)，不将分项复验或未启动任务计为整轮全绿。
+
+再后续 `105695e` 补齐 432 个精确匹配的多行隐藏客户区绘制状态，修复只读／禁用颜色、字形伸展、裁切与滚动后的上边距。本地全量编译、41/41 Qt 回归及新 `out/dist` 搬迁通过；[本地证据](docs/evidence/p4-multiline-paint-local.json) 保留源文件／产物哈希，[41857117726](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41857117726) 执行这批源代码的常规验收。实际显示态多行操作、非 Windows 外观及真实跨屏 DPI 仍开放，P4/C1 状态不变。
+
+本轮 `41857117726` 已结束：Windows 86/87、Linux 78/78，macOS 仅因托管容量未执行；唯一 Windows 失败定位为隐藏原生对话框被 USER32 激活。`1e75a3a` 增加仅观察器线程的激活／焦点拒绝，34,224 个命中和 576 个导航原始记录重新采集完全不变；显示态对照不使用此保护。新增实际多行焦点／鼠标专项已编译，仅在一次 Windows 定向任务 `41861823315` 中运行，尚未授予资格。真实跨屏 DPI 环境仍缺，P4/C1 未验收，详细状态及失败／复验分别见 [当前验收表](docs/P4_ACCEPTANCE_STATUS.md)。
 
 实施状态：**P0 已完成**。三平台基础构建、两轮精确文件／数值回归、统一 Bullet 包装与分配／销毁验证、macOS 无窗口 Vulkan 探测均已执行；Windows x64／x86 编辑器构建通过。能力表、最低环境决策、依赖图、证据和仍未覆盖的范围见 [P0 实施与验收记录](docs/CROSS_PLATFORM_P0.md)。
 
@@ -14,7 +20,7 @@ Latest P4 qualification (2026-11-04): consolidated run 41828328950 passes 83/83 
 
 **P3 已完成**：生产 Vulkan 加载器、Surface、运行时 SPIR-V 编译与 P2 快照的共享 RHI 消费链路已接通。Windows 隐藏窗口、macOS Cocoa、Linux X11／Wayland 呈现及三平台离屏门禁均实际通过，常规呈现帧没有图像回读；Sour Miku 静态／动画的 DX11／DX12／Vulkan 最终输出逐字节一致。验收证据、CPU 性能基线与基础场景支持边界见 [P3 实施记录](docs/CROSS_PLATFORM_P3.md)。
 
-**P4 remains in progress; C1 is not accepted.** Shared editing, PMM save/reopen, bone selection/history, three-language Qt UI, RHI presentation, WAV and image-sequence export have three-platform regression evidence. The combined PMD/PMX/accessory/screen/WAV/physics/all-key-pool workflow passes. 94/103 original menu commands are implemented; nine belong to later media/Kinect phases. Complete-scene output uses the user-approved visual policy with strict diagnostics retained, and passes on hardware plus Windows WARP/Metal/software Vulkan. The remaining acceptance requirements are native Windows IME and complete original UI/input/font/DPI qualification. [P4 acceptance record](docs/CROSS_PLATFORM_P4.md) distinguishes current gates from the historical increments below.
+**P4 remains in progress; C1 is not accepted.** Shared editing, PMM save/reopen, bone selection/history, three-language Qt UI, RHI presentation, WAV and image-sequence export have three-platform regression evidence. The combined PMD/PMX/accessory/screen/WAV/physics/all-key-pool workflow passes. 94/103 original menu commands are implemented; nine belong to later media/Kinect phases. Complete-scene output uses the user-approved visual policy with strict diagnostics retained, and passes on hardware plus Windows WARP/Metal/software Vulkan. Windows Server 2025 native IME passes all three UI languages and natural exit. Complete original UI/input/font/DPI qualification remains open. [P4 acceptance record](docs/CROSS_PLATFORM_P4.md) distinguishes current gates from the historical increments below.
 
 最新增量：Windows 原版控件对照已扩至 574 个按钮／空下拉框／列表／滑块稳态案例；滑块另有 864 个独立原生几何对照，旧的 460 个空输入框边框对照因参考创建方式错误已撤回原版外观资格，现已改为直接创建原版对话框资源。38 类对话框的 426 个带文字按钮状态及 936 个独立字体／高度／键盘焦点对照已精确匹配；另有 24 个带文字列表状态通过原版隐藏窗口对照。隔离 Windows CI 的 73 项 P4 回归、68 个显示状态列表／下拉框案例及六个真实键盘焦点列表案例全部通过。发布包携带固定版本 Noto CJK 字体及许可证；Linux 的真实中文 libpinyin、日文 Anthy，以及 macOS 的 Kotoeri 输入法已分别通过三语言的预编辑、转换、提交、取消及正常退出测试。Windows 原生输入法的英文场景已通过，但清理输入上下文时阻塞，完整三语言资格仍未通过。其他控件文字、非 Windows 外观及尚未通过的 GPU 整帧配置仍需继续验收。
 

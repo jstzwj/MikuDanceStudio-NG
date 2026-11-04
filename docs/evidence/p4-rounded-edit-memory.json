@@ -1,0 +1,25 @@
+{
+  "scope": "Memory-only native theme render compared to fresh Server2025 reference; no windows, focus or desktop input",
+  "cases": [
+    {
+      "capture": "control-style-nonclient/600-ja-601-0-native.png",
+      "border_pixels": 372,
+      "different": 0
+    },
+    {
+      "capture": "control-style-nonclient/600-ja-601-1-native.png",
+      "border_pixels": 372,
+      "different": 0
+    },
+    {
+      "capture": "control-edit-focus/600-ja-601-2-text4-native.png",
+      "border_pixels": 372,
+      "different": 0
+    }
+  ],
+  "reference_run": "41836114770",
+  "reference_archive_sha256": "2db3cf543b03c9b7cfec316dd3cb664ab4e32582dfcfbf03612ea6901eb36cda",
+  "production_source_sha256": "1edb0febc6e4626458f2235fb61076442fc1f46102dba667fad0ddfafa18c6f9",
+  "all_passed": true,
+  "fresh_shown_qualification": false
+}

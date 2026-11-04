@@ -1,0 +1,104 @@
+{
+  "schema": 1,
+  "revision": "5c6d47c",
+  "p4_c1_accepted": false,
+  "all_build": {
+    "passed": true,
+    "log": {
+      "path": "out/build/p4-current-build.log",
+      "sha256": "7d2553b8524ec23777dbc5a92e8aa00547f30c68fe906bcfe7621bd84878f241"
+    }
+  },
+  "full_suite": {
+    "tests": 86,
+    "failures": 1,
+    "failed": [
+      "qt_language_switch_native"
+    ],
+    "artifact": {
+      "path": "out/build/p4-current.xml",
+      "sha256": "84be027bee2a72fc6f5b7853f24533545c5cf03e1c8a0285dfaeca7cd8f3e1be"
+    }
+  },
+  "native_language_recheck": {
+    "tests": 1,
+    "failures": 0,
+    "failed": [],
+    "artifact": {
+      "path": "out/build/p4-language-native-recheck.xml",
+      "sha256": "ec3b859388aa3ff65ebbe673f9841920a75a0322c5c243bdbadba6d67c369c76"
+    }
+  },
+  "policy": "The initial native-language timeout is retained. Recheck uses the unchanged 45s process limit; four PMD/PMX unit/production clients pass in 22.79s. This is a split recheck, not an all-green first run.",
+  "multiline": {
+    "tests": 1,
+    "failures": 0,
+    "failed": [],
+    "artifact": {
+      "path": "out/build/p4-hit-mouse.xml",
+      "sha256": "fa7376e230bd424bfead33b2fea55912ec73c6d047f3141e6ad2812460652430"
+    }
+  },
+  "hidden_observer": {
+    "cases": 574,
+    "editClientCases": 460,
+    "editClientMismatches": 0,
+    "editDeleteCases": 1610,
+    "externalForegroundChanges": 0,
+    "mismatches": 0
+  },
+  "sources": [
+    {
+      "path": "src/frontend_qt/editor_font.cpp",
+      "sha256": "9f68668ce69a85195fc9b7c35c4a37dabb424b36e3e4e541e6282ea7f91806a5"
+    },
+    {
+      "path": "src/frontend_qt/editor_font.hpp",
+      "sha256": "b3b24dc21e671bf755701f3593c23ff43296b239a9f326defbd3552de16fb297"
+    },
+    {
+      "path": "src/frontend_qt/editor_window.cpp",
+      "sha256": "c74cb6ccdcca7c2d26fed3c906f69824eeb70adc42e48829943eeeecf4a1fc52"
+    },
+    {
+      "path": "src/frontend_qt/numeric_dialog.cpp",
+      "sha256": "2925343f8f74a5c053aa08f38db6b7b8e5df22a4d81144a93a3ce815ff8a8e9f"
+    },
+    {
+      "path": "src/frontend_qt/multiline_hit.cpp",
+      "sha256": "e1a88ea4854e159c3e3e5a9a50dbabc4e1eaeaff9738b3759fdcf4a2697ffe51"
+    },
+    {
+      "path": "src/frontend_qt/multiline_hit.hpp",
+      "sha256": "13a4521cf1d08a7c88daeabc8276dce1c67516bbc532302b585d414a0cc37ec9"
+    },
+    {
+      "path": "tests/qt_editor_font_test.cpp",
+      "sha256": "91ebc16111bc0cc61ef5288c142b2a23d33771372c5c2d39a6bf9cf2c9e9c21e"
+    },
+    {
+      "path": "tests/qt_multiline_hit_test.cpp",
+      "sha256": "1cb5601a907f3682d4ff7af03ad57fa6d7104fb940f0e2b5ab018951778beb9c"
+    },
+    {
+      "path": "tests/qt_control_style_oracle_test.cpp",
+      "sha256": "9eb6cb64efd1d04f10d1d94b7ef6bf510841fd8cf8d75b48fbfb48dc69fe3a86"
+    }
+  ],
+  "distribution": {
+    "passed": true,
+    "executable": {
+      "path": "out/dist/MikuDanceStudioNG.exe",
+      "sha256": "e9f1bd788eefaf5b1f96322b300d9f0e9411c1c37e7103631015c9e6f76aec0d"
+    },
+    "report": {
+      "path": "out/build/p4-current-distribution.json",
+      "sha256": "4b9aa37969e82a2805b4c29b6faa7f10a20bf04670d7e37dc49f5bf924cbefe1"
+    },
+    "archive": {
+      "path": "out/releases/MikuDanceStudio-NG-10.15-windows-x64.zip",
+      "sha256": "59a6d92078f131a925f293f63d342ac74555f661b0d96e354dfb68131f684b58"
+    },
+    "note": "Initial console redirection reused the report .log path and caused a Windows sharing violation after the client ran. Rerun uses a separate console log and the unchanged relocation check passes."
+  }
+}

@@ -4,6 +4,15 @@ Status: **in progress**. P4 and C1 have not been accepted. The current work also
 includes strict MMD v9.32 layout/behavior parity and multilingual UI, as requested
 on 2026-11-01. These are acceptance requirements, not claims about this revision.
 
+Current gate status is maintained in [P4 acceptance status](P4_ACCEPTANCE_STATUS.md).
+Run 41843478422 passes Windows **85/85** ordinary tests and all seven shown-control
+profiles, including active EDIT and hover with exact original-resource comparison.
+The menu repair passes Windows and Linux; current macOS follow-ups did not
+acquire a hosted runner, so no new macOS source result is claimed. The
+[scoped run evidence](evidence/p4-ui-41843478422.json) separates those failures
+from the passing scene-visual, package and Windows UI results. Historical results
+below retain their original scope; Windows Server 2025 IME is now qualified.
+
 2026-11-04 continuation: [original EDIT keyboard comparisons](P4_EDIT_NAVIGATION.md)
 now cover 144,135 passing local cases. The user subsequently approved complete-scene
 visual equivalence in place of the strict RGB profile; the [visual policy](P4_VISUAL_COMPOSITE.md)
@@ -289,7 +298,7 @@ This closes that command's integration gap, not the complete clipboard/input gat
 | Fixed-step image sequence export and cancellation | Generated 30fps sequence, strict repeat and cancellation passed on three platforms |
 | Three-platform open/edit/play/save/reopen/export | Combined PMD/PMX, accessory/screen, WAV, physics, all-key-pool edit/save/reopen/export workflow passed at c097942; independent output qualification remains separate |
 | MMD v9.32 independent geometry, behavior and output comparison | Command, chained clipboard, geometry and explicit hardware-output subsets passed; complete native input/control appearance and wider output profiles pending |
-| Input, IME, DPI, font metrics and lifecycle acceptance | Native surface lifecycle passed on all platforms; full input/IME/DPI/font acceptance pending |
+| Input, IME, DPI, font metrics and lifecycle acceptance | Native lifecycle and the recorded three-language platform IME profiles passed; Windows single-line shown states exact; multiline direct-event checks passed; actual monitor transitions and remaining shown/portable appearance checks open. See [current status](P4_ACCEPTANCE_STATUS.md) |
 | CPU frame-production performance | Local Sour Miku complete offscreen CPU/GPU budget passed on DX11/DX12/Vulkan; generated three-platform CPU/GPU qualification passed at 6dbc9cf; physical presentation latency is separate |
 
 All local UI testing uses Qt `offscreen` or windows that are never shown. Actual

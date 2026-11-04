@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "run": "41851148562",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41851148562",
+  "revision": "5c6d47c",
+  "p4_c1_accepted": false,
+  "platforms": {
+    "windows": {
+      "ordinary": {
+        "tests": 86,
+        "failures": 1,
+        "failed": [
+          "qt_control_style"
+        ],
+        "artifact": {
+          "path": "out/evidence/p4/p4-menu-41851148562/windows/p4/p4.xml",
+          "sha256": "572a85459312afe3abaa5c4980ca735914b27fb08f37910c297152c3479d8ebd"
+        }
+      },
+      "distribution": {
+        "path": "out/evidence/p4/p4-menu-41851148562/windows/distribution-check.json",
+        "sha256": "1bd1f6ceccce548da4f25eea795401bafb46cf263242a5a043f74432f7fa80b0"
+      },
+      "failure": "Hidden oracle rejects a foreground window attributed to its own process; ordinary qt_editor_font and qt_multiline_hit pass. Observer follow-up is unqualified remotely."
+    },
+    "linux": {
+      "ordinary": {
+        "tests": 78,
+        "failures": 0,
+        "failed": [],
+        "artifact": {
+          "path": "out/evidence/p4/p4-menu-41851148562/linux/p4/p4.xml",
+          "sha256": "44bff671a14eb449bff4d097cdeb0b60d94c9c9e4f1048f4f06e78cda6b3f5a4"
+        }
+      },
+      "distribution": {
+        "path": "out/evidence/p4/p4-menu-41851148562/linux/distribution-check.json",
+        "sha256": "6039e1f882068bc59e013544c2d8d976a9dc013e9ba11792292bc94c04ca81c5"
+      }
+    },
+    "macos": {
+      "executed": false,
+      "conclusion": "cancelled",
+      "reason": "The job was not acquired by Runner of type hosted even after multiple attempts; macOS arm64 capacity constraints. No new source result exists.",
+      "annotations": {
+        "path": "out/build/p4-menu-macos-queue.json",
+        "sha256": "2b2c9fe93c2935b8e81b47b82a3e574bf83d12646e8483ff4d070d3957a8bec1"
+      }
+    }
+  },
+  "policy": "No native-controls, native-reference or system-IME rerun requested. Previous passing scoped native evidence is preserved; no further capacity retries scheduled."
+}

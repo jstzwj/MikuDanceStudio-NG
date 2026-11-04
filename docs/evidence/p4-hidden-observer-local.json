@@ -1,0 +1,121 @@
+{
+  "schema": 1,
+  "revision": "1e75a3a",
+  "p4_c1_accepted": false,
+  "hidden_observer_guard": {
+    "scope": "WH_CBT on the observer thread only, refuses HCBT_ACTIVATE/HCBT_SETFOCUS; outer NOACTIVATE set before creation; no shown/focus reference adaptation",
+    "assertions": "No test-created window becomes foreground; no native thread focus change; user switching unrelated applications is allowed",
+    "first_run": {
+      "tests": 5,
+      "failures": 1,
+      "failed": [
+        "qt_control_text"
+      ],
+      "artifact": {
+        "path": "out/build/p4-hidden-guard.xml",
+        "sha256": "cfc9da7a76cfbb5dffa3c61a9f45d1ed7775715684c3b932ae148a18dea716c3"
+      }
+    },
+    "unchanged_limit_recheck": {
+      "tests": 1,
+      "failures": 0,
+      "elapsed_seconds": 22.66,
+      "artifact": {
+        "path": "out/build/p4-hidden-guard-text-recheck.xml",
+        "sha256": "c4e58ee504b04cdf564e0746563c32bc406155f9ab53082a24176167f7143a83"
+      }
+    }
+  },
+  "unchanged_native_reference": {
+    "hit_cases": 34224,
+    "navigation_cases": 576,
+    "actual_records_equal_to_frozen": true,
+    "hit_artifact": {
+      "path": "out/build/original-multiline-hit-guarded.json",
+      "sha256": "b62a0c0d25470ef5fe9221f4eb8e7785be5f907e4d38de01ce8ae63a76f30481"
+    },
+    "navigation_artifact": {
+      "path": "out/build/original-multiline-navigation-guarded.json",
+      "sha256": "e80195b9165c82fa4961dd41e62ea1a2ee78cae34eb71c5776241327f722557d"
+    }
+  },
+  "active_multiline": {
+    "compiled": true,
+    "local_execution_refused_before_QApplication": true,
+    "refusal": {
+      "path": "out/build/p4-multiline-active-guard.log",
+      "sha256": "13fd02988d3e46d110142bc5a1c1c10e18c247d41662d1c84e414ebc151a95db"
+    },
+    "status": "not qualified; isolated run 41861823315 pending",
+    "planned_paint_cases": 72,
+    "planned_os_mouse_cases": 90
+  },
+  "initial_noactivate_only_attempt": {
+    "passed": false,
+    "reason": "Explicit USER32 activation remained possible; foreground assertion caught it. Superseded by thread-local CBT veto, without loosening assertions.",
+    "artifact": {
+      "path": "out/build/p4-hidden-creation.log",
+      "sha256": "7ca0fbb1cd50b99461afa5ac083737d863a171dcab41e498a5cde08899bad1cc"
+    }
+  },
+  "final_affected_gates": {
+    "tests": 5,
+    "failures": 0,
+    "elapsed_seconds": 22.0,
+    "scope": "multiline paint/hit/layout/navigation and native control-style guard",
+    "artifact": {
+      "path": "out/build/p4-hidden-final.xml",
+      "sha256": "080930389383790c7664cc5a2585c5966f57e5e26c6fb8246e1d9274f0f19163"
+    },
+    "native_control_counts": {
+      "cases": 574,
+      "mismatches": 0,
+      "editClientCases": 460,
+      "editClientMismatches": 0,
+      "editDeleteCases": 1610,
+      "modifierRetries": 0,
+      "trackbarGeometryCases": 1728,
+      "windowsShown": false
+    }
+  },
+  "physical_dpi_target": {
+    "compiled": true,
+    "locally_refused_before_QApplication": true,
+    "qualification_executed": false,
+    "expected_actual_displays": 2,
+    "forbidden": "Environment scale overrides; same-DPI displays; synthetic WM_DPICHANGED",
+    "scope": "Windows D3D11 WARP, three UI languages, real A-B-A transitions",
+    "refusal": {
+      "path": "out/build/p4-physical-dpi-guard.log",
+      "sha256": "70ecd28a378d5c5960b4395b09d032a532e40963405249ed8a70ea8788c0fe8f"
+    },
+    "revision": "1d5c708"
+  },
+  "guarded_control_report": {
+    "path": "out/build/control-style/report.json",
+    "sha256": "18561078de0c643d39e16729507cc42d689cdee2c48a27064c26ef6da33333e1"
+  },
+  "guarded_multiline_report": {
+    "path": "out/build/multiline-paint/report.json",
+    "sha256": "d7ed2a38eeff50f72155c7bc0db7b6f41af1a6ba07ab2037161d29e826a5c0e8"
+  },
+  "runner_environment": {
+    "self_hosted_runners": 0,
+    "hosted_followup_run": "41861823315",
+    "hosted_followup_status": "queued; no source qualification yet",
+    "physical_display_requirement_met": false,
+    "observed_at_utc": "2026-11-04T16:06:08.422422+00:00",
+    "status_artifact": {
+      "path": "out/build/p4-observer-remote-status.json",
+      "sha256": "e2e7f53e8089c4d7b8d712f85058998d3d40606076148065b6bd22e760454d9a"
+    }
+  },
+  "all_build": {
+    "passed": true,
+    "revision": "1d5c708",
+    "artifact": {
+      "path": "out/build/p4-current-all-build.log",
+      "sha256": "e530ab82999ee4f3b5d8e5224daa8112e357b7614e73de64d65c94d615c811a4"
+    }
+  }
+}

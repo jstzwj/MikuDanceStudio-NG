@@ -3,6 +3,55 @@
 P4/C1 remains **in progress**. Complete-scene RGB uses the user-approved visual
 policy; this does not waive original UI appearance or native input qualification.
 
+Latest run [41843478422](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41843478422)
+at `40daf18` now passes Windows **85/85** ordinary gates and all seven actual shown
+control profiles: 460 empty, 4,600 populated inactive, 3,450 active/selection/scroll,
+230 actual hover EDIT and 102 list/combo/focus comparisons have zero RGB differences.
+Cursor geometry has zero mismatches. Linux/macOS each have only the system-menu
+font inheritance failure (77/78 and 72/73 ordinary gates); the menu now explicitly
+resolves all its system font properties rather than inheriting Noto metrics from
+its parent. All three scene-visual and relocated-package gates pass. See
+[run evidence](evidence/p4-ui-41843478422.json) and [current P4 status](P4_ACCEPTANCE_STATUS.md).
+
+The menu-font follow-up [41851148562](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41851148562)
+passes Linux **78/78**, including the original font failure. Windows passes 85/86,
+including fonts and multiline hit tests; its remaining fail is the hidden observer's
+process-foreground assertion. The observer follow-up records its foreground before
+QApplication and forbids activation for non-focus reference windows. It also verifies
+the Ctrl modifier immediately around each native deletion; a refreshed input table
+retries the same case within a fixed bound and never counts ordinary Delete as Ctrl.
+macOS was not acquired by a hosted runner after multiple attempts, due to capacity;
+no current macOS source qualification is claimed and no capacity retry is scheduled.
+[Run evidence](evidence/p4-menu-41851148562.json) retains the actual failure/cancellation.
+
+Local ALL_BUILD and 85/86 ordinary tests pass. The only failed native-language client
+timed out at the unchanged 45-second limit; a separate unchanged-code recheck passes
+all four generated PMD/PMX unit/production clients in 22.79 seconds. The initial fail
+is retained, not rewritten as an all-green first run. Updated package relocation
+passes. [Local evidence](evidence/p4-menu-multiline-local.json) records binary/source hashes.
+
+The continuation also adds [50,232 original multiline hit tests and 475 directly
+addressed Shift-click checks](P4_MULTILINE_HIT.md), all passing without desktop
+input or exposure. Physical DPI and actual shown multiline/drag qualification
+remain separate; the historical increments below retain their measured scope.
+
+The subsequent [multiline client paint gate](P4_MULTILINE_PAINT.md) adds 432 exact
+hidden client states, including readonly/disabled color, inactive selection,
+horizontal/vertical scroll and overhanging/clipped glyphs. It preserves the earlier
+character, hit-test and page-navigation gates. The four hidden observer families
+passed locally after `29cee2d`. Source consolidation at `105695e` in run
+41857117726 passes Linux 78/78 and Windows 86/87; only hidden native activation
+fails. macOS again never acquired a runner. The `1e75a3a` observer uses a
+thread-local CBT activation/focus veto; NOACTIVATE alone proved insufficient.
+Child resources stay identical and actual shown qualifications have no hook.
+Reobserved 34,224 hits and 576 navigation records are unchanged. A local text
+paint timeout and its unchanged-limit passing recheck are both retained in
+[observer evidence](evidence/p4-hidden-observer-local.json). The single Windows
+follow-up 41861823315 qualifies these observers and the new actual multiline test;
+it does not rebuild all platforms or rerun already-passing IME qualification.
+Actual shown multiline focus/drag
+and physical DPI requirements are still not accepted by these memory captures.
+
 ## Consolidated evidence
 
 Run [41828328950](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41828328950),

@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "run": "41861823315",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41861823315",
+  "revision": "1e75a3a",
+  "observed_at_utc": "2026-11-04T16:06:08.752268+00:00",
+  "status": "queued",
+  "platform": "windows-2025",
+  "p4_c1_accepted": false,
+  "source_qualification_executed": false,
+  "scope": {
+    "hidden_observer_tests": 5,
+    "actual_multiline_planned_paint": 72,
+    "actual_multiline_planned_os_mouse": 90,
+    "system_ime": false,
+    "native_reference": false,
+    "native_controls_prior_families": false,
+    "other_platforms": false,
+    "distribution": false
+  },
+  "policy": "One targeted dispatch for changed observer and actual multiline gates. No duplicate/retry dispatch. Pending is not passing. No self-hosted runner is registered.",
+  "snapshot": {
+    "path": "out/build/p4-observer-remote-status.json",
+    "sha256": "e2e7f53e8089c4d7b8d712f85058998d3d40606076148065b6bd22e760454d9a"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "p4_c1_accepted": false,
+  "original_sha256": "07516fd3bf1e6b1339836b6773a156f61bdd6f848eeb621fdda012375df313a1",
+  "corpus": {
+    "path": "tests/reference/original-multiline-hit.json",
+    "sha256": "9170f04dfc57f2b3331fec6717395522e20c0fe6e9a4e7a4c856ca6bcbca7583",
+    "native_samples": 34224,
+    "resource_templates": [
+      666,
+      665
+    ],
+    "control": 668,
+    "grid_step_client_pixels": 3
+  },
+  "local_contract": {
+    "comparisons": 50232,
+    "failures": 0,
+    "direct_shift_click_comparisons": 475,
+    "xml": "out/build/p4-hit-mouse.xml",
+    "xml_sha256": "fa7376e230bd424bfead33b2fea55912ec73c6d047f3141e6ad2812460652430"
+  },
+  "policy": {
+    "native_resources_never_shown": true,
+    "desktop_input": false,
+    "foreground_changes": false,
+    "screen_capture": false,
+    "widget_events": "Direct QCoreApplication::sendEvent to never-shown read-only viewport; no software input panel"
+  },
+  "scope_exclusions": [
+    "shown multiline raster",
+    "actual capture/drag/autoscroll",
+    "double-click word policy",
+    "non-ASCII/bidi text",
+    "physical monitor transitions"
+  ],
+  "sources": [
+    {
+      "path": "src/frontend_qt/multiline_hit.cpp",
+      "sha256": "e1a88ea4854e159c3e3e5a9a50dbabc4e1eaeaff9738b3759fdcf4a2697ffe51"
+    },
+    {
+      "path": "src/frontend_qt/multiline_hit.hpp",
+      "sha256": "13a4521cf1d08a7c88daeabc8276dce1c67516bbc532302b585d414a0cc37ec9"
+    },
+    {
+      "path": "tests/qt_multiline_hit_test.cpp",
+      "sha256": "1cb5601a907f3682d4ff7af03ad57fa6d7104fb940f0e2b5ab018951778beb9c"
+    },
+    {
+      "path": "tools/observe_multiline_layout.py",
+      "sha256": "2a6c51dfcc71160fb9a506e849439d5b6d0dafd12c735fd3df749f5d16c56c55"
+    }
+  ]
+}
