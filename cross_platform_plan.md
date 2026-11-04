@@ -4,7 +4,7 @@
 
 更新时间：2026-11-04。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
 
-本轮补齐原版文本键盘行为，已通过 144,135 组本地隐藏／离屏对照；整帧 RGB 按最新用户要求改为截图视觉一致性验收，保留严格差分诊断及原有复制／深度契约。Windows 原生 IME 与完整可见界面、实际 DPI／非 Windows 字体仍需验收，P4 保持实施中。见 [文本记录](docs/P4_EDIT_NAVIGATION.md) 与 [整帧视觉门槛](docs/P4_VISUAL_COMPOSITE.md)。
+本轮补齐原版文本键盘行为，已通过 144,135 组本地隐藏／离屏对照；整帧 RGB 按最新用户要求改为截图视觉一致性验收，保留严格差分诊断及原有复制／深度契约。一次综合 CI 的 Windows WARP、Metal 和软件 Vulkan 整帧门禁及新截图视觉复核均通过；macOS 72／72 常规回归通过。Windows／Linux 各有一项新增测试未读取 CI 后端设置，已修正并完成本地 DX12 WARP 复验，未追加远程重跑。备注栏的文字、光标与 Tab 几何新增 438 个原版检查点通过。Windows 原生 IME 仍在 MS 日文输入法退出时阻塞；可见输入框差异已收敛到最外侧一像素边框，内部文字全部一致。完整可见界面、实际 DPI／非 Windows 字体仍需验收，P4 保持实施中。见 [文本记录](docs/P4_EDIT_NAVIGATION.md)、[整帧视觉门槛](docs/P4_VISUAL_COMPOSITE.md) 与 [本次验收证据](docs/evidence/p4-visual-input-41810541646.json)。
 
 实施状态：**P0 已完成**。三平台基础构建、两轮精确文件／数值回归、统一 Bullet 包装与分配／销毁验证、macOS 无窗口 Vulkan 探测均已执行；Windows x64／x86 编辑器构建通过。能力表、最低环境决策、依赖图、证据和仍未覆盖的范围见 [P0 实施与验收记录](docs/CROSS_PLATFORM_P0.md)。
 

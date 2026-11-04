@@ -1,0 +1,440 @@
+{
+  "schema": 1,
+  "run": "41810541646",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41810541646",
+  "revision": "f1f8f094465ca00d3c64972fb965fd551a0e2a49",
+  "date": "2026-11-04",
+  "dispatch_count": 1,
+  "p4_c1_accepted": false,
+  "visual_scene_accepted": true,
+  "visual_policy": "User approved screenshot visual equivalence on complete scene frames only. Strict copy, repeats, depth and resource gates retained.",
+  "platforms": {
+    "windows": {
+      "ordinary": {
+        "name": "Win32-ninja",
+        "tests": "82",
+        "failures": "1",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "runnervmnjgfq",
+        "time": "210",
+        "timestamp": "2026-11-04T10:01:04",
+        "artifact": {
+          "path": "out/evidence/p4/p4-visual-input-41810541646/windows/p4/p4.xml",
+          "sha256": "bc9e3fc7c6134e8f9abfe325cee1b77017de33f8a489908f6c35a7d5d13ac99e"
+        },
+        "failed": [
+          "rhi_frame_budget"
+        ]
+      },
+      "composite": {
+        "name": "Win32-ninja",
+        "tests": "1",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "runnervmnjgfq",
+        "time": "0",
+        "timestamp": "2026-11-04T10:07:08",
+        "artifact": {
+          "path": "out/evidence/p4/p4-visual-input-41810541646/windows/p4/native-reference.xml",
+          "sha256": "88717d91e220ead12a0980f6521bb908ada10beafed4b737c421fb0988a31918"
+        },
+        "failed": []
+      },
+      "visual_analysis": {
+        "path": "out/evidence/p4/p4-visual-input-41810541646/windows/visual-analysis/analysis.json",
+        "sha256": "18c323a452e2ed88cb2e23962a9b0085397cd8b180b53ca6f6e5eefe4fe33179"
+      },
+      "strict_accepted": false,
+      "visual_accepted": true,
+      "captures": {
+        "rest": {
+          "rgba": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/windows/p4/native-reference/rest.rgba",
+            "sha256": "853530e03c9110e2c56f5e35eaaf6e12808758a50c79c055b54848c360978ee9"
+          },
+          "overview": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/windows/visual-analysis/rest-overview.png",
+            "sha256": "2e9d0d438e03d660e609880a37723f13a4601f6e3aa8ec145efa5824c304f15e"
+          },
+          "visual": {
+            "mean": 0.1231027939740349,
+            "large_pixel_fraction": 0.000171661376953125,
+            "block_mean_maximum": 10.859375,
+            "alpha_differences": 7,
+            "accepted": true
+          },
+          "strict_outside_elements": 141,
+          "strict_coverage_differences": 5
+        },
+        "posed": {
+          "rgba": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/windows/p4/native-reference/posed.rgba",
+            "sha256": "1b2c2efe8360f49a94900f0572b47dc223d1e92fc57eb714b84ba63520fbfc2b"
+          },
+          "overview": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/windows/visual-analysis/posed-overview.png",
+            "sha256": "0282a359addca1795af0ecd48c329f4dea1d31b1819e75f7d94fe2e10207da72"
+          },
+          "visual": {
+            "mean": 0.12108182309093754,
+            "large_pixel_fraction": 0.00012112219715665642,
+            "block_mean_maximum": 4.03125,
+            "alpha_differences": 0,
+            "accepted": true
+          },
+          "strict_outside_elements": 24,
+          "strict_coverage_differences": 0
+        }
+      },
+      "visual_review": "Fresh original-sized DX9 side-by-side overview inspected: no visible scene/material/orientation regression; isolated grid/shadow edge differences.",
+      "distribution": {
+        "path": "out/evidence/p4/p4-visual-input-41810541646/windows/distribution-check.json",
+        "sha256": "474e4a9e5de8e3d331e0d4bbd665e900853028027be352917edc8adcc23ea507"
+      },
+      "ordinary_failure": "rhi_frame_budget used DefaultBackend/Vulkan instead of the requested d3d11 software test host: vulkan_loader_unavailable. Test now consumes explicit environment options; no CI rerun claimed.",
+      "native_ime": {
+        "accepted": false,
+        "report": {
+          "path": "out/evidence/p4/p4-visual-input-41810541646/windows/p4/system-ime-ms-ime.json",
+          "sha256": "6ec8b6f922405d730e8aa75d516c55003b6a5c26f5e0b34f87a8a2dbf85bd21b"
+        },
+        "log": {
+          "path": "out/evidence/p4/p4-visual-input-41810541646/windows/p4/system-ime-ms-ime.en.log",
+          "sha256": "fed6a0fc4b90c5b24a417885574cad8c0de98c9c25b82b1f6c7ccb3c1003b3a0"
+        },
+        "shutdown_dump": {
+          "path": "out/evidence/p4/p4-visual-input-41810541646/windows/p4/system-ime-ms-ime.en.hang.dmp",
+          "sha256": "34ff129405db26b5c0518f4084be22cb8a85cd5f072dc2ac6bbc35a803477a27"
+        },
+        "observation": "English composition/commit/cancel passed; thread-owned DeactivateProfile blocks inside Microsoft IME and NtUserActivateKeyboardLayout. Natural shutdown not qualified."
+      },
+      "visible_controls": {
+        "control-style-nonclient": {
+          "cases": 460,
+          "mismatches": 460,
+          "report": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/windows/p4/control-style-nonclient/report.json",
+            "sha256": "582378a467095757c6b0d6cdd8508a8a6daf734a992e4e4bea20f0bbba1e4557"
+          }
+        },
+        "control-edit-visible": {
+          "cases": 4600,
+          "mismatches": 4600,
+          "report": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/windows/p4/control-edit-visible/report.json",
+            "sha256": "8ad53d6afe85b4d3aa22e5a7094d82d2f772764267cc47a750d66685813b9a31"
+          }
+        },
+        "control-content-visible": {
+          "cases": 68,
+          "mismatches": 0,
+          "report": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/windows/p4/control-content-visible/report.json",
+            "sha256": "19a9e8ca572912bb0c5980c8d15458899269b6081ddeaf85bbc8e87d8132c977"
+          }
+        },
+        "control-list-focus": {
+          "cases": 6,
+          "mismatches": 0,
+          "report": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/windows/p4/control-list-focus/report.json",
+            "sha256": "03d3e0ac9d2311c07d14736a726c54c4e8c2eea22740b5a9e2a183cf8566a129"
+          }
+        },
+        "control-content-focus": {
+          "cases": 28,
+          "mismatches": 0,
+          "report": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/windows/p4/control-content-focus/report.json",
+            "sha256": "96bce8afc62670b9613ef429f28bf3a882cefbcf1995e04ec3852ef3ef890da9"
+          }
+        }
+      },
+      "edit_failure_diagnosis": "Full screenshot comparison: 71,268 empty-control mismatching pixels and 712,680 populated-control mismatching pixels, all exclusively in the outermost one-pixel ring; zero interior mismatches. Native normal/hot/disabled border colors 122/23/204 versus Qt fallback (171,173,179). Retained unaccepted."
+    },
+    "linux": {
+      "ordinary": {
+        "name": "Linux-c++",
+        "tests": "77",
+        "failures": "1",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "runnervmcwoy2",
+        "time": "424",
+        "timestamp": "2026-11-04T09:59:26",
+        "artifact": {
+          "path": "out/evidence/p4/p4-visual-input-41810541646/linux/p4/p4.xml",
+          "sha256": "9c986a571111a1c0a3924656316698f4e83ca9d835d76bed15e231f69ff93608"
+        },
+        "failed": [
+          "rhi_frame_budget"
+        ]
+      },
+      "composite": {
+        "name": "Linux-c++",
+        "tests": "1",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "runnervmcwoy2",
+        "time": "1",
+        "timestamp": "2026-11-04T10:06:30",
+        "artifact": {
+          "path": "out/evidence/p4/p4-visual-input-41810541646/linux/p4/native-reference.xml",
+          "sha256": "a0e0f448cc2a9f8ea5b9e84ca4d900977078bc732c4753fceb9174bc19552269"
+        },
+        "failed": []
+      },
+      "visual_analysis": {
+        "path": "out/evidence/p4/p4-visual-input-41810541646/linux/visual-analysis/analysis.json",
+        "sha256": "e650c8f3300f3e0a037a420aa0427b3b484cde53c102cc69a62bd4125cd45a19"
+      },
+      "strict_accepted": false,
+      "visual_accepted": true,
+      "captures": {
+        "rest": {
+          "rgba": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/linux/p4/native-reference/rest.rgba",
+            "sha256": "8bf220fb17471cc7bf43d055953a4e85119920166ec05083976747f7e6bfcd98"
+          },
+          "overview": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/linux/visual-analysis/rest-overview.png",
+            "sha256": "2b05d85429eb1987f041991eac102e65a0b1eb2059b478a749cafdcbe820c6d7"
+          },
+          "visual": {
+            "mean": 0.11091232299804688,
+            "large_pixel_fraction": 3.4332275390625e-05,
+            "block_mean_maximum": 6.53125,
+            "alpha_differences": 2,
+            "accepted": true
+          },
+          "strict_outside_elements": 29,
+          "strict_coverage_differences": 2
+        },
+        "posed": {
+          "rgba": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/linux/p4/native-reference/posed.rgba",
+            "sha256": "3a2c3799e7f6cfe958e85a5fe65449ad5d6c3228afde27c0433e29ec91c4c485"
+          },
+          "overview": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/linux/visual-analysis/posed-overview.png",
+            "sha256": "17219b8ec930ea1c4daf78d250c7aef30df619fbecfbd6db55c78c6b55e0f875"
+          },
+          "visual": {
+            "mean": 0.13421348796600505,
+            "large_pixel_fraction": 0.0002725249436024769,
+            "block_mean_maximum": 9.40625,
+            "alpha_differences": 0,
+            "accepted": true
+          },
+          "strict_outside_elements": 54,
+          "strict_coverage_differences": 0
+        }
+      },
+      "visual_review": "Fresh original-sized DX9 side-by-side overview inspected: no visible scene/material/orientation regression; isolated grid/shadow edge differences.",
+      "distribution": {
+        "path": "out/evidence/p4/p4-visual-input-41810541646/linux/distribution-check.json",
+        "sha256": "366fbe589c782a6604ecd5f58b305d0dc2ebfc7a263810990ceff13a9d9e15cc"
+      },
+      "ordinary_failure": "rhi_frame_budget omitted MDS_GPU_DRIVER=software: vulkan_1_3_features_unavailable. Test now consumes explicit test-host options; no CI rerun claimed.",
+      "native_ime": [
+        {
+          "engine": "libpinyin",
+          "accepted": true,
+          "report": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/linux/p4/system-ime.json",
+            "sha256": "9410e89941f76bc61928ef3e3729ec97611b40c41d38319c73e835a337215e1b"
+          }
+        },
+        {
+          "engine": "anthy",
+          "accepted": true,
+          "report": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/linux/p4/system-ime-anthy.json",
+            "sha256": "67b1ef3b0f760c6e7d977fc84e9fdb0136b323e714c416708a5d555b06d00d80"
+          }
+        }
+      ]
+    },
+    "macos": {
+      "ordinary": {
+        "name": "Darwin-c++",
+        "tests": "72",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "sjc20-cw711-165f6e42-cf1c-41cf-8c8e-3f16ebdc9b6c-0624574387DB.local",
+        "time": "153",
+        "timestamp": "2026-11-04T09:56:45",
+        "artifact": {
+          "path": "out/evidence/p4/p4-visual-input-41810541646/macos/p4/p4.xml",
+          "sha256": "884baebfbd4e46f8a291b4071c5d0160eb69cea3259bbd6a480a4259ca328506"
+        },
+        "failed": []
+      },
+      "composite": {
+        "name": "Darwin-c++",
+        "tests": "1",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "sjc20-cw711-165f6e42-cf1c-41cf-8c8e-3f16ebdc9b6c-0624574387DB.local",
+        "time": "1",
+        "timestamp": "2026-11-04T09:59:47",
+        "artifact": {
+          "path": "out/evidence/p4/p4-visual-input-41810541646/macos/p4/native-reference.xml",
+          "sha256": "48fe179e04858f054acffd9e8eb24719577f71ca42582b384b96a0ffd21dd130"
+        },
+        "failed": []
+      },
+      "visual_analysis": {
+        "path": "out/evidence/p4/p4-visual-input-41810541646/macos/visual-analysis/analysis.json",
+        "sha256": "375b41129100f8a7a9502230a55b0b5ce5d725154c1b50149abdb03d84cc7605"
+      },
+      "strict_accepted": false,
+      "visual_accepted": true,
+      "captures": {
+        "rest": {
+          "rgba": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/macos/p4/native-reference/rest.rgba",
+            "sha256": "becdcda8a9674440e350741123c5fee890e3c880b2db5a6c3d4185287e220cc5"
+          },
+          "overview": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/macos/visual-analysis/rest-overview.png",
+            "sha256": "94bdb3b2a070d99cafbe028df13da546a2f2b78694add4c96695ecdfe5dec729"
+          },
+          "visual": {
+            "mean": 0.10986836751302083,
+            "large_pixel_fraction": 3.0517578125e-05,
+            "block_mean_maximum": 6.53125,
+            "alpha_differences": 0,
+            "accepted": true
+          },
+          "strict_outside_elements": 24,
+          "strict_coverage_differences": 0
+        },
+        "posed": {
+          "rgba": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/macos/p4/native-reference/posed.rgba",
+            "sha256": "fb9f54ea837189dd9b31dc48303645d40cfb53f125d97c6e9fe44dcc9d636dba"
+          },
+          "overview": {
+            "path": "out/evidence/p4/p4-visual-input-41810541646/macos/visual-analysis/posed-overview.png",
+            "sha256": "5bc897a341a63f5aadd9735407d6ab0111053c9dd10cc2e23a9d5dede411fdab"
+          },
+          "visual": {
+            "mean": 0.12093546710270657,
+            "large_pixel_fraction": 0.00010598192251207437,
+            "block_mean_maximum": 5.078125,
+            "alpha_differences": 0,
+            "accepted": true
+          },
+          "strict_outside_elements": 21,
+          "strict_coverage_differences": 0
+        }
+      },
+      "visual_review": "Fresh original-sized DX9 side-by-side overview inspected: no visible scene/material/orientation regression; isolated grid/shadow edge differences.",
+      "distribution": {
+        "path": "out/evidence/p4/p4-visual-input-41810541646/macos/distribution-check.json",
+        "sha256": "96362e0a0482a79f772a49684fb0bfec098107005eebaecfc69978874ce9ec0c"
+      },
+      "native_ime": {
+        "accepted": true,
+        "report": {
+          "path": "out/evidence/p4/p4-visual-input-41810541646/macos/p4/system-ime-kotoeri.json",
+          "sha256": "05c95dd22b26a147fb406b21eac53831cd93cb77ff7f66566769d12bb5c7602c"
+        }
+      },
+      "metal_only_distribution": {
+        "path": "out/evidence/p4/p4-visual-input-41810541646/macos/p4/metal-only-distribution.json",
+        "sha256": "5c405ad41427288be00dc1757308ba25caa144bea869c570eb95767ca411d04a"
+      }
+    }
+  },
+  "subsequent_local": {
+    "multiline_geometry": {
+      "independent_original_positions": 438,
+      "mismatches": 0,
+      "fixture": {
+        "path": "tests/reference/original-multiline-layout.json",
+        "sha256": "e1ec9da00f9d8575472a1d7c7a80017a7ce69aed46986ab03233cd3cd95243c8"
+      },
+      "sources": [
+        {
+          "path": "src/frontend_qt/numeric_dialog.cpp",
+          "sha256": "0efc484c9eb96a81de0ca303f98431889d67a8b2ce4b5a97eede4413727dfecc"
+        },
+        {
+          "path": "src/frontend_qt/editor_style.cpp",
+          "sha256": "e4b2a56c8356b22705ad382273b0ff6c5a5f43e7b9b5ec0f0b08fe073923ef7d"
+        },
+        {
+          "path": "tools/observe_multiline_layout.py",
+          "sha256": "bf9851b1f8299e3ae7a59832949c3d91b9aa53dba2192f3de50e0bcd1f8aa8c4"
+        },
+        {
+          "path": "tests/qt_multiline_layout_test.cpp",
+          "sha256": "4cc1a9ff950ab97b18086ab748b10f2fb9752cd0a04b4f8e75475f4429cd6229"
+        }
+      ],
+      "limitations": "Never-shown unscrolled geometry only; not active selection/scroll paint."
+    },
+    "affected_controls": {
+      "name": "Win32-MSBuild",
+      "tests": "4",
+      "failures": "0",
+      "disabled": "0",
+      "skipped": "0",
+      "hostname": "XiaHan",
+      "time": "30",
+      "timestamp": "2026-11-04T18:05:12",
+      "artifact": {
+        "path": "out/build/p4-multiline.xml",
+        "sha256": "32d258a65245787d1717ee4edfa806088d68214c807bf786233a8339d1859cda"
+      },
+      "failed": []
+    },
+    "language_native_lifecycle": {
+      "name": "Win32-MSBuild",
+      "tests": "4",
+      "failures": "0",
+      "disabled": "0",
+      "skipped": "0",
+      "hostname": "XiaHan",
+      "time": "45",
+      "timestamp": "2026-11-04T18:09:22",
+      "artifact": {
+        "path": "out/build/p4-multiline-lifecycle.xml",
+        "sha256": "1e22162b9678df5731d5acb58b7264509c4d14e16224aaeef9d3a6c709ec18b0"
+      },
+      "failed": []
+    },
+    "frame_budget_explicit_dx12_warp": {
+      "name": "Win32-MSBuild",
+      "tests": "1",
+      "failures": "0",
+      "disabled": "0",
+      "skipped": "0",
+      "hostname": "XiaHan",
+      "time": "0",
+      "timestamp": "2026-11-04T18:18:25",
+      "artifact": {
+        "path": "out/build/p4-frame-budget-config.xml",
+        "sha256": "bc0f45cf6b26e1d0e8bdaa97aec64bfdfd589fa4bd769bd458e393d90e205e35"
+      },
+      "failed": []
+    },
+    "relocated_distribution": {
+      "path": "out/build/p4-multiline-distribution.json",
+      "sha256": "126bc2faaa659d19bcd2a08451fefcb7702b03309e7aecce7afe99232de53b68"
+    },
+    "all_three_platforms_rebuilt_after_followup": false
+  },
+  "remaining": [
+    "Windows native IME natural exit: MS Japanese IME blocks during thread-owned TSF deactivation; all-language exit not qualified",
+    "Shown EDIT outer edge colors, active/scrolled EDIT and multiline paint, hover, actual DPI and non-Windows font appearance",
+    "Fresh CI after test-host configuration and multiline geometry corrections"
+  ]
+}

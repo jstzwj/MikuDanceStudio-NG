@@ -50,6 +50,11 @@ Windows native IME or the remaining shown control/font/DPI qualification gaps.
 
 `tools/analyze_editor_composite.py` records both visual and strict results and
 retains every strict failed pixel and magnified example. `--strict` requests the
-old strict exit status. Current binary/capture hashes and fresh platform runs
-belong in the next acceptance evidence record; older Metal/Linux raw captures
-are historical observations and are not fresh builds of this revision.
+old strict exit status. Consolidated run
+[41810541646](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41810541646)
+now passes this gate on Windows WARP, native Metal and Linux software Vulkan.
+All six fresh captures were inspected side by side with DX9 at their original
+size; there is no visible scene/material/orientation regression. Their hashes,
+unchanged strict diagnostics and both visual metrics are retained in the
+[run evidence](evidence/p4-visual-input-41810541646.json). The older Metal/Linux
+captures reviewed during implementation remain separately identified history.

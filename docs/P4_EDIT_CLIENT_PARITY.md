@@ -3,6 +3,17 @@
 Status: partial qualification. This record does not accept P4/C1 or complete
 EDIT appearance and input behavior.
 
+The subsequent multiline layout repair uses the original English/Japanese
+resources' `EM_GETRECT` and `EM_POSFROMCHAR`, observed without showing or focusing
+windows. The original client origin is `(6, 3)` in outer-control pixels and the
+default Tab interval is 56 logical pixels. Qt previously used `(5, 5)` and 80.
+The document margin, viewport inset and actual two-pixel frame now share those
+native metrics, including drawing, hit testing, caret and IME geometry. The new
+`qt_multiline_layout` gate passes **438** original character/tab/line positions;
+navigation, numeric-dialog and English-name rechecks also pass. This qualifies
+unscrolled character geometry, not active selection/scroll paint or shown IME
+candidate placement.
+
 2026-11-04 keyboard correction: the new [original EDIT navigation corpus](P4_EDIT_NAVIGATION.md)
 supersedes the `1.5`-only Ctrl+Delete generalization below. Mixed-text single/multiline
 navigation, Ctrl+A, Ctrl+Backspace, Ctrl+Delete and selection direction now have

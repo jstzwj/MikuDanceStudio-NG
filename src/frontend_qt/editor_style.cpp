@@ -75,6 +75,15 @@ public:
     void drawPrimitive(PrimitiveElement element, const QStyleOption* option, QPainter* painter,
                        const QWidget* widget) const override {
 #ifdef _WIN32
+        if (element == PE_Frame && widget && widget->property("mmdNativeSunkenEdit").toBool() &&
+            baseStyle()->objectName() == "windowsvista") {
+            if (widget->isVisible() && DrawWindowsEditBorder(*painter, option->rect, option->state))
+                return;
+            if (!widget->isVisible()) {
+                DrawWindowsSunkenBorder(*painter, option->rect);
+                return;
+            }
+        }
         if (element == PE_Frame && widget && widget->property("mmdNativeSunkenBorder").toBool() &&
             baseStyle()->objectName() == "windowsvista") {
             // USER32 WM_PRINT on a never-shown list uses its classic edge.

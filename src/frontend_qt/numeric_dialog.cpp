@@ -21,11 +21,28 @@
 #include <QPainter>
 #include <QStyleOptionFrame>
 #include <QValidator>
+#include <QTextDocument>
 #include <charconv>
 #include <climits>
 #include <cmath>
 namespace mikudancestudio::qt {
 namespace {
+class DialogMultilineEdit final : public QPlainTextEdit {
+public:
+    DialogMultilineEdit(bool english, bool border, QWidget* parent) : QPlainTextEdit(parent) {
+        // Original EM_GETRECT/EM_POSFROMCHAR: four client pixels on the
+        // left, one above; the default 32-DLU tabs are 56 logical pixels.
+        // Apply them to Qt's actual viewport/document, so drawing, hit testing,
+        // caret movement and IME candidate placement share the same origin.
+        setFrameStyle(QFrame::NoFrame);
+        setProperty("mmdNativeSunkenEdit", border);
+        if (border)
+            setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
+        document()->setDocumentMargin(0);
+        setViewportMargins(4, 1, english ? 4 : 2, 1);
+        setTabStopDistance(56);
+    }
+};
 class DialogLineEdit final : public QLineEdit {
     class WidthValidator final : public QValidator {
     public:
@@ -292,7 +309,8 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
             field->installEventFilter(this);
             widget = field;
         } else if (control.kind == ui::NumericControlKind::Multiline) {
-            auto* field = new QPlainTextEdit(this);
+            auto* field =
+                new DialogMultilineEdit(english_, (control.style & 0x00800000u) != 0, this);
             field->setReadOnly((control.style & 0x800u) != 0);
             field->setLineWrapMode(control.style & 0x80u ? QPlainTextEdit::NoWrap
                                                          : QPlainTextEdit::WidgetWidth);

@@ -3,6 +3,7 @@
 #include "mikudancestudio/rhi_render_pass.hpp"
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 #include <stdexcept>
 using namespace mikudancestudio::rhi;
 void Check(bool value, const std::string& reason) {
@@ -42,13 +43,23 @@ RenderFrame Frame(unsigned draws) {
 int main(int argc, char** argv) try {
     BackendOptions options;
     options.backend = DefaultBackend();
-    if (argc > 1) {
-        const std::string name = argv[1];
+    if (const auto* argument = argc > 1 ? argv[1] : std::getenv("MDS_GPU_BACKEND")) {
+        const std::string name = argument;
+        Check(name == "d3d11" || name == "d3d12" || name == "metal" || name == "vulkan",
+              "invalid test backend");
         options.backend = name == "d3d11"   ? Backend::D3D11
                           : name == "d3d12" ? Backend::D3D12
                           : name == "metal" ? Backend::Metal
                                             : Backend::Vulkan;
     }
+    if (const auto* driver = std::getenv("MDS_GPU_DRIVER")) {
+        Check(std::string(driver) == "software" || std::string(driver) == "hardware",
+              "invalid test driver");
+        options.driver =
+            std::string(driver) == "software" ? BackendDriver::Software : BackendDriver::Hardware;
+    }
+    if (const auto* library = std::getenv("MDS_TEST_VULKAN_LIBRARY"))
+        options.vulkanLibrary = library;
     auto native = CreateOffscreenBackendDevice(8, 8, options);
     Check(bool(native), native.reason);
     auto& device = *native.device;

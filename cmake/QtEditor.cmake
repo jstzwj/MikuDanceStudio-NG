@@ -137,6 +137,12 @@ function(mds_add_qt_editor)
             TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         target_link_libraries(qt_editor_chrome_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
+            qt_add_executable(qt_multiline_layout_test "${root}/tests/qt_multiline_layout_test.cpp")
+            target_link_libraries(qt_multiline_layout_test PRIVATE mikudancestudio_frontend_qt)
+            add_test(NAME qt_multiline_layout COMMAND qt_multiline_layout_test
+                "${root}/tests/reference/original-multiline-layout.json")
+            set_tests_properties(qt_multiline_layout PROPERTIES LABELS "p4;hidden;qt;appearance;oracle"
+                TIMEOUT 30 ENVIRONMENT "QT_QPA_PLATFORM=windows")
             target_sources(qt_editor_chrome_test PRIVATE "${root}/res/frontend_qt/windows.manifest")
         endif()
         add_test(NAME qt_editor_chrome COMMAND qt_editor_chrome_test "${root}/res/assets" "${CMAKE_BINARY_DIR}/editor-chrome")

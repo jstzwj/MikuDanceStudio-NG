@@ -18,12 +18,32 @@ are recorded in [current local evidence](evidence/p4-visual-input-local.json).
 Native Windows IME shutdown and complete shown UI qualification remain pending;
 they are not included in that 82-test result.
 
+Consolidated run [41810541646](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41810541646)
+passes the complete-scene visual gate on **Windows WARP, Metal and software
+Vulkan**; all six new screenshots were reviewed. macOS passes 72/72 ordinary
+tests. Windows passes 81/82 and Linux 76/77: the new frame-budget test omitted
+the explicit CI backend/driver/library options. That test-host defect is now
+corrected and locally rechecked on DX12 WARP; those two CI jobs are not described
+as passing. Linux libpinyin/Anthy and macOS Kotoeri pass all three languages and
+natural exit; all three relocated packages pass.
+
+Windows shown lists/combos and focus profiles pass 102 exact cases. All 460 empty
+and 4,600 populated EDIT cases differ only at the outermost one-pixel border;
+their entire interior, including glyphs, is identical. Native edges have distinct
+normal/disabled/hot colors while the current theme-property query returns one
+fallback color. This remains an appearance defect, with all original screenshots
+retained. Native Windows IME still blocks inside Microsoft IME, now during the
+test-owned TSF deactivation; the modern compatibility manifest did not fix it.
+Neither failure is waived. Subsequent local multiline geometry, lifecycle and
+frame-budget rechecks are scoped in the [run evidence](evidence/p4-visual-input-41810541646.json).
+There was one consolidated dispatch; no additional remote rerun is claimed.
+
 The latest [PMM compatibility repair and gap review](P4_PMM_COMPATIBILITY.md)
 records three actual v1 projects, nine backend/language checks and nine imported
 project resize/device-replacement profiles. The 80 ordinary tests are covered
 after an obsolete import-rejection assertion was updated and affected tests
-rechecked. Strict WARP still fails; native Windows IME, complete visible control
-parity and the remaining text-key behaviors remain unaccepted.
+rechecked. That record predates the keyboard and visual qualifications above;
+its strict WARP failure is retained as a numerical diagnostic.
 
 Main-window screenshot corrections restore push-like controls, native slider
 geometry, the empty waveform rows and viewport/readout captions. The Qt window
@@ -33,7 +53,7 @@ Development packages now use `out/dist`, independently of the CMake build folder
 An earlier local Release run passed 75/75 ordinary P4 tests plus the relocated
 package check; this scoped result does not close the acceptance gaps below.
 
-Latest consolidated run [41704895198](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41704895198)
+Previous consolidated run [41704895198](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41704895198)
 passed 74 Windows, 70 Linux and 65 macOS ordinary P4 tests. Linux/macOS real IME,
 silent audio and relocated packages also passed. Windows native IME still blocks
 on natural exit, and the full visible-control qualification failed. Reference
