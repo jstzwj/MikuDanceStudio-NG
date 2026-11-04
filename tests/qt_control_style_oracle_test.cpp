@@ -315,26 +315,29 @@ int main(int argc, char** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     QApplication app(argc, argv);
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
-    const bool editText = argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--edit-text" ||
-                                        QString::fromLocal8Bit(argv[1]) == "--isolated-edit-text");
+    const bool editFocus = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-edit-focus";
+    const bool editText =
+        argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--edit-text" ||
+                      QString::fromLocal8Bit(argv[1]) == "--isolated-edit-text" || editFocus);
     const bool comboFocus =
         argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-content-focus";
-    const bool focused =
-        comboFocus || (argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-list-focus");
+    const bool focused = editFocus || comboFocus ||
+                         (argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-list-focus");
     const bool visible =
         argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--isolated-edit-text" ||
                       QString::fromLocal8Bit(argv[1]) == "--isolated-nonclient" ||
                       QString::fromLocal8Bit(argv[1]) == "--isolated-content" || focused);
     const bool text = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--text";
-    const bool content =
-        argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--content" ||
-                      QString::fromLocal8Bit(argv[1]) == "--isolated-content" || focused);
+    const bool content = argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--content" ||
+                                       QString::fromLocal8Bit(argv[1]) == "--isolated-content" ||
+                                       (focused && !editFocus));
     Check(argc == 2 || visible || text || content || editText,
           "usage: [--isolated-nonclient|--text|--content] output-directory");
     Check(!visible || (qEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
                        qEnvironmentVariable("MDS_QT_ISOLATED_DISPLAY") == "1"),
           "visible control qualification requires an isolated GitHub runner");
 #else
+    constexpr bool editFocus = false;
     constexpr bool visible = false;
     constexpr bool focused = false;
     constexpr bool comboFocus = false;
@@ -345,6 +348,13 @@ int main(int argc, char** argv) try {
           "usage: [--text|--content|--edit-text] original.exe output-directory");
 #endif
     Check(QGuiApplication::platformName() == "windows", "real Windows QPA required");
+    if (visible) {
+        // Only the guarded disposable runner may move its cursor. Keep the
+        // normal/focus profiles out of native hover state; a cursor left over
+        // a resource control otherwise makes the expected state accidental.
+        Check(SetCursorPos(0, 0), "park isolated runner cursor outside both dialogs");
+        app.setCursorFlashTime(0);
+    }
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
     const auto instance = GetModuleHandleW(nullptr);
 #else
@@ -578,6 +588,8 @@ int main(int argc, char** argv) try {
             }
             dialog.show();
             ShowWindow(native, SW_SHOWNOACTIVATE);
+            dialog.move(32, 32);
+            SetWindowPos(native, nullptr, 32, 32, 0, 0, SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOSIZE);
             QCoreApplication::processEvents();
         }
         bool savedEditExample = false;
@@ -587,7 +599,7 @@ int main(int argc, char** argv) try {
                 continue;
             const bool editExample = editText && !savedEditExample;
             savedEditExample |= editText;
-            if (focused && entry.kind != NumericControlKind::Listbox &&
+            if (focused && !editFocus && entry.kind != NumericControlKind::Listbox &&
                 !(comboFocus && entry.kind == NumericControlKind::Combobox))
                 continue;
             // WM_PRINTCLIENT captures actual EDIT text/background without
@@ -761,14 +773,16 @@ int main(int argc, char** argv) try {
                     const QString captions[]{
                         entry.style & ES_AUTOHSCROLL ? "1.5" : "-12.5", QStringLiteral("\u65e5"),
                         QStringLiteral("\u4e2d"), QStringLiteral("A\u65e5"),
-                        entry.style & ES_AUTOHSCROLL ? "1.5" : "12345678901234567890"};
+                        entry.style & ES_AUTOHSCROLL && !editFocus ? "1.5"
+                                                                   : "12345678901234567890"};
                     auto* edit = qobject_cast<QLineEdit*>(widget);
                     edit->setText(captions[variant]);
                     edit->setCursorPosition(0);
                     SetWindowTextW(control, captions[variant].toStdWString().c_str());
                     SendMessageW(control, EM_SETSEL, 0, 0);
                 }
-                for (unsigned state = 0; state < (editText                                    ? 4u
+                for (unsigned state = 0; state < (editFocus                                   ? 3u
+                                                  : editText                                  ? 4u
                                                   : focused                                   ? 1u
                                                   : slider                                    ? 8u
                                                   : entry.kind == NumericControlKind::Listbox ? 4u
@@ -776,17 +790,22 @@ int main(int argc, char** argv) try {
                                                   : button->isCheckable()                     ? 6u
                                                                                               : 3u);
                      ++state) {
-                    const bool enabled = editText ? state % 2 == 0 : state % 3 != 1;
+                    const bool enabled = editFocus || (editText ? state % 2 == 0 : state % 3 != 1);
                     const bool pressed = state % 3 == 2, checked = state >= 3;
                     EnableWindow(control, enabled);
                     widget->setEnabled(enabled);
                     if (editText) {
                         auto* edit = qobject_cast<QLineEdit*>(widget);
-                        if (state >= 2)
+                        if (editFocus && state == 1)
+                            edit->setSelection(0, std::min(1, int(edit->text().size())));
+                        else if (state >= 2)
                             edit->selectAll();
                         else
                             edit->setCursorPosition(0);
-                        SendMessageW(control, EM_SETSEL, 0, state >= 2 ? -1 : 0);
+                        SendMessageW(control, EM_SETSEL, 0,
+                                     editFocus && state == 1 ? 1
+                                     : state >= 2            ? -1
+                                                             : 0);
                     }
                     if (slider) {
                         constexpr int positions[]{0, 37, 50, 100};
@@ -841,7 +860,7 @@ int main(int argc, char** argv) try {
                             if (list) {
                                 list->setCurrentRow(0);
                                 SendMessageW(control, LB_SETCURSEL, 0, 0);
-                            } else
+                            } else if (!editFocus)
                                 Check(qobject_cast<QComboBox*>(widget) != nullptr,
                                       "focus qualification combo");
                             SetActiveWindow(native);
@@ -943,7 +962,8 @@ int main(int argc, char** argv) try {
         {"textGlyphs", text || content || editText},
         {"editClientText", editText},
         {"editTextVariants", editText ? 5 : 0},
-        {"inactiveEditSelection", editText},
+        {"inactiveEditSelection", editText && !editFocus},
+        {"activeEditSelectionAndScroll", editFocus},
         {"savedEditImages", "all mismatches; one passing control per template/content/state"},
         {"listContent", content},
         {"comboLayouts", comboLayouts},

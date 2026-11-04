@@ -160,7 +160,35 @@ bool DrawWindowsListBorder(QPainter& painter, const QRect& rect, QStyle::State s
     return DrawControlBorder(painter, rect, state, L"ListBox", LBCP_BORDER_NOSCROLL);
 }
 bool DrawWindowsEditBorder(QPainter& painter, const QRect& rect, QStyle::State state) {
-    return DrawControlBorder(painter, rect, state, L"Edit", EP_EDITBORDER_NOSCROLL);
+    const auto ratio = painter.device()->devicePixelRatioF();
+    WindowsCanvas canvas(qRound(rect.width() * ratio), qRound(rect.height() * ratio));
+    if (canvas.image.isNull())
+        return false;
+    const auto theme = OpenThemeDataForDpi(nullptr, L"Edit", UINT(qRound(96 * ratio)));
+    if (!theme)
+        return false;
+    const int partState = !(state & QStyle::State_Enabled)  ? EPSN_DISABLED
+                          : state & QStyle::State_HasFocus  ? EPSN_FOCUSED
+                          : state & QStyle::State_MouseOver ? EPSN_HOT
+                                                            : EPSN_NORMAL;
+    canvas.image.fill(Qt::white);
+    const RECT bounds{0, 0, canvas.image.width(), canvas.image.height()};
+    // Modern EDIT borders are theme images. TMT_BORDERCOLOR is an older
+    // fallback property and can return the same Aero color for every state,
+    // even when USER32 draws different normal, hot and disabled borders.
+    const bool painted = SUCCEEDED(
+        DrawThemeBackground(theme, canvas.dc, EP_EDITBORDER_NOSCROLL, partState, &bounds, nullptr));
+    GdiFlush();
+    CloseThemeData(theme);
+    if (painted) {
+        canvas.image.setDevicePixelRatio(ratio);
+        painter.save();
+        painter.setClipRegion(QRegion(rect).subtracted(QRegion(rect.adjusted(2, 2, -2, -2))),
+                              Qt::IntersectClip);
+        painter.drawImage(rect.topLeft(), canvas.image);
+        painter.restore();
+    }
+    return painted;
 }
 bool DrawWindowsComboText(QImage& background, const QRect& rect, const QFont& font,
                           const QString& text, bool enabled, bool keyboardFocus) {
