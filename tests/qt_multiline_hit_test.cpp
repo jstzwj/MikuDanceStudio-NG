@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
     const auto records = reference["records"].toArray();
     if (records.size() != 12)
         return 1;
-    unsigned comparisons = 0, mouseComparisons = 0, failures = 0;
+    unsigned comparisons = 0, mouseComparisons = 0, dragComparisons = 0, failures = 0;
     for (const auto& value : records) {
         const auto record = value.toObject();
         for (const char* code : {"en", "ja", "zh_CN"}) {
@@ -91,6 +91,45 @@ int main(int argc, char** argv) {
                     ++mouseComparisons;
                 }
             }
+            // Use two independently frozen native hits as the drag endpoints.
+            // This exercises the real production press/move/release handlers,
+            // including both directions; no synthetic OS input or capture.
+            const auto samples = record["hitTest"].toArray();
+            for (int index = 13; index < samples.size(); index += 137) {
+                const auto a = samples[index].toArray();
+                const auto b = samples[(index + samples.size() / 3) % samples.size()].toArray();
+                const auto start = QPoint(a[0].toInt(), a[1].toInt()) + delta;
+                const auto end = QPoint(b[0].toInt(), b[1].toInt()) + delta;
+                if (!field->viewport()->rect().contains(start) ||
+                    !field->viewport()->rect().contains(end))
+                    continue;
+                for (bool reverse : {false, true}) {
+                    field->moveCursor(QTextCursor::Start);
+                    field->verticalScrollBar()->setValue(0);
+                    field->horizontalScrollBar()->setValue(0);
+                    const auto send = [&](QEvent::Type type, QPoint point, Qt::MouseButton button,
+                                          Qt::MouseButtons buttons) {
+                        QMouseEvent event(type, point, point, point, button, buttons,
+                                          Qt::NoModifier, Qt::MouseEventSynthesizedByApplication);
+                        QCoreApplication::sendEvent(field->viewport(), &event);
+                    };
+                    send(QEvent::MouseButtonPress, reverse ? end : start, Qt::LeftButton,
+                         Qt::LeftButton);
+                    send(QEvent::MouseMove, reverse ? start : end, Qt::NoButton, Qt::LeftButton);
+                    send(QEvent::MouseButtonRelease, reverse ? start : end, Qt::LeftButton,
+                         Qt::NoButton);
+                    const auto selected = field->textCursor();
+                    const int anchor = (reverse ? b : a)[2].toInt();
+                    const int position = (reverse ? a : b)[2].toInt();
+                    if (selected.anchor() != anchor || selected.position() != position) {
+                        if (failures++ < 16)
+                            std::cerr << code << " addressed drag=" << selected.anchor() << ','
+                                      << selected.position() << " expected=" << anchor << ','
+                                      << position << '\n';
+                    }
+                    ++dragComparisons;
+                }
+            }
             std::cout << code << " text-size=" << field->toPlainText().size()
                       << " mismatches=" << recordFailures << '\n';
             if (dialog.isVisible() || field->isVisible() ||
@@ -101,5 +140,6 @@ int main(int argc, char** argv) {
     std::cout << comparisons << " original multiline client hit-test comparisons; " << failures
               << " mismatches; " << mouseComparisons
               << " addressed Shift-click comparisons; no desktop input or window exposure\n";
-    return comparisons != 50232 || !mouseComparisons || failures ? 1 : 0;
+    std::cout << dragComparisons << " independently frozen native drag endpoint comparisons\n";
+    return comparisons != 50232 || !mouseComparisons || !dragComparisons || failures ? 1 : 0;
 }
