@@ -1,6 +1,7 @@
 #include "editor_font.hpp"
 #include <QCoreApplication>
 #include <QFontDatabase>
+#include <QFontInfo>
 #include <QFileInfo>
 #include <map>
 #include <tuple>
@@ -11,6 +12,12 @@
 #endif
 
 namespace mikudancestudio::qt {
+QFont MatchEditorFontMetrics(QFont font) {
+    if (QFontInfo(font).family().startsWith("Noto Sans CJK "))
+        font.setStyleStrategy(
+            QFont::StyleStrategy(font.styleStrategy() | QFont::PreferTypoLineMetrics));
+    return font;
+}
 bool InstallEditorFonts() {
     static const bool loaded = [] {
         const auto directory = QCoreApplication::applicationDirPath();
@@ -66,6 +73,7 @@ QFont GlyphFont(const QString& language, int pixels, bool bold) {
             DeleteObject(native);
     }
 #endif
+    font = MatchEditorFontMetrics(font);
     cache.emplace(key, font);
     return font;
 }

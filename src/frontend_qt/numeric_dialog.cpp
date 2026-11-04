@@ -1,5 +1,6 @@
 #include "numeric_dialog.hpp"
 #include "editor_style.hpp"
+#include "editor_font.hpp"
 #ifdef _WIN32
 #include "editor_style_windows.hpp"
 #endif
@@ -22,6 +23,8 @@
 #include <QStyleOptionFrame>
 #include <QValidator>
 #include <QTextDocument>
+#include <QScrollBar>
+#include <QTimer>
 #include <charconv>
 #include <climits>
 #include <cmath>
@@ -42,6 +45,51 @@ public:
         setViewportMargins(4, 1, english ? 4 : 2, 1);
         setTabStopDistance(56);
     }
+
+protected:
+    void keyPressEvent(QKeyEvent* event) override {
+        const auto modifiers = event->modifiers();
+        const bool legacy =
+            !property("_mmdImePreedit").toBool() &&
+            !(modifiers & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier));
+        auto cursor = textCursor();
+        if (legacy && (event->key() == Qt::Key_PageUp || event->key() == Qt::Key_PageDown)) {
+            // EDIT pages overlap by one complete text row. Its caret moves by
+            // the rows actually scrolled, so PageUp at the first page and
+            // PageDown at the last page preserve the caret/selection.
+            auto* scroll = verticalScrollBar();
+            const int before = scroll->value();
+            const int rows = std::max(1, scroll->pageStep() - 1);
+            scroll->setValue(before + (event->key() == Qt::Key_PageUp ? -rows : rows));
+            const int delta = scroll->value() - before;
+            if (delta) {
+                cursor.movePosition(delta < 0 ? QTextCursor::Up : QTextCursor::Down,
+                                    modifiers & Qt::ShiftModifier ? QTextCursor::KeepAnchor
+                                                                  : QTextCursor::MoveAnchor,
+                                    std::abs(delta));
+                setTextCursor(cursor);
+                scroll->setValue(before + delta);
+            } else if (!(modifiers & Qt::ShiftModifier) && cursor.hasSelection()) {
+                cursor.clearSelection();
+                setTextCursor(cursor);
+            }
+            event->accept();
+            return;
+        }
+        if (legacy && ((event->key() == Qt::Key_Up && cursor.blockNumber() == 0) ||
+                       (event->key() == Qt::Key_Down &&
+                        cursor.blockNumber() == document()->blockCount() - 1))) {
+            // Qt extends to the document boundary when the requested row is
+            // absent; the original EDIT retains the active column instead.
+            if (!(modifiers & Qt::ShiftModifier) && cursor.hasSelection()) {
+                cursor.clearSelection();
+                setTextCursor(cursor);
+            }
+            event->accept();
+            return;
+        }
+        QPlainTextEdit::keyPressEvent(event);
+    }
 };
 class DialogLineEdit final : public QLineEdit {
     class WidthValidator final : public QValidator {
@@ -60,18 +108,40 @@ public:
         : QLineEdit(parent), english_(english), autoScroll_(autoScroll) {
         if (!autoScroll_)
             setValidator(new WidthValidator(*this));
+#ifdef _WIN32
+        connect(&caretTimer_, &QTimer::timeout, this, [this] {
+            caretVisible_ = !caretVisible_;
+            update();
+        });
+        connect(this, &QLineEdit::cursorPositionChanged, this, [this] { ResetCaret(); });
+        connect(this, &QLineEdit::selectionChanged, this, [this] { ResetCaret(); });
+        connect(this, &QLineEdit::textChanged, this, [this] { ResetCaret(); });
+#endif
+    }
+
+    QVariant inputMethodQuery(Qt::InputMethodQuery query) const override {
+        auto result = QLineEdit::inputMethodQuery(query);
+        if (query == Qt::ImCursorRectangle || query == Qt::ImAnchorRectangle) {
+            // QWidgetLineControl exposes its ten-pixel repaint halo here.
+            // Platform IMEs need the actual one-pixel caret, not its damage
+            // region: QWindowsInputContext uses this rectangle verbatim.
+            auto cursor = result.toRect();
+            cursor.translate(5, 0);
+            cursor.setWidth(1);
+            result = cursor;
+        }
+        return result;
     }
 
 protected:
     void paintEvent(QPaintEvent* event) override {
         // Keep Qt's text layout, scroll offsets and cursor/IME geometry current
-        // even when native inactive glyphs are painted over its raster below.
+        // even when native EDIT glyphs/selection are painted over its raster below.
         QLineEdit::paintEvent(event);
 #ifdef _WIN32
-        if (QGuiApplication::platformName() == "windows" && !hasFocus() &&
-            !property("_mmdImePreedit").toBool() &&
+        if (QGuiApplication::platformName() == "windows" && !property("_mmdImePreedit").toBool() &&
             (alignment() & Qt::AlignHorizontal_Mask) == Qt::AlignLeft &&
-            echoMode() == QLineEdit::Normal && !text().isEmpty()) {
+            echoMode() == QLineEdit::Normal) {
             bool nativeText = true;
             for (const auto c : text()) {
                 const auto value = c.unicode();
@@ -84,8 +154,12 @@ protected:
                 // The original dialog edits do not set ES_NOHIDESEL. Retain
                 // Qt's selection for copy/undo, but hide its inactive highlight.
                 QPainter painter(this);
+                const WindowsEditLayout layout{
+                    cursorPosition(), inputMethodQuery(Qt::ImCursorRectangle).toRect().x(),
+                    selectionStart(), int(selectedText().size()),
+                    hasFocus(),       caretVisible_};
                 if (DrawWindowsEditText(painter, rect(), font(), text(), english_, hasFrame(),
-                                        isEnabled(), isReadOnly(), autoScroll_)) {
+                                        isEnabled(), isReadOnly(), autoScroll_, &layout)) {
                     if (hasFrame()) {
                         QStyleOptionFrame frame;
                         initStyleOption(&frame);
@@ -98,6 +172,16 @@ protected:
 #endif
     }
     bool event(QEvent* event) override {
+#ifdef _WIN32
+        if (event->type() == QEvent::FocusIn || event->type() == QEvent::FocusOut) {
+            const auto handled = QLineEdit::event(event);
+            ResetCaret();
+            return handled;
+        }
+        if (event->type() == QEvent::KeyPress || event->type() == QEvent::InputMethod ||
+            event->type() == QEvent::MouseButtonPress)
+            ResetCaret();
+#endif
         const bool insertion =
             event->type() == QEvent::KeyPress || event->type() == QEvent::InputMethod ||
             event->type() == QEvent::ContextMenu || event->type() == QEvent::Drop;
@@ -113,6 +197,17 @@ protected:
     }
 
 private:
+#ifdef _WIN32
+    QTimer caretTimer_;
+    bool caretVisible_ = false;
+    void ResetCaret() {
+        caretTimer_.stop();
+        caretVisible_ = hasFocus();
+        if (caretVisible_ && QApplication::cursorFlashTime() > 0)
+            caretTimer_.start(std::max(1, QApplication::cursorFlashTime() / 2));
+        update();
+    }
+#endif
     QValidator::State LimitInsertion(QString& text, int& cursor) const {
         // WM_SETTEXT bypasses this native insertion limit. Preserve Qt's
         // programmatic setter too. Non-ASCII shaping is qualified separately.
@@ -277,7 +372,7 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
                           language.Code() == "ja" ? "Noto Sans CJK JP" : "Noto Sans CJK SC",
                           "Hiragino Sans", "Microsoft YaHei", "PingFang SC"});
     font.setPixelSize(template_.pointSize * 96 / 72);
-    setFont(font);
+    setFont(MatchEditorFontMetrics(font));
     // Original 96-DPI Arial / MS PGothic dialog base units, independently
     // measured in a memory DC. Qt logical pixels then scale with the screen.
     const int baseX = 7,
@@ -302,9 +397,11 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
             field->setAlignment(Qt::AlignLeft | Qt::AlignTop);
             const int margin =
                 (english_ ? 3 : 1) + (field->hasFrame() ? 3 : 0) - (field->hasFrame() ? 2 : 0) - 2;
-            // Native EM_POSFROMCHAR starts at the client edge's top; Qt's
-            // line control otherwise adds a further one-pixel vertical margin.
-            field->setTextMargins(margin, -1, margin, 0);
+            // WM_PRINT's actual glyph/selection/caret starts one pixel below
+            // EM_POSFROMCHAR. Keep paint, hit testing and IME geometry together.
+            // Qt includes an extra trailing caret pixel in naturalTextWidth;
+            // native ES_AUTOHSCROLL keeps that pixel inside the formatting box.
+            field->setTextMargins(margin, 0, margin - int((control.style & 0x80u) != 0), 0);
             edits_[control.id] = field;
             field->installEventFilter(this);
             widget = field;

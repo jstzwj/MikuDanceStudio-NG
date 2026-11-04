@@ -20,6 +20,9 @@ static void Check(bool value, const char* reason) {
 #endif
 #include "numeric_dialog.hpp"
 #include "editor_style.hpp"
+#include "editor_style_windows.hpp"
+#include <QElapsedTimer>
+#include <QThread>
 #include "mikudancestudio/mmd_trackbar_geometry.hpp"
 #include <QApplication>
 #include <QImage>
@@ -315,18 +318,23 @@ int main(int argc, char** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
     QApplication app(argc, argv);
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
-    const bool editFocus = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-edit-focus";
+    const bool replayFocus = argc == 4 && QString::fromLocal8Bit(argv[1]) == "--replay-edit-focus";
+    const bool editHover = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-edit-hover";
+    const bool editFocus =
+        replayFocus || (argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-edit-focus");
     const bool editText =
-        argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--edit-text" ||
-                      QString::fromLocal8Bit(argv[1]) == "--isolated-edit-text" || editFocus);
+        replayFocus || editHover ||
+        (argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--edit-text" ||
+                       QString::fromLocal8Bit(argv[1]) == "--isolated-edit-text" || editFocus));
     const bool comboFocus =
         argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-content-focus";
-    const bool focused = editFocus || comboFocus ||
-                         (argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-list-focus");
-    const bool visible =
-        argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--isolated-edit-text" ||
-                      QString::fromLocal8Bit(argv[1]) == "--isolated-nonclient" ||
-                      QString::fromLocal8Bit(argv[1]) == "--isolated-content" || focused);
+    const bool focused =
+        !replayFocus && (editFocus || comboFocus ||
+                         (argc == 3 && QString::fromLocal8Bit(argv[1]) == "--isolated-list-focus"));
+    const bool visible = argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--isolated-edit-text" ||
+                                       QString::fromLocal8Bit(argv[1]) == "--isolated-nonclient" ||
+                                       QString::fromLocal8Bit(argv[1]) == "--isolated-content" ||
+                                       editHover || focused);
     const bool text = argc == 3 && QString::fromLocal8Bit(argv[1]) == "--text";
     const bool content = argc == 3 && (QString::fromLocal8Bit(argv[1]) == "--content" ||
                                        QString::fromLocal8Bit(argv[1]) == "--isolated-content" ||
@@ -337,6 +345,8 @@ int main(int argc, char** argv) try {
                        qEnvironmentVariable("MDS_QT_ISOLATED_DISPLAY") == "1"),
           "visible control qualification requires an isolated GitHub runner");
 #else
+    constexpr bool replayFocus = false;
+    constexpr bool editHover = false;
     constexpr bool editFocus = false;
     constexpr bool visible = false;
     constexpr bool focused = false;
@@ -605,7 +615,8 @@ int main(int argc, char** argv) try {
             // WM_PRINTCLIENT captures actual EDIT text/background without
             // inventing a replacement for its unavailable hidden nonclient
             // paint. Complete borders require isolated visible qualification.
-            const bool editClientOnly = !visible && entry.kind == NumericControlKind::Edit;
+            const bool editClientOnly =
+                !visible && !replayFocus && entry.kind == NumericControlKind::Edit;
             const bool other = entry.kind == NumericControlKind::Combobox ||
                                entry.kind == NumericControlKind::Listbox ||
                                entry.kind == NumericControlKind::Slider;
@@ -705,15 +716,18 @@ int main(int argc, char** argv) try {
                         int(origin.x - outer.left) + short(LOWORD(nativeCursor)),
                         int(origin.y - outer.top) + short(HIWORD(nativeCursor)));
                     const auto cursor = edit->inputMethodQuery(Qt::ImCursorRectangle).toRect();
-                    // Qt 6.8.3 QWidgetLineControl::rectForPos includes a five-
-                    // pixel repaint halo to the left of the actual caret.
-                    editCursorMismatches += cursor.topLeft() + QPoint(5, 0) != expectedCursor;
-                    editCursorLayouts.append(
-                        QJsonObject{{"template", description->id},
-                                    {"control", id},
-                                    {"native", QJsonArray{expectedCursor.x(), expectedCursor.y()}},
-                                    {"qt", QJsonArray{cursor.x(), cursor.y(), cursor.width(),
-                                                      cursor.height()}}});
+                    // Shown USER32 captures place the actual glyph/selection/
+                    // caret one pixel below EM_POSFROMCHAR. The frontend now
+                    // returns that caret, without Qt's five-pixel repaint halo.
+                    editCursorMismatches +=
+                        cursor.topLeft() != expectedCursor + QPoint(0, 1) || cursor.width() != 1;
+                    editCursorLayouts.append(QJsonObject{
+                        {"template", description->id},
+                        {"control", id},
+                        {"nativeCharacter", QJsonArray{expectedCursor.x(), expectedCursor.y()}},
+                        {"nativeCaret", QJsonArray{expectedCursor.x(), expectedCursor.y() + 1}},
+                        {"qt",
+                         QJsonArray{cursor.x(), cursor.y(), cursor.width(), cursor.height()}}});
                 } else
                     edit->clear();
             }
@@ -768,7 +782,7 @@ int main(int argc, char** argv) try {
                 SendMessageW(control, TBM_SETRANGE, FALSE, MAKELONG(0, 100));
                 SendMessageW(control, TBM_SETTICFREQ, 1000, 0);
             }
-            for (unsigned variant = 0; variant < (editText ? 5u : 1u); ++variant) {
+            for (unsigned variant = 0; variant < (editText && !editHover ? 5u : 1u); ++variant) {
                 if (editText) {
                     const QString captions[]{
                         entry.style & ES_AUTOHSCROLL ? "1.5" : "-12.5", QStringLiteral("\u65e5"),
@@ -781,7 +795,8 @@ int main(int argc, char** argv) try {
                     SetWindowTextW(control, captions[variant].toStdWString().c_str());
                     SendMessageW(control, EM_SETSEL, 0, 0);
                 }
-                for (unsigned state = 0; state < (editFocus                                   ? 3u
+                for (unsigned state = 0; state < (editHover                                   ? 1u
+                                                  : editFocus                                 ? 3u
                                                   : editText                                  ? 4u
                                                   : focused                                   ? 1u
                                                   : slider                                    ? 8u
@@ -790,7 +805,8 @@ int main(int argc, char** argv) try {
                                                   : button->isCheckable()                     ? 6u
                                                                                               : 3u);
                      ++state) {
-                    const bool enabled = editFocus || (editText ? state % 2 == 0 : state % 3 != 1);
+                    const bool enabled =
+                        editHover || editFocus || (editText ? state % 2 == 0 : state % 3 != 1);
                     const bool pressed = state % 3 == 2, checked = state >= 3;
                     EnableWindow(control, enabled);
                     widget->setEnabled(enabled);
@@ -855,6 +871,27 @@ int main(int argc, char** argv) try {
                         button->setChecked(checked);
                     }
                     if (visible) {
+                        if (editHover) {
+                            Check(SetWindowPos(native, HWND_TOP, 0, 0, 0, 0,
+                                               SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE),
+                                  "raise isolated native hover reference");
+                            Check(SetWindowPos(control, HWND_TOP, 0, 0, 0, 0,
+                                               SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE),
+                                  "isolate overlapping original hover control");
+                            RECT bounds{};
+                            Check(GetWindowRect(control, &bounds), "native hover bounds");
+                            const POINT point{(bounds.left + bounds.right) / 2,
+                                              (bounds.top + bounds.bottom) / 2};
+                            Check(SetCursorPos(point.x, point.y) &&
+                                      WindowFromPoint(point) == control,
+                                  "native hover cursor belongs to reference control");
+                            QElapsedTimer dwell;
+                            dwell.start();
+                            while (dwell.elapsed() < 200) {
+                                QCoreApplication::processEvents();
+                                QThread::msleep(1);
+                            }
+                        }
                         if (focused) {
                             auto* list = qobject_cast<QListWidget*>(widget);
                             if (list) {
@@ -887,6 +924,22 @@ int main(int argc, char** argv) try {
                                   "inactive native control has no keyboard focus");
                     }
                     const auto expected = NativeImage(control, visible, editClientOnly);
+                    if (editHover) {
+                        widget->raise();
+                        const auto window = reinterpret_cast<HWND>(dialog.winId());
+                        Check(SetWindowPos(window, HWND_TOP, 0, 0, 0, 0,
+                                           SWP_NOACTIVATE | SWP_NOMOVE | SWP_NOSIZE),
+                              "raise isolated Qt hover reference");
+                        const auto point = widget->mapToGlobal(widget->rect().center());
+                        Check(SetCursorPos(point.x(), point.y()), "move isolated Qt hover cursor");
+                        QElapsedTimer dwell;
+                        dwell.start();
+                        while (dwell.elapsed() < 200) {
+                            QCoreApplication::processEvents();
+                            QThread::msleep(1);
+                        }
+                        Check(widget->underMouse(), "Qt field owns actual hover state");
+                    }
                     if (focused) {
                         dialog.activateWindow();
                         SetActiveWindow(reinterpret_cast<HWND>(dialog.winId()));
@@ -900,6 +953,22 @@ int main(int argc, char** argv) try {
                     QImage actual(widget->size(), QImage::Format_RGB32);
                     actual.fill(app.palette().window().color());
                     widget->render(&actual);
+                    if (replayFocus) {
+                        auto* edit = qobject_cast<QLineEdit*>(widget);
+                        QPainter painter(&actual);
+                        const mikudancestudio::qt::WindowsEditLayout layout{
+                            edit->cursorPosition(),
+                            edit->inputMethodQuery(Qt::ImCursorRectangle).toRect().x(),
+                            edit->selectionStart(),
+                            int(edit->selectedText().size()),
+                            true,
+                            true};
+                        Check(mikudancestudio::qt::DrawWindowsEditText(
+                                  painter, edit->rect(), edit->font(), edit->text(),
+                                  code == std::string("en"), edit->hasFrame(), true,
+                                  edit->isReadOnly(), entry.style & ES_AUTOHSCROLL, &layout),
+                              "replay native EDIT client paint without focus/exposure");
+                    }
                     if (editClientOnly) {
                         RECT client{};
                         Check(GetClientRect(control, &client), "edit client geometry");
@@ -910,13 +979,24 @@ int main(int argc, char** argv) try {
                         actual = actual.copy(origin.x - outer.left, origin.y - outer.top,
                                              client.right, client.bottom);
                     }
-                    const auto difference = Difference(actual, expected);
                     auto prefix =
                         QString("%1-%2-%3-%4").arg(description->id).arg(code).arg(id).arg(state);
                     if (editText)
                         prefix += QString("-text%1").arg(variant);
+                    auto reference = expected;
+                    if (replayFocus) {
+                        reference =
+                            QImage(QString::fromLocal8Bit(argv[2]) + "/" + prefix + "-native.png");
+                        Check(!reference.isNull() && reference.size() == actual.size(),
+                              "captured native EDIT replay input");
+                        // Different OS theme images are separate from this
+                        // replay of client glyph/selection/caret coordinates.
+                        reference = reference.copy(reference.rect().adjusted(2, 2, -2, -2));
+                        actual = actual.copy(actual.rect().adjusted(2, 2, -2, -2));
+                    }
+                    const auto difference = Difference(actual, reference);
                     if (!editText || editExample || difference) {
-                        Check(expected.save(QString::fromStdWString(
+                        Check(reference.save(QString::fromStdWString(
                                   (output / (prefix.toStdWString() + L"-native.png")).wstring())),
                               "save original control raster");
                         Check(actual.save(QString::fromStdWString(
@@ -961,9 +1041,13 @@ int main(int argc, char** argv) try {
         {"keyboardFocusCues", focused},
         {"textGlyphs", text || content || editText},
         {"editClientText", editText},
-        {"editTextVariants", editText ? 5 : 0},
+        {"editTextVariants", editHover  ? 1
+                             : editText ? 5
+                                        : 0},
         {"inactiveEditSelection", editText && !editFocus},
         {"activeEditSelectionAndScroll", editFocus},
+        {"actualEditHover", editHover},
+        {"clientReplayWithoutExposure", replayFocus},
         {"savedEditImages", "all mismatches; one passing control per template/content/state"},
         {"listContent", content},
         {"comboLayouts", comboLayouts},

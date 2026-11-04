@@ -1707,7 +1707,7 @@ inline constexpr ControlSpec kControls[] = {
     {panel::kEditOffCheckbox,
      L"BUTTON",
      nullptr,
-     L"q_j0W0",
+     L"\x5f71\x306a\x3057", // UTF-16 caption passed to CreateWindowExW, not ANSI bytes.
      nullptr,
      0x50001003,
      0x0,

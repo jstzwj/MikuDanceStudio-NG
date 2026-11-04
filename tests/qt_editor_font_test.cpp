@@ -77,6 +77,9 @@ int main(int argc, char** argv) {
     CHECK(qt::InstallEditorFonts());
     for (const char* family : {"Noto Sans CJK JP", "Noto Sans CJK SC"}) {
         QFont font(QString::fromLatin1(family));
+        font.setPixelSize(12);
+        const auto matched = qt::MatchEditorFontMetrics(font);
+        CHECK(QFontInfo(matched).family() == family && QFontMetrics(matched).height() == 12);
         const QFontMetrics metrics(font);
         for (const auto code : {0x65e5, 0x672c, 0x8a9e, 0x4e2d, 0x6587, 0x7b80, 0x4f53})
             CHECK(metrics.inFont(QChar(code)));

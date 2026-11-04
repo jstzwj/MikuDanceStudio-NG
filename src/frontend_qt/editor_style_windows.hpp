@@ -14,8 +14,17 @@ namespace mikudancestudio::ui {
 struct TrackbarGeometry;
 }
 namespace mikudancestudio::qt {
+struct WindowsEditLayout {
+    int cursor = 0;
+    int cursorX = 0; // logical caret coordinate after Qt's actual horizontal scroll
+    int selectionStart = -1;
+    int selectionLength = 0;
+    bool focused = false;
+    bool caretVisible = false;
+};
 bool DrawWindowsEditText(QPainter&, const QRect&, const QFont&, const QString&, bool english,
-                         bool border, bool enabled, bool readOnly, bool autoScroll);
+                         bool border, bool enabled, bool readOnly, bool autoScroll,
+                         const WindowsEditLayout* = nullptr);
 bool DrawWindowsListRow(QPainter&, const QRect&, const QFont&, const QString&, bool selected,
                         bool enabled, bool keyboardFocus);
 bool DrawWindowsListBorder(QPainter&, const QRect&, QStyle::State);

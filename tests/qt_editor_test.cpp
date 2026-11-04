@@ -65,6 +65,9 @@ int main(int argc, char** argv) {
     for (const char* language : {"en", "ja", "zh_CN"}) {
         qt::EditorWindow auxiliary(std::filesystem::absolute(argv[2]), true);
         CHECK(auxiliary.SetLanguage(language));
+        if (std::string(language) == "ja")
+            CHECK(qobject_cast<QPushButton*>(auxiliary.Control(panel::kEditOffCheckbox))->text() ==
+                  QStringLiteral("\u5f71\u306a\u3057")); // Original UTF-16 caption, RVA 0x12b820.
         for (const int id :
              {panel::kPerspectiveCheckbox, panel::kEditOffCheckbox, panel::kEditMode1Checkbox,
               panel::kEditMode2Checkbox, panel::kSelfShadowCheckbox, panel::kInfoCheckbox,

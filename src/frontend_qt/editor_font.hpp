@@ -7,6 +7,10 @@ namespace mikudancestudio::qt {
 // Registers the packaged OFL font collection, without replacing installed
 // original Windows fonts. False means the runtime package is incomplete.
 bool InstallEditorFonts();
+// Keep the packaged CJK fonts' generous Windows line-box metrics from
+// enlarging the original fixed-size controls. Installed original fonts retain
+// their native metrics.
+QFont MatchEditorFontMetrics(QFont font);
 inline QFont EditorFont(const QString& language) {
     QFont font;
     if (language == "en") {
@@ -26,7 +30,7 @@ inline QFont EditorFont(const QString& language) {
     }
     font.setHintingPreference(QFont::PreferFullHinting);
     font.setKerning(false);
-    return font;
+    return MatchEditorFontMetrics(font);
 }
 inline QFont FrameNavigationFont() {
     // The frame edit and its six buttons retain Win32's class SYSTEM_FONT,

@@ -12,6 +12,7 @@
 #include <uxtheme.h>
 #include <vssym32.h>
 #include <cstring>
+#include <algorithm>
 
 namespace mikudancestudio::qt {
 namespace {
@@ -71,7 +72,7 @@ private:
 }
 bool DrawWindowsEditText(QPainter& painter, const QRect& rect, const QFont& font,
                          const QString& text, bool english, bool border, bool enabled,
-                         bool readOnly, bool autoScroll) {
+                         bool readOnly, bool autoScroll, const WindowsEditLayout* layout) {
     const auto ratio = painter.device()->devicePixelRatioF();
     WindowsCanvas canvas(qRound(rect.width() * ratio), qRound(rect.height() * ratio));
     if (canvas.image.isNull())
@@ -105,19 +106,60 @@ bool DrawWindowsEditText(QPainter& painter, const QRect& rect, const QFont& font
     const int top = qRound(inset * ratio);
     RECT formatting{left, top, canvas.image.width() - left,
                     std::min(canvas.image.height() - top, top + int(metrics.tmHeight))};
-    // Scrolled edits retain Qt's own layout/offset until that state is
-    // separately qualified; this path changes only inactive unscrolled text.
-    const bool painted = !autoScroll || extent.cx <= formatting.right - formatting.left;
+    // Keep Qt's actual horizontal layout/scroll when supplied. Legacy callers
+    // without that state can paint only fitting/unscrolled text.
+    const bool painted = layout || !autoScroll || extent.cx <= formatting.right - formatting.left;
     if (painted) {
         RECT bounds{0, 0, canvas.image.width(), canvas.image.height()};
         FillRect(canvas.dc, &bounds,
                  GetSysColorBrush(enabled && !readOnly ? COLOR_WINDOW : COLOR_BTNFACE));
         SetBkMode(canvas.dc, TRANSPARENT);
+        SetBkColor(canvas.dc, GetSysColor(enabled && !readOnly ? COLOR_WINDOW : COLOR_BTNFACE));
         SetTextColor(canvas.dc, GetSysColor(enabled ? COLOR_WINDOWTEXT : COLOR_GRAYTEXT));
         const int edge = qRound(inset * ratio);
-        const RECT clip{edge, edge, canvas.image.width() - edge, canvas.image.height() - edge};
-        ExtTextOutW(canvas.dc, formatting.left, formatting.top, ETO_CLIPPED, &clip, caption.c_str(),
+        RECT clip{edge, edge, canvas.image.width() - edge, canvas.image.height() - edge};
+        int textLeft = formatting.left;
+        if (layout && autoScroll) {
+            SIZE prefix{};
+            GetTextExtentPoint32W(canvas.dc, caption.c_str(),
+                                  std::clamp(layout->cursor, 0, int(caption.size())), &prefix);
+            textLeft = qRound(layout->cursorX * ratio) - prefix.cx;
+            if (textLeft < formatting.left)
+                clip.left = formatting.left;
+        }
+        ExtTextOutW(canvas.dc, textLeft, formatting.top, ETO_CLIPPED, &clip, caption.c_str(),
                     UINT(caption.size()), nullptr);
+        if (layout && layout->focused && layout->selectionStart >= 0 && layout->selectionLength) {
+            const int first = std::clamp(layout->selectionStart, 0, int(caption.size()));
+            const int last =
+                std::clamp(first + layout->selectionLength, first, int(caption.size()));
+            SIZE leading{}, trailing{};
+            GetTextExtentPoint32W(canvas.dc, caption.c_str(), first, &leading);
+            GetTextExtentPoint32W(canvas.dc, caption.c_str(), last, &trailing);
+            RECT selection{textLeft + leading.cx, formatting.top,
+                           textLeft + trailing.cx + std::max(1, qRound(ratio)),
+                           formatting.top + metrics.tmHeight};
+            IntersectRect(&selection, &selection, &clip);
+            FillRect(canvas.dc, &selection, GetSysColorBrush(COLOR_HIGHLIGHT));
+            SetTextColor(canvas.dc, GetSysColor(COLOR_HIGHLIGHTTEXT));
+            SetBkColor(canvas.dc, GetSysColor(COLOR_HIGHLIGHT));
+            ExtTextOutW(canvas.dc, textLeft, formatting.top, ETO_CLIPPED, &selection,
+                        caption.c_str(), UINT(caption.size()), nullptr);
+        }
+        if (layout && layout->focused && layout->caretVisible) {
+            SIZE prefix{};
+            GetTextExtentPoint32W(canvas.dc, caption.c_str(),
+                                  std::clamp(layout->cursor, 0, int(caption.size())), &prefix);
+            const int caret = std::clamp(textLeft + prefix.cx, formatting.left,
+                                         std::max(formatting.left, formatting.right - 1));
+            const int saved = SaveDC(canvas.dc);
+            IntersectClipRect(canvas.dc, clip.left, clip.top, clip.right, clip.bottom);
+            // Native EDIT uses an inverting caret. On a selected blue run it
+            // is orange, rather than Qt's unconditional black rectangle.
+            PatBlt(canvas.dc, caret, formatting.top, std::max(1, qRound(ratio)), metrics.tmHeight,
+                   DSTINVERT);
+            RestoreDC(canvas.dc, saved);
+        }
         GdiFlush();
         canvas.image.setDevicePixelRatio(ratio);
         painter.drawImage(rect.topLeft(), canvas.image);
