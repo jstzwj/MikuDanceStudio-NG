@@ -159,7 +159,10 @@ int main(int argc, char** argv) {
         std::vector<std::uint8_t> bytes;
         CHECK(assets.Read(rhi::AssetId::AxisMesh, bytes));
         std::shared_ptr<const runtime::AccessoryResource> axis;
-        CHECK(!runtime::AccessoryResource::Parse(bytes.data(), bytes.size(), axis, reason));
+        // Ordinary accessories now support missing normals and vertex colors.
+        // The operation-mesh entry still has its own flat-normal/material rules.
+        CHECK(runtime::AccessoryResource::Parse(bytes.data(), bytes.size(), axis, reason));
+        CHECK(axis->Materials()[0].ambient != (std::array<float, 4>{}));
         CHECK(runtime::AccessoryResource::ParseOperationMesh(bytes.data(), bytes.size(), axis,
                                                              reason));
         CHECK(axis->Materials().size() == 6 && axis->Subsets().size() == 6);

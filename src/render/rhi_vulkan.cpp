@@ -28,8 +28,9 @@
 
 namespace mikudancestudio::rhi {
 namespace {
-constexpr unsigned FrameCount = 3, MaxDraws = 512, MaxResources = 8192;
+constexpr unsigned FrameCount = 3, InitialDraws = 512, MaxDraws = 8192, MaxResources = 8192;
 constexpr VkDeviceSize UniformBytes = 2 * 1024 * 1024;
+constexpr VkDeviceSize MaxUniformBytes = 32 * 1024 * 1024;
 using ProfileClock = std::chrono::steady_clock;
 std::uint64_t Nanoseconds(ProfileClock::time_point start) {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(ProfileClock::now() - start)
@@ -142,6 +143,8 @@ struct Resource {
     VkAccessFlags2 access = VK_ACCESS_2_NONE;
 };
 struct Frame {
+    unsigned drawCapacity = InitialDraws;
+    VkDeviceSize uniformCapacity = UniformBytes;
     VkQueryPool timing = VK_NULL_HANDLE;
     std::uint64_t timingCompletion = 0;
     VkSemaphore acquired = VK_NULL_HANDLE;
@@ -233,7 +236,7 @@ public:
         caps.legacyDrawConstantBytes =
             aligned(sizeof(ModelVertexConstants)) + aligned(sizeof(detail::ModelPixelConstants)) +
             aligned(sizeof(BuiltinShadowConstants)) + aligned(sizeof(detail::PostProcessConstants));
-        caps.maxFrameConstantBytes = UniformBytes;
+        caps.maxFrameConstantBytes = MaxUniformBytes;
         caps.maxColorAttachments = (std::min)(4u, properties.limits.maxColorAttachments);
         return caps;
     }
@@ -385,6 +388,28 @@ public:
     }
     ModelCapabilities ModelFeatures() const override {
         return {true, true, true, true, true, true, true, false, true, true, bool(chain), MaxDraws};
+    }
+    unsigned requiredDraws = InitialDraws;
+    VkDeviceSize requiredUniforms = UniformBytes;
+    bool ReserveFrameResources(std::uint32_t draws, std::uint64_t constantBytes) override {
+        if (draws > MaxDraws || constantBytes > MaxUniformBytes || inFrame || !Live())
+            return false;
+        while (requiredDraws < draws)
+            requiredDraws *= 2;
+        while (requiredUniforms < constantBytes)
+            requiredUniforms *= 2;
+        return true;
+    }
+    bool AllocateDrawDescriptors(unsigned capacity, VkDescriptorPool& output) {
+        VkDescriptorPoolSize sizes[] = {
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4 * capacity},
+            {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, GraphicsTextureSlots * capacity},
+            {VK_DESCRIPTOR_TYPE_SAMPLER, GraphicsTextureSlots * capacity}};
+        VkDescriptorPoolCreateInfo info{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+        info.maxSets = capacity;
+        info.poolSizeCount = 3;
+        info.pPoolSizes = sizes;
+        return Check(vkCreateDescriptorPool(native, &info, nullptr, &output));
     }
     bool SetFixedPipeline(FixedPipelineState) override {
         genericReady = genericBound = false;
@@ -1131,6 +1156,22 @@ public:
             ++stats.frameWaits;
         if (f.completion && !WaitCompletion({identity, f.completion}, 5000))
             return false;
+        if (f.drawCapacity < requiredDraws) {
+            VkDescriptorPool replacement = VK_NULL_HANDLE;
+            if (!AllocateDrawDescriptors(requiredDraws, replacement))
+                return false;
+            vkDestroyDescriptorPool(native, f.descriptors, nullptr);
+            f.descriptors = replacement;
+            f.drawCapacity = requiredDraws;
+        }
+        if (f.uniformCapacity < requiredUniforms) {
+            Buffer replacement;
+            if (!AllocateBuffer(requiredUniforms, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, replacement))
+                return false;
+            Release(f.uniforms);
+            f.uniforms = replacement;
+            f.uniformCapacity = requiredUniforms;
+        }
         if (!Check(vkResetCommandPool(native, f.pool, 0)) ||
             !Check(vkResetDescriptorPool(native, f.descriptors, 0)))
             return false;
@@ -2102,22 +2143,15 @@ bool VulkanDevice::Initialize(unsigned w, unsigned h, VulkanDriver driver, Vulka
                 return false;
         }
         if (!commands(frame.pool, frame.commands) ||
-            !AllocateBuffer(UniformBytes, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, frame.uniforms))
+            !AllocateBuffer(frame.uniformCapacity, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                            frame.uniforms))
             return false;
         if (window) {
             VkSemaphoreCreateInfo binary{VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
             if (!Check(vkCreateSemaphore(native, &binary, nullptr, &frame.acquired)))
                 return false;
         }
-        VkDescriptorPoolSize sizes[] = {
-            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4 * MaxDraws},
-            {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, GraphicsTextureSlots * MaxDraws},
-            {VK_DESCRIPTOR_TYPE_SAMPLER, GraphicsTextureSlots * MaxDraws}};
-        VkDescriptorPoolCreateInfo p{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-        p.maxSets = MaxDraws;
-        p.poolSizeCount = 3;
-        p.pPoolSizes = sizes;
-        if (!Check(vkCreateDescriptorPool(native, &p, nullptr, &frame.descriptors)))
+        if (!AllocateDrawDescriptors(frame.drawCapacity, frame.descriptors))
             return false;
     }
     reason = "builtin_shader_modules_failed";
@@ -2470,7 +2504,7 @@ bool VulkanDevice::BindGenericDescriptors() {
     if (!genericBound || !BindShaderResources(genericBindings))
         return false;
     auto& f = frames[frameIndex];
-    if (f.draws >= MaxDraws)
+    if (f.draws >= f.drawCapacity)
         return false;
     const auto align =
         (std::max)(VkDeviceSize(1), properties.limits.minUniformBufferOffsetAlignment);
@@ -2478,7 +2512,7 @@ bool VulkanDevice::BindGenericDescriptors() {
     VkDescriptorImageInfo images[GraphicsTextureSlots]{}, sampling[GraphicsTextureSlots]{};
     const auto upload = [&](VkDescriptorBufferInfo& info, const void* data, std::size_t bytes) {
         const auto offset = (f.offset + align - 1) / align * align;
-        if (offset + bytes > UniformBytes)
+        if (offset + bytes > f.uniformCapacity)
             return false;
         std::memcpy(static_cast<char*>(f.uniforms.mapped) + offset, data, bytes);
         info = {f.uniforms.native, offset, bytes};
@@ -2648,7 +2682,7 @@ bool VulkanDevice::BindDraw() {
     if (genericReady)
         return BindGenericDescriptors();
     auto& f = frames[frameIndex];
-    if (f.draws >= MaxDraws)
+    if (f.draws >= f.drawCapacity)
         return false;
     VkDescriptorImageInfo images[4]{}, samplerInfo[4]{};
     for (unsigned i = 0; i < 4; ++i) {
@@ -2686,7 +2720,7 @@ bool VulkanDevice::BindDraw() {
     const auto align = std::max<VkDeviceSize>(1, properties.limits.minUniformBufferOffsetAlignment);
     auto uniform = [&](unsigned slot, const auto& data) {
         const auto offset = (f.offset + align - 1) / align * align;
-        if (offset + sizeof(data) > UniformBytes)
+        if (offset + sizeof(data) > f.uniformCapacity)
             return false;
         std::memcpy(static_cast<char*>(f.uniforms.mapped) + offset, &data, sizeof(data));
         buffers[slot] = {f.uniforms.native, offset, sizeof(data)};

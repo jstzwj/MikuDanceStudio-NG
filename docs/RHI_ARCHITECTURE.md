@@ -1,5 +1,18 @@
 # Rendering hardware interface: incremental migration
 
+Frame resource reservation (2026-11-04): `SceneRenderer::Prepare` counts draws,
+mip-generation work and aligned constants, then calls `ReserveFrameResources`.
+DX12/Vulkan keep the initial 512-draw / 2-MiB arenas but grow completed frame
+slots to the required capacity, bounded by 8,192 draws and 32 MiB. Metal grows
+its constant arenas to the same byte limit and retains 4,096 draws. DX11 streams
+these resources without a finite frame-arena limit. A smaller later preparation
+cannot shrink storage needed by an existing prepared frame. Replacement waits
+for the slot's own completion; pending allocations remain alive, and an invalid
+reservation preserves prepared frames. The 1,024-draw regression cycles every
+frame slot and requires exact repeated pixels. Windows DX11/DX12/Vulkan pass;
+Metal's changed allocation path has not been compiled/run on this Windows host.
+See [PMM compatibility and qualification scope](P4_PMM_COMPATIBILITY.md).
+
 Wireframe (2026-11-03): `BatchRasterState::wireframe` applies to triangle
 edges while retaining culling, depth, interpolation and blend state.
 `RasterFeatures().wireframe` reports the device's implemented capability;

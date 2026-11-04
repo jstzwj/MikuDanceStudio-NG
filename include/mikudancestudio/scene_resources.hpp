@@ -17,6 +17,13 @@ struct MissingSceneModel {
     std::vector<std::filesystem::path> tried;
 };
 
+enum class SceneResourceKind {
+    Model,
+    Accessory,
+    Wave,
+    Background
+};
+
 class SceneResourceResolver {
 public:
     using DecodePath = std::function<std::optional<std::filesystem::path>(const std::string&)>;
@@ -25,6 +32,8 @@ public:
     void SetPathDecoder(DecodePath decoder);
     void ReselectModel(std::uint8_t slot, std::filesystem::path path);
     void ReselectAccessory(std::uint8_t slot, std::filesystem::path path);
+    bool ResolveFile(SceneResourceKind kind, const std::array<char, 256>& path,
+                     std::filesystem::path& resolved) const;
     bool ResolveAccessory(std::uint8_t slot, const std::array<char, 256>& path,
                           std::filesystem::path& resolved);
     bool ResolveModel(std::uint8_t slot, const std::array<char, 256>& path, ModelDocument& model);
@@ -41,7 +50,7 @@ private:
     std::map<std::uint8_t, std::filesystem::path> resolved_;
     std::vector<MissingSceneModel> missing_;
     std::map<std::uint8_t, std::filesystem::path> accessorySelections_;
-    std::vector<std::filesystem::path> Candidates(const std::array<char, 256>&,
+    std::vector<std::filesystem::path> Candidates(SceneResourceKind, const std::array<char, 256>&,
                                                   const std::filesystem::path* selection) const;
 };
 }

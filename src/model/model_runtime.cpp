@@ -106,12 +106,11 @@ bool ModelResource::Create(const format::ModelDocument& source,
         // MMD's Add Joint defaults both ends to body zero. Bullet supports
         // that constraint; validate references without rejecting this UI state.
         if (j.rigidA < 0 || j.rigidB < 0 || j.rigidA >= std::int64_t(model.rigids.size()) ||
-            j.rigidB >= std::int64_t(model.rigids.size()) ||
-            !Finite(j.position) || !Finite(j.rotation) || !Finite(j.limits) || !Finite(j.springs))
+            j.rigidB >= std::int64_t(model.rigids.size()) || !Finite(j.position) ||
+            !Finite(j.rotation) || !Finite(j.limits) || !Finite(j.springs))
             return Fail(reason, "invalid-joint", n);
     }
     auto resource = std::shared_ptr<ModelResource>(new ModelResource);
-    std::map<std::string, std::size_t> names;
     std::vector<std::vector<std::size_t>> children(model.bones.size());
     for (std::size_t n = 0; n < model.bones.size(); ++n) {
         const auto& b = model.bones[n].fields;
@@ -127,8 +126,8 @@ bool ModelResource::Create(const format::ModelDocument& source,
         std::string name;
         if (!Name(model.bones[n].names[0], name))
             return Fail(reason, "invalid-bone-name", n);
-        if (!names.emplace(name, n).second)
-            return Fail(reason, "ambiguous-bone-name", n);
+        // Bone identity is its model index. PMD/PMX permit duplicate names;
+        // PMM maps their occurrences while VMD registration uses the first.
         resource->boneNames_.push_back(std::move(name));
     }
     for (std::size_t n = 0; n < resource->order_.size(); ++n)
@@ -173,7 +172,6 @@ bool ModelResource::Create(const format::ModelDocument& source,
     for (auto index : model.indices)
         if (index < 0 || index >= static_cast<std::int64_t>(model.vertices.size()))
             return Fail(reason, "invalid-vertex-index");
-    names.clear();
     for (std::size_t n = 0; n < model.morphs.size(); ++n) {
         const auto& morph = model.morphs[n];
         if (morph.header.type >= 4 && morph.header.type <= 7 &&
@@ -184,7 +182,6 @@ bool ModelResource::Create(const format::ModelDocument& source,
         std::string name;
         if (!Name(morph.names[0], name))
             return Fail(reason, "invalid-morph-name", n);
-        names.emplace(name, n); // Native VMD registration binds the first duplicate name.
         resource->morphNames_.push_back(std::move(name));
         for (const auto& offset : morph.offsets) {
             const unsigned type = morph.header.type;

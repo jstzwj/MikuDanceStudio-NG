@@ -538,6 +538,13 @@ public:
     virtual bool DrawIndexed(IndexedDraw draw) = 0;
     virtual bool SetModelPipeline(const ModelPipeline&) { return false; }
     virtual ModelCapabilities ModelFeatures() const { return {}; }
+    // Reserve the validated frame's draw count and constant bytes before submission. Backends
+    // grow each frame slot only after its previous GPU work completes; a later
+    // smaller preparation must not invalidate an already prepared larger frame.
+    virtual bool ReserveFrameResources(std::uint32_t draws, std::uint64_t constantBytes) {
+        const auto limit = ShaderFeatures().maxFrameConstantBytes;
+        return draws <= ModelFeatures().maxDraws && (!limit || constantBytes <= limit);
+    }
     virtual Handle CreateModelTexture(const ModelTextureData&) { return {}; }
     // Idempotent for an unchanged target. Return failure before accepting
     // submissions for an unsupported attachment description.

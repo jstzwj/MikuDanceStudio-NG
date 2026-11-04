@@ -440,7 +440,8 @@ bool EditorSession::SetOutlineColor(const std::array<std::uint8_t, 3>& rgb) {
 }
 void EditorSession::SetTransparentModels(bool value) {
     if (display_.transparentModels != value ||
-        std::any_of(display_.opaqueModels.begin(), display_.opaqueModels.end(), [](bool v) { return v; })) {
+        std::any_of(display_.opaqueModels.begin(), display_.opaqueModels.end(),
+                    [](bool v) { return v; })) {
         display_.transparentModels = value;
         display_.opaqueModels.fill(false);
         ++appearanceRevision_;
@@ -677,6 +678,15 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     SceneSession session;
     if (!f || !SceneSession::Load(Read, &f, SceneResourceResolver::Resolve, &resolver, session)) {
         reason = "scene-open-or-resource-resolution-failed";
+        if (!resolver.Missing().empty()) {
+            const auto& missing = resolver.Missing().back().reference;
+            std::string decoded;
+            const auto end = std::find(missing.rawPath.begin(), missing.rawPath.end(), 0);
+            text::DecodeCp932({missing.rawPath.data(), std::size_t(end - missing.rawPath.begin())},
+                              decoded);
+            reason =
+                "model-resource-resolution-failed:" + std::to_string(missing.slot) + ":" + decoded;
+        }
         return false;
     }
     State next;
@@ -738,8 +748,11 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
             reason = "accessory-resource-resolution-failed:" + std::to_string(a.slot);
             return false;
         }
-        if (!ReadAccessory(source, next.assets.accessories[a.slot], reason))
+        if (!ReadAccessory(source, next.assets.accessories[a.slot], reason)) {
+            reason = "accessory-load-failed:" + std::to_string(a.slot) + ":" + source.u8string() +
+                     ":" + reason;
             return false;
+        }
         next.assets.accessoryPaths[a.slot] = source;
     }
     if (next.document.wave.enabled) {
@@ -755,6 +768,8 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
         std::replace(decoded.begin(), decoded.end(), '\\', '/');
         next.assets.wave =
             (absolute.parent_path() / std::filesystem::u8path(decoded)).lexically_normal();
+        resolver.ResolveFile(SceneResourceKind::Wave, next.document.wave.pathBytes,
+                             next.assets.wave);
     }
     const auto& picturePath = next.document.picture.pathBytes;
     if (picturePath[0]) {
@@ -768,6 +783,7 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
         std::replace(decoded.begin(), decoded.end(), '\\', '/');
         next.assets.picturePath =
             (absolute.parent_path() / std::filesystem::u8path(decoded)).lexically_normal();
+        resolver.ResolveFile(SceneResourceKind::Background, picturePath, next.assets.picturePath);
         bool opened = false;
         if (!ReadPicture(next.assets.picturePath, next.assets.picture, opened, reason))
             return false;

@@ -23,9 +23,10 @@
 using Microsoft::WRL::ComPtr;
 namespace mikudancestudio::rhi {
 namespace {
-constexpr unsigned FrameCount = 3, BackbufferCount = 2, MaxDraws = 512,
-                   DescriptorCount = MaxDraws * GraphicsTextureSlots, MaxResources = 8192;
+constexpr unsigned FrameCount = 3, BackbufferCount = 2, InitialDraws = 512, MaxDraws = 8192,
+                   MaxResources = 8192;
 constexpr UINT64 ConstantBytes = 2 * 1024 * 1024;
+constexpr UINT64 MaxConstantBytes = 32 * 1024 * 1024;
 D3D12_HEAP_PROPERTIES Heap(D3D12_HEAP_TYPE type) {
     D3D12_HEAP_PROPERTIES p{};
     p.Type = type;
@@ -94,6 +95,8 @@ struct Retirement {
     ComPtr<IUnknown> object;
 };
 struct Frame {
+    unsigned drawCapacity = InitialDraws;
+    UINT64 constantCapacity = ConstantBytes;
     ComPtr<ID3D12CommandAllocator> allocator;
     ComPtr<ID3D12GraphicsCommandList> commands;
     ComPtr<ID3D12DescriptorHeap> views, samplers;
@@ -129,7 +132,7 @@ public:
         caps.maxColorAttachments = 4;
         caps.constantAlignment = 256;
         caps.legacyDrawConstantBytes = 4096;
-        caps.maxFrameConstantBytes = ConstantBytes;
+        caps.maxFrameConstantBytes = MaxConstantBytes;
         return caps;
     }
     TextureFormatCapabilities FormatFeatures(TextureFormat f) const override {
@@ -204,7 +207,7 @@ public:
         if (!genericBound || !BindShaderResources(genericBindings))
             return false;
         auto& f = frames[frameIndex];
-        if (f.drawCount >= MaxDraws)
+        if (f.drawCount >= f.drawCapacity)
             return false;
         const std::array<float, 4> zero{};
         const auto empty = Constants(zero.data(), sizeof(zero));
@@ -362,6 +365,17 @@ public:
     ModelCapabilities ModelFeatures() const override {
         return {true, true, true, true, true, true, true, false, true, true, bool(chain), MaxDraws};
     }
+    unsigned requiredDraws = InitialDraws;
+    UINT64 requiredConstants = ConstantBytes;
+    bool ReserveFrameResources(std::uint32_t draws, std::uint64_t constantBytes) override {
+        if (draws > MaxDraws || constantBytes > MaxConstantBytes || inFrame || !Live())
+            return false;
+        while (requiredDraws < draws)
+            requiredDraws *= 2;
+        while (requiredConstants < constantBytes)
+            requiredConstants *= 2;
+        return true;
+    }
     D3D12_CPU_DESCRIPTOR_HANDLE CpuView(unsigned n) const {
         auto h = cpuViews->GetCPUDescriptorHandleForHeapStart();
         h.ptr += SIZE_T(n) * viewStride;
@@ -477,7 +491,7 @@ public:
             return false;
         const auto& d = *passes.Description(h);
         auto& f = frames[frameIndex];
-        if (f.drawCount + d.mips - 1 > MaxDraws)
+        if (f.drawCount + d.mips - 1 > f.drawCapacity)
             return false;
         auto& r = *Find(h);
         auto* list = f.commands.Get();
@@ -892,7 +906,7 @@ public:
                 return false;
             D3D12_DESCRIPTOR_HEAP_DESC d{};
             d.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-            d.NumDescriptors = DescriptorCount;
+            d.NumDescriptors = f.drawCapacity * GraphicsTextureSlots;
             d.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
             lastError = native->CreateDescriptorHeap(&d, IID_PPV_ARGS(&f.views));
             if (FAILED(lastError))
@@ -902,7 +916,7 @@ public:
             lastError = native->CreateDescriptorHeap(&d, IID_PPV_ARGS(&f.samplers));
             if (FAILED(lastError))
                 return false;
-            if (!Allocate(Buffer(ConstantBytes), D3D12_HEAP_TYPE_UPLOAD,
+            if (!Allocate(Buffer(f.constantCapacity), D3D12_HEAP_TYPE_UPLOAD,
                           D3D12_RESOURCE_STATE_GENERIC_READ, f.constants))
                 return false;
             D3D12_RANGE read{0, 0};
@@ -1011,6 +1025,33 @@ public:
         auto& f = frames[index];
         if (f.fence && !WaitCompletion({identity, f.fence}, 5000))
             return false;
+        if (f.drawCapacity < requiredDraws) {
+            D3D12_DESCRIPTOR_HEAP_DESC description{};
+            description.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+            description.NumDescriptors = requiredDraws * GraphicsTextureSlots;
+            description.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+            ComPtr<ID3D12DescriptorHeap> replacement;
+            lastError = native->CreateDescriptorHeap(&description, IID_PPV_ARGS(&replacement));
+            if (FAILED(lastError))
+                return false;
+            f.views = std::move(replacement);
+            f.drawCapacity = requiredDraws;
+        }
+        if (f.constantCapacity < requiredConstants) {
+            ComPtr<ID3D12Resource> replacement;
+            if (!Allocate(Buffer(requiredConstants), D3D12_HEAP_TYPE_UPLOAD,
+                          D3D12_RESOURCE_STATE_GENERIC_READ, replacement))
+                return false;
+            void* mapped = nullptr;
+            D3D12_RANGE read{0, 0};
+            lastError = replacement->Map(0, &read, &mapped);
+            if (FAILED(lastError))
+                return false;
+            f.constants->Unmap(0, nullptr);
+            f.constants = std::move(replacement);
+            f.mapped = static_cast<std::uint8_t*>(mapped);
+            f.constantCapacity = requiredConstants;
+        }
         f.uploads.clear();
         f.constantOffset = 0;
         f.drawCount = f.samplerCount = 0;
@@ -1146,7 +1187,7 @@ public:
     D3D12_GPU_VIRTUAL_ADDRESS Constants(const void* data, UINT64 bytes) {
         auto& f = frames[frameIndex];
         const auto allocated = (bytes + 255) & ~UINT64(255);
-        if (f.constantOffset + allocated > ConstantBytes)
+        if (f.constantOffset + allocated > f.constantCapacity)
             return 0;
         std::memcpy(f.mapped + f.constantOffset, data, static_cast<std::size_t>(bytes));
         const auto address = f.constants->GetGPUVirtualAddress() + f.constantOffset;
@@ -1275,7 +1316,7 @@ public:
         if (genericReady)
             return BindGenericDescriptors();
         auto& f = frames[frameIndex];
-        if (f.drawCount >= MaxDraws)
+        if (f.drawCount >= f.drawCapacity)
             return false;
         const unsigned offset = f.drawCount * GraphicsTextureSlots;
         auto views = f.views->GetCPUDescriptorHandleForHeapStart(),

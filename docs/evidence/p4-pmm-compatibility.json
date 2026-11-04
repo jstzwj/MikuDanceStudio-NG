@@ -1,0 +1,821 @@
+{
+  "schema": 1,
+  "date": "2026-11-04",
+  "p4_c1_accepted": false,
+  "repository": "MikuDanceStudio-NG",
+  "base_revision": "1d9f0d88efe7feeb4cd2bee0bed7640a668ca167",
+  "modified_worktree": true,
+  "native_mds_reference": "MikuDanceStudio main@0e96995",
+  "source_sha256": {
+    ".clang-format": "18b031983409c54fd2d08e4c280b97e3b1dcfb69d6eb0b5fea19b74560a93d94",
+    "CMakeLists.txt": "5e947d135afa6a15909e9dffb7c5abe53f6764ed038d9274dd2ff4089bc9fc21",
+    "cmake/EditorCore.cmake": "ea5ab8f6e5c58d5c8a53880312ee68dd6414328091a68b610568a134594fab6f",
+    "cmake/QtEditor.cmake": "39ef7359a7c56df57697d9a3ebe540c61eab89d4eb280a6ad69af0b552155599",
+    "include/mikudancestudio/accessory_resource.hpp": "34a1b3b7d919373a963a29c2ed7d77c1dac3c5cde95bc24f33728cd0132c9334",
+    "include/mikudancestudio/rhi.hpp": "3878230113c9618c3acb5838e4de6c766c419a3d15c7c220ac6bb0d50b4d6c4c",
+    "include/mikudancestudio/scene_resources.hpp": "6f60debd635409608cd46b284068dd23025a43dd73276e869ad33a0887957330",
+    "src/editor/editor_session.cpp": "8174e8ecc18195a5f297105a3b29ec663cf76fa85e90abbdf779a5376e888049",
+    "src/io/scene_resources.cpp": "ccb7606acc31a74f029f2d875b5b01c11fab439d962175800e4f089b31b56da2",
+    "src/model/accessory_resource.cpp": "ec6ca2ef311a1e5e0708aceb23291d3a6cd846b26ea3ec83aa1ebc58c4674dc6",
+    "src/model/model_runtime.cpp": "b492cbb1fd7f1fe54ef6e21844be2b056dd53ada9e8ef8935d398db5920ffb06",
+    "src/render/rhi_d3d12.cpp": "a8862011b66ca8f52da411e4d21317c5c220980ae1573e21a2603385695f4f92",
+    "src/render/rhi_metal.mm": "2357ee895121572406de647e1e67a47ecd63342b0616e942127efbcfd4824630",
+    "src/render/rhi_scene_renderer.cpp": "ede06978bfafce7961c6e0c00d98649095881057b25fa4277b28456e00f8444e",
+    "src/render/rhi_vulkan.cpp": "a447654ad48dde385c0ff0a251fc4bf7978088087b2bb2f098728f10c0249314",
+    "tests/accessory_import_dx9_test.cpp": "da25c8968b23b904221e674450bc56ce9a402fa6a128477e5124bde76ef2e8fb",
+    "tests/accessory_resource_test.cpp": "a7f9788aac25010034136aaea3406acea79c4a6fc4dc3a21924c951ac05afae8",
+    "tests/editor_overlay_test.cpp": "9aa926faf7884ebd96a9e1ab9067ebd132d5ff040175bd9cd0c2a4577d44318f",
+    "tests/editor_pmm_compatibility_test.cpp": "5ef16768aeea3a1f431c407de1ddabd9aa78132d6f3482b3e58abfe114349292",
+    "tests/model_runtime_test.cpp": "ac1e28ce256ff7287098c9759658f473c8b0477fd4d7a2b48b37877b97aeb717",
+    "tests/rhi_frame_budget_test.cpp": "79517e564326de77606384115065f21104e0a78c767a1da80b76395089248905",
+    "tests/scene_resources_test.cpp": "869328f42809a5a7be2894b75a7ae87285201f8edb80bda27509a1b6bffe7eb4",
+    "tests/test_editor_pmm_compatibility.py": "b33514495485ff01ca8e314e7fa35c495fa2142341ea0fc98708b6b800095f8e"
+  },
+  "build": {
+    "all_build": "passed",
+    "artifact": {
+      "path": "out/build/pmm-all-build.log",
+      "sha256": "ee946baf60bc447ba842126209e48d420e6fbd95b33ad4a7ad144acac2e65741"
+    },
+    "metal_on_this_host": "not compiled or executed"
+  },
+  "ordinary_p4": {
+    "initial": {
+      "name": "Win32-MSBuild",
+      "tests": "80",
+      "failures": "1",
+      "disabled": "0",
+      "skipped": "0",
+      "hostname": "XiaHan",
+      "time": "397",
+      "timestamp": "2026-11-04T15:55:33",
+      "artifact": {
+        "path": "out/build/pmm-p4.xml",
+        "sha256": "7cb9a93595d0be7badf655e0ca83303889e57d79752885aa580724113d0e3aff"
+      },
+      "failed": [
+        "editor_overlay"
+      ]
+    },
+    "after_assertion_update": {
+      "name": "Win32-MSBuild",
+      "tests": "6",
+      "failures": "0",
+      "disabled": "0",
+      "skipped": "0",
+      "hostname": "XiaHan",
+      "time": "5",
+      "timestamp": "2026-11-04T16:02:58",
+      "artifact": {
+        "path": "out/build/pmm-final-recheck.xml",
+        "sha256": "e4ec15c2cfbebb7cf4ee2ce56c0f76fda51bac6c03d880970d66c1c31b553b58"
+      },
+      "failed": []
+    },
+    "covered_p4_tests": 80,
+    "remaining_failures": [],
+    "explanation": "Initial editor_overlay assertion rejected newly supported legal accessories. Updated assertion; operation-axis image/material checks retained. No second complete suite run is claimed."
+  },
+  "private_pmm": [
+    {
+      "name": "sample.pmm",
+      "models": 3,
+      "accessories": 28,
+      "sha256": "0a76e0047c9a0efc0bdaa886f035b50de56af0202daeb6cde5b1fae4aacdc840",
+      "format": "PMM v1",
+      "load_play_seek_save_reopen": "passed"
+    },
+    {
+      "name": "sample(follow_camera).pmm",
+      "models": 9,
+      "accessories": 29,
+      "sha256": "fc8d7387ef17637728f2865c99d9ed394076c79c726f1d8183792c8ed186dee4",
+      "format": "PMM v1",
+      "load_play_seek_save_reopen": "passed"
+    },
+    {
+      "name": "sample(AllStar).pmm",
+      "models": 11,
+      "accessories": 28,
+      "sha256": "ac5a3155652713701a1c3989c923a277ea4b2b6a17e49194263cd9786caeeff9",
+      "format": "PMM v1",
+      "load_play_seek_save_reopen": "passed"
+    }
+  ],
+  "deployment_profiles": [
+    {
+      "backend": "d3d11",
+      "scene": "sample",
+      "exit": 0,
+      "languages": [
+        "en",
+        "ja",
+        "zh_CN"
+      ],
+      "visible": false
+    },
+    {
+      "backend": "d3d11",
+      "scene": "sample(follow_camera)",
+      "exit": 0,
+      "languages": [
+        "en",
+        "ja",
+        "zh_CN"
+      ],
+      "visible": false
+    },
+    {
+      "backend": "d3d11",
+      "scene": "sample(AllStar)",
+      "exit": 0,
+      "languages": [
+        "en",
+        "ja",
+        "zh_CN"
+      ],
+      "visible": false
+    },
+    {
+      "backend": "d3d12",
+      "scene": "sample",
+      "exit": 0,
+      "languages": [
+        "en",
+        "ja",
+        "zh_CN"
+      ],
+      "visible": false
+    },
+    {
+      "backend": "d3d12",
+      "scene": "sample(follow_camera)",
+      "exit": 0,
+      "languages": [
+        "en",
+        "ja",
+        "zh_CN"
+      ],
+      "visible": false
+    },
+    {
+      "backend": "d3d12",
+      "scene": "sample(AllStar)",
+      "exit": 0,
+      "languages": [
+        "en",
+        "ja",
+        "zh_CN"
+      ],
+      "visible": false
+    },
+    {
+      "backend": "vulkan",
+      "scene": "sample",
+      "exit": 0,
+      "languages": [
+        "en",
+        "ja",
+        "zh_CN"
+      ],
+      "visible": false
+    },
+    {
+      "backend": "vulkan",
+      "scene": "sample(follow_camera)",
+      "exit": 0,
+      "languages": [
+        "en",
+        "ja",
+        "zh_CN"
+      ],
+      "visible": false
+    },
+    {
+      "backend": "vulkan",
+      "scene": "sample(AllStar)",
+      "exit": 0,
+      "languages": [
+        "en",
+        "ja",
+        "zh_CN"
+      ],
+      "visible": false
+    }
+  ],
+  "continuous_render": {
+    "scope": "Six frames from actual EditorSession-imported/saved v2 projects. CLI rejects raw v1 camera parents. sample shadow explicitly disabled as in its scene. No original full-frame reference for these assets.",
+    "profiles": [
+      {
+        "backend": "dx11",
+        "scene": "sample",
+        "input": "EditorSession imported and saved PMM v2",
+        "exit": 0,
+        "report": {
+          "schema": 1,
+          "stage": "P3",
+          "status": "passed",
+          "adapter": "NVIDIA TITAN Xp",
+          "backend": "dx11",
+          "width": 1284,
+          "height": 722,
+          "frames": 6,
+          "cpu_updates": 5,
+          "timeline_frame": 5,
+          "device_replacements": 1,
+          "uploads": 132,
+          "buffer_creations": 78,
+          "buffer_reuses": 2,
+          "buffer_waits": 0,
+          "upload_bytes": 7845328,
+          "vulkan_readbacks": 0,
+          "validation_errors": 0,
+          "profiling": false,
+          "gpu_timing_supported": false,
+          "gpu_clock_status": "disabled",
+          "gpu_frames": 0,
+          "peak_backend_allocation_bytes": 0,
+          "milliseconds": {
+            "cpu_update": 6.1546,
+            "frame_production": 16.627,
+            "prepare": 75.4632,
+            "submit_collect": 134.6,
+            "explicit_readback": 4.7466,
+            "gpu": null,
+            "timeline_wait": 0,
+            "cold_frame": 85.3929,
+            "warm_frame_mean": 65.918
+          }
+        },
+        "shadow": "disabled, matching the sample scene",
+        "rgba_sha256": "03363366a89df8cc0230fa35f02cf4ce8e0d4bc6d4b6c86aeb58f1bfc8e6d78a"
+      },
+      {
+        "backend": "dx11",
+        "scene": "sample(follow_camera)",
+        "input": "EditorSession imported and saved PMM v2",
+        "exit": 0,
+        "report": {
+          "schema": 1,
+          "stage": "P3",
+          "status": "passed",
+          "adapter": "NVIDIA TITAN Xp",
+          "backend": "dx11",
+          "width": 1284,
+          "height": 722,
+          "frames": 6,
+          "cpu_updates": 5,
+          "timeline_frame": 5,
+          "device_replacements": 1,
+          "uploads": 264,
+          "buffer_creations": 154,
+          "buffer_reuses": 14,
+          "buffer_waits": 0,
+          "upload_bytes": 24253136,
+          "vulkan_readbacks": 0,
+          "validation_errors": 0,
+          "profiling": false,
+          "gpu_timing_supported": false,
+          "gpu_clock_status": "disabled",
+          "gpu_frames": 0,
+          "peak_backend_allocation_bytes": 0,
+          "milliseconds": {
+            "cpu_update": 31.5403,
+            "frame_production": 55.8052,
+            "prepare": 119.971,
+            "submit_collect": 363.501,
+            "explicit_readback": 5.0172,
+            "gpu": null,
+            "timeline_wait": 0,
+            "cold_frame": 223.593,
+            "warm_frame_mean": 110.922
+          }
+        },
+        "rgba_sha256": "34485047f3d905c3df3bcf97f29d940fcad801819676e8213991cebec5d1b9b6"
+      },
+      {
+        "backend": "dx11",
+        "scene": "sample(AllStar)",
+        "input": "EditorSession imported and saved PMM v2",
+        "exit": 0,
+        "report": {
+          "schema": 1,
+          "stage": "P3",
+          "status": "passed",
+          "adapter": "NVIDIA TITAN Xp",
+          "backend": "dx11",
+          "width": 1284,
+          "height": 722,
+          "frames": 6,
+          "cpu_updates": 5,
+          "timeline_frame": 5,
+          "device_replacements": 1,
+          "uploads": 320,
+          "buffer_creations": 174,
+          "buffer_reuses": 18,
+          "buffer_waits": 0,
+          "upload_bytes": 45308536,
+          "vulkan_readbacks": 0,
+          "validation_errors": 0,
+          "profiling": false,
+          "gpu_timing_supported": false,
+          "gpu_clock_status": "disabled",
+          "gpu_frames": 0,
+          "peak_backend_allocation_bytes": 0,
+          "milliseconds": {
+            "cpu_update": 38.183,
+            "frame_production": 113.702,
+            "prepare": 146.892,
+            "submit_collect": 362.995,
+            "explicit_readback": 5.5032,
+            "gpu": null,
+            "timeline_wait": 0,
+            "cold_frame": 238.845,
+            "warm_frame_mean": 125.889
+          }
+        },
+        "rgba_sha256": "f244d3f3a4e0d899bc342519b014423b684f16f0962569616b6dade0809b0072"
+      },
+      {
+        "backend": "dx12",
+        "scene": "sample",
+        "input": "EditorSession imported and saved PMM v2",
+        "exit": 0,
+        "report": {
+          "schema": 1,
+          "stage": "P3",
+          "status": "passed",
+          "adapter": "NVIDIA TITAN Xp",
+          "backend": "dx12",
+          "width": 1284,
+          "height": 722,
+          "frames": 6,
+          "cpu_updates": 5,
+          "timeline_frame": 5,
+          "device_replacements": 1,
+          "uploads": 132,
+          "buffer_creations": 78,
+          "buffer_reuses": 2,
+          "buffer_waits": 0,
+          "upload_bytes": 7845328,
+          "vulkan_readbacks": 0,
+          "validation_errors": 0,
+          "profiling": false,
+          "gpu_timing_supported": false,
+          "gpu_clock_status": "disabled",
+          "gpu_frames": 0,
+          "peak_backend_allocation_bytes": 0,
+          "milliseconds": {
+            "cpu_update": 5.6788,
+            "frame_production": 16.2708,
+            "prepare": 144.177,
+            "submit_collect": 27.9933,
+            "explicit_readback": 11.4695,
+            "gpu": null,
+            "timeline_wait": 0,
+            "cold_frame": 56.8358,
+            "warm_frame_mean": 141.093
+          }
+        },
+        "shadow": "disabled, matching the sample scene",
+        "rgba_sha256": "03363366a89df8cc0230fa35f02cf4ce8e0d4bc6d4b6c86aeb58f1bfc8e6d78a"
+      },
+      {
+        "backend": "dx12",
+        "scene": "sample(follow_camera)",
+        "input": "EditorSession imported and saved PMM v2",
+        "exit": 0,
+        "report": {
+          "schema": 1,
+          "stage": "P3",
+          "status": "passed",
+          "adapter": "NVIDIA TITAN Xp",
+          "backend": "dx12",
+          "width": 1284,
+          "height": 722,
+          "frames": 6,
+          "cpu_updates": 5,
+          "timeline_frame": 5,
+          "device_replacements": 1,
+          "uploads": 264,
+          "buffer_creations": 154,
+          "buffer_reuses": 14,
+          "buffer_waits": 0,
+          "upload_bytes": 24253136,
+          "vulkan_readbacks": 0,
+          "validation_errors": 0,
+          "profiling": false,
+          "gpu_timing_supported": false,
+          "gpu_clock_status": "disabled",
+          "gpu_frames": 0,
+          "peak_backend_allocation_bytes": 0,
+          "milliseconds": {
+            "cpu_update": 26.7435,
+            "frame_production": 52.0469,
+            "prepare": 297.679,
+            "submit_collect": 137.874,
+            "explicit_readback": 13.5057,
+            "gpu": null,
+            "timeline_wait": 0,
+            "cold_frame": 220.86,
+            "warm_frame_mean": 175.656
+          }
+        },
+        "rgba_sha256": "34485047f3d905c3df3bcf97f29d940fcad801819676e8213991cebec5d1b9b6"
+      },
+      {
+        "backend": "dx12",
+        "scene": "sample(AllStar)",
+        "input": "EditorSession imported and saved PMM v2",
+        "exit": 0,
+        "report": {
+          "schema": 1,
+          "stage": "P3",
+          "status": "passed",
+          "adapter": "NVIDIA TITAN Xp",
+          "backend": "dx12",
+          "width": 1284,
+          "height": 722,
+          "frames": 6,
+          "cpu_updates": 5,
+          "timeline_frame": 5,
+          "device_replacements": 1,
+          "uploads": 320,
+          "buffer_creations": 174,
+          "buffer_reuses": 18,
+          "buffer_waits": 0,
+          "upload_bytes": 45308536,
+          "vulkan_readbacks": 0,
+          "validation_errors": 0,
+          "profiling": false,
+          "gpu_timing_supported": false,
+          "gpu_clock_status": "disabled",
+          "gpu_frames": 0,
+          "peak_backend_allocation_bytes": 0,
+          "milliseconds": {
+            "cpu_update": 40.6157,
+            "frame_production": 117.733,
+            "prepare": 386.597,
+            "submit_collect": 78.6162,
+            "explicit_readback": 17.6792,
+            "gpu": null,
+            "timeline_wait": 0,
+            "cold_frame": 141.771,
+            "warm_frame_mean": 228.713
+          }
+        },
+        "rgba_sha256": "f244d3f3a4e0d899bc342519b014423b684f16f0962569616b6dade0809b0072"
+      },
+      {
+        "backend": "vulkan",
+        "scene": "sample",
+        "input": "EditorSession imported and saved PMM v2",
+        "exit": 0,
+        "report": {
+          "schema": 1,
+          "stage": "P3",
+          "status": "passed",
+          "adapter": "NVIDIA TITAN Xp",
+          "backend": "vulkan",
+          "width": 1284,
+          "height": 722,
+          "frames": 6,
+          "cpu_updates": 5,
+          "timeline_frame": 5,
+          "device_replacements": 1,
+          "uploads": 132,
+          "buffer_creations": 78,
+          "buffer_reuses": 2,
+          "buffer_waits": 0,
+          "upload_bytes": 7845328,
+          "vulkan_readbacks": 2,
+          "validation_errors": 0,
+          "profiling": false,
+          "gpu_timing_supported": false,
+          "gpu_clock_status": "disabled",
+          "gpu_frames": 0,
+          "peak_backend_allocation_bytes": 49769796,
+          "milliseconds": {
+            "cpu_update": 5.3038,
+            "frame_production": 14.425,
+            "prepare": 175.203,
+            "submit_collect": 12.8851,
+            "explicit_readback": 29.8811,
+            "gpu": null,
+            "timeline_wait": 0,
+            "cold_frame": 111.36,
+            "warm_frame_mean": 46.4521
+          }
+        },
+        "shadow": "disabled, matching the sample scene",
+        "rgba_sha256": "7a11fc12349d9364ffbfe6b7fd4ba9f98584d55024dfa7a8ff6a7bb7378005bd"
+      },
+      {
+        "backend": "vulkan",
+        "scene": "sample(follow_camera)",
+        "input": "EditorSession imported and saved PMM v2",
+        "exit": 0,
+        "report": {
+          "schema": 1,
+          "stage": "P3",
+          "status": "passed",
+          "adapter": "NVIDIA TITAN Xp",
+          "backend": "vulkan",
+          "width": 1284,
+          "height": 722,
+          "frames": 6,
+          "cpu_updates": 5,
+          "timeline_frame": 5,
+          "device_replacements": 1,
+          "uploads": 264,
+          "buffer_creations": 154,
+          "buffer_reuses": 14,
+          "buffer_waits": 0,
+          "upload_bytes": 24253136,
+          "vulkan_readbacks": 3,
+          "validation_errors": 0,
+          "profiling": false,
+          "gpu_timing_supported": false,
+          "gpu_clock_status": "disabled",
+          "gpu_frames": 0,
+          "peak_backend_allocation_bytes": 55627708,
+          "milliseconds": {
+            "cpu_update": 29.3225,
+            "frame_production": 60.6172,
+            "prepare": 264.685,
+            "submit_collect": 155.646,
+            "explicit_readback": 29.3651,
+            "gpu": null,
+            "timeline_wait": 0,
+            "cold_frame": 269.747,
+            "warm_frame_mean": 81.264
+          }
+        },
+        "rgba_sha256": "0205b5adfa30a94be5f859fb5313c6562c426c2797261be63a1948ded67bca38"
+      },
+      {
+        "backend": "vulkan",
+        "scene": "sample(AllStar)",
+        "input": "EditorSession imported and saved PMM v2",
+        "exit": 0,
+        "report": {
+          "schema": 1,
+          "stage": "P3",
+          "status": "passed",
+          "adapter": "NVIDIA TITAN Xp",
+          "backend": "vulkan",
+          "width": 1284,
+          "height": 722,
+          "frames": 6,
+          "cpu_updates": 5,
+          "timeline_frame": 5,
+          "device_replacements": 1,
+          "uploads": 320,
+          "buffer_creations": 174,
+          "buffer_reuses": 18,
+          "buffer_waits": 0,
+          "upload_bytes": 45308536,
+          "vulkan_readbacks": 3,
+          "validation_errors": 0,
+          "profiling": false,
+          "gpu_timing_supported": false,
+          "gpu_clock_status": "disabled",
+          "gpu_frames": 0,
+          "peak_backend_allocation_bytes": 64919764,
+          "milliseconds": {
+            "cpu_update": 31.9289,
+            "frame_production": 96.8704,
+            "prepare": 283.43,
+            "submit_collect": 71.1065,
+            "explicit_readback": 28.0495,
+            "gpu": null,
+            "timeline_wait": 0,
+            "cold_frame": 170.137,
+            "warm_frame_mean": 93.7555
+          }
+        },
+        "rgba_sha256": "6cbe86bf9730bcf43ade51409bbdf627183bad3bdfb4849ffd64b34ddece5749"
+      }
+    ]
+  },
+  "strict_reference": {
+    "thresholds": {
+      "rgb_code_values": 1,
+      "alpha_code_values": 0,
+      "coverage_differences": 0,
+      "repeats": "exact bytes"
+    },
+    "profiles": [
+      {
+        "backend": "d3d11",
+        "driver": "hardware",
+        "exit": 0,
+        "output": "rest native composite: outside=0 coverage=0 max=1\nposed native composite: outside=0 coverage=0 max=1\n",
+        "frames": {
+          "rest": {
+            "size": [
+              512,
+              512
+            ],
+            "outside_tolerance_elements": 0,
+            "coverage_differences": 0,
+            "alpha_differences": 0,
+            "maximum_code_error": 1,
+            "actual_rgba_sha256": "6ad6f1053a94138fcaaa4450283291c27dc06d3befc15bc24cb0214a429aabe4",
+            "accepted": true
+          },
+          "posed": {
+            "size": [
+              257,
+              257
+            ],
+            "outside_tolerance_elements": 0,
+            "coverage_differences": 0,
+            "alpha_differences": 0,
+            "maximum_code_error": 1,
+            "actual_rgba_sha256": "13c5cfbf4ec3d0e16cc3dae437e8211ab87ed18d8f6c615c4549b80b5b01f8be",
+            "accepted": true
+          }
+        }
+      },
+      {
+        "backend": "d3d12",
+        "driver": "hardware",
+        "exit": 0,
+        "output": "rest native composite: outside=0 coverage=0 max=1\nposed native composite: outside=0 coverage=0 max=1\n",
+        "frames": {
+          "rest": {
+            "size": [
+              512,
+              512
+            ],
+            "outside_tolerance_elements": 0,
+            "coverage_differences": 0,
+            "alpha_differences": 0,
+            "maximum_code_error": 1,
+            "actual_rgba_sha256": "6ad6f1053a94138fcaaa4450283291c27dc06d3befc15bc24cb0214a429aabe4",
+            "accepted": true
+          },
+          "posed": {
+            "size": [
+              257,
+              257
+            ],
+            "outside_tolerance_elements": 0,
+            "coverage_differences": 0,
+            "alpha_differences": 0,
+            "maximum_code_error": 1,
+            "actual_rgba_sha256": "13c5cfbf4ec3d0e16cc3dae437e8211ab87ed18d8f6c615c4549b80b5b01f8be",
+            "accepted": true
+          }
+        }
+      },
+      {
+        "backend": "vulkan",
+        "driver": "hardware",
+        "exit": 0,
+        "output": "rest native composite: outside=0 coverage=0 max=1\nposed native composite: outside=0 coverage=0 max=1\n",
+        "frames": {
+          "rest": {
+            "size": [
+              512,
+              512
+            ],
+            "outside_tolerance_elements": 0,
+            "coverage_differences": 0,
+            "alpha_differences": 0,
+            "maximum_code_error": 1,
+            "actual_rgba_sha256": "6ad6f1053a94138fcaaa4450283291c27dc06d3befc15bc24cb0214a429aabe4",
+            "accepted": true
+          },
+          "posed": {
+            "size": [
+              257,
+              257
+            ],
+            "outside_tolerance_elements": 0,
+            "coverage_differences": 0,
+            "alpha_differences": 0,
+            "maximum_code_error": 1,
+            "actual_rgba_sha256": "13c5cfbf4ec3d0e16cc3dae437e8211ab87ed18d8f6c615c4549b80b5b01f8be",
+            "accepted": true
+          }
+        }
+      },
+      {
+        "backend": "d3d11",
+        "driver": "software",
+        "exit": 1,
+        "output": "rest native composite: outside=141 coverage=5 max=255\nposed native composite: outside=24 coverage=0 max=86\noriginal composite pixels differ\n",
+        "frames": {
+          "rest": {
+            "size": [
+              512,
+              512
+            ],
+            "outside_tolerance_elements": 141,
+            "coverage_differences": 5,
+            "alpha_differences": 7,
+            "maximum_code_error": 255,
+            "actual_rgba_sha256": "fe745663097ad7fdc12fd6138b98410dd8104c3db9ef23edcd969dbc02e0092f",
+            "accepted": false
+          },
+          "posed": {
+            "size": [
+              257,
+              257
+            ],
+            "outside_tolerance_elements": 24,
+            "coverage_differences": 0,
+            "alpha_differences": 0,
+            "maximum_code_error": 86,
+            "actual_rgba_sha256": "08f72d2997a16908fa25fcf7eb0d8510485dd7ff853168d3dcd7a8f295a6801f",
+            "accepted": false
+          }
+        }
+      },
+      {
+        "backend": "d3d12",
+        "driver": "software",
+        "exit": 1,
+        "output": "rest native composite: outside=141 coverage=5 max=255\nposed native composite: outside=24 coverage=0 max=86\noriginal composite pixels differ\n",
+        "frames": {
+          "rest": {
+            "size": [
+              512,
+              512
+            ],
+            "outside_tolerance_elements": 141,
+            "coverage_differences": 5,
+            "alpha_differences": 7,
+            "maximum_code_error": 255,
+            "actual_rgba_sha256": "fe745663097ad7fdc12fd6138b98410dd8104c3db9ef23edcd969dbc02e0092f",
+            "accepted": false
+          },
+          "posed": {
+            "size": [
+              257,
+              257
+            ],
+            "outside_tolerance_elements": 24,
+            "coverage_differences": 0,
+            "alpha_differences": 0,
+            "maximum_code_error": 86,
+            "actual_rgba_sha256": "08f72d2997a16908fa25fcf7eb0d8510485dd7ff853168d3dcd7a8f295a6801f",
+            "accepted": false
+          }
+        }
+      },
+      {
+        "backend": "vulkan",
+        "driver": "software",
+        "exit": 1,
+        "output": "software_device_unavailable\n",
+        "frames": {}
+      }
+    ],
+    "metal": "not run on Windows; prior strict failure remains open"
+  },
+  "accessory_normals": {
+    "accepted": false,
+    "cases_parsed": 14,
+    "maximum_component_error": 0.000338495,
+    "threshold": 1e-05,
+    "runtime_sha256": "84b900dbd7fa978d6e0caee26fc54f2f61d92c9c75d10b35f00e3e82cd1d67b4",
+    "method": "Actual D3DXComputeNormals on documented CPU mesh/buffer interfaces; no device or window",
+    "raw": "floorlight01.x normals=4 max=1.19209e-07\nkeitai.x normals=78 max=2.38419e-07\nlaser01.x normals=30 max=1.98483e-05\nlight01_b.x normals=16 max=6.81081e-06\nlight01_r.x normals=16 max=6.81081e-06\nlight02_b.x normals=56 max=3.03388e-05\nlight02_r.x normals=56 max=3.03388e-05\nlight02_y.x normals=56 max=3.03388e-05\nlight03_b.x normals=16 max=3.15634e-06\nlight03_r.x normals=16 max=3.15634e-06\nmic.x normals=985 max=4.17233e-07\nnegi.x normals=67 max=2.98023e-07\nnekomimi.x normals=90 max=1.78814e-07\nstage01.x normals=13894 max=0.000338495\n",
+    "artifact": {
+      "path": "out/build/pmm-accessory-normals.log",
+      "sha256": "af650fffb6da7576f12818e444b78a1b7247d51e7997f976f6c02d08deba192c"
+    },
+    "full_dx9_import": "device unavailable in disconnected RDP profile; not accepted"
+  },
+  "distribution": {
+    "rebuilt": true,
+    "directory": "out/dist",
+    "modified": true,
+    "binary_sha256": "c9b362eae15c46c1722970d399ccb90f70f7f135a970c27d04c724dba8eac8dd",
+    "relocation": "passed with SDK paths removed, offscreen and never-shown Windows",
+    "artifact": {
+      "path": "out/build/pmm-distribution-check.json",
+      "sha256": "204939850561710be5bd4c58932c702d4718aeeabed92d475a06e0846d6e6cb1"
+    },
+    "actual_allstar_vulkan": "passed",
+    "actual_artifact": {
+      "path": "out/build/pmm-distribution-actual.json",
+      "sha256": "5d342334ca485412244463e50275601f4d862cffb4fd18a2ca4e80d7cb8f8d72"
+    }
+  },
+  "remaining_exit_gates": {
+    "windows_native_ime": "not accepted; latest isolated evidence 41704895198; not rerun locally",
+    "strict_ui": "corrected visible observer/border requalification, scroll/multiline/hover/focus/physical DPI/non-Windows glyphs pending",
+    "text_keys": "Ctrl+Delete corpus qualified; word navigation/Ctrl+A/Ctrl+Backspace unqualified",
+    "strict_frames": "hardware passes; WARP fails; local software Vulkan unavailable; Metal not run"
+  },
+  "desktop": {
+    "windows_shown": false,
+    "desktop_capture": false,
+    "hardware_input_injection": false
+  },
+  "ci_dispatches_this_investigation": 0
+}

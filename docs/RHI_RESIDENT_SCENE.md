@@ -82,8 +82,11 @@ copy-to-vertex/index/SRV barriers. The scene producer has no native barrier API.
 PSOs are cached by immutable raster/depth/blend state and vertex layout; matrices,
 textures, viewport and stencil reference do not cause new PSOs.
 
-The current limits are 512 draws per native frame, 8,192 live resource slots and
-one single-sample output. Explicit mip chains and sRGB views are supported;
+The initial scene implementation used 512 draws per native frame, 8,192 live
+resource slots and one single-sample output. Since 2026-11-04 DX12/Vulkan reserve
+and grow completed frame arenas up to 8,192 draws / 32 MiB of constants; see the
+current [frame resource contract](RHI_ARCHITECTURE.md). The following capability
+list records the original scene-path scope. Explicit mip chains and sRGB views are supported;
 DX12 rejects backend-generated mip chains. Model layouts are PositionNormalUv
 and PositionColor, with indexed/nonindexed triangles or lines. The HUD subset
 uses ScreenPositionColorUv triangles, the shared `fixed_screen.hlsl`, point/linear

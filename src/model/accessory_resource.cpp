@@ -319,27 +319,32 @@ bool AccessoryResource::ParseImpl(const void* input, std::size_t size,
         std::vector<cpu_math::Vec3> positions, normals;
         std::vector<std::array<float, 2>> uvs;
         std::vector<std::array<unsigned, 3>> faces, normalFaces;
-        std::vector<unsigned> faceSources;
+        std::vector<unsigned> faceSources, faceCornerCounts;
         std::vector<unsigned> materials;
         const auto readFaces = [&](Data& data, std::size_t count,
                                    std::vector<std::array<unsigned, 3>>& out) {
             const auto sourceCount = data.Count();
+            const bool geometry = &out == &faces;
+            if (!geometry)
+                Require(sourceCount == faceCornerCounts.size(), "x-normal-faces");
             for (unsigned i = 0; i < sourceCount; ++i) {
                 const auto corners = data.Count();
-                Require(corners == 3 || (operationMesh && corners == 4),
-                        "x-nontriangle-face-not-supported");
-                unsigned face[4];
-                for (unsigned c = 0; c < corners; ++c) {
-                    auto& v = face[c];
+                Require(corners >= 3 && corners - 2 <= Limit - out.size(), "x-face-size");
+                if (geometry)
+                    faceCornerCounts.push_back(corners);
+                else
+                    Require(corners == faceCornerCounts[i], "x-normal-face-corners");
+                std::vector<unsigned> face(corners);
+                for (auto& v : face) {
                     v = data.Count();
                     Require(v < count, "x-vertex-index");
                 }
-                out.push_back({face[0], face[1], face[2]});
-                if (&out == &faces)
-                    faceSources.push_back(i);
-                if (corners == 4) {
-                    out.push_back({face[0], face[2], face[3]});
-                    if (&out == &faces)
+                // X MeshFace polygons use D3DX's first-corner triangle fan.
+                // Preserve each source face's material and independently indexed
+                // normal corners when expanding it into the render index list.
+                for (unsigned c = 1; c + 1 < corners; ++c) {
+                    out.push_back({face[0], face[c], face[c + 1]});
+                    if (geometry)
                         faceSources.push_back(i);
                 }
             }
@@ -354,7 +359,7 @@ bool AccessoryResource::ParseImpl(const void* input, std::size_t size,
             readFaces(data, positions.size(), faces);
             data.End();
         }
-        bool hasMaterials = false;
+        bool hasMaterials = false, hasVertexColors = false;
         for (const auto& node : mesh->children) {
             Data data{node};
             if (node.type == "MeshNormals") {
@@ -425,12 +430,17 @@ bool AccessoryResource::ParseImpl(const void* input, std::size_t size,
                     next->materials_.push_back(std::move(material));
                 }
                 Require(next->materials_.size() == count, "x-material-count");
-            } else if (operationMesh && node.type == "MeshVertexColors") {
+            } else if (node.type == "MeshVertexColors") {
+                Require(!hasVertexColors, "x-duplicate-colors");
+                hasVertexColors = true;
                 const auto count = data.Count();
                 for (unsigned i = 0; i < count; ++i) {
                     Require(data.Count() < positions.size(), "x-color-index");
-                    for (unsigned c = 0; c < 4; ++c)
-                        Require(data.Float() == 1, "x-operation-mesh-vertex-color");
+                    for (unsigned c = 0; c < 4; ++c) {
+                        const auto value = data.Float();
+                        if (operationMesh)
+                            Require(value == 1, "x-operation-mesh-vertex-color");
+                    }
                 }
                 data.End();
             } else
@@ -448,8 +458,13 @@ bool AccessoryResource::ParseImpl(const void* input, std::size_t size,
                                    ab[0] * ac[1] - ab[1] * ac[0]});
                 normalFaces.push_back({index, index, index});
             }
-        Require(hasMaterials && !normals.empty() && !faces.empty(),
-                "x-explicit-normals-and-materials-required");
+        const bool generateNormals =
+            !operationMesh && (normals.empty() || uvs.empty() || hasVertexColors);
+        if (normals.empty()) {
+            normals.resize(positions.size());
+            normalFaces = faces;
+        }
+        Require(hasMaterials && !faces.empty(), "x-explicit-materials-required");
         for (auto& normal : normals) {
             const float length =
                 std::sqrt(normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]);
@@ -483,6 +498,61 @@ bool AccessoryResource::ParseImpl(const void* input, std::size_t size,
                 }
                 groups[materials[faceSources[f]]].push_back(found->second);
             }
+        if (generateNormals) {
+            // The native accessory loader clones non-XYZ/NORMAL/TEX1 meshes
+            // into FVF 274 and calls D3DXComputeNormals without adjacency.
+            // Accumulate angle-weighted face normals at the split vertices,
+            // after the same root-position import transform as that clone.
+            for (auto& vertex : next->vertices_)
+                vertex.normal = {};
+            for (const auto& group : groups)
+                for (std::size_t i = 0; i < group.size(); i += 3) {
+                    AccessoryVertex* v[]{&next->vertices_[group[i]], &next->vertices_[group[i + 1]],
+                                         &next->vertices_[group[i + 2]]};
+                    cpu_math::Vec3 ab{}, ac{};
+                    for (unsigned c = 0; c < 3; ++c) {
+                        ab[c] = v[1]->position[c] - v[0]->position[c];
+                        ac[c] = v[2]->position[c] - v[0]->position[c];
+                    }
+                    cpu_math::Vec3 normal{ab[1] * ac[2] - ab[2] * ac[1],
+                                          ab[2] * ac[0] - ab[0] * ac[2],
+                                          ab[0] * ac[1] - ab[1] * ac[0]};
+                    const float length = std::sqrt(normal[0] * normal[0] + normal[1] * normal[1] +
+                                                   normal[2] * normal[2]);
+                    if (!(length > 0))
+                        continue;
+                    for (auto& value : normal)
+                        value /= length;
+                    for (unsigned corner = 0; corner < 3; ++corner) {
+                        float dot = 0, a2 = 0, b2 = 0;
+                        cpu_math::Vec3 a{}, b{};
+                        for (unsigned c = 0; c < 3; ++c) {
+                            a[c] = v[(corner + 1) % 3]->position[c] - v[corner]->position[c];
+                            b[c] = v[(corner + 2) % 3]->position[c] - v[corner]->position[c];
+                            a2 += a[c] * a[c];
+                            b2 += b[c] * b[c];
+                        }
+                        if (!(a2 > 0 && b2 > 0))
+                            continue;
+                        const float inverseA = 1.f / std::sqrt(a2), inverseB = 1.f / std::sqrt(b2);
+                        for (unsigned c = 0; c < 3; ++c) {
+                            a[c] *= inverseA;
+                            b[c] *= inverseB;
+                            dot += a[c] * b[c];
+                        }
+                        const float angle = std::acos(std::clamp(dot, -1.f, 1.f));
+                        for (unsigned c = 0; c < 3; ++c)
+                            v[corner]->normal[c] += normal[c] * angle;
+                    }
+                }
+            for (auto& vertex : next->vertices_) {
+                auto& n = vertex.normal;
+                const float length = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+                if (length > 0)
+                    for (auto& value : n)
+                        value /= length;
+            }
+        }
         for (unsigned m = 0; m < groups.size(); ++m)
             if (!groups[m].empty()) {
                 next->subsets_.push_back(

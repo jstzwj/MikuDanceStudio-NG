@@ -15,6 +15,7 @@
 namespace mikudancestudio::rhi {
 namespace {
 constexpr std::size_t UniformBytes = 2 * 1024 * 1024;
+constexpr std::size_t MaxUniformBytes = 32 * 1024 * 1024;
 constexpr unsigned VertexBufferSlot = 16, MaxDraws = 4096;
 MTLPixelFormat PixelFormat(TextureFormat f) {
     switch (f) {
@@ -159,6 +160,7 @@ public:
     std::uint64_t issued = 0, completed = 0;
     struct Frame {
         id<MTLBuffer> uniforms = nil;
+        std::size_t uniformCapacity = UniformBytes;
         std::size_t offset = 0;
         std::uint64_t serial = 0;
     };
@@ -197,7 +199,7 @@ public:
         auto c = GraphicsShaderProfile(detail::RuntimeSpirvCompilerAvailable(), true);
         c.constantAlignment = 256;
         c.legacyDrawConstantBytes = 2560;
-        c.maxFrameConstantBytes = UniformBytes;
+        c.maxFrameConstantBytes = MaxUniformBytes;
         c.maxColorAttachments = 4;
         return c;
     }
@@ -220,6 +222,14 @@ public:
     ModelCapabilities ModelFeatures() const override {
         return {true, true, true, true, true,          true,
                 true, true, true, true, bool(surface), MaxDraws};
+    }
+    std::size_t requiredUniforms = UniformBytes;
+    bool ReserveFrameResources(std::uint32_t count, std::uint64_t bytes) override {
+        if (!Live() || inFrame || count > MaxDraws || bytes > MaxUniformBytes)
+            return false;
+        while (requiredUniforms < bytes)
+            requiredUniforms *= 2;
+        return true;
     }
     ResourceLifecycleCapabilities ResourceLifecycleFeatures() const override {
         return {true, true, true, false, true};
@@ -527,7 +537,7 @@ public:
                 nativeAttachment.loadAction = Load(attachment.load);
                 nativeAttachment.storeAction = Store(attachment.store);
                 if (attachment.resolve) {
-                    auto *resolve = Find(attachment.resolve);
+                    auto* resolve = Find(attachment.resolve);
                     resolve->lastUse = issued + 1;
                     nativeAttachment.resolveTexture = resolve->texture;
                     nativeAttachment.storeAction = attachment.store == AttachmentStore::Store
@@ -564,6 +574,14 @@ public:
             auto& f = frames[frameIndex];
             if (f.serial && !WaitCompletion({status.identity, f.serial}, 5000))
                 return false;
+            if (f.uniformCapacity < requiredUniforms) {
+                auto replacement = [native newBufferWithLength:requiredUniforms
+                                                       options:MTLResourceStorageModeShared];
+                if (!replacement)
+                    return false;
+                f.uniforms = replacement;
+                f.uniformCapacity = requiredUniforms;
+            }
             f.offset = 0;
             draws = 0;
             commands = [queue commandBuffer];
@@ -586,7 +604,7 @@ public:
             return false;
         EndEncoder();
         modelReady = genericReady = genericBound = false;
-        for (const auto &attachment : ColorAttachments(passes.Current())) {
+        for (const auto& attachment : ColorAttachments(passes.Current())) {
             Find(attachment.texture)->uploaded = attachment.store == AttachmentStore::Store;
             if (attachment.resolve)
                 Find(attachment.resolve)->uploaded = true;
@@ -1068,9 +1086,9 @@ public:
                                                         : MTLSamplerMinMagFilterLinear;
             s.magFilter = d.mag == SamplerFilter::Point ? MTLSamplerMinMagFilterNearest
                                                         : MTLSamplerMinMagFilterLinear;
-            s.mipFilter = !d.mipmaps                         ? MTLSamplerMipFilterNotMipmapped
+            s.mipFilter = !d.mipmaps                      ? MTLSamplerMipFilterNotMipmapped
                           : d.mip == SamplerFilter::Point ? MTLSamplerMipFilterNearest
-                                                         : MTLSamplerMipFilterLinear;
+                                                          : MTLSamplerMipFilterLinear;
             if (!d.mipmaps)
                 s.lodMaxClamp = 0;
             s.sAddressMode = d.u == SamplerAddress::Wrap ? MTLSamplerAddressModeRepeat
@@ -1090,7 +1108,7 @@ public:
     bool Constant(unsigned slot, const void* bytes, std::size_t size, unsigned stages) {
         auto& f = frames[frameIndex];
         const auto offset = (f.offset + 255) & ~std::size_t(255);
-        if (offset + size > UniformBytes)
+        if (offset + size > f.uniformCapacity)
             return false;
         std::memcpy(static_cast<char*>(f.uniforms.contents) + offset, bytes, size);
         if (stages & 1)
@@ -1243,8 +1261,8 @@ public:
                 return false;
             }
             for (auto& f : frames) {
-                f.uniforms =
-                    [native newBufferWithLength:UniformBytes options:MTLResourceStorageModeShared];
+                f.uniforms = [native newBufferWithLength:f.uniformCapacity
+                                                 options:MTLResourceStorageModeShared];
                 if (!f.uniforms) {
                     error = "metal_uniform_arena_failed";
                     return false;

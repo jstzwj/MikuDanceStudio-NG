@@ -304,6 +304,17 @@ ModelReplayResult SceneRenderer::PrepareImpl(std::uint64_t id, const ModelReplay
                 return {false, e.sequence, 0, "unsupported_draw_contract"};
         }
     if (frame)
+        for (const auto& pass : frame->passes)
+            if (pass.generateMips)
+                for (const auto& target : frame->targets)
+                    if (target.id == pass.generateMips)
+                        constantBytes += std::uint64_t(target.description.mips - 1) *
+                                         shaderCaps.legacyDrawConstantBytes;
+    if (shaderCaps.maxFrameConstantBytes && constantBytes > shaderCaps.maxFrameConstantBytes)
+        return {false, 0, 0, "shader_frame_constant_budget_exceeded"};
+    if (!d.ReserveFrameResources(drawWork, constantBytes))
+        return {false, 0, 0, "backend_frame_reservation_failed"};
+    if (frame)
         for (const auto& t : frame->targets) {
             const auto c = d.FormatFeatures(t.description.format);
             if (!(c.sampleCounts & t.description.samples) ||

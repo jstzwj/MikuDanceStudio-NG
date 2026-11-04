@@ -23,8 +23,9 @@ class AccessoryResource final {
 public:
     static bool Parse(const void*, std::size_t, std::shared_ptr<const AccessoryResource>&,
                       std::string& reason);
-    // Bundled editor mesh: convex quads, generated face normals and white
-    // vertex colors. Ordinary imported accessories retain the strict contract.
+    // Bundled editor mesh: generated face normals and white vertex colors.
+    // Ordinary imports reproduce the native FVF conversion and smooth normals;
+    // both paths triangulate polygons.
     static bool ParseOperationMesh(const void*, std::size_t,
                                    std::shared_ptr<const AccessoryResource>&, std::string& reason);
     const std::vector<AccessoryVertex>& Vertices() const { return vertices_; }
