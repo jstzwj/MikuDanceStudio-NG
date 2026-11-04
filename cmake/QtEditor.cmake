@@ -160,6 +160,9 @@ function(mds_add_qt_editor)
         if(WIN32)
             target_sources(qt_system_ime_test PRIVATE "${root}/res/frontend_qt/windows.manifest")
             target_link_libraries(qt_system_ime_test PRIVATE ole32 uuid imm32 dbghelp)
+            add_executable(native_ime_shutdown_test EXCLUDE_FROM_ALL
+                "${root}/tests/native_ime_shutdown_test.cpp" "${root}/res/frontend_qt/windows.manifest")
+            target_link_libraries(native_ime_shutdown_test PRIVATE Qt6::Core user32 ole32 uuid imm32 dbghelp)
             qt_add_executable(qt_control_style_test "${root}/tests/qt_control_style_oracle_test.cpp"
                 "${root}/res/frontend_qt/windows.manifest" "${root}/res/templates/dialog/dialogs.rc")
             target_compile_definitions(qt_control_style_test PRIVATE MDS_SYSTEM_CONTROL_REFERENCE

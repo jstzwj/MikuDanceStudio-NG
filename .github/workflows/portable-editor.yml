@@ -170,6 +170,7 @@ jobs:
           $profiles = @(
             @('--isolated-nonclient', 'out/p4/control-style-nonclient'),
             @('--isolated-edit-text', 'out/p4/control-edit-visible'),
+            @('--isolated-edit-focus', 'out/p4/control-edit-focus'),
             @('--isolated-content', 'out/p4/control-content-visible'),
             @('--isolated-list-focus', 'out/p4/control-list-focus'),
             @('--isolated-content-focus', 'out/p4/control-content-focus')
@@ -208,9 +209,18 @@ jobs:
           }
           $inputServices | Select-Object Name,Status,StartType | ConvertTo-Json | Set-Content out/p4/system-ime-environment.json -Encoding UTF8
           Start-Process "$env:WINDIR/System32/ctfmon.exe" -WindowStyle Hidden
-          cmake --build out/p4 --config Release --target qt_system_ime_test --parallel 3
+          cmake --build out/p4 --config Release --target qt_system_ime_test native_ime_shutdown_test --parallel 3
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # Same activation/composition/cancel/teardown with a Win32 EDIT and
+          # no QApplication/QPA, to distinguish an OS IME failure from Qt.
+          python tests/test_native_ime_shutdown.py --test out/p4/native_ime_shutdown_test.exe --report out/p4/system-ime-native-reference.json
+          $referenceExit = $LASTEXITCODE
           python tests/test_native_system_ime.py --test out/p4/qt_system_ime_test.exe --report out/p4/system-ime-ms-ime.json
+          $editorExit = $LASTEXITCODE
+          Get-Process ctfmon,imebroker,TextInputHost -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,SessionId,Path | ConvertTo-Json | Set-Content out/p4/system-ime-processes.json -Encoding UTF8
+          Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-15)} -ErrorAction SilentlyContinue | Where-Object { $_.Message -match 'imebroker|imjp|ctfmon' } | Select-Object TimeCreated,Id,ProviderName,Message | ConvertTo-Json | Set-Content out/p4/system-ime-events.json -Encoding UTF8
+          if ($editorExit -ne 0) { exit $editorExit }
+          if ($referenceExit -ne 0) { exit $referenceExit }
       - name: Qualify original composite capture and retain numerical diagnostics
         if: ${{ !cancelled() && inputs.native_reference }}
         env:
@@ -250,7 +260,9 @@ jobs:
             out/p4/control-qualification.json
             out/p4/control-style-nonclient/
             out/p4/control-edit-visible/
+            out/p4/control-edit-focus/
             out/p4/edit-content/
+            out/p4/editor-chrome/
             out/p4/control-content-visible/
             out/p4/control-list-focus/
             out/p4/control-content-focus/
@@ -382,6 +394,7 @@ jobs:
             out/p4/native-reference.xml
             out/p4/native-reference/
             out/p4/system-ime*
+            out/p4/editor-chrome/
             out/distribution-check.*
             out/p4/editor-frame-performance*.json
             out/p4/native-audio*.json
@@ -524,6 +537,7 @@ jobs:
             out/p4/native-reference.xml
             out/p4/native-reference/
             out/p4/system-ime*
+            out/p4/editor-chrome/
             out/distribution-check.*
             out/p4/metal-only-distribution.*
             out/p4/editor-frame-performance*.json
