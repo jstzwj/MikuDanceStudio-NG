@@ -44,15 +44,23 @@ namespace {
 class ResourceDialog final : public mikudancestudio::qt::TemplateDialog {
 public:
     ResourceDialog(const mikudancestudio::ui::NumericTemplate& description,
-                   const mikudancestudio::qt::Language& language)
-        : TemplateDialog(description, language, nullptr) {}
+                   const mikudancestudio::qt::Language& language, bool allowFocus)
+        : TemplateDialog(description, language, nullptr) {
+        setAttribute(Qt::WA_ShowWithoutActivating);
+        setWindowFlag(Qt::WindowDoesNotAcceptFocus, !allowFocus);
+    }
 };
 struct DialogCommands {
     unsigned last = 0;
+    bool allowFocus = false;
 };
 INT_PTR CALLBACK HiddenDialog(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
-    if (message == WM_INITDIALOG)
+    if (message == WM_INITDIALOG) {
         SetWindowLongPtrW(window, DWLP_USER, lParam);
+        if (!reinterpret_cast<DialogCommands*>(lParam)->allowFocus)
+            SetWindowLongPtrW(window, GWL_EXSTYLE,
+                              GetWindowLongPtrW(window, GWL_EXSTYLE) | WS_EX_NOACTIVATE);
+    }
     // Native multiline Return posts a default-button command via
     // WM_NEXTDLGCTL. Preserve its command/text processing while preventing
     // any hidden-window focus/activation, including indirect SetFocus calls.
@@ -75,7 +83,7 @@ public:
     static void SetControl(bool control) {
         BYTE state[256]{};
         if (control)
-            state[VK_CONTROL] = 0x80;
+            state[VK_CONTROL] = state[VK_LCONTROL] = 0x80;
         Check(SetKeyboardState(state), "set only this test thread's keyboard table");
     }
     ~ThreadKeyboardState() { SetKeyboardState(previous_); }
@@ -83,7 +91,7 @@ public:
 private:
     BYTE previous_[256]{};
 };
-unsigned CheckHiddenInput(HWND foregroundBefore, HWND focusBefore) {
+unsigned CheckHiddenInput(HWND foregroundBefore, HWND focusBefore, HWND foregroundAtEntry) {
     const auto foreground = GetForegroundWindow();
     DWORD process = 0;
     if (foreground)
@@ -91,7 +99,16 @@ unsigned CheckHiddenInput(HWND foregroundBefore, HWND focusBefore) {
     // The user may switch between unrelated applications while this hidden
     // observer runs. Only this thread's focus and activation of our own process
     // are under test; never restore or otherwise alter desktop foreground.
-    Check(process != GetCurrentProcessId(), "hidden observer activated a test-owned window");
+    // A runner may start with its process-owned console already in foreground.
+    // Record that before QApplication creates any UI; it is not a test-created
+    // activation. Every newly activated window of our process is still rejected.
+    if (process == GetCurrentProcessId() && foreground != foregroundAtEntry) {
+        wchar_t name[128]{};
+        GetClassNameW(foreground, name, 128);
+        std::fprintf(stderr, "hidden foreground entry=%p current=%p class=%ls visible=%d\n",
+                     foregroundAtEntry, foreground, name, IsWindowVisible(foreground));
+        Check(false, "hidden observer activated a test-owned window");
+    }
     Check(GetFocus() == focusBefore, "hidden observer changed its thread's native focus");
     return foreground != foregroundBefore;
 }
@@ -331,6 +348,7 @@ unsigned ButtonTextGeometryCorpus(const std::filesystem::path& output) {
 }
 int main(int argc, char** argv) try {
     SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
+    const auto foregroundAtEntry = GetForegroundWindow();
     QApplication app(argc, argv);
 #ifdef MDS_SYSTEM_CONTROL_REFERENCE
     const bool replayFocus = argc == 4 && QString::fromLocal8Bit(argv[1]) == "--replay-edit-focus";
@@ -444,6 +462,7 @@ int main(int argc, char** argv) try {
     QJsonArray multilineReturn;
     unsigned editDeleteCases = 0;
     unsigned externalForegroundChanges = 0;
+    unsigned modifierRetries = 0;
     if (editText) {
         QFile file(QString::fromUtf8(MDS_EDIT_LAYOUT_REFERENCE));
         Check(file.open(QIODevice::ReadOnly), "open independent original EDIT layouts");
@@ -457,7 +476,7 @@ int main(int argc, char** argv) try {
         const char* code = templateIndex % 2 ? "ja" : "en";
         mikudancestudio::qt::Language language;
         Check(language.Set(code), "load UI language");
-        ResourceDialog dialog(*description, language);
+        ResourceDialog dialog(*description, language, focused);
         dialog.winId(); // Create only our own never-shown native parent.
         // Both paths use actual dialog resources. The public executable links
         // the byte-verified RC source; the optional oracle maps the original
@@ -472,6 +491,7 @@ int main(int argc, char** argv) try {
         std::memcpy(&flags, bytes + (bytes[2] == 255 && bytes[3] == 255 ? 12 : 0), sizeof flags);
         Check(!(flags & WS_VISIBLE), "original resource must never show a window");
         DialogCommands commands;
+        commands.allowFocus = focused;
         const auto native =
             CreateDialogParamW(instance, MAKEINTRESOURCEW(dialog.Template().id), nullptr,
                                HiddenDialog, reinterpret_cast<LPARAM>(&commands));
@@ -500,18 +520,28 @@ int main(int argc, char** argv) try {
                         // MMD's numeric EM_REPLACESEL prefill does. Native
                         // overflowing WM_SETTEXT has distinct virtual rows.
                         constexpr auto before = L"1.5";
-                        SetWindowTextW(control, before);
-                        SendMessageW(control, EM_SETSEL, range.first, range.second);
                         field->setText(QString::fromWCharArray(before));
                         field->setSelection(range.first, range.second - range.first);
                         // Native/Qt setup can pump this thread's queue. Bind
                         // the intended modifier immediately to the observed
                         // native command, independently of physical user keys.
-                        ThreadKeyboardState::SetControl(true);
-                        const auto controlBefore = GetKeyState(VK_CONTROL);
-                        SendMessageW(control, WM_KEYDOWN, VK_DELETE, 1);
-                        const auto controlAfter = GetKeyState(VK_CONTROL);
-                        SendMessageW(control, WM_KEYUP, VK_DELETE, LPARAM(0xc0000001u));
+                        for (unsigned attempt = 0;; ++attempt) {
+                            SetWindowTextW(control, before);
+                            SendMessageW(control, EM_SETSEL, range.first, range.second);
+                            ThreadKeyboardState::SetControl(true);
+                            const auto controlBefore = GetKeyState(VK_CONTROL);
+                            SendMessageW(control, WM_KEYDOWN, VK_DELETE, 1);
+                            const auto controlAfter = GetKeyState(VK_CONTROL);
+                            SendMessageW(control, WM_KEYUP, VK_DELETE, LPARAM(0xc0000001u));
+                            if ((controlBefore & 0x8000) && (controlAfter & 0x8000))
+                                break;
+                            // USER32 can refresh the input table while the
+                            // user works in another application. Compare only
+                            // an actual Ctrl command, never ordinary Delete.
+                            // Every range still executes and is counted once.
+                            ++modifierRetries;
+                            Check(attempt < 7, "cannot establish native Ctrl+Delete precondition");
+                        }
                         QKeyEvent key(QEvent::KeyPress, Qt::Key_Delete, Qt::ControlModifier);
                         QCoreApplication::sendEvent(field, &key);
                         wchar_t value[32]{};
@@ -526,11 +556,10 @@ int main(int argc, char** argv) try {
                             qtFirst + field->selectedText().size() != int(last))
                             std::fprintf(
                                 stderr,
-                                "EDIT delete template=%d control=%d range=%d,%d native=%lu,%lu:'%ls' Qt=%d,%d:'%s' ctrl=%x,%x\n",
+                                "EDIT delete template=%d control=%d range=%d,%d native=%lu,%lu:'%ls' Qt=%d,%d:'%s'\n",
                                 description->id, entry.id, range.first, range.second, first, last,
                                 value, qtFirst, int(qtFirst + field->selectedText().size()),
-                                field->text().toUtf8().constData(), unsigned(controlBefore),
-                                unsigned(controlAfter));
+                                field->text().toUtf8().constData());
                         Check(field->text() == QString::fromWCharArray(value) &&
                                   qtFirst == int(first) &&
                                   qtFirst + field->selectedText().size() == int(last),
@@ -550,7 +579,8 @@ int main(int argc, char** argv) try {
                         }
                         ++editDeleteCases;
                     }
-                    externalForegroundChanges += CheckHiddenInput(foreground, focus);
+                    externalForegroundChanges +=
+                        CheckHiddenInput(foreground, focus, foregroundAtEntry);
                     SendMessageW(control, EM_SETREADONLY, (entry.style & ES_READONLY) != 0, 0);
                     field->setReadOnly((entry.style & ES_READONLY) != 0);
                     EnableWindow(control, enabled);
@@ -586,7 +616,8 @@ int main(int argc, char** argv) try {
                             DispatchMessageW(&pending);
                         }
                     }
-                    externalForegroundChanges += CheckHiddenInput(foreground, focus);
+                    externalForegroundChanges +=
+                        CheckHiddenInput(foreground, focus, foregroundAtEntry);
                     const bool inserts = ctrl || (entry.style & ES_WANTRETURN);
                     wchar_t value[32]{};
                     GetWindowTextW(control, value, 32);
@@ -1081,6 +1112,7 @@ int main(int argc, char** argv) try {
         {"multilineReturn", multilineReturn},
         {"editDeleteCases", int(editDeleteCases)},
         {"externalForegroundChanges", int(externalForegroundChanges)},
+        {"modifierRetries", int(modifierRetries)},
         {"windowsShown", visible}};
     report.insert("capture",
                   "own dialog PrintWindow; overlapping siblings excluded; explicit focus state");
