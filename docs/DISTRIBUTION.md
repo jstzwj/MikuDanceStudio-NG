@@ -16,11 +16,32 @@ on macOS.
 Build the portable editor, then deploy:
 
 ```sh
-cmake --build out/p4 --config Release --target dist --parallel 3
-python tests/test_editor_distribution.py --dist out/p4/dist
+cmake -S cmake/portable-editor -B out/build -DCMAKE_PREFIX_PATH=/path/to/Qt/6.8.3/platform
+cmake --build out/build --config Release --target dist --parallel 3
+python tests/test_editor_distribution.py --dist out/dist
 ```
 
-The target writes `out/p4/dist`, a platform archive and its SHA-256 file. It
+For the locally installed Windows SDKs, configure with:
+
+```powershell
+cmake -S cmake/portable-editor -B out/build -G "Visual Studio 17 2022" -A x64 `
+  -DCMAKE_PREFIX_PATH="$PWD/out/qt/6.8.3/msvc2022_64" `
+  -DMDS_DXC="$PWD/out/dxc-dist/dxc.exe" `
+  -DMDS_DXC_RUNTIME_DIR="$PWD/out/dxc-dist"
+cmake --build out/build --config Release --target dist --parallel 3
+```
+
+Run `out/dist/MikuDanceStudioNG.exe` on Windows. Copy the entire distribution,
+including Qt DLLs, plugins, fonts and assets, when moving it elsewhere. `out/qt`,
+`out/dxc-dist` and `out/editor-fonts` are reusable SDK/input caches, not extra
+application builds. Historical qualification captures/logs belong in
+`out/evidence`; their former paths are retained in a local relocation manifest.
+
+The target writes `out/dist`; platform archives and SHA-256 files go to
+`out/releases`. Build caches and test executables stay in `out/build` (older
+P4 qualification builds used `out/p4`). The deployment path is independent of
+the chosen build directory. Override `MDS_DIST_DIR` and `MDS_DIST_ARCHIVE_DIR`
+at configure time when keeping multiple distributions. The target
 replaces only its own marked output after installation succeeds. It does not
 copy the Qt SDK or depend on a Qt directory in the user's PATH. The smoke test
 relocates the package into a temporary directory, removes Qt/developer search

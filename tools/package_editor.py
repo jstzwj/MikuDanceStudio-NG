@@ -145,11 +145,14 @@ def main():
         raise RuntimeError('Distribution builds must use Release')
     config = json.loads((build / 'qt-dist-config.json').read_text(encoding='utf-8'))
     source = Path(config['source'])
-    dist = build / 'dist'
+    dist = Path(config['dist']).absolute()
+    archives = Path(config['archives']).absolute()
     # Only replace our own explicitly marked output; never delete an arbitrary
     # user directory or a symlink that happens to be named dist.
     if dist.is_symlink() or (dist.exists() and not (dist / '.mds-dist').is_file()):
         raise RuntimeError(f'Refusing to replace an unowned distribution directory: {dist}')
+    dist.parent.mkdir(parents=True, exist_ok=True)
+    archives.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='mds-dist-', dir=build) as temporary:
         stage = Path(temporary) / 'dist'
         run(args.cmake, '--install', build, '--config', args.config,
@@ -169,13 +172,12 @@ def main():
         (stage / '.mds-dist').write_text('MikuDanceStudio-NG distribution\n', encoding='utf-8')
         # Publish only a complete installation; a failed deploy retains the old dist.
         if dist.exists():
-            assert dist.resolve().parent == build
             shutil.rmtree(dist)
         shutil.move(stage, dist)
     suffix = {'Windows': 'windows', 'Linux': 'linux', 'Darwin': 'macos'}[config['system']]
     arch = {'AMD64': 'x64', 'x86_64': 'x64', 'aarch64': 'arm64'}.get(platform.machine(), platform.machine())
     name = f'MikuDanceStudio-NG-{config["version"]}-{suffix}-{arch}'
-    archive = build / (name + ('.zip' if suffix == 'windows' else '.tar.gz'))
+    archive = archives / (name + ('.zip' if suffix == 'windows' else '.tar.gz'))
     if suffix == 'windows':
         with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as target:
             for path in sorted(dist.rglob('*')):

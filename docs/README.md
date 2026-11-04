@@ -9,6 +9,9 @@
 | [跨平台计划](../cross_platform_plan.md) | NG 独立维护路线、P0–P3 验收和后续阶段 |
 | [P3 验收](CROSS_PLATFORM_P3.md) | 三平台渲染／呈现、恢复、性能预算及硬件测量边界 |
 | [架构](ARCHITECTURE.md) | 子系统、模块边界与有意保留的兼容偏差 |
+| [源码结构检查](SOURCE_STRUCTURE.md) | Qt 窗口职责拆分、超过 2,000 行的自有源码及后续边界 |
+| [Qt 主界面对齐](QT_UI_ALIGNMENT.md) | 截图差异修正、场景状态区别和隐藏窗口验证范围 |
+| [Qt 发布包](DISTRIBUTION.md) | `out/build` 构建、`out/dist` 运行目录及三平台运行库 |
 | [可移植内核](M1_PORTABLE_CORE.md) | 格式文档、场景会话和 Windows 适配边界 |
 | [RHI 架构](RHI_ARCHITECTURE.md) | 资源生命周期、CPU 场景输入及 DX9／DX11／DX12 预览 |
 | [RHI 功能支持](RHI_FEATURE_SUPPORT.md) | 多通道附件与资源依赖契约、后端支持及离屏验收 |

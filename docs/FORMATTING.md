@@ -7,13 +7,26 @@ VS Code 使用 Microsoft C/C++ 扩展（`ms-vscode.cpptools`）的 clang-format�
 在项目根目录执行：
 
 ```powershell
-# Format sources under include/mikudancestudio and src (including .inc)
+python -m pip install -r requirements-format.txt
+
+# Format first-party include/mikudancestudio, src and tests (including .inc/.mm)
 python scripts/format_sources.py
 
 # Check only; return a nonzero exit code on formatting violations
 python scripts/format_sources.py --check
+
+# Only changed first-party sources, including tests and new files
+python scripts/format_sources.py --changed HEAD
+python scripts/format_sources.py --check --changed HEAD
+
+# Limit the operation to one subsystem
+python scripts/format_sources.py src/frontend_qt
+
+# Equivalent CMake targets (explicit, never part of a normal build)
+cmake --build out/build --target format
+cmake --build out/build --target format-check
 ```
 
-脚本优先使用 VS Code C/C++ 扩展自带的 clang-format，再查找 PATH 和 Visual Studio 的 C++ Clang 工具。配置兼容 clang-format 19 及以上版本；需要不同机器输出完全一致时，使用相同版本，也可以通过 `--clang-format PATH` 指定程序。本轮使用扩展自带的 clang-format 23.1.0。
+开发和 CI 固定使用 `requirements-format.txt` 中的 clang-format 21.1.8。脚本依次查找 `--clang-format PATH`／`CLANG_FORMAT`、PATH、VS Code C/C++ 扩展及 Visual Studio 的 C++ Clang 工具。VS Code 可通过个人设置 `C_Cpp.clang_format_path` 指向同一个程序，避免扩展自带版本不同造成格式来回变化。
 
-处理范围仅为这两个目录中的 C/C++ 头文件、实现文件和 `.inc`；第三方目录、资源文件及 `.def` 导出表不在处理范围内。
+处理范围为 `include/mikudancestudio`、`src`、`tests` 中的 C/C++、Objective-C++ 和 `.inc`。第三方目录、构建产物、资源和 `.def` 不参与。CI 检查相对 PR 基线／推送前提交的改动文件；本批完整格式化了修改和拆分的文件，没有用无关的全仓格式变更掩盖功能改动。`format-check` 可检查全部历史源码，仍可能报告未在本批处理的格式债务。

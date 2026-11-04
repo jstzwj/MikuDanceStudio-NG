@@ -42,6 +42,25 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  format:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements-format.txt
+      - name: Check changed first-party sources
+        env:
+          BASE_REVISION: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if ! git cat-file -e "${BASE_REVISION}^{commit}" 2>/dev/null; then
+            BASE_REVISION=$(git rev-parse HEAD^)
+          fi
+          python scripts/format_sources.py --check --changed "$BASE_REVISION"
   windows:
     if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'windows'
     runs-on: ${{ inputs.windows_runner || 'windows-2022' }}
@@ -203,15 +222,15 @@ jobs:
         shell: bash
         run: |
           cmake --build out/p4 --config Release --target dist --parallel 3
-          python tests/test_editor_distribution.py --dist out/p4/dist
+          python tests/test_editor_distribution.py --dist out/dist
       - uses: actions/upload-artifact@v4
         if: env.MDS_IME_ONLY != 'true'
         with:
           name: editor-dist-windows
           path: |
-            out/p4/MikuDanceStudio-NG-*.zip
-            out/p4/MikuDanceStudio-NG-*.tar.gz
-            out/p4/MikuDanceStudio-NG-*.sha256
+            out/releases/MikuDanceStudio-NG-*.zip
+            out/releases/MikuDanceStudio-NG-*.tar.gz
+            out/releases/MikuDanceStudio-NG-*.sha256
           if-no-files-found: error
       - uses: actions/cache/save@v4
         if: always() && !cancelled() && github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
@@ -235,7 +254,7 @@ jobs:
             out/p4/control-content-visible/
             out/p4/control-list-focus/
             out/p4/control-content-focus/
-            out/p4/distribution-check.*
+            out/distribution-check.*
             out/p4/editor-frame-performance*.json
             out/p4/native-audio*.json
             out/p4/Testing/Temporary/
@@ -337,14 +356,14 @@ jobs:
         shell: bash
         run: |
           cmake --build out/p4 --config Release --target dist --parallel 3
-          python tests/test_editor_distribution.py --dist out/p4/dist
+          python tests/test_editor_distribution.py --dist out/dist
       - uses: actions/upload-artifact@v4
         with:
           name: editor-dist-linux
           path: |
-            out/p4/MikuDanceStudio-NG-*.zip
-            out/p4/MikuDanceStudio-NG-*.tar.gz
-            out/p4/MikuDanceStudio-NG-*.sha256
+            out/releases/MikuDanceStudio-NG-*.zip
+            out/releases/MikuDanceStudio-NG-*.tar.gz
+            out/releases/MikuDanceStudio-NG-*.sha256
           if-no-files-found: error
       - uses: actions/cache/save@v4
         if: always() && !cancelled() && github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
@@ -360,7 +379,7 @@ jobs:
             out/p4/native-reference.xml
             out/p4/native-reference/
             out/p4/system-ime*
-            out/p4/distribution-check.*
+            out/distribution-check.*
             out/p4/editor-frame-performance*.json
             out/p4/native-audio*.json
             out/p4/Testing/Temporary/
@@ -466,14 +485,14 @@ jobs:
         shell: bash
         run: |
           cmake --build out/p4 --config Release --target dist --parallel 3
-          python tests/test_editor_distribution.py --dist out/p4/dist
+          python tests/test_editor_distribution.py --dist out/dist
       - uses: actions/upload-artifact@v4
         with:
           name: editor-dist-macos
           path: |
-            out/p4/MikuDanceStudio-NG-*.zip
-            out/p4/MikuDanceStudio-NG-*.tar.gz
-            out/p4/MikuDanceStudio-NG-*.sha256
+            out/releases/MikuDanceStudio-NG-*.zip
+            out/releases/MikuDanceStudio-NG-*.tar.gz
+            out/releases/MikuDanceStudio-NG-*.sha256
           if-no-files-found: error
       - name: Verify a native Metal package without MoltenVK
         env:
@@ -482,8 +501,8 @@ jobs:
         run: |
           cmake -S cmake/portable-editor -B out/p4 -DMIKUDANCESTUDIO_RHI_VULKAN=OFF
           cmake --build out/p4 --target dist --parallel 3
-          python tests/test_editor_distribution.py --dist out/p4/dist --report out/p4/metal-only-distribution.json
-          test ! -f out/p4/dist/MikuDanceStudioNG.app/Contents/Frameworks/libMoltenVK.dylib
+          python tests/test_editor_distribution.py --dist out/dist --report out/p4/metal-only-distribution.json
+          test ! -f out/dist/MikuDanceStudioNG.app/Contents/Frameworks/libMoltenVK.dylib
       - uses: actions/cache/save@v4
         if: always() && github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
         with:
@@ -498,7 +517,7 @@ jobs:
             out/p4/native-reference.xml
             out/p4/native-reference/
             out/p4/system-ime*
-            out/p4/distribution-check.*
+            out/distribution-check.*
             out/p4/metal-only-distribution.*
             out/p4/editor-frame-performance*.json
             out/p4/native-audio*.json

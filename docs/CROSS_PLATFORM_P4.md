@@ -4,6 +4,14 @@ Status: **in progress**. P4 and C1 have not been accepted. The current work also
 includes strict MMD v9.32 layout/behavior parity and multilingual UI, as requested
 on 2026-11-01. These are acceptance requirements, not claims about this revision.
 
+Main-window screenshot corrections restore push-like controls, native slider
+geometry, the empty waveform rows and viewport/readout captions. The Qt window
+implementation is now split by responsibility. See the scoped
+[UI alignment record](QT_UI_ALIGNMENT.md) and [source review](SOURCE_STRUCTURE.md).
+Development packages now use `out/dist`, independently of the CMake build folder.
+The local Release build passes 75/75 ordinary P4 tests plus the relocated package
+check; this scoped result does not close the acceptance gaps below.
+
 Latest consolidated run [41704895198](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41704895198)
 passed 74 Windows, 70 Linux and 65 macOS ordinary P4 tests. Linux/macOS real IME,
 silent audio and relocated packages also passed. Windows native IME still blocks

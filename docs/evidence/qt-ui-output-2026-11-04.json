@@ -1,0 +1,93 @@
+{
+  "scope": "Local Windows UI/build-output correction; P4/C1 remains unaccepted",
+  "desktopInteraction": false,
+  "hostedWorkflowsRequested": 0,
+  "build": {
+    "directory": "out/build",
+    "configuration": "Release",
+    "allBuild": true
+  },
+  "p4": {
+    "tests": 75,
+    "failures": 0,
+    "junit": "out/build/p4-results.xml"
+  },
+  "nativeControlStyle": {
+    "cases": 574,
+    "mismatches": 0,
+    "trackbarGeometryCases": 1728
+  },
+  "nativeControlText": {
+    "cases": 426,
+    "mismatches": 0,
+    "textGeometryCases": 1560
+  },
+  "ownWindowCaptures": {
+    "languages": [
+      "en",
+      "ja",
+      "zh_CN"
+    ],
+    "widths": [
+      1024,
+      1920
+    ],
+    "independentOriginalOracle": false,
+    "windows": [
+      {
+        "path": "out/build/editor-chrome-windows/en-1024.png",
+        "sha256": "34d40c913a45108d9ca40342c9a57ca74caf52efeda8fb46daea4c42cb351425"
+      },
+      {
+        "path": "out/build/editor-chrome-windows/en-1920.png",
+        "sha256": "8c9b485fc51b04f39acea35ae47281f382f6688eff1fcd6322f2d794ac60e4b6"
+      },
+      {
+        "path": "out/build/editor-chrome-windows/ja-1024.png",
+        "sha256": "4de962acabe091d78fb070d0a1105ccd2b2ccbcfd9afcfcd0f08875d3b8c536b"
+      },
+      {
+        "path": "out/build/editor-chrome-windows/ja-1920.png",
+        "sha256": "4b7436c8b4e0b944e962e7f1e511681c7498fe18a7c8a0679cd1ba7130dcaac5"
+      },
+      {
+        "path": "out/build/editor-chrome-windows/zh_CN-1024.png",
+        "sha256": "1b303c47bb033b4176ec81dc2800f7fcfb815674b93ed1cc2eaaf59231b663c5"
+      },
+      {
+        "path": "out/build/editor-chrome-windows/zh_CN-1920.png",
+        "sha256": "6203ccde320374250ac0ed1b0d3fe71d2cee5d18579e1cc1efc4d08410c7c9ea"
+      }
+    ]
+  },
+  "distribution": {
+    "path": "out/dist",
+    "relocated": true,
+    "profiles": [
+      {
+        "platform": "offscreen",
+        "styleBase": "fusion",
+        "visible": false
+      },
+      {
+        "platform": "windows",
+        "styleBase": "windowsvista",
+        "visible": false
+      }
+    ],
+    "exeSha256": "9558a78a880540c527ede795d230aabd519cf35fc3b41b4fc8633bc888a843fd",
+    "developerSdkPathsRemoved": true
+  },
+  "cleanup": {
+    "applied": true,
+    "deletedBytes": 1225024289,
+    "manifest": "out/evidence/output-cleanup.json",
+    "historicalEvidencePreserved": true
+  },
+  "remainingAcceptance": [
+    "Visible original-native control qualification",
+    "Windows real IME natural exit",
+    "Strict software/Metal scene composite",
+    "Cross-platform full-window parity"
+  ]
+}

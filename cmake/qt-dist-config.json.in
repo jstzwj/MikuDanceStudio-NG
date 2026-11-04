@@ -1,5 +1,7 @@
 {
   "source": "@root@",
+  "dist": "@MDS_DIST_DIR@",
+  "archives": "@MDS_DIST_ARCHIVE_DIR@",
   "system": "@CMAKE_SYSTEM_NAME@",
   "arch": "@CMAKE_SYSTEM_PROCESSOR@",
   "qt": "@Qt6_VERSION@",
