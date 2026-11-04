@@ -128,6 +128,12 @@ function(mds_add_qt_editor)
         set_tests_properties(qt_language_switch PROPERTIES LABELS "p4;offscreen;qt;language"
             TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_editor_chrome_test "${root}/tests/qt_editor_chrome_test.cpp")
+        qt_add_executable(qt_combo_geometry_test "${root}/tests/qt_combo_geometry_test.cpp")
+        target_link_libraries(qt_combo_geometry_test PRIVATE mikudancestudio_frontend_qt)
+        add_test(NAME qt_combo_geometry COMMAND qt_combo_geometry_test
+            "${root}/tests/reference/original-combo-layouts.json")
+        set_tests_properties(qt_combo_geometry PROPERTIES LABELS "p4;offscreen;qt;appearance;oracle"
+            TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_edit_navigation_test "${root}/tests/qt_edit_navigation_test.cpp")
         target_link_libraries(qt_edit_navigation_test PRIVATE mikudancestudio_frontend_qt Qt6::Test)
         add_test(NAME qt_edit_navigation COMMAND qt_edit_navigation_test

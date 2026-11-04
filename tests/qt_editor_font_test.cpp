@@ -80,6 +80,13 @@ int main(int argc, char** argv) {
         font.setPixelSize(12);
         const auto matched = qt::MatchEditorFontMetrics(font);
         CHECK(QFontInfo(matched).family() == family && QFontMetrics(matched).height() == 12);
+        QWidget parent;
+        parent.setFont(matched);
+        QWidget navigation(&parent), latinControl(&parent);
+        navigation.setFont(qt::FrameNavigationFont());
+        latinControl.setFont(qt::EditorFont("en"));
+        CHECK(navigation.font() == qt::FrameNavigationFont());
+        CHECK(latinControl.font().styleStrategy() == qt::EditorFont("en").styleStrategy());
         const QFontMetrics metrics(font);
         for (const auto code : {0x65e5, 0x672c, 0x8a9e, 0x4e2d, 0x6587, 0x7b80, 0x4f53})
             CHECK(metrics.inFont(QChar(code)));

@@ -63,6 +63,22 @@ has a 12-pixel control line box, matching the original fixed rows instead of the
 installed Windows original fonts and their measured metrics remain unchanged.
 Cross-platform qualification of the updated font rendering remains separate.
 
+Follow-up run 41836114770 at `c811c4c` exposes one common font-policy regression
+on Linux and macOS: their ordinary suites pass 76/77 and 71/72 respectively,
+but frame navigation inherits the parent Noto typographic strategy when switching
+languages. That class-default font must retain its own metrics. Font strategies
+are now explicitly resolved, including the default, for both controls and painted
+glyphs. A local regression puts navigation and Latin controls under actual Noto
+parents, without depending on installed Windows language fonts.
+
+Fresh platform screenshots also expose Fusion's additional dropdown-label
+padding. Portable dropdowns now use the original `GetComboBoxInfo` item rectangle
+and text inset, without the additional label padding/elision. The frozen 22
+native rectangles, with source/capture hashes, are replayed as **33** three-language
+checks. This qualifies the content contract, not identical cross-OS theme images.
+The two repairs pass **39/39** affected local Qt gates after ALL_BUILD; the newly
+rebuilt `out/dist` also passes relocation. Remote qualification is still pending.
+
 The Japanese self-shadow-off caption is restored to `影なし`. In the verified
 original executable (SHA recorded in the frozen corpora), RVA `0x17679` loads
 the UTF-16 literal at `0x12b820` for control 562 and `0x176c2` calls

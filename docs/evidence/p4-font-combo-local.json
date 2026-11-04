@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "base_revision": "c811c4c",
+  "p4_c1_accepted": false,
+  "scope": "39 affected local Qt gates after font inheritance and portable combo repairs; earlier complete 84-gate baseline remains separate",
+  "affected": {
+    "name": "Win32-MSBuild",
+    "tests": "39",
+    "failures": "0",
+    "disabled": "0",
+    "skipped": "0",
+    "hostname": "XiaHan",
+    "time": "326",
+    "timestamp": "2026-11-04T21:35:05",
+    "artifact": {
+      "path": "out/build/p4-font-combo-local.xml",
+      "sha256": "ae461405c41dba89d618150f0421cea1116d2676b770d4a9cb650f448c65c889"
+    }
+  },
+  "all_build": {
+    "path": "out/build/p4-font-combo-build.log",
+    "sha256": "95ebbc3b26388d04a2bc3d478dd591e326169a82ac16a778156e1f6654399ba3"
+  },
+  "deploy": {
+    "path": "out/build/p4-font-combo-deploy.log",
+    "sha256": "6eae580cdee0536a0cab16aaa279049a9c8f15ad64c2c91efa39ae98cd32497d"
+  },
+  "distribution": {
+    "path": "out/build/p4-font-combo-distribution.log",
+    "sha256": "f47b956555fcef035d47966ccd907eaf7ede8dbd9e85d6c90d64b769134544b2"
+  },
+  "source_hashes": [
+    {
+      "path": "src/frontend_qt/editor_font.hpp",
+      "sha256": "622be675ae540459999779a47bbe24fa3ca9a62b204ceae7db6e7bf1df862030"
+    },
+    {
+      "path": "src/frontend_qt/editor_font.cpp",
+      "sha256": "3133a949a0b6de886d1308b849e903d9b67354232f6c1168227923080a4c684c"
+    },
+    {
+      "path": "src/frontend_qt/editor_style.cpp",
+      "sha256": "b71885c3a880a84c5ac4da378a570e779c78c35ee79b76b40fa3d293f6e05499"
+    },
+    {
+      "path": "tests/reference/original-combo-layouts.json",
+      "sha256": "d07bc5249ec16fe1c425059d95e99212f75800ffd0dd0e2837594e8d1f8ffd84"
+    }
+  ],
+  "executable": {
+    "path": "out/dist/MikuDanceStudioNG.exe",
+    "sha256": "1b9574668caed2f0caac1fdbafeac184321102da7b3ea19dcd399a3371df0571"
+  },
+  "monitor_environment": {
+    "scope": "Read-only EnumDisplayMonitors/GetDpiForMonitor on the local RDP session; no windows, input or display changes",
+    "monitor_count": 1,
+    "effective_dpi": [
+      96,
+      96
+    ],
+    "rectangle": [
+      0,
+      0,
+      1920,
+      1080
+    ],
+    "physical_transition_qualified": false
+  }
+}

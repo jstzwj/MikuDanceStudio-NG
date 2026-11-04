@@ -1,0 +1,359 @@
+{
+  "sourceRun": "41828328950",
+  "reference": "GetComboBoxInfo on byte-verified original RT_DIALOG controls",
+  "reportSha256": "3d0b832b5be766656651ab9ff9fe8196177ef1c23fa42c3ddba37be826463c7d",
+  "rows": [
+    {
+      "template": 813,
+      "control": 669,
+      "language": "en",
+      "window": [
+        105,
+        23
+      ],
+      "item": [
+        3,
+        3,
+        85,
+        20
+      ],
+      "captureSha256": "66913a37ef631e4091b6afd6093ed538ee188841c51bac38169eb52062b06d5e"
+    },
+    {
+      "template": 812,
+      "control": 669,
+      "language": "ja",
+      "window": [
+        79,
+        20
+      ],
+      "item": [
+        3,
+        3,
+        59,
+        17
+      ],
+      "captureSha256": "e22e833004b729e78497faa8e37ca19695b8a74b0a8ab04a4cd5b300e6f226ed"
+    },
+    {
+      "template": 666,
+      "control": 669,
+      "language": "en",
+      "window": [
+        109,
+        22
+      ],
+      "item": [
+        3,
+        3,
+        89,
+        19
+      ],
+      "captureSha256": "4e2bc6620119216d0c5c259527a85e559e32b7de6fdcf8bb41980a782f8649e6"
+    },
+    {
+      "template": 666,
+      "control": 673,
+      "language": "en",
+      "window": [
+        109,
+        22
+      ],
+      "item": [
+        3,
+        3,
+        89,
+        19
+      ],
+      "captureSha256": "4e2bc6620119216d0c5c259527a85e559e32b7de6fdcf8bb41980a782f8649e6"
+    },
+    {
+      "template": 666,
+      "control": 677,
+      "language": "en",
+      "window": [
+        109,
+        22
+      ],
+      "item": [
+        3,
+        3,
+        89,
+        19
+      ],
+      "captureSha256": "4e2bc6620119216d0c5c259527a85e559e32b7de6fdcf8bb41980a782f8649e6"
+    },
+    {
+      "template": 665,
+      "control": 669,
+      "language": "ja",
+      "window": [
+        109,
+        20
+      ],
+      "item": [
+        3,
+        3,
+        89,
+        17
+      ],
+      "captureSha256": "ff44151bbcc6a5d8b553a4790ecdf2008311a3b0358e5191d75b3b5204f4c5ce"
+    },
+    {
+      "template": 665,
+      "control": 673,
+      "language": "ja",
+      "window": [
+        109,
+        20
+      ],
+      "item": [
+        3,
+        3,
+        89,
+        17
+      ],
+      "captureSha256": "ff44151bbcc6a5d8b553a4790ecdf2008311a3b0358e5191d75b3b5204f4c5ce"
+    },
+    {
+      "template": 665,
+      "control": 677,
+      "language": "ja",
+      "window": [
+        109,
+        20
+      ],
+      "item": [
+        3,
+        3,
+        89,
+        17
+      ],
+      "captureSha256": "ff44151bbcc6a5d8b553a4790ecdf2008311a3b0358e5191d75b3b5204f4c5ce"
+    },
+    {
+      "template": 684,
+      "control": 704,
+      "language": "en",
+      "window": [
+        93,
+        23
+      ],
+      "item": [
+        3,
+        3,
+        73,
+        20
+      ],
+      "captureSha256": "07e04b301d62a3df52ac8190fb603201be75ec20d6dbd457461acb90ba67b060"
+    },
+    {
+      "template": 684,
+      "control": 707,
+      "language": "en",
+      "window": [
+        96,
+        23
+      ],
+      "item": [
+        3,
+        3,
+        76,
+        20
+      ],
+      "captureSha256": "4674ab7ee4967196c659388d68ecb38d404165584143e5c043c0d9967b5f8fab"
+    },
+    {
+      "template": 684,
+      "control": 708,
+      "language": "en",
+      "window": [
+        44,
+        23
+      ],
+      "item": [
+        3,
+        3,
+        24,
+        20
+      ],
+      "captureSha256": "b321333cd2b18525cf575ebfe00aa09739d93d34fd0e6bb59b59780adf80f48d"
+    },
+    {
+      "template": 684,
+      "control": 736,
+      "language": "en",
+      "window": [
+        93,
+        23
+      ],
+      "item": [
+        3,
+        3,
+        73,
+        20
+      ],
+      "captureSha256": "07e04b301d62a3df52ac8190fb603201be75ec20d6dbd457461acb90ba67b060"
+    },
+    {
+      "template": 684,
+      "control": 741,
+      "language": "en",
+      "window": [
+        93,
+        23
+      ],
+      "item": [
+        3,
+        3,
+        73,
+        20
+      ],
+      "captureSha256": "07e04b301d62a3df52ac8190fb603201be75ec20d6dbd457461acb90ba67b060"
+    },
+    {
+      "template": 684,
+      "control": 742,
+      "language": "en",
+      "window": [
+        93,
+        23
+      ],
+      "item": [
+        3,
+        3,
+        73,
+        20
+      ],
+      "captureSha256": "07e04b301d62a3df52ac8190fb603201be75ec20d6dbd457461acb90ba67b060"
+    },
+    {
+      "template": 684,
+      "control": 743,
+      "language": "en",
+      "window": [
+        82,
+        23
+      ],
+      "item": [
+        3,
+        3,
+        62,
+        20
+      ],
+      "captureSha256": "8bb10e60dc8fc648aea6a9f46bdfe7ade68ff136621703421a56b8e7fc915346"
+    },
+    {
+      "template": 683,
+      "control": 704,
+      "language": "ja",
+      "window": [
+        93,
+        20
+      ],
+      "item": [
+        3,
+        3,
+        73,
+        17
+      ],
+      "captureSha256": "8919524e6a3261841e14bdd9fe43bfac2b7eede4b332b4625751273e6797aad4"
+    },
+    {
+      "template": 683,
+      "control": 707,
+      "language": "ja",
+      "window": [
+        96,
+        20
+      ],
+      "item": [
+        3,
+        3,
+        76,
+        17
+      ],
+      "captureSha256": "3a5b0d0aa519bd9318fac5532889cc0b8064b76879c70cd935733c5ba5acdff3"
+    },
+    {
+      "template": 683,
+      "control": 708,
+      "language": "ja",
+      "window": [
+        53,
+        20
+      ],
+      "item": [
+        3,
+        3,
+        33,
+        17
+      ],
+      "captureSha256": "ff038e5c1218a2d1f63d3814217097874599c18af222031cdf9990a81e16b5a3"
+    },
+    {
+      "template": 683,
+      "control": 736,
+      "language": "ja",
+      "window": [
+        93,
+        20
+      ],
+      "item": [
+        3,
+        3,
+        73,
+        17
+      ],
+      "captureSha256": "8919524e6a3261841e14bdd9fe43bfac2b7eede4b332b4625751273e6797aad4"
+    },
+    {
+      "template": 683,
+      "control": 741,
+      "language": "ja",
+      "window": [
+        93,
+        20
+      ],
+      "item": [
+        3,
+        3,
+        73,
+        17
+      ],
+      "captureSha256": "8919524e6a3261841e14bdd9fe43bfac2b7eede4b332b4625751273e6797aad4"
+    },
+    {
+      "template": 683,
+      "control": 742,
+      "language": "ja",
+      "window": [
+        93,
+        20
+      ],
+      "item": [
+        3,
+        3,
+        73,
+        17
+      ],
+      "captureSha256": "8919524e6a3261841e14bdd9fe43bfac2b7eede4b332b4625751273e6797aad4"
+    },
+    {
+      "template": 683,
+      "control": 743,
+      "language": "ja",
+      "window": [
+        82,
+        20
+      ],
+      "item": [
+        3,
+        3,
+        62,
+        17
+      ],
+      "captureSha256": "a87900c2f249e77405a2d06c7578efd3f48723dfbc00b4709edcd89613d75f9d"
+    }
+  ]
+}

@@ -13,9 +13,12 @@
 
 namespace mikudancestudio::qt {
 QFont MatchEditorFontMetrics(QFont font) {
+    auto strategy = font.styleStrategy();
     if (QFontInfo(font).family().startsWith("Noto Sans CJK "))
-        font.setStyleStrategy(
-            QFont::StyleStrategy(font.styleStrategy() | QFont::PreferTypoLineMetrics));
+        strategy = QFont::StyleStrategy(strategy | QFont::PreferTypoLineMetrics);
+    // Resolve even the default explicitly: a Latin control must not inherit
+    // its parent's CJK metrics policy through QWidget::setFont/QPainter::setFont.
+    font.setStyleStrategy(strategy);
     return font;
 }
 bool InstallEditorFonts() {

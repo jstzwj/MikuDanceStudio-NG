@@ -17,7 +17,7 @@ pass the visual policy with byte-exact repeats. Source, binary and capture hashe
 are recorded in [current local UI evidence](evidence/p4-active-edit-local.json); the five render profiles
 are recorded separately in [scene evidence](evidence/p4-visual-input-local.json).
 Native Windows IME shutdown and complete shown UI qualification remain pending;
-they are not included in that 82-test result.
+they are not included in that 84-test result.
 
 Consolidated run [41828328950](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41828328950)
 passes **83/83 Windows, 77/77 Linux and 72/72 macOS** ordinary tests, the

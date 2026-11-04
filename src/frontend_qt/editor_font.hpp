@@ -39,6 +39,9 @@ inline QFont FrameNavigationFont() {
     font.setFamilies({"System", "DejaVu Sans", "Helvetica"});
     font.setPixelSize(16);
     font.setBold(true);
+    // This class-default font must not inherit the parent's Noto CJK line-box
+    // policy when the UI language changes. QFont resolves unset properties.
+    font.setStyleStrategy(QFont::PreferDefault);
     font.setHintingPreference(QFont::PreferFullHinting);
     font.setKerning(false);
     return font;

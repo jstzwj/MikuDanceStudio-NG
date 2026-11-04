@@ -7,6 +7,7 @@
 #include <QStyleOptionButton>
 #include <QStyleOptionSlider>
 #include <QStyleOptionComboBox>
+#include <QStyleOptionFocusRect>
 #include <QImage>
 #include <QPainter>
 #include <QVariant>
@@ -33,6 +34,14 @@ public:
                     return QProxyStyle::subControlRect(control, option, part, widget)
                         .adjusted(0, 0, -1, 0);
 #endif
+        if (control == CC_ComboBox && part == SC_ComboBoxEditField && widget &&
+            widget->property("mmdControlId").isValid() &&
+            baseStyle()->objectName() != "windowsvista")
+            if (const auto* combo = qstyleoption_cast<const QStyleOptionComboBox*>(option))
+                if (!combo->editable && combo->direction == Qt::LeftToRight)
+                    // GetComboBoxInfo from the original resource controls:
+                    // 3-pixel client inset and a 17-pixel dropdown button.
+                    return combo->rect.adjusted(3, 3, -20, -3);
         if (control == CC_Slider && widget && widget->property("mmdNativeTrackbar").toBool())
             if (const auto* slider = qstyleoption_cast<const QStyleOptionSlider*>(option)) {
                 const auto geometry = SliderGeometry(*slider);
@@ -130,6 +139,33 @@ public:
     }
     void drawControl(ControlElement element, const QStyleOption* option, QPainter* painter,
                      const QWidget* widget) const override {
+        if (element == CE_ComboBoxLabel && widget && widget->property("mmdControlId").isValid() &&
+            baseStyle()->objectName() != "windowsvista")
+            if (const auto* combo = qstyleoption_cast<const QStyleOptionComboBox*>(option))
+                if (!combo->editable && combo->currentIcon.isNull() &&
+                    combo->direction == Qt::LeftToRight) {
+                    const auto field =
+                        subControlRect(CC_ComboBox, combo, SC_ComboBoxEditField, widget);
+                    painter->save();
+                    painter->setClipRect(field, Qt::IntersectClip);
+                    painter->setFont(widget->font());
+                    painter->setPen(combo->palette.color(
+                        combo->state & State_Enabled ? QPalette::Active : QPalette::Disabled,
+                        QPalette::Text));
+                    // Native COMBOBOX clips without Fusion's additional text
+                    // padding/elision, which truncates "rotation" at MMD sizes.
+                    painter->drawText(field.adjusted(1, 0, 0, 0),
+                                      Qt::AlignLeft | Qt::AlignVCenter | Qt::TextSingleLine,
+                                      combo->currentText);
+                    if (combo->state & State_HasFocus) {
+                        QStyleOptionFocusRect focus;
+                        focus.QStyleOption::operator=(*combo);
+                        focus.rect = field;
+                        drawPrimitive(PE_FrameFocusRect, &focus, painter, widget);
+                    }
+                    painter->restore();
+                    return;
+                }
 #ifdef _WIN32
         if (element == CE_ComboBoxLabel && widget && widget->property("mmdControlId").isValid() &&
             baseStyle()->objectName() == "windowsvista")
