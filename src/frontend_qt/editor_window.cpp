@@ -56,7 +56,7 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     setFont(EditorFont(language_.Code()));
     // The original menu retains the system non-client font, independently
     // of the language-specific font applied to panel controls.
-    menuBar()->setFont(QApplication::font("QMenuBar"));
+    menuBar()->setFont(SystemMenuFont());
     canvas_ = new Canvas(language_, session_, assets_, this);
     canvas_->setAcceptDrops(true);
     canvas_->installEventFilter(this);

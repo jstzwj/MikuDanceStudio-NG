@@ -83,10 +83,18 @@ int main(int argc, char** argv) {
         QWidget parent;
         parent.setFont(matched);
         QWidget navigation(&parent), latinControl(&parent);
+        QMenuBar menu(&parent);
+        menu.setFont(qt::SystemMenuFont());
         navigation.setFont(qt::FrameNavigationFont());
         latinControl.setFont(qt::EditorFont("en"));
         CHECK(navigation.font() == qt::FrameNavigationFont());
         CHECK(latinControl.font().styleStrategy() == qt::EditorFont("en").styleStrategy());
+        CHECK(menu.font() == qt::SystemMenuFont());
+        // Exercise the production parent boundary even on Windows machines
+        // where the language-specific font normally resolves to MS PGothic.
+        window.setFont(matched);
+        CHECK(window.menuBar()->font() == qt::SystemMenuFont());
+        CHECK(window.Control(panel::kCurrentFrameEdit)->font() == qt::FrameNavigationFont());
         const QFontMetrics metrics(font);
         for (const auto code : {0x65e5, 0x672c, 0x8a9e, 0x4e2d, 0x6587, 0x7b80, 0x4f53})
             CHECK(metrics.inFont(QChar(code)));

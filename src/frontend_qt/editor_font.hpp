@@ -11,6 +11,8 @@ bool InstallEditorFonts();
 // enlarging the original fixed-size controls. Installed original fonts retain
 // their native metrics.
 QFont MatchEditorFontMetrics(QFont font);
+// The OS menu font is independent of every language-specific panel property.
+QFont SystemMenuFont();
 inline QFont EditorFont(const QString& language) {
     QFont font;
     if (language == "en") {

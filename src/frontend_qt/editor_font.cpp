@@ -1,5 +1,6 @@
 #include "editor_font.hpp"
 #include <QCoreApplication>
+#include <QApplication>
 #include <QFontDatabase>
 #include <QFontInfo>
 #include <QFileInfo>
@@ -12,6 +13,11 @@
 #endif
 
 namespace mikudancestudio::qt {
+QFont SystemMenuFont() {
+    auto font = QApplication::font("QMenuBar");
+    font.setResolveMask(QFont::AllPropertiesResolved);
+    return font;
+}
 QFont MatchEditorFontMetrics(QFont font) {
     auto strategy = font.styleStrategy();
     if (QFontInfo(font).family().startsWith("Noto Sans CJK "))
