@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "run": "41870574500",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41870574500",
+  "revision": "65c34af95528d938eb747d9fd29688b20386c0ab",
+  "conclusion": "success",
+  "completed_at_utc": "2026-11-04T16:50:01Z",
+  "p4_c1_accepted": false,
+  "environment": "isolated hosted Windows Server 2025, Qt 6.8.3 Windows QPA",
+  "qualification_scope": "Changed Windows observers and actual shown ASCII multiline only; not a full ordinary, IME, audio, scene-visual or distribution rerun",
+  "hidden_observers": {
+    "tests": 5,
+    "failures": 0,
+    "gates": [
+      "qt_multiline_paint",
+      "qt_control_style",
+      "qt_control_text",
+      "qt_list_content",
+      "qt_edit_content"
+    ],
+    "multiline_paint_cases": 432,
+    "artifact": {
+      "path": "out/evidence/p4/p4-active-41870574500/windows/p4/p4.xml",
+      "sha256": "f2d16afe1862e91a7804ec10cf7462a025cf3520c4321acbcfa035460ff5d834"
+    }
+  },
+  "actual_multiline": {
+    "languages": [
+      "en",
+      "ja",
+      "zh_CN"
+    ],
+    "ascii_texts_per_language": 6,
+    "focused_paint_cases": 72,
+    "paint_failures": 0,
+    "actual_caret_rectangles": 72,
+    "caret_failures": 0,
+    "os_mouse_gestures": 90,
+    "mouse_failures": 0,
+    "gestures": [
+      "click",
+      "forward drag",
+      "reverse drag",
+      "Shift click",
+      "double click"
+    ],
+    "pre_gesture_hit_mismatches": 0,
+    "native_resource": "unchanged byte-verified original dialog resources",
+    "capture": "PrintWindow of shown test-owned parent dialogs, full EDIT clients including real caret; no screen capture",
+    "input": "actual OS SendInput and cursor moves in guarded isolated session; focus and caret ownership asserted; thread-local WH_GETMESSAGE confirms move delivery; independent gestures wait the OS double-click interval",
+    "comparison": "every RGB pixel, actual caret rectangle and directional selection; no masks, color transforms, skipped failures or threshold changes",
+    "report": {
+      "path": "out/evidence/p4/p4-active-41870574500/windows/p4/multiline-active/report.json",
+      "sha256": "f35f5fbad5ed5eebb0cc1758f86a36f050f33f98156a488075a71e52954634ad"
+    },
+    "saved_png_count": 144,
+    "independent_saved_png_pair_recheck": {
+      "pairs": 72,
+      "size_or_rgb_mismatches": 0
+    },
+    "image_manifest_sha256": "9be26fdd50f440a31489ca8e9d0cc2de39392f4f33b6fcf87b8c997fc048cfe5",
+    "visual_review": {
+      "performed": true,
+      "scope": "unscaled native/Qt pairs for three languages, selected/long/scrolled text, supplemental to all 72 exact comparisons",
+      "contact_sheet": {
+        "path": "out/build/p4-actual-multiline-review.png",
+        "sha256": "19970690d01b01dfebe5fcf280e1e66020f39f5f3fc30eb275732a34ac6bdb6e"
+      }
+    }
+  },
+  "history": [
+    {
+      "run": "41861823315",
+      "paint_failures": 72,
+      "mouse_failures": 38
+    },
+    {
+      "run": "41868268491",
+      "paint_failures": 72,
+      "mouse_failures": 4
+    }
+  ],
+  "unaccepted_scope": [
+    "outside-client drag/autoscroll against actual original EDIT",
+    "complete complex/Unicode multiline paint parity",
+    "complete non-Windows shown appearance and popup qualification",
+    "physical mixed-DPI monitor transitions in a separate test session"
+  ]
+}

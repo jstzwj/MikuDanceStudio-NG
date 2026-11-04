@@ -4,10 +4,10 @@
   "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41861823315",
   "revision": "1e75a3a",
   "observed_at_utc": "2026-11-04T16:06:08.752268+00:00",
-  "status": "queued",
+  "status": "completed",
   "platform": "windows-2025",
   "p4_c1_accepted": false,
-  "source_qualification_executed": false,
+  "source_qualification_executed": true,
   "scope": {
     "hidden_observer_tests": 5,
     "actual_multiline_planned_paint": 72,
@@ -18,9 +18,29 @@
     "other_platforms": false,
     "distribution": false
   },
-  "policy": "One targeted dispatch for changed observer and actual multiline gates. No duplicate/retry dispatch. Pending is not passing. No self-hosted runner is registered.",
+  "policy": "Original failure retained; source corrections will use one new targeted qualification. UI pixel comparison and mouse selection equality are unchanged.",
   "snapshot": {
     "path": "out/build/p4-observer-remote-status.json",
     "sha256": "e2e7f53e8089c4d7b8d712f85058998d3d40606076148065b6bd22e760454d9a"
+  },
+  "conclusion": "failure",
+  "hidden_observers": {
+    "tests": 5,
+    "failures": 0,
+    "artifact": {
+      "path": "out/evidence/p4/p4-observer-41861823315/windows/p4/p4.xml",
+      "sha256": "8481f768287b8c4ebb4b5d529651d215b887a6af6899b24fdf133ff939941caf"
+    }
+  },
+  "actual_multiline": {
+    "paint_cases": 72,
+    "paint_failures": 72,
+    "mouse_cases": 90,
+    "mouse_failures": 38,
+    "artifact": {
+      "path": "out/evidence/p4/p4-observer-41861823315/windows/p4/multiline-active/report.json",
+      "sha256": "16101af8c731f21e2a899285ad8aa00ac2982e02534e08548f62d3284a643e90"
+    },
+    "diagnosis": "Active Qt text bypassed native GDI rendering; WM_PRINTCLIENT reference omitted real caret; gestures ran inside the OS double-click interval. Corrections remain unqualified until a fresh isolated run."
   }
 }

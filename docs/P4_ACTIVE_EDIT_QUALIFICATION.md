@@ -3,7 +3,24 @@
 P4/C1 remains **in progress**. Complete-scene RGB uses the user-approved visual
 policy; this does not waive original UI appearance or native input qualification.
 
-Latest run [41843478422](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41843478422)
+Current result (2026-11-05): [41870574500](evidence/p4-active-41870574500.json)
+at `65c34af` passes five hidden observers, **72 actual focused multiline client
+captures, 72 actual caret rectangles and 90 OS mouse gestures**, all exact.
+Actual focus is settled before each capture, caret ownership is checked and a
+thread-local read-only message observer verifies delivery of requested moves.
+The final production repair erases the entire client background, matching a
+shown native EDIT; the hidden paint reference now initializes the same erase
+color before WM_PRINTCLIENT. The 432 hidden states also pass exactly.
+
+The Linux/macOS menu-font follow-up [41868268491](evidence/p4-active-41868268491.json)
+passes four targeted frontend gates per platform, including macOS 26. New
+screenshots were reviewed. Outside-client autoscroll, complex multiline paint,
+complete non-Windows shown appearance and physical mixed-DPI qualification remain
+open. Earlier failures below are retained as history, not the current result.
+
+## Earlier qualification increments
+
+Baseline run [41843478422](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41843478422)
 at `40daf18` now passes Windows **85/85** ordinary gates and all seven actual shown
 control profiles: 460 empty, 4,600 populated inactive, 3,450 active/selection/scroll,
 230 actual hover EDIT and 102 list/combo/focus comparisons have zero RGB differences.
@@ -51,6 +68,23 @@ follow-up 41861823315 qualifies these observers and the new actual multiline tes
 it does not rebuild all platforms or rerun already-passing IME qualification.
 Actual shown multiline focus/drag
 and physical DPI requirements are still not accepted by these memory captures.
+
+Run 41861823315 is now complete: **all five hidden observers pass**. The actual
+multiline test executed 72 focused paints and 90 OS mouse gestures, with 72 and
+38 differences respectively. The failures are preserved in the
+[updated run record](evidence/p4-observer-41861823315.json). Focused multiline
+paint previously bypassed the native glyph renderer; its selection/caret geometry
+and raster path now share the inactive implementation. ASCII mouse selection uses
+the already-qualified native hit mapping and legacy word boundary policy.
+
+The original active observer also used WM_PRINTCLIENT, which does not include
+the actual caret, and ran independent gestures inside the OS double-click interval.
+The follow-up captures the shown test-owned dialog with PrintWindow and separates
+gestures by GetDoubleClickTime. No desktop capture, color remapping, pixel masking
+or threshold relaxation is used. Revision `8014411` passes the four existing local
+multiline gates. Run 41868268491 targets Windows observers/actual multiline and
+four relevant Linux/macOS frontend gates only; it is not a new full-suite,
+native-IME, audio, packaging or original-composite qualification.
 
 ## Consolidated evidence
 

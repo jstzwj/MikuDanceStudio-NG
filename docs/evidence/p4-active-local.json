@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "production_revision": "8014411",
+  "drag_test_revision": "b5502a9",
+  "p4_c1_accepted": false,
+  "all_build": {
+    "passed": true,
+    "artifact": {
+      "path": "out/build/p4-active-current-all-build.log",
+      "sha256": "d3ffca6fcb7a14045eb5a24c1012a80dc45e807df99384695866b2dc38493e45"
+    }
+  },
+  "qt_suite": {
+    "tests": 41,
+    "failures": 0,
+    "elapsed_seconds": 269.77,
+    "artifact": {
+      "path": "out/build/p4-active-current-qt.xml",
+      "sha256": "4bd1acd5a78133a1c02570c8623b3df88525b089641c69ed95e69e02179a4acc"
+    }
+  },
+  "direct_mouse_drag": {
+    "native_hits": 50232,
+    "shift_clicks": 509,
+    "bidirectional_drags": 744,
+    "failures": 0,
+    "actual_os_mouse": false,
+    "artifact": {
+      "path": "out/build/p4-multiline-drag.xml",
+      "sha256": "ba599e7a0ab0f5be5f3192a97c7f045c5c46f3f93f5b6213822ecc0cb2802544"
+    }
+  },
+  "distribution": {
+    "passed": true,
+    "report": {
+      "path": "out/build/p4-active-distribution.json",
+      "sha256": "d64bec6e5a5e0ff91f981261585b285c9ced2f73af1d5fc8462cf076458166c5"
+    },
+    "executable": {
+      "path": "out/dist/MikuDanceStudioNG.exe",
+      "sha256": "1ae9f19505e3b05ae6bdc36a2f4983a4e5858444ff6b514113802bacaba57e1a"
+    },
+    "archive": {
+      "path": "out/releases/MikuDanceStudio-NG-10.15-windows-x64.zip",
+      "sha256": "eb58184e75818f78bf32e13a9027688b2a5de27410dd5d3388ff960133fe3757"
+    }
+  },
+  "subsequent_background_fix": {
+    "revision": "65c34af",
+    "hidden_multiline_paint_cases": 432,
+    "failures": 0,
+    "artifact": {
+      "path": "out/build/p4-active-background.xml",
+      "sha256": "25fbf79b90b7bb43dfb0c79d6aba84f11f77fee5034142b8f3bcbfc7594be3da"
+    },
+    "scope": "Native erase background corrected before WM_PRINTCLIENT; no pixel masks or threshold change. This is subsequent to the 41-gate suite and package above."
+  },
+  "diagnostic_replay": {
+    "no_selection_clients_matching_saved_native": 36,
+    "selected_clients_differing": 36,
+    "reason": "Current local native highlight RGB differs from recorded Server 2025 highlight; replay not counted as a passing active-focus qualification. Actual isolated same-environment comparison is required."
+  },
+  "portable_font_review": {
+    "languages": [
+      "en",
+      "ja",
+      "zh_CN"
+    ],
+    "platforms": [
+      "linux",
+      "macos-26"
+    ],
+    "source_run": "41868268491",
+    "unscaled_crop": {
+      "path": "out/build/p4-current-portable-font-review.png",
+      "sha256": "3901e68d93b32c1ed2e2d73f5b55d80335c4a77dd8fb4b26b50cee86b21e7962"
+    },
+    "complete_portable_appearance_accepted": false
+  },
+  "latest_distribution": {
+    "revision": "65c34af",
+    "passed": true,
+    "report": {
+      "path": "out/build/p4-final-background-distribution.json",
+      "sha256": "ede86e40116ab246a2e278e873f2d09aa139d74e9c9ae49eb2549ce69a164cd9"
+    },
+    "executable": {
+      "path": "out/dist/MikuDanceStudioNG.exe",
+      "sha256": "fe9298697e3a87d88f768a545782197849c858c087ad57e793e7b3a484c34334"
+    },
+    "archive": {
+      "path": "out/releases/MikuDanceStudio-NG-10.15-windows-x64.zip",
+      "sha256": "0b5e5434680fbc709a1de9cc28b9d3294df674af37f6d3e965f9ddfa034ed31d"
+    }
+  }
+}

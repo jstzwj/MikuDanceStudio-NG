@@ -4,13 +4,11 @@
 
 更新时间：2026-11-05。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
 
-最新 P4 验收（2026-11-04）：41843478422 的 Windows 85/85 常规测试及七组显示态控件专项全部通过，包括 5,060 个空／带文字输入框、3,450 个焦点／选区／滚动案例、230 个悬停案例与 102 个列表／下拉框案例，均精确匹配原生对照。三平台整帧视觉及发布包搬迁通过；Linux 77/78、macOS 72/73 各剩菜单字体继承失败，修复正复验。41836114770 已通过 Windows Server 2025 原生 IME 三语言及自然退出。P4/C1 仍需完成多行／鼠标、非 Windows 外观及真实跨屏 DPI 验收。当前状态见 [P4 缺口验收表](docs/P4_ACCEPTANCE_STATUS.md)，历史证据见 [控件记录](docs/P4_ACTIVE_EDIT_QUALIFICATION.md)。
+最新 P4 验收（2026-11-05）：**P4／C1 仍未完成**。[当前验收表](docs/P4_ACCEPTANCE_STATUS.md) 是当前结论，旧运行的失败及分项范围保留在各自证据中。Windows 已通过原生 IME 三语言及自然退出、七组实际显示态单行／列表／下拉框对照，以及最新 [41870574500](docs/evidence/p4-active-41870574500.json) 的 72 组聚焦多行绘制、72 组光标矩形、90 次真实 OS 鼠标手势和五项隐藏观察器。所有控件专项保持精确比较。
 
-后续 41851148562 已验证菜单字体修复：Linux 78/78，Windows 的字体及新增多行门禁通过，但隐藏观察器的激活判定失败，正在修正复验；macOS 因托管 runner 容量不足未启动。本地新增 50,232 个原版多行命中和 475 个直接 Shift 点击对照通过。ALL_BUILD、85/86 普通测试及唯一超时项的不放宽限制复验通过，`out/dist` 更新及搬迁通过。详见 [最新本地证据](docs/evidence/p4-menu-multiline-local.json)，不将分项复验或未启动任务计为整轮全绿。
+Linux／macOS 26 在 [41868268491](docs/evidence/p4-active-41868268491.json) 各通过四项针对字体、界面组合和编辑的门禁，新三语言、双尺寸截图已复看，菜单字体修复关闭。本地 ALL_BUILD、41/41 Qt 回归、744 个冻结原版命中端点的双向拖选及更新后 `out/dist` 的搬迁检查通过，见[本轮本地证据](docs/evidence/p4-active-local.json)。这不是新一轮完整三平台回归，也不重复已通过的 IME、音频和整帧专项。
 
-再后续 `105695e` 补齐 432 个精确匹配的多行隐藏客户区绘制状态，修复只读／禁用颜色、字形伸展、裁切与滚动后的上边距。本地全量编译、41/41 Qt 回归及新 `out/dist` 搬迁通过；[本地证据](docs/evidence/p4-multiline-paint-local.json) 保留源文件／产物哈希，[41857117726](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41857117726) 执行这批源代码的常规验收。实际显示态多行操作、非 Windows 外观及真实跨屏 DPI 仍开放，P4/C1 状态不变。
-
-本轮 `41857117726` 已结束：Windows 86/87、Linux 78/78，macOS 仅因托管容量未执行；唯一 Windows 失败定位为隐藏原生对话框被 USER32 激活。`1e75a3a` 增加仅观察器线程的激活／焦点拒绝，34,224 个命中和 576 个导航原始记录重新采集完全不变；显示态对照不使用此保护。新增实际多行焦点／鼠标专项已编译，仅在一次 Windows 定向任务 `41861823315` 中运行，尚未授予资格。真实跨屏 DPI 环境仍缺，P4/C1 未验收，详细状态及失败／复验分别见 [当前验收表](docs/P4_ACCEPTANCE_STATUS.md)。
+仍需补齐客户区外拖选自动滚动、多行复杂文本绘制、非 Windows 完整显示态外观，以及真实混合 DPI 跨屏验收。本地只有单个 96-DPI RDP 屏，跨屏专项等待独立双屏环境，不以环境变量模拟代替、不操作用户桌面。完整场景已按用户接受的视觉标准通过，复制、深度等严格契约继续保留。详细历史见[控件验收记录](docs/P4_ACTIVE_EDIT_QUALIFICATION.md)。
 
 实施状态：**P0 已完成**。三平台基础构建、两轮精确文件／数值回归、统一 Bullet 包装与分配／销毁验证、macOS 无窗口 Vulkan 探测均已执行；Windows x64／x86 编辑器构建通过。能力表、最低环境决策、依赖图、证据和仍未覆盖的范围见 [P0 实施与验收记录](docs/CROSS_PLATFORM_P0.md)。
 
@@ -22,7 +20,9 @@
 
 **P4 remains in progress; C1 is not accepted.** Shared editing, PMM save/reopen, bone selection/history, three-language Qt UI, RHI presentation, WAV and image-sequence export have three-platform regression evidence. The combined PMD/PMX/accessory/screen/WAV/physics/all-key-pool workflow passes. 94/103 original menu commands are implemented; nine belong to later media/Kinect phases. Complete-scene output uses the user-approved visual policy with strict diagnostics retained, and passes on hardware plus Windows WARP/Metal/software Vulkan. Windows Server 2025 native IME passes all three UI languages and natural exit. Complete original UI/input/font/DPI qualification remains open. [P4 acceptance record](docs/CROSS_PLATFORM_P4.md) distinguishes current gates from the historical increments below.
 
-最新增量：Windows 原版控件对照已扩至 574 个按钮／空下拉框／列表／滑块稳态案例；滑块另有 864 个独立原生几何对照，旧的 460 个空输入框边框对照因参考创建方式错误已撤回原版外观资格，现已改为直接创建原版对话框资源。38 类对话框的 426 个带文字按钮状态及 936 个独立字体／高度／键盘焦点对照已精确匹配；另有 24 个带文字列表状态通过原版隐藏窗口对照。隔离 Windows CI 的 73 项 P4 回归、68 个显示状态列表／下拉框案例及六个真实键盘焦点列表案例全部通过。发布包携带固定版本 Noto CJK 字体及许可证；Linux 的真实中文 libpinyin、日文 Anthy，以及 macOS 的 Kotoeri 输入法已分别通过三语言的预编辑、转换、提交、取消及正常退出测试。Windows 原生输入法的英文场景已通过，但清理输入上下文时阻塞，完整三语言资格仍未通过。其他控件文字、非 Windows 外观及尚未通过的 GPU 整帧配置仍需继续验收。
+以下为早期增量历史，保留当时失败与覆盖范围；当前验收状态以上方最新记录及验收表为准。
+
+Windows 原版控件对照曾扩至 574 个按钮／空下拉框／列表／滑块稳态案例；滑块另有 864 个独立原生几何对照，旧的 460 个空输入框边框对照因参考创建方式错误撤回原版外观资格，随后改为直接创建原版对话框资源。38 类对话框的 426 个带文字按钮状态及 936 个独立字体／高度／键盘焦点对照精确匹配；另有 24 个带文字列表状态通过原版隐藏窗口对照。当轮隔离 Windows CI 的 73 项 P4 回归、68 个显示状态列表／下拉框案例及六个真实键盘焦点列表案例通过。发布包携带固定版本 Noto CJK 字体及许可证；Linux 的真实中文 libpinyin、日文 Anthy，以及 macOS 的 Kotoeri 输入法已分别通过三语言的预编辑、转换、提交、取消及正常退出测试。当时 Windows 输入法仅英文场景通过，清理输入上下文阻塞，尚未获得完整三语言资格；后续 Server 2025 结果见上方记录。
 
 2026-11-04 焦点控件补验：22 个带文字下拉框和六个列表的真实键盘焦点绘制均精确匹配原生对照；该 Windows 专项的 73 项 P4 回归及发布包重定位也全部通过。最新本地 ALL_BUILD、31 项 Qt 回归和开发包搬迁检查通过。Windows 输入法三语言资格及其余严格门禁仍未关闭。
 

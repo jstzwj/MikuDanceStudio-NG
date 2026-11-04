@@ -7,11 +7,20 @@ on 2026-11-01. These are acceptance requirements, not claims about this revision
 Current gate status is maintained in [P4 acceptance status](P4_ACCEPTANCE_STATUS.md).
 Run 41843478422 passes Windows **85/85** ordinary tests and all seven shown-control
 profiles, including active EDIT and hover with exact original-resource comparison.
-The menu repair passes Windows and Linux; current macOS follow-ups did not
-acquire a hosted runner, so no new macOS source result is claimed. The
-[scoped run evidence](evidence/p4-ui-41843478422.json) separates those failures
-from the passing scene-visual, package and Windows UI results. Historical results
-below retain their original scope; Windows Server 2025 IME is now qualified.
+The latest Windows-only run [41870574500](evidence/p4-active-41870574500.json) at
+`65c34af` passes all five hidden observers, **72 shown focused multiline RGB
+comparisons, 72 actual caret rectangles and 90 real OS mouse gestures**, with no
+differences. Linux and macOS 26 each pass the four targeted font/chrome/edit gates
+in [41868268491](evidence/p4-active-41868268491.json); the menu-font repair is
+now qualified. Local ALL_BUILD, 41/41 Qt regressions and relocated distributions
+pass within their [recorded revisions](evidence/p4-active-local.json).
+
+Remaining qualification includes outside-client drag/autoscroll, complex multiline
+text paint, complete non-Windows shown appearance/popups and physical mixed-DPI
+monitor transitions. A separate two-monitor environment is unavailable locally.
+These results do not accept P4/C1 or silently expand scoped tests into complete
+platform reruns. Historical results below retain their original scope; Windows
+Server 2025 IME is now qualified.
 
 2026-11-04 continuation: [original EDIT keyboard comparisons](P4_EDIT_NAVIGATION.md)
 now cover 144,135 passing local cases. The user subsequently approved complete-scene

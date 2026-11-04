@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "run": "41868268491",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41868268491",
+  "revision": "8014411",
+  "p4_c1_accepted": false,
+  "qualification_scope": "Targeted changed frontend only; not a complete P4 suite or IME/media/package/reference rerun",
+  "platforms": {
+    "windows": {
+      "tests": 5,
+      "failures": 0,
+      "artifact": {
+        "path": "out/evidence/p4/p4-active-41868268491/windows/p4/p4.xml",
+        "sha256": "a87e1636cd3087a63a2b8ed2ef6e58442a424a929fa0a86f1a20d72863066332"
+      },
+      "active_multiline": {
+        "paint_cases": 72,
+        "paint_failures": 72,
+        "mouse_cases": 90,
+        "mouse_failures": 4,
+        "caret_rectangle_mismatches": 15,
+        "report": {
+          "path": "out/evidence/p4/p4-active-41868268491/windows/p4/multiline-active/report.json",
+          "sha256": "2d11b62bc3e639b8acd66def8382c6bd43505089e6f2ddedb88ee5e8847c9b63"
+        },
+        "diagnosis": "57 paint cases differ only by the previously unerased client-margin background; 15 also lack a native caret after queued Qt activation. 4 OS mouse selection differences remain. No differences waived. Follow-up sets the full real erase background, settles native focus and observes actual OS move delivery."
+      }
+    },
+    "linux": {
+      "tests": 4,
+      "failures": 0,
+      "artifact": {
+        "path": "out/evidence/p4/p4-active-41868268491/linux/p4/p4.xml",
+        "sha256": "1c0397787d7434a282504e91469b44f0d24829753f94067f5064555b19e294e2"
+      },
+      "gates": [
+        "qt_edit_navigation",
+        "qt_editor_chrome",
+        "qt_editor_font",
+        "qt_numeric"
+      ],
+      "screenshots": [
+        {
+          "path": "out/evidence/p4/p4-active-41868268491/linux/p4/editor-chrome/en-1024.png",
+          "sha256": "f7e207f2d01b31dc37617abc864b3efe271b7b7327103f35550b4aa5302c173c"
+        },
+        {
+          "path": "out/evidence/p4/p4-active-41868268491/linux/p4/editor-chrome/en-1920.png",
+          "sha256": "85efe64cf97cacb622466cc90dedbc0c4003eaed0d0cef72871da7ba97780633"
+        },
+        {
+          "path": "out/evidence/p4/p4-active-41868268491/linux/p4/editor-chrome/ja-1024.png",
+          "sha256": "e63dfb71a1877e0bd804295eabd76e092fb22e15faf132869fa82df70e606d9f"
+        },
+        {
+          "path": "out/evidence/p4/p4-active-41868268491/linux/p4/editor-chrome/ja-1920.png",
+          "sha256": "bab15b0c015da08eb22e36a2629de30dec0b61d2a1b0e9ef4ebc879b720cb14c"
+        },
+        {
+          "path": "out/evidence/p4/p4-active-41868268491/linux/p4/editor-chrome/zh_CN-1024.png",
+          "sha256": "1ddcb551a85a8fb9d063c77afe5f0529aefda3bd6d97e85b5cc9266448a53e35"
+        },
+        {
+          "path": "out/evidence/p4/p4-active-41868268491/linux/p4/editor-chrome/zh_CN-1920.png",
+          "sha256": "790e77be1376bda8486c103a9fa0b483fd5e6d8818acce4d3907a4c94cf2cba4"
+        }
+      ]
+    },
+    "macos": {
+      "tests": 4,
+      "failures": 0,
+      "artifact": {
+        "path": "out/evidence/p4/p4-active-41868268491/macos/p4/p4.xml",
+        "sha256": "0f89d47ad75a015d9fc76798a40d551f4c0328cb98e1d6430a7c464f1bfabcc5"
+      },
+      "gates": [
+        "qt_edit_navigation",
+        "qt_editor_chrome",
+        "qt_editor_font",
+        "qt_numeric"
+      ],
+      "screenshots": [
+        {
+          "path": "out/evidence/p4/p4-active-41868268491/macos/p4/editor-chrome/en-1024.png",
+          "sha256": "ddbb814b1dbdfc203c879cc8976f2823bab6473cf21de8203fc6582810ca1bf7"
+        },
+        {
+          "path": "out/evidence/p4/p4-active-41868268491/macos/p4/editor-chrome/en-1920.png",
+          "sha256": "00e3d11a358ceb88dc7d48a63f7078d3332a32423be83a357979a8dbdbbc2127"
+        },
+        {
+          "path": "out/evidence/p4/p4-active-41868268491/macos/p4/editor-chrome/ja-1024.png",
+          "sha256": "8340d8d8185e888cb356bb28ee483c464cc8991b36793b36cb0203aabcc9009f"
+        },
+        {
+          "path": "out/evidence/p4/p4-active-41868268491/macos/p4/editor-chrome/ja-1920.png",
+          "sha256": "7631d3d0c1a0a4e44fce7c60352ebf1544dea3758848044402f2fd5f59e0dff4"
+        },
+        {
+          "path": "out/evidence/p4/p4-active-41868268491/macos/p4/editor-chrome/zh_CN-1024.png",
+          "sha256": "4cd11c16dc75e33a8efbb939b6a5514de69fd099368b98e0ebf99328a64b72fe"
+        },
+        {
+          "path": "out/evidence/p4/p4-active-41868268491/macos/p4/editor-chrome/zh_CN-1920.png",
+          "sha256": "6996773b135465077659f8cc42a2c4c217e0e4f295f485692ebaceb7400775da"
+        }
+      ]
+    }
+  },
+  "followup": {
+    "revision": "65c34af",
+    "run": "41870574500",
+    "platform": "windows only",
+    "scope": "5 hidden observers and actual multiline; Linux/macOS changes were already qualified and are not rerun",
+    "conclusion": "success",
+    "evidence": "p4-active-41870574500.json"
+  }
+}
