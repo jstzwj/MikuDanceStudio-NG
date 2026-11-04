@@ -82,8 +82,9 @@ void DrawWindowsMultilineBackground(QPainter& painter, const QRect& rect,
         painter.fillRect(rect.adjusted(3, 3, -3, -3),
                          QColor(GetRValue(white), GetGValue(white), GetBValue(white)));
 }
-bool DrawWindowsMultilineText(QPainter& painter, const QPlainTextEdit& edit) {
-    if (edit.hasFocus() || edit.property("_mmdImePreedit").toBool())
+bool DrawWindowsMultilineText(QPainter& painter, const QPlainTextEdit& edit,
+                              const WindowsMultilineLayout* layout) {
+    if (edit.property("_mmdImePreedit").toBool())
         return false;
     for (const auto character : edit.toPlainText())
         if (character.unicode() > 0x7f)
@@ -116,6 +117,9 @@ bool DrawWindowsMultilineText(QPainter& painter, const QPlainTextEdit& edit) {
         FillRect(canvas.dc, &background, GetSysColorBrush(COLOR_WINDOW));
     }
     SetBkMode(canvas.dc, TRANSPARENT);
+    const auto background =
+        GetSysColor(edit.isEnabled() && !edit.isReadOnly() ? COLOR_WINDOW : COLOR_BTNFACE);
+    SetBkColor(canvas.dc, background);
     SetTextColor(canvas.dc, GetSysColor(edit.isEnabled() ? COLOR_WINDOWTEXT : COLOR_GRAYTEXT));
     // The right document margin lies outside EDIT's formatting rectangle;
     // retain left glyph overhang but clip the last partial glyph there.
@@ -125,17 +129,58 @@ bool DrawWindowsMultilineText(QPainter& painter, const QPlainTextEdit& edit) {
         clip.left += std::max(1, qRound(ratio));
     for (auto block = edit.document()->begin(); block.isValid(); block = block.next()) {
         const auto text = block.text();
-        for (int first = 0; first < text.size();) {
-            const auto tab = text.indexOf('\t', first);
-            const auto last = tab < 0 ? text.size() : tab;
+        const auto selected = edit.textCursor();
+        const bool focused = layout ? layout->focused : edit.hasFocus();
+        const int selectionFirst =
+            std::clamp(selected.selectionStart() - block.position(), 0, int(text.size()));
+        const int selectionLast =
+            std::clamp(selected.selectionEnd() - block.position(), 0, int(text.size()));
+        RECT selection{};
+        const bool highlight = focused && selectionLast > selectionFirst;
+        if (highlight) {
             QTextCursor cursor(block);
-            cursor.setPosition(block.position() + first);
-            const auto origin = edit.cursorRect(cursor).topLeft();
-            const auto caption = text.mid(first, last - first).toStdWString();
-            ExtTextOutW(canvas.dc, qRound(origin.x() * ratio), qRound(origin.y() * ratio),
-                        ETO_CLIPPED, &clip, caption.c_str(), UINT(caption.size()), nullptr);
-            first = int(last) + 1;
+            cursor.setPosition(block.position() + selectionFirst);
+            const auto first = edit.cursorRect(cursor);
+            cursor.setPosition(block.position() + selectionLast);
+            const auto last = edit.cursorRect(cursor);
+            selection = {qRound(first.x() * ratio), qRound(first.y() * ratio),
+                         qRound((last.x() + 1) * ratio),
+                         qRound((first.y() + first.height()) * ratio)};
+            IntersectRect(&selection, &selection, &clip);
         }
+        // Draw selected runs on a fresh highlight background, not over the
+        // normal glyph's antialiasing fringe.
+        const auto drawRuns = [&](const RECT& bounds) {
+            for (int first = 0; first < text.size();) {
+                const auto tab = text.indexOf('\t', first);
+                const auto last = tab < 0 ? text.size() : tab;
+                QTextCursor cursor(block);
+                cursor.setPosition(block.position() + first);
+                const auto origin = edit.cursorRect(cursor).topLeft();
+                const auto caption = text.mid(first, last - first).toStdWString();
+                ExtTextOutW(canvas.dc, qRound(origin.x() * ratio), qRound(origin.y() * ratio),
+                            ETO_CLIPPED, &bounds, caption.c_str(), UINT(caption.size()), nullptr);
+                first = int(last) + 1;
+            }
+        };
+        drawRuns(clip);
+        if (highlight) {
+            FillRect(canvas.dc, &selection, GetSysColorBrush(COLOR_HIGHLIGHT));
+            SetTextColor(canvas.dc, GetSysColor(COLOR_HIGHLIGHTTEXT));
+            SetBkColor(canvas.dc, GetSysColor(COLOR_HIGHLIGHT));
+            drawRuns(selection);
+            SetTextColor(canvas.dc,
+                         GetSysColor(edit.isEnabled() ? COLOR_WINDOWTEXT : COLOR_GRAYTEXT));
+            SetBkColor(canvas.dc, background);
+        }
+    }
+    if (layout && layout->focused && layout->caretVisible) {
+        const auto caret = edit.cursorRect();
+        const int saved = SaveDC(canvas.dc);
+        IntersectClipRect(canvas.dc, clip.left, clip.top, clip.right, clip.bottom);
+        PatBlt(canvas.dc, qRound(caret.x() * ratio), qRound(caret.y() * ratio),
+               std::max(1, qRound(ratio)), qRound(caret.height() * ratio), DSTINVERT);
+        RestoreDC(canvas.dc, saved);
     }
     GdiFlush();
     canvas.image.setDevicePixelRatio(ratio);

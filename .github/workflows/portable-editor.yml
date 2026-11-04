@@ -32,6 +32,10 @@ on:
         type: boolean
         description: Qualify native EDIT nonclient paint in isolated Windows runner windows
         default: false
+      ui_only:
+        type: boolean
+        description: Linux/macOS frontend font, chrome and edit gates only (no media or packaging)
+        default: false
       native_multiline:
         type: boolean
         description: Qualify shown multiline focus, paint and OS mouse gestures on isolated Windows runner
@@ -45,7 +49,7 @@ on:
         description: Qualify real platform IMEs on isolated Windows, Linux and macOS runners
         default: false
 concurrency:
-  group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}-${{ inputs.windows_runner || 'windows-2022' }}-${{ inputs.observers_only && 'observers' || inputs.system_ime && 'ime' || inputs.native_controls && 'controls' || inputs.native_reference && 'reference' || 'regular' }}
+  group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}-${{ inputs.windows_runner || 'windows-2022' }}-${{ inputs.ui_only && 'ui' || inputs.observers_only && 'observers' || inputs.system_ime && 'ime' || inputs.native_controls && 'controls' || inputs.native_reference && 'reference' || 'regular' }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 permissions:
   contents: read
@@ -360,10 +364,16 @@ jobs:
           MDS_GPU_DRIVER: software
         run: |
           cmake -S cmake/portable-editor -B out/p4 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/bin/dxc"
+          if [ "${{ inputs.ui_only }}" = true ]; then
+            cmake --build out/p4 --target qt_editor_font_test qt_editor_chrome_test qt_numeric_test qt_edit_navigation_test --parallel 3
+            ctest --test-dir out/p4 -R '^(qt_editor_font|qt_editor_chrome|qt_numeric|qt_edit_navigation)$' --output-on-failure --output-junit p4.xml
+            exit $?
+          fi
           cmake --build out/p4 --parallel 3
           cmake --build out/p4 --target qt_wayland_pointer_test --parallel 3
           ctest --test-dir out/p4 -L p4 --output-on-failure --output-junit p4.xml
       - name: Qt X11 and Wayland surfaces in isolated displays
+        if: ${{ !inputs.ui_only }}
         env:
           MDS_GPU_DRIVER: software
           MDS_QT_ISOLATED_DISPLAY: '1'
@@ -392,7 +402,7 @@ jobs:
           xvfb-run -a dbus-run-session -- python tests/test_system_ime.py --test out/p4/qt_system_ime_test --report out/p4/system-ime.json
           xvfb-run -a dbus-run-session -- python tests/test_system_ime.py --test out/p4/qt_system_ime_test --engine anthy --report out/p4/system-ime-anthy.json
       - name: Native PulseAudio silent clock
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !inputs.ui_only }}
         run: |
           sudo apt-get install -y pulseaudio pulseaudio-utils
           pulseaudio --start --exit-idle-time=-1
@@ -406,13 +416,13 @@ jobs:
           python tests/test_native_audio.py --test out/p4/qt_native_audio_test --report out/p4/native-audio.json
           test "$smoke_status" -eq 0
       - name: Deploy and validate relocated package
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !inputs.ui_only }}
         shell: bash
         run: |
           cmake --build out/p4 --config Release --target dist --parallel 3
           python tests/test_editor_distribution.py --dist out/dist
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !inputs.ui_only }}
         with:
           name: editor-dist-linux
           path: |
@@ -513,6 +523,11 @@ jobs:
           MDS_TEST_VULKAN_LIBRARY: ${{ github.workspace }}/out/moltenvk/libMoltenVK.dylib
         run: |
           cmake -S cmake/portable-editor -B out/p4 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DMDS_MOLTENVK_LIBRARY="$PWD/out/moltenvk/libMoltenVK.dylib" -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/bin/dxc"
+          if [ "${{ inputs.ui_only }}" = true ]; then
+            cmake --build out/p4 --target qt_editor_font_test qt_editor_chrome_test qt_numeric_test qt_edit_navigation_test --parallel 3
+            ctest --test-dir out/p4 -R '^(qt_editor_font|qt_editor_chrome|qt_numeric|qt_edit_navigation)$' --output-on-failure --output-junit p4.xml
+            exit $?
+          fi
           cmake --build out/p4 --parallel 3
           ctest --test-dir out/p4 -L p4 --output-on-failure --output-junit p4.xml
           MDS_QT_ISOLATED_DISPLAY=1 MDS_GPU_BACKEND=metal python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test --assets res/assets
@@ -536,16 +551,16 @@ jobs:
           cmake --build out/p4 --target qt_system_ime_test --parallel 3
           python tests/test_native_system_ime.py --test out/p4/qt_system_ime_test --report out/p4/system-ime-kotoeri.json
       - name: Native CoreAudio silent clock
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !inputs.ui_only }}
         run: python tests/test_native_audio.py --test out/p4/qt_native_audio_test --report out/p4/native-audio.json --allow-unavailable
       - name: Deploy and validate relocated package
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !inputs.ui_only }}
         shell: bash
         run: |
           cmake --build out/p4 --config Release --target dist --parallel 3
           python tests/test_editor_distribution.py --dist out/dist
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !inputs.ui_only }}
         with:
           name: editor-dist-macos
           path: |
@@ -554,7 +569,7 @@ jobs:
             out/releases/MikuDanceStudio-NG-*.sha256
           if-no-files-found: error
       - name: Verify a native Metal package without MoltenVK
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !inputs.ui_only }}
         env:
           CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
           MTL_DEBUG_LAYER: '1'

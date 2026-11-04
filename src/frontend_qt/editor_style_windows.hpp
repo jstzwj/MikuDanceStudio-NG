@@ -23,7 +23,12 @@ struct WindowsEditLayout {
     bool focused = false;
     bool caretVisible = false;
 };
-bool DrawWindowsMultilineText(QPainter&, const QPlainTextEdit&);
+struct WindowsMultilineLayout {
+    bool focused = false;
+    bool caretVisible = false;
+};
+bool DrawWindowsMultilineText(QPainter&, const QPlainTextEdit&,
+                              const WindowsMultilineLayout* = nullptr);
 void DrawWindowsMultilineBackground(QPainter&, const QRect&, const QPlainTextEdit&);
 bool DrawWindowsEditText(QPainter&, const QRect&, const QFont&, const QString&, bool english,
                          bool border, bool enabled, bool readOnly, bool autoScroll,

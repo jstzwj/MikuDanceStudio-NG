@@ -33,25 +33,33 @@ public:
     QPlainTextEdit* Field() { return Multiline(668); }
 };
 QImage Client(HWND window) {
-    RECT bounds{};
+    RECT bounds{}, parentBounds{};
     Check(GetClientRect(window, &bounds), "native multiline client bounds");
+    Check(GetWindowRect(GetParent(window), &parentBounds), "native dialog bounds");
+    POINT origin{};
+    Check(ClientToScreen(window, &origin), "native client origin");
+    const int width = parentBounds.right - parentBounds.left;
+    const int height = parentBounds.bottom - parentBounds.top;
     auto dc = CreateCompatibleDC(nullptr);
     BITMAPINFO info{};
     info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    info.bmiHeader.biWidth = bounds.right;
-    info.bmiHeader.biHeight = -bounds.bottom;
+    info.bmiHeader.biWidth = width;
+    info.bmiHeader.biHeight = -height;
     info.bmiHeader.biPlanes = 1;
     info.bmiHeader.biBitCount = 32;
     void* bits = nullptr;
     auto bitmap = CreateDIBSection(dc, &info, DIB_RGB_COLORS, &bits, nullptr, 0);
     Check(dc && bitmap && bits, "native multiline memory canvas");
     auto previous = SelectObject(dc, bitmap);
-    FillRect(dc, &bounds, GetSysColorBrush(COLOR_BTNFACE));
-    SendMessageW(window, WM_PRINTCLIENT, WPARAM(dc), PRF_CLIENT | PRF_ERASEBKGND);
+    const RECT canvas{0, 0, width, height};
+    FillRect(dc, &canvas, GetSysColorBrush(COLOR_BTNFACE));
+    // WM_PRINTCLIENT excludes the real caret. Capture our own shown dialog
+    // hierarchy instead, as the existing single-line qualification does.
+    Check(PrintWindow(GetParent(window), dc, 0), "actual shown multiline dialog capture");
     GdiFlush();
-    auto image = QImage(static_cast<uchar*>(bits), bounds.right, bounds.bottom, bounds.right * 4,
-                        QImage::Format_RGB32)
-                     .copy();
+    auto image = QImage(static_cast<uchar*>(bits), width, height, width * 4, QImage::Format_RGB32)
+                     .copy(origin.x - parentBounds.left, origin.y - parentBounds.top, bounds.right,
+                           bounds.bottom);
     SelectObject(dc, previous);
     DeleteObject(bitmap);
     DeleteDC(dc);
@@ -74,6 +82,9 @@ void Button(bool down) {
 }
 // Uses actual OS mouse capture, not a directly addressed QMouseEvent replay.
 void Gesture(HWND root, QPoint start, QPoint end, bool doubleClick, bool shift) {
+    // Each case is independent. Avoid the preceding click being interpreted
+    // as the first half of a double/triple click by either GUI framework.
+    QTest::qWait(int(GetDoubleClickTime()) + 30);
     Check(GetAncestor(GetForegroundWindow(), GA_ROOT) == root,
           "isolated input foreground belongs to the reference under test");
     Check(SetCursorPos(start.x(), start.y()), "isolated mouse start");

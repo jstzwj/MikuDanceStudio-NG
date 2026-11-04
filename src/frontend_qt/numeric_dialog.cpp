@@ -25,6 +25,7 @@
 #include <QStyleOptionFrame>
 #include <QValidator>
 #include <QTextDocument>
+#include <QTextBlock>
 #include <QScrollBar>
 #include <QTimer>
 #include <charconv>
@@ -56,6 +57,14 @@ public:
                 setViewportMargins(3, top, english ? 3 : 1, 0);
         });
         setTabStopDistance(56);
+#ifdef _WIN32
+        connect(&caretTimer_, &QTimer::timeout, this, [this] {
+            caretVisible_ = !caretVisible_;
+            viewport()->update();
+        });
+        connect(this, &QPlainTextEdit::cursorPositionChanged, this, [this] { ResetCaret(); });
+        connect(this, &QPlainTextEdit::selectionChanged, this, [this] { ResetCaret(); });
+#endif
     }
 
 protected:
@@ -64,7 +73,8 @@ protected:
 #ifdef _WIN32
         if (QGuiApplication::platformName() == "windows") {
             QPainter painter(viewport());
-            DrawWindowsMultilineText(painter, *this);
+            const WindowsMultilineLayout layout{hasFocus(), caretVisible_};
+            DrawWindowsMultilineText(painter, *this, &layout);
         }
 #endif
     }
@@ -80,6 +90,7 @@ protected:
     }
     void MouseEvent(QMouseEvent* event, QEvent::Type type) {
         const auto cursor = MultilineCursorForPosition(*this, event->position());
+        const auto previous = textCursor();
         const auto rectangle = cursorRect(cursor);
         // Let Qt retain selection anchors, shift/word selection, dragging,
         // input-method commits and autoscroll. Change only its hit point.
@@ -98,7 +109,49 @@ protected:
             QPlainTextEdit::mouseReleaseEvent(&adjusted);
         else
             QPlainTextEdit::mouseDoubleClickEvent(&adjusted);
+        bool ascii = !property("_mmdImePreedit").toBool();
+        for (const auto character : cursor.block().text())
+            ascii &= character.unicode() < 128;
+        if (ascii && viewport()->rect().contains(event->position().toPoint()) &&
+            !(event->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
+            if (type == QEvent::MouseButtonPress && event->button() == Qt::LeftButton) {
+                mouseAnchor_ =
+                    event->modifiers() & Qt::ShiftModifier ? previous.anchor() : cursor.position();
+                auto selected = cursor;
+                selected.setPosition(mouseAnchor_);
+                selected.setPosition(cursor.position(), QTextCursor::KeepAnchor);
+                setTextCursor(selected);
+            } else if (type == QEvent::MouseMove && event->buttons() & Qt::LeftButton &&
+                       mouseAnchor_ >= 0) {
+                auto selected = cursor;
+                selected.setPosition(mouseAnchor_);
+                selected.setPosition(cursor.position(), QTextCursor::KeepAnchor);
+                setTextCursor(selected);
+            } else if (type == QEvent::MouseButtonDblClick && event->button() == Qt::LeftButton) {
+                const auto block = cursor.block();
+                const auto end =
+                    EditWordPosition(block.text(), cursor.position() - block.position(), true);
+                const auto start = EditWordPosition(block.text(), end, false);
+                auto selected = cursor;
+                selected.setPosition(block.position() + start);
+                selected.setPosition(block.position() + end, QTextCursor::KeepAnchor);
+                setTextCursor(selected);
+                mouseAnchor_ = -1;
+            }
+        }
+        if (type == QEvent::MouseButtonRelease)
+            mouseAnchor_ = -1;
         event->setAccepted(adjusted.isAccepted());
+    }
+    bool event(QEvent* event) override {
+        const auto handled = QPlainTextEdit::event(event);
+#ifdef _WIN32
+        if (event->type() == QEvent::FocusIn || event->type() == QEvent::FocusOut ||
+            event->type() == QEvent::KeyPress || event->type() == QEvent::InputMethod ||
+            event->type() == QEvent::MouseButtonPress)
+            ResetCaret();
+#endif
+        return handled;
     }
     void keyPressEvent(QKeyEvent* event) override {
         const auto modifiers = event->modifiers();
@@ -143,6 +196,20 @@ protected:
         }
         QPlainTextEdit::keyPressEvent(event);
     }
+
+private:
+    int mouseAnchor_ = -1;
+#ifdef _WIN32
+    QTimer caretTimer_;
+    bool caretVisible_ = false;
+    void ResetCaret() {
+        caretTimer_.stop();
+        caretVisible_ = hasFocus();
+        if (caretVisible_ && QApplication::cursorFlashTime() > 0)
+            caretTimer_.start(std::max(1, QApplication::cursorFlashTime() / 2));
+        viewport()->update();
+    }
+#endif
 };
 class DialogLineEdit final : public QLineEdit {
     class WidthValidator final : public QValidator {
