@@ -95,6 +95,8 @@ void EditorWindow::SetSeparateWindow(bool enabled) {
         window->installEventFilter(this);
     } else {
         retired = separate_;
+        retired->removeAction(actions_.at("undo"));
+        retired->removeAction(actions_.at("redo"));
         separateGeometry_ = retired->saveGeometry();
         if (!retired->isMaximized())
             separateSize_ = retired->size();
@@ -107,7 +109,10 @@ void EditorWindow::SetSeparateWindow(bool enabled) {
         Control(id)->setParent(separate_ ? separate_ : canvas_);
     static_cast<Canvas*>(canvas_)->SetDetached(enabled);
     CreateViewport(options);
-    BuildMenus();
+    if (separate_) {
+        separate_->addAction(actions_.at("undo"));
+        separate_->addAction(actions_.at("redo"));
+    }
     Refresh();
     if (separate_ && !testing_)
         separate_->show();

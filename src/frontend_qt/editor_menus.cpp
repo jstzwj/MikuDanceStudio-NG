@@ -162,12 +162,9 @@ bool Implemented(int command) {
 }
 
 void EditorWindow::BuildMenus() {
-    // clear() only removes QMenuBar entries; release the complete former tree.
-    for (auto* entry : menuBar()->actions())
-        delete entry->menu();
-    menuBar()->clear();
-    actions_.clear();
-    menuActions_.clear();
+    // Construct once. Deleting the active QMenu from its triggered callback
+    // also deletes its QWidgetWindow while Qt is still dispatching that click.
+    Q_ASSERT(menuBar()->actions().isEmpty() && actions_.empty() && menuActions_.empty());
     std::vector<QMenu*> parents;
     for (const auto& entry : ui::kMmdMenu) {
         parents.resize(entry.depth);
@@ -175,6 +172,7 @@ void EditorWindow::BuildMenus() {
             auto* menu = entry.depth ? parents.back()->addMenu(language_.Text(entry.message))
                                      : menuBar()->addMenu(language_.Text(entry.message));
             menu->setObjectName(entry.message);
+            menu->setProperty("mmdTextId", entry.message);
             menu->setToolTipsVisible(true);
             menu->menuAction()->setMenuRole(QAction::NoRole);
             parents.push_back(menu);
@@ -183,6 +181,7 @@ void EditorWindow::BuildMenus() {
         } else {
             auto* action = parents.back()->addAction(language_.Text(entry.message));
             action->setMenuRole(QAction::NoRole);
+            action->setProperty("mmdTextId", entry.message);
             action->setProperty("mmdCommandId", entry.command);
             action->setProperty("mmdImplemented", Implemented(entry.command));
             action->setObjectName(entry.message);
@@ -200,24 +199,27 @@ void EditorWindow::BuildMenus() {
     // NG additions do not change the order/nesting of the original eight menus.
     auto* extensions = menuBar()->addMenu(language_.Text("menu.application"));
     extensions->setObjectName("menu.application");
-    const auto add = [&](const char* name, const QString& label, const QKeySequence& shortcut) {
-        auto* action = extensions->addAction(label);
+    extensions->setProperty("mmdTextId", "menu.application");
+    const auto add = [&](const char* name, const char* textId, const QKeySequence& shortcut) {
+        auto* action = extensions->addAction(language_.Text(textId));
         action->setObjectName(name);
+        action->setProperty("mmdTextId", textId);
         action->setMenuRole(QAction::NoRole);
         action->setShortcut(shortcut);
         actions_[name] = action;
         return action;
     };
-    connect(add("undo", language_.Text("control.400"), QKeySequence::Undo), &QAction::triggered,
-            this, [this] { Dispatch(panel::kUndoButton); });
-    connect(add("redo", language_.Text("control.401"), QKeySequence::Redo), &QAction::triggered,
-            this, [this] { Dispatch(panel::kRedoButton); });
+    connect(add("undo", "control.400", QKeySequence::Undo), &QAction::triggered, this,
+            [this] { Dispatch(panel::kUndoButton); });
+    connect(add("redo", "control.401", QKeySequence::Redo), &QAction::triggered, this,
+            [this] { Dispatch(panel::kRedoButton); });
     extensions->addSeparator();
-    connect(add("file.sequence", language_.Text("file.sequence"), {}), &QAction::triggered, this,
+    connect(add("file.sequence", "file.sequence", {}), &QAction::triggered, this,
             [this] { FileAction("file.sequence"); });
     extensions->addSeparator();
     auto* renderer = extensions->addMenu(language_.Text("menu.renderer"));
     renderer->setObjectName("menu.renderer");
+    renderer->setProperty("mmdTextId", "menu.renderer");
     for (auto pair : {std::pair{rhi::Backend::D3D11, "DirectX 11"},
                       {rhi::Backend::D3D12, "DirectX 12"},
                       {rhi::Backend::Vulkan, "Vulkan"},
@@ -232,25 +234,46 @@ void EditorWindow::BuildMenus() {
             options.backend = b;
             options.surface.reset();
             CreateViewport(options);
-            BuildMenus();
             Refresh();
         });
     }
     auto* language = extensions->addMenu(language_.Text("menu.language"));
     language->setObjectName("menu.language");
+    language->setProperty("mmdTextId", "menu.language");
     for (const char* code : {"en", "ja", "zh_CN"}) {
         auto* a = language->addAction(language_.Text(QString("language.") + code));
+        a->setProperty("mmdTextId", QString("language.") + code);
+        a->setProperty("mmdLanguage", code);
         a->setCheckable(true);
         a->setChecked(language_.Code() == code);
         connect(a, &QAction::triggered, this, [this, code] { SetLanguage(code); });
     }
-    if (separate_) {
-        separate_->addAction(actions_.at("undo"));
-        separate_->addAction(actions_.at("redo"));
+}
+
+void EditorWindow::RetranslateMenus() {
+    for (auto* menu : findChildren<QMenu*>()) {
+        const auto id = menu->property("mmdTextId").toString();
+        if (!id.isEmpty())
+            menu->setTitle(language_.Text(id));
+    }
+    for (auto* action : findChildren<QAction*>()) {
+        const auto id = action->property("mmdTextId").toString();
+        if (!id.isEmpty())
+            action->setText(language_.Text(id));
+        if (action->property("mmdImplemented").isValid() &&
+            !action->property("mmdImplemented").toBool())
+            action->setToolTip(language_.Text("menu.unavailable"));
+        const auto code = action->property("mmdLanguage").toString();
+        if (!code.isEmpty())
+            action->setChecked(code == language_.Code());
     }
 }
 
 void EditorWindow::RefreshMenus() {
+    if (auto* renderer = findChild<QMenu*>("menu.renderer"))
+        for (auto* action : renderer->actions())
+            action->setChecked(action->property("rhiBackend").toInt() ==
+                               int(viewport_->Options().backend));
     const auto& doc = session_.Document();
     const bool model = session_.Selected().model != 255;
     if (model)

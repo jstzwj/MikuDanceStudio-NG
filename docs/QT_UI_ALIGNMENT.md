@@ -69,3 +69,38 @@ full-window oracle. Visible native controls, cross-platform font/raster parity,
 real Windows IME shutdown and strict software/Metal scene composites retain their
 existing acceptance boundaries in [P4 status](CROSS_PLATFORM_P4.md). This task
 does not request another hosted workflow run.
+
+## Loaded-model language-switch crash
+
+The observed crash was an access violation in `Qt6Widgets.dll` (6.8.3,
+offset `0x7c207`). The local user dump retains Qt's mouse-event dispatch and popup
+forwarding frames. `SetLanguage` called `BuildMenus`, which synchronously deleted
+the menu tree, including the active menu's `QWidgetWindow`, from its own action
+callback. Qt still needed that window while returning from the click. This is a
+menu lifetime defect; it is not a PMX-format parsing failure.
+
+Menus are now constructed once. Translation keys are retained on menus/actions,
+and language changes update titles, captions, tooltips and language checkmarks in
+place. Backend selection and separate-viewport changes also retain the menu tree;
+separate windows attach/detach the existing undo/redo shortcuts explicitly.
+
+`qt_language_switch` and Windows `qt_language_switch_native` load public generated
+PMD/PMX fixtures. They cover direct calls, action activation, mouse events sent
+only to a never-shown menu window, the original language command and renderer
+selection. Both test and production modes are exercised with isolated settings.
+They check menu/action identities and absence of duplicate application entries,
+language changes, backend checkmarks and unchanged model resources, scene revision,
+dirty state and update count. Qt's lazy internal overflow/context menus are not
+application-owned entries. The original code fails the dispatch-lifetime check;
+the repaired code passes. The hidden test establishes the lifetime regression,
+without claiming to reproduce the user's exact visible-popup crash timing.
+
+The external Sour Miku PMX is checked locally with offscreen and never-shown
+Windows QPA; it is not distributed. The original crash dump stays local. These
+checks use neither desktop input nor shown windows, and do not close the existing
+full visible-control, IME or scene-composite qualification gaps.
+
+The local Windows Release build passes **77/77** P4-labelled tests after this
+repair, including the two new language-switch profiles. Sour Miku passes both
+production-mode profiles. Local logs and the read-only dump analysis are retained
+under `out/build`; no hosted workflow was requested for this repair.

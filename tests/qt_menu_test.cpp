@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
             const auto revision = session.Revision();
             const auto updates = session.Runtime().Counters().frames;
             CHECK(window.SetLanguage(language));
-            CHECK(former.isNull());
+            CHECK(former && former == command(MDS_CMD_NEW_PROJECT));
             CHECK(window.findChildren<QAction*>().size() == actions);
             CHECK(window.findChildren<QMenu*>().size() == menus);
             CHECK(session.Revision() == revision && session.Runtime().Counters().frames == updates);

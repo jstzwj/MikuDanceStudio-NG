@@ -285,7 +285,7 @@ bool EditorWindow::SetLanguage(const QString& language) {
         QSettings settings;
         settings.setValue("language", language);
     }
-    BuildMenus();
+    RetranslateMenus();
     Texts();
     Refresh();
     return true;

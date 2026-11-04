@@ -111,6 +111,21 @@ function(mds_add_qt_editor)
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${root}/res/assets" "$<TARGET_FILE_DIR:MikuDanceStudioNG>/assets")
     include("${root}/cmake/QtDistribution.cmake")
     if(BUILD_TESTING)
+        qt_add_executable(qt_language_switch_test "${root}/tests/qt_language_switch_test.cpp")
+        target_link_libraries(qt_language_switch_test PRIVATE mikudancestudio_frontend_qt)
+        if(WIN32)
+            target_sources(qt_language_switch_test PRIVATE "${root}/res/frontend_qt/windows.manifest")
+            add_test(NAME qt_language_switch_native COMMAND ${Python3_EXECUTABLE}
+                "${root}/tests/test_qt_language_switch.py" --test $<TARGET_FILE:qt_language_switch_test>
+                --assets "${root}/res/assets")
+            set_tests_properties(qt_language_switch_native PROPERTIES LABELS "p4;hidden;qt;language"
+                TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=windows")
+        endif()
+        add_test(NAME qt_language_switch COMMAND ${Python3_EXECUTABLE}
+            "${root}/tests/test_qt_language_switch.py" --test $<TARGET_FILE:qt_language_switch_test>
+            --assets "${root}/res/assets")
+        set_tests_properties(qt_language_switch PROPERTIES LABELS "p4;offscreen;qt;language"
+            TIMEOUT 120 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_editor_chrome_test "${root}/tests/qt_editor_chrome_test.cpp")
         target_link_libraries(qt_editor_chrome_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)

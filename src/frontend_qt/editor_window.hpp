@@ -104,6 +104,7 @@ private:
     void Layout();
     void FinishSidebarDrag();
     void BuildMenus();
+    void RetranslateMenus();
     void RefreshMenus();
     void RefreshFrameTimer();
     void MenuCommand(int);
