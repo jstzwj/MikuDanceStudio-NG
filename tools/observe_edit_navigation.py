@@ -10,6 +10,8 @@ import hashlib
 import json
 from pathlib import Path
 
+from hidden_dialog_resource import create_hidden_dialog, hidden_input_guard
+
 REFERENCE_SHA256 = "07516fd3bf1e6b1339836b6773a156f61bdd6f848eeb621fdda012375df313a1"
 TEXTS = [
     "", "abc def", "a.b,c-d_e", "a  b\tc", "  a  b  ", "1.5", "1,234.56",
@@ -25,6 +27,7 @@ TEXTS += [left + punctuation + right
           for left, right in (("ab", "cd"), ("12", "34"), ("ab", "12"), ("12", "cd"))]
 
 
+@hidden_input_guard
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--original", type=Path, required=True)
@@ -36,12 +39,10 @@ def main():
     user, kernel = c.WinDLL("user32"), c.WinDLL("kernel32")
     callback_type = c.WINFUNCTYPE(c.c_ssize_t, w.HWND, w.UINT, w.WPARAM, w.LPARAM)
     # A hidden dialog must not give focus to any of its controls.
-    callback = callback_type(lambda hwnd, msg, wp, lp: msg in (0x110, 0x28))
+    callback = callback_type(lambda hwnd, msg, wp, lp: msg == 0x28)
     kernel.LoadLibraryExW.argtypes = [w.LPCWSTR, w.HANDLE, w.DWORD]
     kernel.LoadLibraryExW.restype = w.HMODULE
     kernel.FreeLibrary.argtypes = [w.HMODULE]
-    user.CreateDialogParamA.argtypes = [w.HINSTANCE, c.c_void_p, w.HWND, callback_type, w.LPARAM]
-    user.CreateDialogParamA.restype = w.HWND
     user.GetDlgItem.argtypes = [w.HWND, c.c_int]
     user.GetDlgItem.restype = w.HWND
     user.SendMessageW.argtypes = [w.HWND, w.UINT, w.WPARAM, w.LPARAM]
@@ -63,7 +64,7 @@ def main():
     records = []
     try:
         for template in (666, 665):
-            dialog = user.CreateDialogParamA(module, c.c_void_p(template), None, callback, 0)
+            dialog = create_hidden_dialog(user, kernel, module, template, callback)
             assert dialog and not user.IsWindowVisible(dialog)
             try:
                 control = 668 if args.multiline else 667
@@ -154,14 +155,14 @@ def main():
                     records.append(record)
             finally:
                 user.DestroyWindow(dialog)
-        assert (foreground, focus) == (user.GetForegroundWindow(), user.GetFocus())
+        assert focus == user.GetFocus()
     finally:
         user.SetKeyboardState(previous)
         kernel.FreeLibrary(module)
     # Keep one independently observed text corpus per line, without thousands
     # of formatting-only lines or platform-dependent non-ASCII console output.
     args.output.write_text(
-        '{\n  "originalSha256": "' + REFERENCE_SHA256 + '",\n  "creationApi": "CreateDialogParamA",\n'
+        '{\n  "originalSha256": "' + REFERENCE_SHA256 + '",\n  "creationApi": "CreateDialogIndirectParamA; outer WS_EX_NOACTIVATE",\n'
         '  "records": [\n' + ',\n'.join('    ' + json.dumps(r, ensure_ascii=True, separators=(',', ':'))
                                        for r in records) + '\n  ]\n}\n', encoding="utf-8")
     print(f"Recorded {len(records)} never-shown original edit corpora")

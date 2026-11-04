@@ -147,6 +147,11 @@ function(mds_add_qt_editor)
             qt_add_executable(qt_multiline_paint_test "${root}/tests/qt_multiline_paint_test.cpp"
                 "${root}/res/frontend_qt/windows.manifest" "${root}/res/templates/dialog/dialogs.rc")
             target_link_libraries(qt_multiline_paint_test PRIVATE mikudancestudio_frontend_qt gdi32 user32)
+            # Opens real windows and injects OS input only on a guarded,
+            # disposable runner. Never registered in the local CTest suite.
+            qt_add_executable(qt_multiline_active_test "${root}/tests/qt_multiline_active_test.cpp"
+                "${root}/res/frontend_qt/windows.manifest" "${root}/res/templates/dialog/dialogs.rc")
+            target_link_libraries(qt_multiline_active_test PRIVATE mikudancestudio_frontend_qt Qt6::Test gdi32 user32)
             add_test(NAME qt_multiline_paint COMMAND qt_multiline_paint_test "${CMAKE_BINARY_DIR}/multiline-paint")
             set_tests_properties(qt_multiline_paint PROPERTIES LABELS "p4;hidden;qt;appearance;oracle"
                 TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=windows")

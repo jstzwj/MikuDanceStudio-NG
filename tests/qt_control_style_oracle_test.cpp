@@ -10,6 +10,7 @@
 #include <commctrl.h>
 #include <uxtheme.h>
 #include <vssym32.h>
+#include "hidden_resource_dialog.hpp"
 
 static void Check(bool value, const char* reason) {
     if (!value)
@@ -52,14 +53,10 @@ public:
 };
 struct DialogCommands {
     unsigned last = 0;
-    bool allowFocus = false;
 };
 INT_PTR CALLBACK HiddenDialog(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     if (message == WM_INITDIALOG) {
         SetWindowLongPtrW(window, DWLP_USER, lParam);
-        if (!reinterpret_cast<DialogCommands*>(lParam)->allowFocus)
-            SetWindowLongPtrW(window, GWL_EXSTYLE,
-                              GetWindowLongPtrW(window, GWL_EXSTYLE) | WS_EX_NOACTIVATE);
     }
     // Native multiline Return posts a default-button command via
     // WM_NEXTDLGCTL. Preserve its command/text processing while preventing
@@ -390,6 +387,7 @@ int main(int argc, char** argv) try {
     Check(argc == 3 || text || content || editText,
           "usage: [--text|--content|--edit-text] original.exe output-directory");
 #endif
+    HiddenDialogInputGuard hiddenInput(!visible);
     Check(QGuiApplication::platformName() == "windows", "real Windows QPA required");
     if (visible) {
         // Only the guarded disposable runner may move its cursor. Keep the
@@ -481,7 +479,9 @@ int main(int argc, char** argv) try {
         // Both paths use actual dialog resources. The public executable links
         // the byte-verified RC source; the optional oracle maps the original
         // executable. Do not reconstruct CreateWindowEx styles here: the dialog
-        // manager also changes client edges, default buttons and fonts.
+        // manager also changes client edges, default buttons and fonts. Hidden
+        // observers add only OUTER WS_EX_NOACTIVATE before creation; actual
+        // shown/focus qualifications use the unmodified original resource.
         const auto resource = FindResourceW(instance, MAKEINTRESOURCEW(description->id), RT_DIALOG);
         Check(resource != nullptr, "original dialog resource");
         const auto* bytes =
@@ -491,10 +491,11 @@ int main(int argc, char** argv) try {
         std::memcpy(&flags, bytes + (bytes[2] == 255 && bytes[3] == 255 ? 12 : 0), sizeof flags);
         Check(!(flags & WS_VISIBLE), "original resource must never show a window");
         DialogCommands commands;
-        commands.allowFocus = focused;
         const auto native =
-            CreateDialogParamW(instance, MAKEINTRESOURCEW(dialog.Template().id), nullptr,
-                               HiddenDialog, reinterpret_cast<LPARAM>(&commands));
+            visible ? CreateDialogParamW(instance, MAKEINTRESOURCEW(dialog.Template().id), nullptr,
+                                         HiddenDialog, reinterpret_cast<LPARAM>(&commands))
+                    : CreateHiddenResourceDialog(instance, dialog.Template().id, HiddenDialog,
+                                                 reinterpret_cast<LPARAM>(&commands));
         Check(native && !IsWindowVisible(native), "create hidden original resource dialog");
         if (!visible && !text && !content && !editText) {
             for (std::size_t index = 0; index < description->count; ++index) {
@@ -1113,6 +1114,9 @@ int main(int argc, char** argv) try {
         {"editDeleteCases", int(editDeleteCases)},
         {"externalForegroundChanges", int(externalForegroundChanges)},
         {"modifierRetries", int(modifierRetries)},
+        {"outerDialogAdaptation", visible ? "none" : "WS_EX_NOACTIVATE before creation"},
+        {"activationProtection",
+         visible ? "none" : "thread-local WH_CBT veto; foreground/focus assertions"},
         {"windowsShown", visible}};
     report.insert("capture",
                   "own dialog PrintWindow; overlapping siblings excluded; explicit focus state");

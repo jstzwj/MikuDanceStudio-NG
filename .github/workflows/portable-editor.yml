@@ -32,12 +32,20 @@ on:
         type: boolean
         description: Qualify native EDIT nonclient paint in isolated Windows runner windows
         default: false
+      native_multiline:
+        type: boolean
+        description: Qualify shown multiline focus, paint and OS mouse gestures on isolated Windows runner
+        default: false
+      observers_only:
+        type: boolean
+        description: Windows hidden control observers only (no shown input or package rebuild)
+        default: false
       system_ime:
         type: boolean
         description: Qualify real platform IMEs on isolated Windows, Linux and macOS runners
         default: false
 concurrency:
-  group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}-${{ inputs.windows_runner || 'windows-2022' }}-${{ inputs.system_ime && 'ime' || inputs.native_controls && 'controls' || inputs.native_reference && 'reference' || 'regular' }}
+  group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}-${{ inputs.windows_runner || 'windows-2022' }}-${{ inputs.observers_only && 'observers' || inputs.system_ime && 'ime' || inputs.native_controls && 'controls' || inputs.native_reference && 'reference' || 'regular' }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 permissions:
   contents: read
@@ -67,6 +75,7 @@ jobs:
     env:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
       SCCACHE_CACHE_SIZE: 700M
+      MDS_OBSERVERS_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.observers_only && !inputs.system_ime && !inputs.native_controls && !inputs.native_reference }}
       MDS_IME_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.system_ime && !inputs.native_controls && !inputs.native_reference }}
     steps:
       - uses: actions/checkout@v4
@@ -132,6 +141,10 @@ jobs:
         run: |
           cmake -S cmake/portable-editor -B out/p4 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/dxc.exe" -DMDS_SPIRV_VAL="$PWD/out/spirv-tools/spirv-val.exe"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($env:MDS_OBSERVERS_ONLY -eq 'true') {
+            cmake --build out/p4 --config Release --target qt_control_style_test qt_multiline_paint_test qt_multiline_active_test --parallel 3
+            exit $LASTEXITCODE
+          }
           if ($env:MDS_IME_ONLY -eq 'true') {
             cmake --build out/p4 --config Release --target qt_system_ime_test --parallel 3
             exit $LASTEXITCODE
@@ -140,7 +153,7 @@ jobs:
       - name: Offscreen editor and generated export
         # IME-only dispatches qualify the native input client; push/PR and
         # control/reference dispatches retain the complete editor regression.
-        if: github.event_name != 'workflow_dispatch' || !inputs.system_ime || inputs.native_controls || inputs.native_reference
+        if: env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true'
         env:
           MDS_GPU_BACKEND: d3d11
           MDS_GPU_DRIVER: software
@@ -153,8 +166,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:MDS_GPU_BACKEND = 'd3d12'
           python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test.exe --assets res/assets
+      - name: Hidden control observers only
+        if: env.MDS_OBSERVERS_ONLY == 'true'
+        run: ctest --test-dir out/p4 -C Release -R '^(qt_control_style|qt_control_text|qt_list_content|qt_edit_content|qt_multiline_paint)$' --output-on-failure --output-junit p4.xml
+      - name: Actual multiline focus and mouse qualification
+        if: ${{ !cancelled() && inputs.native_multiline }}
+        timeout-minutes: 4
+        env:
+          QT_QPA_PLATFORM: windows
+          MDS_QT_ISOLATED_DISPLAY: '1'
+        run: out/p4/qt_multiline_active_test.exe out/p4/multiline-active
       - name: Native silent audio clock
-        if: ${{ !cancelled() && env.MDS_IME_ONLY != 'true' }}
+        if: ${{ !cancelled() && env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true' }}
         run: python tests/test_native_audio.py --test out/p4/qt_native_audio_test.exe --report out/p4/native-audio.json --allow-unavailable
       - name: Qualify native EDIT nonclient paint
         if: ${{ !cancelled() && inputs.native_controls }}
@@ -242,13 +265,13 @@ jobs:
           MDS_GPU_DRIVER: software
         run: ctest --test-dir out/p4 -C Release -L native-reference --output-on-failure --output-junit native-reference.xml
       - name: Deploy and validate relocated package
-        if: ${{ !cancelled() && env.MDS_IME_ONLY != 'true' }}
+        if: ${{ !cancelled() && env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true' }}
         shell: bash
         run: |
           cmake --build out/p4 --config Release --target dist --parallel 3
           python tests/test_editor_distribution.py --dist out/dist
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() && env.MDS_IME_ONLY != 'true' }}
+        if: ${{ !cancelled() && env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true' }}
         with:
           name: editor-dist-windows
           path: |
@@ -277,6 +300,8 @@ jobs:
             out/p4/control-edit-focus/
             out/p4/control-edit-hover/
             out/p4/edit-content/
+            out/p4/multiline-paint/
+            out/p4/multiline-active/
             out/p4/editor-chrome/
             out/p4/control-content-visible/
             out/p4/control-list-focus/

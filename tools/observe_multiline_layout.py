@@ -6,9 +6,12 @@ import hashlib
 import json
 from pathlib import Path
 
+from hidden_dialog_resource import create_hidden_dialog, hidden_input_guard
+
 from observe_edit_navigation import REFERENCE_SHA256
 
 
+@hidden_input_guard
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--original', type=Path, required=True)
@@ -20,12 +23,10 @@ def main():
         raise RuntimeError('Unexpected original executable')
     user, kernel = c.WinDLL('user32'), c.WinDLL('kernel32')
     callback_type = c.WINFUNCTYPE(c.c_ssize_t, w.HWND, w.UINT, w.WPARAM, w.LPARAM)
-    callback = callback_type(lambda hwnd, message, wp, lp: message in (0x110, 0x28))
+    callback = callback_type(lambda hwnd, message, wp, lp: message == 0x28)
     kernel.LoadLibraryExW.argtypes = [w.LPCWSTR, w.HANDLE, w.DWORD]
     kernel.LoadLibraryExW.restype = w.HMODULE
     kernel.FreeLibrary.argtypes = [w.HMODULE]
-    user.CreateDialogParamA.argtypes = [w.HINSTANCE, c.c_void_p, w.HWND, callback_type, w.LPARAM]
-    user.CreateDialogParamA.restype = w.HWND
     user.GetDlgItem.argtypes = [w.HWND, c.c_int]
     user.GetDlgItem.restype = w.HWND
     user.SendMessageW.argtypes = [w.HWND, w.UINT, w.WPARAM, w.LPARAM]
@@ -42,7 +43,7 @@ def main():
     records = []
     try:
         for template in (666, 665):
-            dialog = user.CreateDialogParamA(module, c.c_void_p(template), None, callback, 0)
+            dialog = create_hidden_dialog(user, kernel, module, template, callback)
             if not dialog:
                 raise RuntimeError('Cannot create hidden original dialog')
             try:
@@ -98,7 +99,7 @@ def main():
         raise RuntimeError('Hidden observation activated its own window or changed thread focus')
     encoded = ',\n'.join(json.dumps(record) for record in records)
     args.output.write_text('{"originalSha256": ' + json.dumps(REFERENCE_SHA256) +
-                           ', "creationApi": "CreateDialogParamA", "records": [\n' +
+                           ', "creationApi": "CreateDialogIndirectParamA; outer WS_EX_NOACTIVATE", "records": [\n' +
                            encoded + '\n]}\n', encoding='utf-8')
     print(f'{len(records)} hidden original multiline layout records')
 

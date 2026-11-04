@@ -11,13 +11,11 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
+#include "hidden_resource_dialog.hpp"
 
 using namespace mikudancestudio;
 namespace {
-INT_PTR CALLBACK Hidden(HWND window, UINT message, WPARAM, LPARAM) {
-    if (message == WM_INITDIALOG)
-        SetWindowLongPtrW(window, GWL_EXSTYLE,
-                          GetWindowLongPtrW(window, GWL_EXSTYLE) | WS_EX_NOACTIVATE);
+INT_PTR CALLBACK Hidden(HWND, UINT message, WPARAM, LPARAM) {
     return message == WM_NEXTDLGCTL;
 }
 class Dialog final : public qt::TemplateDialog {
@@ -58,7 +56,10 @@ QImage Client(HWND window) {
 }
 }
 int main(int argc, char** argv) try {
+    const auto foregroundAtEntry = GetForegroundWindow();
+    const auto focusAtEntry = GetFocus();
     QApplication app(argc, argv);
+    HiddenDialogInputGuard hiddenInput;
     if (argc != 2 || QGuiApplication::platformName() != "windows")
         return 2;
     const QString output = QString::fromLocal8Bit(argv[1]);
@@ -71,8 +72,8 @@ int main(int argc, char** argv) try {
             return 1;
         Dialog dialog(language);
         auto* field = dialog.Field();
-        const auto native = CreateDialogParamW(
-            GetModuleHandleW(nullptr), MAKEINTRESOURCEW(dialog.Template().id), nullptr, Hidden, 0);
+        const auto native =
+            CreateHiddenResourceDialog(GetModuleHandleW(nullptr), dialog.Template().id, Hidden);
         const auto control = GetDlgItem(native, 668);
         if (!native || !control || IsWindowVisible(native))
             return 1;
@@ -133,6 +134,13 @@ int main(int argc, char** argv) try {
                         failures += difference != 0;
                         records.append(QJsonObject{{"case", stem}, {"different", int(difference)}});
                         ++cases;
+                        const auto foreground = GetForegroundWindow();
+                        DWORD process = 0;
+                        if (foreground)
+                            GetWindowThreadProcessId(foreground, &process);
+                        if (GetFocus() != focusAtEntry ||
+                            (process == GetCurrentProcessId() && foreground != foregroundAtEntry))
+                            throw std::runtime_error("hidden paint observer activated a window");
                     }
         DestroyWindow(native);
         if (dialog.isVisible() || field->isVisible())
@@ -141,11 +149,15 @@ int main(int argc, char** argv) try {
     QFile report(output + "/report.json");
     if (!report.open(QIODevice::WriteOnly))
         return 1;
-    report.write(QJsonDocument(QJsonObject{{"cases", int(cases)},
-                                           {"failures", int(failures)},
-                                           {"windowsShown", false},
-                                           {"records", records}})
-                     .toJson());
+    report.write(
+        QJsonDocument(QJsonObject{{"cases", int(cases)},
+                                  {"failures", int(failures)},
+                                  {"windowsShown", false},
+                                  {"outerDialogAdaptation", "WS_EX_NOACTIVATE before creation"},
+                                  {"activationProtection",
+                                   "thread-local WH_CBT veto; foreground/focus assertions"},
+                                  {"records", records}})
+            .toJson());
     std::cout << cases << " original multiline client paint states; " << failures
               << " mismatches; never shown\n";
     return cases != 432 || failures ? 1 : 0;

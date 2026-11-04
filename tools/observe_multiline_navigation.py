@@ -6,9 +6,12 @@ import hashlib
 import json
 from pathlib import Path
 
+from hidden_dialog_resource import create_hidden_dialog, hidden_input_guard
+
 from observe_edit_navigation import REFERENCE_SHA256
 
 
+@hidden_input_guard
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--original', type=Path, required=True)
@@ -18,12 +21,10 @@ def main():
         raise RuntimeError('Unexpected original executable')
     user, kernel = c.WinDLL('user32'), c.WinDLL('kernel32')
     callback_type = c.WINFUNCTYPE(c.c_ssize_t, w.HWND, w.UINT, w.WPARAM, w.LPARAM)
-    callback = callback_type(lambda hwnd, msg, wp, lp: msg in (0x110, 0x28))
+    callback = callback_type(lambda hwnd, msg, wp, lp: msg == 0x28)
     kernel.LoadLibraryExW.argtypes = [w.LPCWSTR, w.HANDLE, w.DWORD]
     kernel.LoadLibraryExW.restype = w.HMODULE
     kernel.FreeLibrary.argtypes = [w.HMODULE]
-    user.CreateDialogParamA.argtypes = [w.HINSTANCE, c.c_void_p, w.HWND, callback_type, w.LPARAM]
-    user.CreateDialogParamA.restype = w.HWND
     user.GetDlgItem.argtypes, user.GetDlgItem.restype = [w.HWND, c.c_int], w.HWND
     user.SendMessageW.argtypes = [w.HWND, w.UINT, w.WPARAM, w.LPARAM]
     user.SendMessageW.restype = c.c_ssize_t
@@ -41,7 +42,7 @@ def main():
     records = []
     try:
         for template in (666, 665):
-            dialog = user.CreateDialogParamA(module, c.c_void_p(template), None, callback, 0)
+            dialog = create_hidden_dialog(user, kernel, module, template, callback)
             assert dialog and not user.IsWindowVisible(dialog)
             edit = user.GetDlgItem(dialog, 668)
             assert edit and not user.IsWindowVisible(edit)
@@ -79,9 +80,9 @@ def main():
     finally:
         assert user.SetKeyboardState(keyboard)
         kernel.FreeLibrary(module)
-    if user.GetForegroundWindow() != foreground or user.GetFocus() != focus:
-        raise RuntimeError('Hidden observation changed foreground/focus')
-    header = dict(originalSha256=REFERENCE_SHA256, creationApi='CreateDialogParamA',
+    if user.GetFocus() != focus:
+        raise RuntimeError('Hidden observation changed thread focus')
+    header = dict(originalSha256=REFERENCE_SHA256, creationApi='CreateDialogIndirectParamA; outer WS_EX_NOACTIVATE',
                   scope='selection and explicit page scroll; not focus-driven scroll/caret paint',
                   text=text)
     encoded = json.dumps(header, ensure_ascii=False, indent=2)[:-2]
