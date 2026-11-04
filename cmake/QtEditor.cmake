@@ -144,6 +144,12 @@ function(mds_add_qt_editor)
             TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         target_link_libraries(qt_editor_chrome_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
+            qt_add_executable(qt_multiline_paint_test "${root}/tests/qt_multiline_paint_test.cpp"
+                "${root}/res/frontend_qt/windows.manifest" "${root}/res/templates/dialog/dialogs.rc")
+            target_link_libraries(qt_multiline_paint_test PRIVATE mikudancestudio_frontend_qt gdi32 user32)
+            add_test(NAME qt_multiline_paint COMMAND qt_multiline_paint_test "${CMAKE_BINARY_DIR}/multiline-paint")
+            set_tests_properties(qt_multiline_paint PROPERTIES LABELS "p4;hidden;qt;appearance;oracle"
+                TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=windows")
             qt_add_executable(qt_multiline_hit_test "${root}/tests/qt_multiline_hit_test.cpp")
             target_link_libraries(qt_multiline_hit_test PRIVATE mikudancestudio_frontend_qt)
             add_test(NAME qt_multiline_hit COMMAND qt_multiline_hit_test

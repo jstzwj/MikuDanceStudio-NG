@@ -43,12 +43,31 @@ public:
         setProperty("mmdNativeSunkenEdit", border);
         if (border)
             setFrameStyle(QFrame::StyledPanel | QFrame::Sunken);
-        document()->setDocumentMargin(0);
-        setViewportMargins(4, 1, english ? 4 : 2, 1);
+        // Keep one pixel of text overhang inside the viewport, rather than
+        // clipping a first glyph that extends into EDIT's formatting margin.
+        // The document margin preserves the measured caret/line origins.
+        document()->setDocumentMargin(1);
+        setViewportMargins(3, 0, english ? 3 : 1, 0);
+        connect(verticalScrollBar(), &QScrollBar::valueChanged, this, [this, english](int value) {
+            // QPlainTextEdit applies the document's top margin only at its
+            // first block. EDIT retains its formatting inset after scrolling.
+            const int top = value ? 1 : 0;
+            if (viewportMargins().top() != top)
+                setViewportMargins(3, top, english ? 3 : 1, 0);
+        });
         setTabStopDistance(56);
     }
 
 protected:
+    void paintEvent(QPaintEvent* event) override {
+        QPlainTextEdit::paintEvent(event);
+#ifdef _WIN32
+        if (QGuiApplication::platformName() == "windows") {
+            QPainter painter(viewport());
+            DrawWindowsMultilineText(painter, *this);
+        }
+#endif
+    }
     void mousePressEvent(QMouseEvent* event) override {
         MouseEvent(event, QEvent::MouseButtonPress);
     }

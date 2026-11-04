@@ -12,6 +12,7 @@
 #include <QPainter>
 #include <QVariant>
 #include <QWidget>
+#include <QPlainTextEdit>
 #ifdef _WIN32
 #include "editor_style_windows.hpp"
 #endif
@@ -86,6 +87,8 @@ public:
 #ifdef _WIN32
         if (element == PE_Frame && widget && widget->property("mmdNativeSunkenEdit").toBool() &&
             baseStyle()->objectName() == "windowsvista") {
+            if (const auto* edit = qobject_cast<const QPlainTextEdit*>(widget))
+                DrawWindowsMultilineBackground(*painter, option->rect, *edit);
             if (widget->isVisible() && DrawWindowsEditBorder(*painter, option->rect, option->state))
                 return;
             if (!widget->isVisible()) {

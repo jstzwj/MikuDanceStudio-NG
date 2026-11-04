@@ -10,6 +10,7 @@ class QFont;
 class QString;
 class QImage;
 class QWidget;
+class QPlainTextEdit;
 namespace mikudancestudio::ui {
 struct TrackbarGeometry;
 }
@@ -22,6 +23,8 @@ struct WindowsEditLayout {
     bool focused = false;
     bool caretVisible = false;
 };
+bool DrawWindowsMultilineText(QPainter&, const QPlainTextEdit&);
+void DrawWindowsMultilineBackground(QPainter&, const QRect&, const QPlainTextEdit&);
 bool DrawWindowsEditText(QPainter&, const QRect&, const QFont&, const QString&, bool english,
                          bool border, bool enabled, bool readOnly, bool autoScroll,
                          const WindowsEditLayout* = nullptr);

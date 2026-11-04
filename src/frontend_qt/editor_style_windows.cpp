@@ -6,6 +6,9 @@
 #include <QStyleOptionButton>
 #include <QFontInfo>
 #include <QWidget>
+#include <QPlainTextEdit>
+#include <QTextBlock>
+#include <QScrollBar>
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
@@ -69,6 +72,77 @@ private:
     HBITMAP bitmap_ = nullptr;
     HGDIOBJ previous_ = nullptr;
 };
+}
+void DrawWindowsMultilineBackground(QPainter& painter, const QRect& rect,
+                                    const QPlainTextEdit& edit) {
+    const auto face = GetSysColor(COLOR_BTNFACE), white = GetSysColor(COLOR_WINDOW);
+    painter.fillRect(rect.adjusted(2, 2, -2, -2),
+                     QColor(GetRValue(face), GetGValue(face), GetBValue(face)));
+    if (edit.isEnabled() && !edit.isReadOnly())
+        painter.fillRect(rect.adjusted(3, 3, -3, -3),
+                         QColor(GetRValue(white), GetGValue(white), GetBValue(white)));
+}
+bool DrawWindowsMultilineText(QPainter& painter, const QPlainTextEdit& edit) {
+    if (edit.hasFocus() || edit.property("_mmdImePreedit").toBool())
+        return false;
+    for (const auto character : edit.toPlainText())
+        if (character.unicode() > 0x7f)
+            return false;
+    const auto ratio = painter.device()->devicePixelRatioF();
+    const auto rect = edit.viewport()->rect();
+    WindowsCanvas canvas(qRound(rect.width() * ratio), qRound(rect.height() * ratio));
+    if (canvas.image.isNull())
+        return false;
+    const auto font = edit.font();
+    const auto nativeFont = CreateFontW(
+        -qRound(QFontInfo(font).pixelSize() * ratio), 0, 0, 0, font.bold() ? FW_BOLD : FW_NORMAL,
+        font.italic(), font.underline(), font.strikeOut(), DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+        CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH,
+        QFontInfo(font).family().toStdWString().c_str());
+    if (!nativeFont)
+        return false;
+    const auto previous = SelectObject(canvas.dc, nativeFont);
+    if (!previous || previous == HGDI_ERROR) {
+        DeleteObject(nativeFont);
+        return false;
+    }
+    RECT clip{0, 0, canvas.image.width(), canvas.image.height()};
+    FillRect(canvas.dc, &clip, GetSysColorBrush(COLOR_BTNFACE));
+    if (edit.isEnabled() && !edit.isReadOnly()) {
+        const auto white = edit.rect().adjusted(3, 3, -3, -3).translated(-edit.viewport()->pos());
+        const RECT background{qRound(white.left() * ratio), qRound(white.top() * ratio),
+                              qRound((white.right() + 1) * ratio),
+                              qRound((white.bottom() + 1) * ratio)};
+        FillRect(canvas.dc, &background, GetSysColorBrush(COLOR_WINDOW));
+    }
+    SetBkMode(canvas.dc, TRANSPARENT);
+    SetTextColor(canvas.dc, GetSysColor(edit.isEnabled() ? COLOR_WINDOWTEXT : COLOR_GRAYTEXT));
+    // The right document margin lies outside EDIT's formatting rectangle;
+    // retain left glyph overhang but clip the last partial glyph there.
+    clip.right -= std::max(1, qRound(ratio));
+    clip.bottom -= std::max(1, qRound(ratio));
+    if (edit.horizontalScrollBar()->value())
+        clip.left += std::max(1, qRound(ratio));
+    for (auto block = edit.document()->begin(); block.isValid(); block = block.next()) {
+        const auto text = block.text();
+        for (int first = 0; first < text.size();) {
+            const auto tab = text.indexOf('\t', first);
+            const auto last = tab < 0 ? text.size() : tab;
+            QTextCursor cursor(block);
+            cursor.setPosition(block.position() + first);
+            const auto origin = edit.cursorRect(cursor).topLeft();
+            const auto caption = text.mid(first, last - first).toStdWString();
+            ExtTextOutW(canvas.dc, qRound(origin.x() * ratio), qRound(origin.y() * ratio),
+                        ETO_CLIPPED, &clip, caption.c_str(), UINT(caption.size()), nullptr);
+            first = int(last) + 1;
+        }
+    }
+    GdiFlush();
+    canvas.image.setDevicePixelRatio(ratio);
+    painter.drawImage(rect.topLeft(), canvas.image);
+    SelectObject(canvas.dc, previous);
+    DeleteObject(nativeFont);
+    return true;
 }
 bool DrawWindowsEditText(QPainter& painter, const QRect& rect, const QFont& font,
                          const QString& text, bool english, bool border, bool enabled,
