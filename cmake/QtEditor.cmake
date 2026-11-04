@@ -36,6 +36,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/editor_dialogs.cpp"
         "${root}/src/frontend_qt/editor_input.cpp"
         "${root}/src/frontend_qt/edit_navigation.cpp"
+        "${root}/src/frontend_qt/multiline_hit.cpp"
         "${root}/src/frontend_qt/editor_font.cpp"
         "${root}/src/frontend_qt/editor_style.cpp"
         "${root}/src/frontend_qt/editor_menus.cpp"
@@ -143,6 +144,12 @@ function(mds_add_qt_editor)
             TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         target_link_libraries(qt_editor_chrome_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)
+            qt_add_executable(qt_multiline_hit_test "${root}/tests/qt_multiline_hit_test.cpp")
+            target_link_libraries(qt_multiline_hit_test PRIVATE mikudancestudio_frontend_qt)
+            add_test(NAME qt_multiline_hit COMMAND qt_multiline_hit_test
+                "${root}/tests/reference/original-multiline-hit.json")
+            set_tests_properties(qt_multiline_hit PROPERTIES LABELS "p4;hidden;qt;input;oracle"
+                TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=windows")
             qt_add_executable(qt_multiline_navigation_test "${root}/tests/qt_multiline_navigation_test.cpp")
             target_link_libraries(qt_multiline_navigation_test PRIVATE mikudancestudio_frontend_qt)
             add_test(NAME qt_multiline_navigation COMMAND qt_multiline_navigation_test

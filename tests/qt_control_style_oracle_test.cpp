@@ -70,6 +70,9 @@ class ThreadKeyboardState {
 public:
     explicit ThreadKeyboardState(bool control) {
         Check(GetKeyboardState(previous_), "read this test thread's keyboard table");
+        SetControl(control);
+    }
+    static void SetControl(bool control) {
         BYTE state[256]{};
         if (control)
             state[VK_CONTROL] = 0x80;
@@ -80,6 +83,18 @@ public:
 private:
     BYTE previous_[256]{};
 };
+unsigned CheckHiddenInput(HWND foregroundBefore, HWND focusBefore) {
+    const auto foreground = GetForegroundWindow();
+    DWORD process = 0;
+    if (foreground)
+        GetWindowThreadProcessId(foreground, &process);
+    // The user may switch between unrelated applications while this hidden
+    // observer runs. Only this thread's focus and activation of our own process
+    // are under test; never restore or otherwise alter desktop foreground.
+    Check(process != GetCurrentProcessId(), "hidden observer activated a test-owned window");
+    Check(GetFocus() == focusBefore, "hidden observer changed its thread's native focus");
+    return foreground != foregroundBefore;
+}
 QImage NativeImage(HWND control, bool visible, bool clientOnly = false) {
     RECT rectangle{}, child{};
     Check(GetWindowRect(control, &child), "native control window rectangle");
@@ -428,6 +443,7 @@ int main(int argc, char** argv) try {
     QJsonArray editReference;
     QJsonArray multilineReturn;
     unsigned editDeleteCases = 0;
+    unsigned externalForegroundChanges = 0;
     if (editText) {
         QFile file(QString::fromUtf8(MDS_EDIT_LAYOUT_REFERENCE));
         Check(file.open(QIODevice::ReadOnly), "open independent original EDIT layouts");
@@ -488,7 +504,13 @@ int main(int argc, char** argv) try {
                         SendMessageW(control, EM_SETSEL, range.first, range.second);
                         field->setText(QString::fromWCharArray(before));
                         field->setSelection(range.first, range.second - range.first);
+                        // Native/Qt setup can pump this thread's queue. Bind
+                        // the intended modifier immediately to the observed
+                        // native command, independently of physical user keys.
+                        ThreadKeyboardState::SetControl(true);
+                        const auto controlBefore = GetKeyState(VK_CONTROL);
                         SendMessageW(control, WM_KEYDOWN, VK_DELETE, 1);
+                        const auto controlAfter = GetKeyState(VK_CONTROL);
                         SendMessageW(control, WM_KEYUP, VK_DELETE, LPARAM(0xc0000001u));
                         QKeyEvent key(QEvent::KeyPress, Qt::Key_Delete, Qt::ControlModifier);
                         QCoreApplication::sendEvent(field, &key);
@@ -504,10 +526,11 @@ int main(int argc, char** argv) try {
                             qtFirst + field->selectedText().size() != int(last))
                             std::fprintf(
                                 stderr,
-                                "EDIT delete template=%d control=%d range=%d,%d native=%lu,%lu:'%ls' Qt=%d,%d:'%s'\n",
+                                "EDIT delete template=%d control=%d range=%d,%d native=%lu,%lu:'%ls' Qt=%d,%d:'%s' ctrl=%x,%x\n",
                                 description->id, entry.id, range.first, range.second, first, last,
                                 value, qtFirst, int(qtFirst + field->selectedText().size()),
-                                field->text().toUtf8().constData());
+                                field->text().toUtf8().constData(), unsigned(controlBefore),
+                                unsigned(controlAfter));
                         Check(field->text() == QString::fromWCharArray(value) &&
                                   qtFirst == int(first) &&
                                   qtFirst + field->selectedText().size() == int(last),
@@ -527,8 +550,7 @@ int main(int argc, char** argv) try {
                         }
                         ++editDeleteCases;
                     }
-                    Check(GetForegroundWindow() == foreground && GetFocus() == focus,
-                          "hidden EDIT deletion changed native focus/activation");
+                    externalForegroundChanges += CheckHiddenInput(foreground, focus);
                     SendMessageW(control, EM_SETREADONLY, (entry.style & ES_READONLY) != 0, 0);
                     field->setReadOnly((entry.style & ES_READONLY) != 0);
                     EnableWindow(control, enabled);
@@ -564,8 +586,7 @@ int main(int argc, char** argv) try {
                             DispatchMessageW(&pending);
                         }
                     }
-                    Check(GetForegroundWindow() == foreground && GetFocus() == focus,
-                          "hidden multiline command changed native focus/activation");
+                    externalForegroundChanges += CheckHiddenInput(foreground, focus);
                     const bool inserts = ctrl || (entry.style & ES_WANTRETURN);
                     wchar_t value[32]{};
                     GetWindowTextW(control, value, 32);
@@ -1059,6 +1080,7 @@ int main(int argc, char** argv) try {
         {"editCursorMismatches", int(editCursorMismatches)},
         {"multilineReturn", multilineReturn},
         {"editDeleteCases", int(editDeleteCases)},
+        {"externalForegroundChanges", int(externalForegroundChanges)},
         {"windowsShown", visible}};
     report.insert("capture",
                   "own dialog PrintWindow; overlapping siblings excluded; explicit focus state");

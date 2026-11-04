@@ -13,6 +13,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--original', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--hit-test', action='store_true',
+                        help='freeze read-only EM_CHARFROMPOS samples in the client rectangle')
     args = parser.parse_args()
     if hashlib.sha256(args.original.read_bytes()).hexdigest() != REFERENCE_SHA256:
         raise RuntimeError('Unexpected original executable')
@@ -33,7 +35,7 @@ def main():
     user.MapWindowPoints.argtypes = [w.HWND, w.HWND, c.POINTER(w.POINT), w.UINT]
     user.IsWindowVisible.argtypes = user.DestroyWindow.argtypes = [w.HWND]
     user.GetForegroundWindow.restype = user.GetFocus.restype = w.HWND
-    foreground, focus = user.GetForegroundWindow(), user.GetFocus()
+    focus = user.GetFocus()
     module = kernel.LoadLibraryExW(str(args.original.resolve()), None, 0x22)
     if not module:
         raise RuntimeError('Cannot map original resource data')
@@ -64,19 +66,36 @@ def main():
                         x = c.c_short(position & 0xFFFF).value + origin.x - outer.left
                         y = c.c_short((position >> 16) & 0xFFFF).value + origin.y - outer.top
                         positions.append([index, x, y])
-                    records.append(dict(template=template, text=text,
-                                        outer=[outer.right - outer.left, outer.bottom - outer.top],
-                                        client=[client.right, client.bottom],
-                                        origin=[origin.x - outer.left, origin.y - outer.top],
-                                        format=[formatting.left, formatting.top,
-                                                formatting.right, formatting.bottom],
-                                        lines=user.SendMessageW(edit, 0xBA, 0, 0), positions=positions))
+                    record = dict(template=template, text=text,
+                                  outer=[outer.right - outer.left, outer.bottom - outer.top],
+                                  client=[client.right, client.bottom],
+                                  origin=[origin.x - outer.left, origin.y - outer.top],
+                                  format=[formatting.left, formatting.top,
+                                          formatting.right, formatting.bottom],
+                                  lines=user.SendMessageW(edit, 0xBA, 0, 0), positions=positions)
+                    if args.hit_test:
+                        native_text = text.replace('\n', '\r\n')
+                        points = []
+                        for y in range(0, client.bottom, 3):
+                            for x in range(0, client.right, 3):
+                                result = user.SendMessageW(edit, 0xD7, 0, x | (y << 16))
+                                index = result & 0xFFFF
+                                points.append([x, y, index - native_text[:index].count('\r')])
+                        record['hitTest'] = points
+                        del record['positions']
+                    records.append(record)
             finally:
                 user.DestroyWindow(dialog)
     finally:
         kernel.FreeLibrary(module)
-    if user.GetForegroundWindow() != foreground or user.GetFocus() != focus:
-        raise RuntimeError('Hidden observation changed foreground/focus')
+    process = w.DWORD()
+    user.GetWindowThreadProcessId.argtypes = [w.HWND, c.POINTER(w.DWORD)]
+    kernel.GetCurrentProcessId.restype = w.DWORD
+    current_foreground = user.GetForegroundWindow()
+    if current_foreground:
+        user.GetWindowThreadProcessId(current_foreground, c.byref(process))
+    if process.value == kernel.GetCurrentProcessId() or user.GetFocus() != focus:
+        raise RuntimeError('Hidden observation activated its own window or changed thread focus')
     encoded = ',\n'.join(json.dumps(record) for record in records)
     args.output.write_text('{"originalSha256": ' + json.dumps(REFERENCE_SHA256) +
                            ', "creationApi": "CreateDialogParamA", "records": [\n' +

@@ -7,6 +7,7 @@
 #include <QApplication>
 #include "edit_composition.hpp"
 #include "edit_navigation.hpp"
+#include "multiline_hit.hpp"
 #include "mikudancestudio/mmd_dialog_edit_metrics.hpp"
 #include "mikudancestudio/gravity_edit.hpp"
 #include <QLabel>
@@ -18,6 +19,7 @@
 #include <QKeyEvent>
 #include <QCloseEvent>
 #include <QWheelEvent>
+#include <QMouseEvent>
 #include <QStyledItemDelegate>
 #include <QPainter>
 #include <QStyleOptionFrame>
@@ -47,6 +49,38 @@ public:
     }
 
 protected:
+    void mousePressEvent(QMouseEvent* event) override {
+        MouseEvent(event, QEvent::MouseButtonPress);
+    }
+    void mouseMoveEvent(QMouseEvent* event) override { MouseEvent(event, QEvent::MouseMove); }
+    void mouseReleaseEvent(QMouseEvent* event) override {
+        MouseEvent(event, QEvent::MouseButtonRelease);
+    }
+    void mouseDoubleClickEvent(QMouseEvent* event) override {
+        MouseEvent(event, QEvent::MouseButtonDblClick);
+    }
+    void MouseEvent(QMouseEvent* event, QEvent::Type type) {
+        const auto cursor = MultilineCursorForPosition(*this, event->position());
+        const auto rectangle = cursorRect(cursor);
+        // Let Qt retain selection anchors, shift/word selection, dragging,
+        // input-method commits and autoscroll. Change only its hit point.
+        auto position = event->position();
+        if (viewport()->rect().contains(position.toPoint()) &&
+            cursor.position() != cursorForPosition(position.toPoint()).position())
+            position = QPointF(rectangle.left(), rectangle.center().y());
+        QMouseEvent adjusted(type, position, event->scenePosition(), event->globalPosition(),
+                             event->button(), event->buttons(), event->modifiers(), event->source(),
+                             event->pointingDevice());
+        if (type == QEvent::MouseButtonPress)
+            QPlainTextEdit::mousePressEvent(&adjusted);
+        else if (type == QEvent::MouseMove)
+            QPlainTextEdit::mouseMoveEvent(&adjusted);
+        else if (type == QEvent::MouseButtonRelease)
+            QPlainTextEdit::mouseReleaseEvent(&adjusted);
+        else
+            QPlainTextEdit::mouseDoubleClickEvent(&adjusted);
+        event->setAccepted(adjusted.isAccepted());
+    }
     void keyPressEvent(QKeyEvent* event) override {
         const auto modifiers = event->modifiers();
         const bool legacy =
