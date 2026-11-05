@@ -25,9 +25,11 @@ configure_file("${root}/res/frontend_qt/android/AndroidManifest.xml.in"
 file(GLOB_RECURSE mds_android_assets CONFIGURE_DEPENDS "${root}/res/assets/*")
 qt_add_resources(MikuDanceStudioNG android_assets PREFIX "/android/assets" BASE "${root}/res/assets"
     FILES ${mds_android_assets})
-get_filename_component(mds_android_font_dir "${MDS_EDITOR_FONT_FILE}" DIRECTORY)
-qt_add_resources(MikuDanceStudioNG android_fonts PREFIX "/fonts" BASE "${mds_android_font_dir}"
-    FILES "${MDS_EDITOR_FONT_FILE}")
+# A single ABI-independent APK asset avoids compiling and embedding the same
+# 19 MB collection into both native libraries (and evicting useful object cache).
+file(MAKE_DIRECTORY "${mds_android_package}/assets/fonts")
+configure_file("${MDS_EDITOR_FONT_FILE}"
+    "${mds_android_package}/assets/fonts/NotoSansCJK-Regular.ttc" COPYONLY)
 if(MDS_VERSION_MINOR GREATER 999 OR MDS_VERSION_PATCH GREATER 999)
     message(FATAL_ERROR "Android's version code requires minor/patch < 1000")
 endif()

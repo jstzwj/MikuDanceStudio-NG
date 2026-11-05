@@ -9,6 +9,7 @@ import shlex
 import re
 import zipfile
 import sys
+import hashlib
 import cpu_import_fixture
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from release_contract import inspect_archive
@@ -71,6 +72,9 @@ def main():
     inspect_archive(args.apk)
     with zipfile.ZipFile(args.apk) as apk:
         (args.output / 'build-info.json').write_bytes(apk.read('assets/build-info.json'))
+        if hashlib.sha256(apk.read('assets/fonts/NotoSansCJK-Regular.ttc')).hexdigest() != \
+                'b76b0433203017ca80401b2ee0dd69350349871c4b19d504c34dbdd80541690a':
+            raise RuntimeError('APK is missing the unchanged qualified font collection')
     emulator = adb('shell', 'getprop', 'ro.kernel.qemu', capture_output=True, text=True)
     if emulator.stdout.strip() != '1':
         raise RuntimeError('Android qualification requires an isolated emulator, not a physical device')
@@ -108,10 +112,19 @@ def main():
         start('--deployment-check ' + FILES + '/deployment.json ' + FILES + '/fixtures/v2.pmm', driver)
         deployment = wait_report('deployment.json', None, args.output)
         version = (Path(__file__).resolve().parents[1] / 'VERSION').read_text().strip()
-        if deployment.get('version') != version or len(deployment.get('languages', [])) != 15:
+        languages = ['en', 'ja', 'zh_CN', 'zh_TW', 'ko', 'fr', 'de', 'es', 'it',
+                     'pt_BR', 'ru', 'nl', 'pl', 'tr', 'vi']
+        if deployment.get('version') != version or deployment.get('languages') != languages:
             raise RuntimeError(f'Incomplete Android deployment check: {deployment}')
         if deployment.get('width') != 96 or deployment.get('height') != 64 or not deployment.get('vulkan'):
             raise RuntimeError(f'Android offscreen rendering did not pass: {deployment}')
+        if not deployment.get('bundledFonts') or deployment.get('runtimeShaderCompiler') is not False:
+            raise RuntimeError(f'Unexpected Android fonts/compiler deployment: {deployment}')
+        if not all(size in deployment.get('applicationIconSizes', []) for size in ([16, 16], [32, 32])):
+            raise RuntimeError('Android could not load its original application icon')
+        labels = deployment.get('standardCancelLabels', [])
+        if len(labels) != len(languages) or labels[0] != 'Cancel' or any(not t or t == 'Cancel' for t in labels[1:]):
+            raise RuntimeError(f'Qt standard dialog translations were not deployed: {labels}')
         (args.output / 'deployment.json').write_text(json.dumps(deployment, indent=2) + '\n')
         adb('pull', FILES + '/deployment.json.png', str(args.output / 'offscreen.png'))
         adb('shell', 'am', 'force-stop', PACKAGE)

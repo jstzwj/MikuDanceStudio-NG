@@ -60,6 +60,7 @@ bool InstallEditorFonts() {
         const auto directory = QCoreApplication::applicationDirPath();
         for (const auto& path : {directory + "/fonts/NotoSansCJK-Regular.ttc",
                                  directory + "/../Resources/fonts/NotoSansCJK-Regular.ttc",
+                                 QStringLiteral("assets:/fonts/NotoSansCJK-Regular.ttc"),
                                  QStringLiteral(":/fonts/NotoSansCJK-Regular.ttc")}) {
             if (!QFileInfo::exists(path))
                 continue;
