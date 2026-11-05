@@ -26,6 +26,7 @@ int main() {
     CHECK(!CreateWindowSurface({WindowSystem::Xcb, 9}, 0, host, health, reason));
     CHECK(!CreateWindowSurface({WindowSystem::Wayland, 9}, 0, host, health, reason));
     CHECK(CreateWindowSurface({WindowSystem::Wayland, 9}, 10, host, health, reason));
+    CHECK(CreateWindowSurface({WindowSystem::Android, 9}, 0, host, health, reason));
     auto source = CreateWindowSurface(window, 0, host, health, reason);
     CHECK(source && reason.empty() && source->health() == SurfaceHealth::Ready);
     host->state = SurfaceHealth::Suspended;

@@ -5,6 +5,9 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #elif defined(__APPLE__)
 #define VK_USE_PLATFORM_METAL_EXT
+#elif defined(__ANDROID__)
+#include <android/native_window.h>
+#define VK_USE_PLATFORM_ANDROID_KHR
 #else
 #ifdef MDS_SURFACE_XCB
 #include <xcb/xcb.h>
@@ -64,6 +67,19 @@ CreateVulkanSurface(std::shared_ptr<const WindowSurfaceSource> host, std::string
                 return VK_ERROR_EXTENSION_NOT_PRESENT;
             VkMetalSurfaceCreateInfoEXT info{VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT};
             info.pLayer = reinterpret_cast<const CAMetalLayer*>(window.handle);
+            return fn(instance, &info, nullptr, &out);
+        };
+    }
+#elif defined(__ANDROID__)
+    if (window.system == WindowSystem::Android) {
+        extension = VK_KHR_ANDROID_SURFACE_EXTENSION_NAME;
+        create = [window](VkInstance instance, const VulkanProcLookup& lookup, VkSurfaceKHR& out) {
+            auto fn = reinterpret_cast<PFN_vkCreateAndroidSurfaceKHR>(
+                lookup("vkCreateAndroidSurfaceKHR"));
+            if (!fn)
+                return VK_ERROR_EXTENSION_NOT_PRESENT;
+            VkAndroidSurfaceCreateInfoKHR info{VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR};
+            info.window = reinterpret_cast<ANativeWindow*>(window.handle);
             return fn(instance, &info, nullptr, &out);
         };
     }

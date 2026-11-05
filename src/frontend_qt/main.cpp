@@ -16,6 +16,13 @@
 #include "mikudancestudio/shader_compiler.hpp"
 #include <cstdio>
 #include <iostream>
+#ifdef __ANDROID__
+#include "android_files.hpp"
+#include "android_acceptance.hpp"
+#include <QMenuBar>
+#include <QMenu>
+#include <QMessageBox>
+#endif
 
 namespace {
 #ifdef __APPLE__
@@ -63,6 +70,8 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
         std::cerr << "deployment render: " << reason << '\n';
         return 4;
     }
+    const bool runtimeCompiler = rhi::DefaultSpirvCompiler()->Available();
+#ifndef __ANDROID__
     if (rhi::BackendAvailable(rhi::Backend::Vulkan) || rhi::BackendAvailable(rhi::Backend::Metal)) {
         rhi::ShaderModule shader;
         shader.stage = rhi::ShaderStage::Pixel;
@@ -74,6 +83,7 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
             return 5;
         }
     }
+#endif
     if (window.isVisible() || image.isNull() || !image.save(report + ".png"))
         return 6;
     QJsonArray iconSizes;
@@ -86,6 +96,8 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
     const auto proxy = qobject_cast<QProxyStyle*>(qApp->style());
     const auto styleBase = proxy ? proxy->baseStyle()->objectName() : qApp->style()->objectName();
     QJsonObject result{{"qt", qVersion()},
+                       {"version", QCoreApplication::applicationVersion()},
+                       {"runtimeShaderCompiler", runtimeCompiler},
                        {"applicationIconSizes", iconSizes},
                        {"bundledFonts", mikudancestudio::qt::InstallEditorFonts()},
                        {"platform", QGuiApplication::platformName()},
@@ -134,9 +146,26 @@ int main(int argc, char** argv) {
                           : QCoreApplication::applicationDirPath() + "/assets"});
     parser.addOption(
         {"deployment-check", "Check the installed editor without showing windows", "report"});
+#ifdef __ANDROID__
+    parser.addOption(
+        {"android-acceptance", "Isolated emulator presentation and lifecycle check", "report"});
+#endif
     parser.process(app);
-    const auto assets = mikudancestudio::qt::Path(parser.value("assets"));
-    mikudancestudio::qt::EditorWindow window(assets, parser.isSet("deployment-check"));
+    QString assetsPath = parser.value("assets");
+#ifdef __ANDROID__
+    QString reason;
+    assetsPath = mikudancestudio::qt::PrepareAndroidAssets(reason);
+    if (assetsPath.isEmpty()) {
+        std::cerr << reason.toStdString() << '\n';
+        return 9;
+    }
+#endif
+    const auto assets = mikudancestudio::qt::Path(assetsPath);
+    bool testing = parser.isSet("deployment-check");
+#ifdef __ANDROID__
+    testing = testing || parser.isSet("android-acceptance");
+#endif
+    mikudancestudio::qt::EditorWindow window(assets, testing);
     if (parser.isSet("deployment-check"))
         return DeploymentCheck(window, parser.value("deployment-check"), assets,
                                parser.positionalArguments().value(0));
@@ -144,6 +173,20 @@ int main(int argc, char** argv) {
         window.SetLanguage(parser.value("language"));
     if (!parser.positionalArguments().empty())
         window.Open(mikudancestudio::qt::Path(parser.positionalArguments()[0]));
+#ifdef __ANDROID__
+    if (parser.isSet("android-acceptance"))
+        return mikudancestudio::qt::RunAndroidAcceptance(app, window,
+                                                         parser.value("android-acceptance"));
+    if (!window.menuBar()->actions().isEmpty()) {
+        auto* menu = window.menuBar()->actions().front()->menu();
+        auto* action = menu->addAction(QObject::tr("Import workspace folder…"));
+        QObject::connect(action, &QAction::triggered, &window, [&window] {
+            QString error;
+            if (!mikudancestudio::qt::ImportAndroidWorkspace(&window, error))
+                QMessageBox::warning(&window, QObject::tr("Workspace import"), error);
+        });
+    }
+#endif
     window.show();
     return app.exec();
 }

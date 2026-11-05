@@ -9,6 +9,11 @@ rendering and a native editor for Windows, macOS and Linux. It grows from a
 source-level reconstruction of MikuMikuDance v9.32, with the original program's
 behavior as our reference.
 
+Release policy: **portable desktop packages only** (no installer), plus an
+Android APK. The first `v0.0.1` preview is being prepared for Windows x64/ARM64,
+Apple Silicon macOS, Linux x64 and Android; publication waits for all five
+targets to pass. See the [release and testing guide](docs/RELEASES.md).
+
 ## Our story
 
 Eight years ago, I spent a night talking with **Rui, the author of

@@ -1,31 +1,43 @@
-# Qt editor development distributions
+# Portable packages
 
-These packages contain the current NG editor. P4/C1 acceptance is still in
-progress; a successful package build does not imply complete MMD parity.
+NG desktop distributions are self-contained application folders, without an
+installer. Windows includes Qt DLLs/plugins, the MSVC runtime, translations,
+fonts and DXC. macOS contains an `.app` with Qt frameworks/plugins, native Metal
+and DXC; enabling Vulkan also bundles MoltenVK. Linux bundles Qt and compiler
+libraries; the host supplies compatible glibc, X11/Wayland/audio services and a
+Vulkan loader/driver. Runtime notices and licenses accompany every package.
 
-The deployment follows Muffin's separate `dist` target and relocated smoke-test
-pattern, using Qt's deployment API for this project's Qt 6.8.3 baseline.
-Windows includes Qt DLLs, MSVC runtime and platform/multimedia/image plugins.
-Qt Linguist application catalogs are compiled automatically; application and
-Qt base translations are embedded, and application `.qm` files are also placed
-in the distribution's `translations` directory. The SDK must include Linguist
-tools and the matching Qt base translations. See [translation maintenance](../translations/README.md).
-macOS uses an `.app` with Qt frameworks and plugins; native Metal is its default
-renderer. A build that also enables Vulkan includes MoltenVK. Linux includes Qt
-and non-system dependencies; the host supplies glibc, display/audio services and
-the Vulkan loader/driver. The Linux baseline is Ubuntu 22.04 x64; macOS is 13+
-arm64. Packages are development artifacts, unsigned on Windows and ad-hoc signed
-on macOS.
+Android uses a signed APK with Qt and built-in shaders; it has no external
+runtime compiler. Import a complete workspace directory with the Android file
+menu before opening PMM/models so relative textures, motions and model paths
+remain intact. The initial Android UI targets landscape tablets and requires
+Android 13+ / Vulkan 1.3. This is a separate deployment profile, not the Linux
+desktop profile renamed to Android.
 
-Build the portable editor, then deploy:
+The [release guide](RELEASES.md) is authoritative for target platforms,
+qualification requirements, signing and publication. P4 was accepted for
+progression with physical mixed-DPI testing deferred; P5/MME remains incomplete.
+A package build is not a claim of full MMD/MME/Ray compatibility.
+
+## Build and deploy a desktop package
+
+Install the pinned Qt 6.8.3 SDK and modules using `requirements-build.txt` and
+`python tools/setup_qt.py`. Windows defaults to the native x64/ARM64 Qt SDK;
+Linux uses gcc_64 and macOS clang_64. Configure `Qt6_ROOT` or `CMAKE_PREFIX_PATH`
+when using another SDK installation. Qt Linguist tools and matching Qt base
+translations are required. The application provides 15 language catalogs; see
+[translation maintenance](../translations/README.md).
 
 ```sh
-cmake -S cmake/portable-editor -B out/build -DCMAKE_PREFIX_PATH=/path/to/Qt/6.8.3/platform
+cmake -S cmake/portable-editor -B out/build -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_PREFIX_PATH=/path/to/Qt/6.8.3/platform
+cmake --build out/build --config Release --parallel 3
+ctest --test-dir out/build -C Release -L 'p4|p5' --output-on-failure
 cmake --build out/build --config Release --target dist --parallel 3
 python tests/test_editor_distribution.py --dist out/dist
 ```
 
-For the locally installed Windows SDKs, configure with:
+The local Windows x64 SDK example is:
 
 ```powershell
 cmake -S cmake/portable-editor -B out/build -G "Visual Studio 17 2022" -A x64 `
@@ -33,61 +45,55 @@ cmake -S cmake/portable-editor -B out/build -G "Visual Studio 17 2022" -A x64 `
   -DMDS_DXC="$PWD/out/dxc-dist/dxc.exe" `
   -DMDS_DXC_RUNTIME_DIR="$PWD/out/dxc-dist"
 cmake --build out/build --config Release --target dist --parallel 3
+python tests/test_editor_distribution.py --archive out/releases/MikuDanceStudio-NG-v0.0.1-windows-x64-portable.zip
 ```
 
-Run `out/dist/MikuDanceStudioNG.exe` on Windows. Copy the entire distribution,
-including Qt DLLs, plugins, fonts and assets, when moving it elsewhere. `out/qt`,
-`out/dxc-dist` and `out/editor-fonts` are reusable SDK/input caches, not extra
-application builds. Historical qualification captures/logs belong in
-`out/evidence`; their former paths are retained in a local relocation manifest.
+Run `out/dist/MikuDanceStudioNG.exe`, `out/dist/MikuDanceStudioNG.app`, or
+`out/dist/bin/MikuDanceStudioNG`. Copy the **entire folder** when relocating it.
+The `dist` target replaces only its own marked output after a complete install.
+It writes archives/checksums to `out/releases`; configure `MDS_DIST_DIR` and
+`MDS_DIST_ARCHIVE_DIR` to keep multiple independent packages.
 
-The target writes `out/dist`; platform archives and SHA-256 files go to
-`out/releases`. Build caches and test executables stay in `out/build` (older
-P4 qualification builds used `out/p4`). The deployment path is independent of
-the chosen build directory. Override `MDS_DIST_DIR` and `MDS_DIST_ARCHIVE_DIR`
-at configure time when keeping multiple distributions. The target
-replaces only its own marked output after installation succeeds. It does not
-copy the Qt SDK or depend on a Qt directory in the user's PATH. The smoke test
-relocates the package into a temporary directory, removes Qt/developer search
-paths, opens generated PMM data and renders offscreen. No desktop window or
-audio output is used.
+Local and branch packages are explicitly development builds. Release jobs
+configure `MDS_RELEASE_TAG=vVERSION` and require HEAD at that exact tag with no
+tracked source modifications. `build-info.json` records the product, version,
+full source commit, actual binary architecture, Qt and compiled backends.
+Archive names come from the executable header, not the packaging host CPU.
 
-Configure with `Qt6_ROOT` or `CMAKE_PREFIX_PATH` pointing to the desired SDK.
-Install `requirements-build.txt` with pip, then run `python tools/setup_qt.py`
-to install the pinned SDK used by CI. Linux also requires
-the X11/Wayland development packages listed in `portable-editor.yml`, plus
-`patchelf` for deployment. Vulkan builds require DXC and Vulkan headers. Native
-Metal builds use DXC and the pinned static SPIRV-Cross MSL compiler; they do not
-require Vulkan headers or MoltenVK. Set `MIKUDANCESTUDIO_RHI_VULKAN=OFF` for a
-Metal-only macOS editor/package; Metal defaults on in the portable editor profile.
-Use `tools/fetch_dxc.py --output out/dxc` and configure `MDS_DXC` to its executable;
-`MDS_DXC_RUNTIME_DIR` can override the runtime distribution location. On macOS,
-use the pinned DXC source build in CI. When also enabling Vulkan, set
-`MDS_MOLTENVK_LIBRARY` to the output of `tools/fetch_moltenvk_probe.py`.
-Runtime compiler libraries and their licenses
-are included; the build machine's SDK paths are unnecessary at runtime.
+## Renderer/tool inputs
 
-CI publishes archives as workflow artifacts after build, regression and package
-smoke tests. A version tag creates a draft GitHub Release from the same tested
-artifacts. Compiler caches are partitioned by OS, architecture, compiler image
-and Qt version; dependency downloads use their pinned revisions. CMake build
-trees and runner/compiler profiles are never restored as caches.
+Vulkan requires Vulkan headers, host DXC and spirv-val at build time. Use
+`tools/fetch_dxc.py --output out/dxc` for the checksum-pinned Windows/Linux
+compiler; Windows supports native x64 and ARM64. macOS uses the pinned DXC
+source build in CI. `MDS_DXC_RUNTIME_DIR` selects the matching runtime bundle.
+Native Metal builds share HLSL through DXC and the pinned SPIRV-Cross MSL compiler.
+Set `MIKUDANCESTUDIO_RHI_VULKAN=OFF` for a Metal-only macOS package. When enabling
+Vulkan on macOS, set `MDS_MOLTENVK_LIBRARY` to the pinned MoltenVK distribution.
 
-Windows CI checks DX11/DX12 WARP presentation and bundles Vulkan, but does not
-claim Vulkan device execution on runners without a Vulkan driver. Linux and
-macOS execute the Vulkan path. macOS additionally tests native Metal offscreen
-and Qt presentation at normal/2x scale, actual drawable pixels, window recreation
-and switching between Metal/Vulkan. Packages with either backend check their
-shipped DXC. The macOS job also builds and relocates a Metal-only package with
-no MoltenVK library. Hosted Apple paravirtual GPU evidence does not establish
-performance or release qualification on physical Intel/Apple Silicon devices.
+Linux build dependencies are listed in `portable-editor.yml`; deployment needs
+`patchelf`. Windows CI exercises DX11/DX12 WARP; a Windows runner without a Vulkan
+driver does not establish Vulkan device execution. Linux exercises software
+Vulkan; macOS exercises native Metal and MoltenVK. Hosted evidence does not
+establish performance on every physical GPU.
 
-Qt's standard dialog translations are bundled in addition to the editor's
-embedded English, Japanese and Simplified Chinese catalogs. Runtime licenses
-and source references are under `licenses/`.
+The unmodified OFL-licensed Noto Sans CJK 2.004 TTC is downloaded with a verified
+SHA-256 and bundled with its license. Use `MDS_EDITOR_FONT_FILE` for offline
+builds of the same qualified TTC. Original installed fonts retain priority;
+fallback glyph differences follow the accepted P4 policy.
 
-The unmodified, OFL-licensed Noto Sans CJK 2.004 Regular collection is included
-for hosts without Japanese/Chinese system fonts. CMake fetches its pinned source
-revision and verifies SHA-256; offline builds can set `MDS_EDITOR_FONT_FILE` to
-that same TTC. Installed original fonts keep priority. This fallback supplies
-glyphs and is not a claim of identical Windows font metrics on other systems.
+## Android reproduction
+
+Use a Linux x64 build host, Java 17, Android SDK 35 / build-tools 35.0.0 and
+NDK 26.1.10909125. `python tools/setup_qt.py --target android` installs matching
+host tools and ARM64/x86_64 Qt SDKs. The workflow's `qt-cmake` invocation builds
+one multi-ABI APK from the same sources, forwards host shader tools explicitly,
+and embeds fonts, original assets, translations and licenses. The app's private
+filesystem staging bridges Qt resources/document providers to the CPU core.
+
+`android.yml` documents the exact configure/build, signing and emulator commands.
+`tools/package_android.py` checks the manifest, signs with Android build-tools,
+verifies signatures and writes the APK checksum. The emulator gate installs
+that exact APK, checks PMM/15 languages/offscreen GPU output, then native
+presentation, window/device rebuilding and background/resume. Desktop tests
+stay offscreen/hidden; emulator interaction is restricted to its isolated CI
+device and never touches the developer's desktop.

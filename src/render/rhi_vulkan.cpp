@@ -1766,7 +1766,11 @@ bool VulkanDevice::Initialize(unsigned w, unsigned h, VulkanDriver driver, Vulka
                                     "@executable_path/libvulkan.1.dylib", "libvulkan.1.dylib",
                                     "libMoltenVK.dylib"};
 #else
+#ifdef __ANDROID__
+        const char* candidates[] = {"libvulkan.so"};
+#else
         const char* candidates[] = {"libvulkan.so.1"};
+#endif
 #endif
         for (const auto* path : candidates) {
             library = dlopen(path, RTLD_NOW | RTLD_LOCAL);

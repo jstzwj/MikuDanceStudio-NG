@@ -7,15 +7,38 @@ from pathlib import Path
 import platform
 import shutil
 import subprocess
+import sys
+import tarfile
 import tempfile
+import zipfile
 import cpu_import_fixture
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
+from release_contract import inspect_archive
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--dist', type=Path, required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument('--dist', type=Path)
+    source.add_argument('--archive', type=Path, help='Verify checksum, extract, then test the actual shipping archive')
     parser.add_argument('--report', type=Path)
     args = parser.parse_args()
+    if args.archive:
+        record = inspect_archive(args.archive)
+        with tempfile.TemporaryDirectory(prefix='mds-shipping-archive-') as temporary:
+            root = Path(temporary)
+            if args.archive.name.endswith('.zip'):
+                with zipfile.ZipFile(args.archive) as archive:
+                    archive.extractall(root)
+            else:
+                with tarfile.open(args.archive) as archive:
+                    archive.extractall(root, filter='data')
+            package, = root.iterdir()
+            report = args.report or args.archive.parent / 'distribution-check.json'
+            subprocess.run([sys.executable, str(Path(__file__).resolve()), '--dist', str(package),
+                            '--report', str(report.resolve())], check=True)
+        print(f'Shipping archive passed: {record["archive"]} ({record["arch"]})')
+        return
     dist = args.dist.resolve(strict=True)
     with tempfile.TemporaryDirectory(prefix='mds-relocated-package-') as temporary:
         # macOS exposes /var through /private/var. Compare canonical roots on
@@ -121,6 +144,9 @@ def main():
         if evidence['visible'] or evidence['languages'] != expected_languages or (evidence['width'], evidence['height']) != (96, 64):
             raise RuntimeError(f'Incomplete package check: {evidence}')
         build = json.loads((package / 'build-info.json').read_text(encoding='utf-8'))
+        if evidence.get('version') != build['version']:
+            raise RuntimeError('Running application version differs from the package identity')
+        evidence['build'] = build
         if system == 'Darwin' and build.get('metal'):
             if not evidence.get('nativeMetal') or not (package / 'licenses/SPIRV-Cross/LICENSE').is_file():
                 raise RuntimeError('macOS package did not use native Metal with its compiler notices')

@@ -2,7 +2,6 @@ name: Portable editor
 on:
   push:
     branches: [main]
-    tags: ['v*']
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -10,13 +9,18 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       platform:
         type: choice
         description: Platform to validate (all by default)
         default: all
-        options: [all, windows, linux, macos, linux-macos]
+        options: [all, windows, windows-x64, windows-arm64, linux, macos, linux-macos]
       macos_runner:
         type: choice
         description: macOS acceptance image
@@ -61,12 +65,12 @@ on:
         default: false
 concurrency:
   group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}-${{ inputs.windows_runner || 'windows-2022' }}-${{ inputs.mme_only && 'mme' || inputs.ui_only && 'ui' || inputs.observers_only && 'observers' || inputs.system_ime && 'ime' || inputs.native_controls && 'controls' || inputs.native_reference && 'reference' || 'regular' }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+  cancel-in-progress: ${{ !inputs.release_tag }}
 permissions:
   contents: read
 jobs:
   format:
-    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    if: ${{ !inputs.release_tag && (github.event_name == 'pull_request' || github.event_name == 'push') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -93,6 +97,9 @@ jobs:
     runs-on: ${{ matrix.platform == 'windows' && (inputs.windows_runner || 'windows-2022') || matrix.platform == 'macos' && (inputs.macos_runner || 'macos-15') || 'ubuntu-22.04' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -141,24 +148,32 @@ jobs:
             out/p5/production/mme-dependencies.json
             out/p5/Testing/Temporary/
   windows:
-    if: ${{ !inputs.mme_only && (github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'windows') }}
-    runs-on: ${{ inputs.windows_runner || 'windows-2022' }}
+    if: ${{ !inputs.mme_only && (github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'windows' || startsWith(inputs.platform, 'windows-')) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJSON(inputs.platform == 'windows-arm64' && '["arm64"]' || inputs.platform == 'windows-x64' && '["x64"]' || '["x64","arm64"]') }}
+    runs-on: ${{ matrix.arch == 'arm64' && 'windows-11-arm' || inputs.windows_runner || 'windows-2022' }}
     env:
+      MDS_ORACLE: ${{ matrix.arch == 'x64' && format('{0}/out/d3dx-oracle/D3DX9_43.dll', github.workspace) || '' }}
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
       SCCACHE_CACHE_SIZE: 700M
       MDS_OBSERVERS_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.observers_only && !inputs.system_ime && !inputs.native_controls && !inputs.native_reference }}
       MDS_IME_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.system_ime && !inputs.native_controls && !inputs.native_reference }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
+          fetch-depth: 0
       - name: Validate tagged product version
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: inputs.release_tag
         shell: bash
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: test "$RELEASE_TAG" = "v$(tr -d '\r\n' < VERSION)"
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python scripts/release.py --tag "$RELEASE_TAG"
       - uses: actions/cache@v4
         with:
-          path: out/p4/editor-fonts
+          path: out/build/editor-fonts
           key: editor-fonts-${{ runner.os }}-noto2004-b76b0433
       - uses: actions/setup-python@v5
         with:
@@ -167,26 +182,26 @@ jobs:
         with:
           version: '6.8.3'
           aqtversion: '==3.3.0'
-          arch: win64_msvc2022_64
+          arch: ${{ matrix.arch == 'arm64' && 'win64_msvc2022_arm64' || 'win64_msvc2022_64' }}
           modules: qtmultimedia
           cache: true
       - uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: x64
+          arch: ${{ matrix.arch }}
       - uses: mozilla-actions/sccache-action@v0.0.9
       - uses: actions/cache/restore@v4
         id: objects
         with:
           path: .cache/sccache
-          key: editor-objects-${{ inputs.windows_runner || 'windows-2022' }}-x64-qt683-${{ github.sha }}
-          restore-keys: editor-objects-${{ inputs.windows_runner || 'windows-2022' }}-x64-qt683-
+          key: editor-objects-${{ matrix.arch == 'arm64' && 'windows-11-arm' || inputs.windows_runner || 'windows-2022' }}-${{ matrix.arch }}-qt683-${{ github.sha }}
+          restore-keys: editor-objects-${{ matrix.arch == 'arm64' && 'windows-11-arm' || inputs.windows_runner || 'windows-2022' }}-${{ matrix.arch }}-qt683-
       - uses: actions/cache@v4
         id: renderer-tools
         with:
           path: |
             out/dxc
             out/spirv-tools
-          key: editor-tools-windows2022-x64-dxc1825051-spirv20252-v1
+          key: editor-tools-windows-${{ matrix.arch }}-dxc1825051-spirv20252-v1
       - uses: actions/checkout@v4
         with:
           repository: KhronosGroup/Vulkan-Headers
@@ -208,28 +223,29 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           New-Item -ItemType Directory -Force out/spirv-tools | Out-Null
           Copy-Item out/spirv-build/tools/spirv-val.exe out/spirv-tools/
-      - name: Fetch independent MME metadata oracle (test only)
+      - name: Fetch independent MME metadata oracle (x64 test only)
+        if: matrix.arch == 'x64'
         run: python tools/fetch_d3dx_oracle.py --output out/d3dx-oracle
       - name: Build editor with DX11, DX12 and Vulkan
         run: |
-          cmake -S cmake/portable-editor -B out/p4 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/dxc.exe" -DMDS_SPIRV_VAL="$PWD/out/spirv-tools/spirv-val.exe" -DMDS_D3DX_ORACLE="$PWD/out/d3dx-oracle/D3DX9_43.dll"
+          cmake -S cmake/portable-editor -B out/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/dxc.exe" -DMDS_SPIRV_VAL="$PWD/out/spirv-tools/spirv-val.exe" -DMDS_D3DX_ORACLE="$env:MDS_ORACLE" -DMDS_RELEASE_TAG="${{ inputs.release_tag }}"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if ($env:MDS_OBSERVERS_ONLY -eq 'true') {
-            cmake --build out/p4 --config Release --target qt_control_style_test qt_multiline_paint_test qt_multiline_active_test --parallel 3
+            cmake --build out/build --config Release --target qt_control_style_test qt_multiline_paint_test qt_multiline_active_test --parallel 3
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             if ('${{ inputs.ui_shown }}' -eq 'true') {
-              cmake --build out/p4 --config Release --target qt_multiline_extended_test qt_multiline_drag_test qt_multiline_layout_test qt_numeric_test qt_static_label_test --parallel 3
+              cmake --build out/build --config Release --target qt_multiline_extended_test qt_multiline_drag_test qt_multiline_layout_test qt_numeric_test qt_static_label_test --parallel 3
             }
             exit $LASTEXITCODE
           }
           if ($env:MDS_IME_ONLY -eq 'true') {
-            cmake --build out/p4 --config Release --target qt_system_ime_test --parallel 3
+            cmake --build out/build --config Release --target qt_system_ime_test --parallel 3
             exit $LASTEXITCODE
           }
-          cmake --build out/p4 --config Release --parallel 3
+          cmake --build out/build --config Release --parallel 3
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if ('${{ inputs.ui_shown }}' -eq 'true') {
-            cmake --build out/p4 --config Release --target qt_multiline_extended_test --parallel 3
+            cmake --build out/build --config Release --target qt_multiline_extended_test --parallel 3
           }
       - name: Offscreen editor and generated export
         # IME-only dispatches qualify the native input client; push/PR and
@@ -239,27 +255,27 @@ jobs:
           MDS_GPU_BACKEND: d3d11
           MDS_GPU_DRIVER: software
         run: |
-          ctest --test-dir out/p4 -C Release -L 'p4|p5' --output-on-failure --output-junit p4.xml
+          ctest --test-dir out/build -C Release -L 'p4|p5' --output-on-failure --output-junit p4.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          out/p4/qt_editor_font_test.exe res/assets
+          out/build/qt_editor_font_test.exe res/assets
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test.exe --assets res/assets
+          python tests/test_runtime_cpu_scene.py --passes out/build/qt_presentation_test.exe --assets res/assets
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:MDS_GPU_BACKEND = 'd3d12'
-          python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test.exe --assets res/assets
+          python tests/test_runtime_cpu_scene.py --passes out/build/qt_presentation_test.exe --assets res/assets
       - name: Hidden control observers only
         if: env.MDS_OBSERVERS_ONLY == 'true'
-        run: ctest --test-dir out/p4 -C Release -R '^(qt_control_style|qt_control_text|qt_list_content|qt_edit_content|qt_multiline_paint)$' --output-on-failure --output-junit p4.xml
+        run: ctest --test-dir out/build -C Release -R '^(qt_control_style|qt_control_text|qt_list_content|qt_edit_content|qt_multiline_paint)$' --output-on-failure --output-junit p4.xml
       - name: Actual multiline focus and mouse qualification
         if: ${{ !cancelled() && inputs.native_multiline }}
         timeout-minutes: 4
         env:
           QT_QPA_PLATFORM: windows
           MDS_QT_ISOLATED_DISPLAY: '1'
-        run: out/p4/qt_multiline_active_test.exe out/p4/multiline-active
+        run: out/build/qt_multiline_active_test.exe out/build/multiline-active
       - name: Native silent audio clock
         if: ${{ !cancelled() && env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true' }}
-        run: python tests/test_native_audio.py --test out/p4/qt_native_audio_test.exe --report out/p4/native-audio.json --allow-unavailable
+        run: python tests/test_native_audio.py --test out/build/qt_native_audio_test.exe --report out/build/native-audio.json --allow-unavailable
       - name: Outside-client multiline drag and complex text qualification
         if: ${{ !cancelled() && inputs.ui_shown }}
         timeout-minutes: 4
@@ -267,9 +283,9 @@ jobs:
           QT_QPA_PLATFORM: windows
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: |
-          ctest --test-dir out/p4 -C Release -R '^(qt_multiline_drag|qt_multiline_unicode|qt_multiline_layout|qt_numeric(_dpi_.*)?|qt_static_label(_native)?)$' --output-on-failure --output-junit multiline-drag.xml
+          ctest --test-dir out/build -C Release -R '^(qt_multiline_drag|qt_multiline_unicode|qt_multiline_layout|qt_numeric(_dpi_.*)?|qt_static_label(_native)?)$' --output-on-failure --output-junit multiline-drag.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          out/p4/qt_multiline_extended_test.exe out/p4/multiline-extended
+          out/build/qt_multiline_extended_test.exe out/build/multiline-extended
       - name: Qualify native EDIT nonclient paint
         if: ${{ !cancelled() && inputs.native_controls }}
         timeout-minutes: 10
@@ -282,19 +298,19 @@ jobs:
           # retaining failure for any family. An early failure must not force
           # another dispatch just to obtain the remaining diagnostics.
           $profiles = @(
-            @('--isolated-nonclient', 'out/p4/control-style-nonclient'),
-            @('--isolated-edit-text', 'out/p4/control-edit-visible'),
-            @('--isolated-edit-focus', 'out/p4/control-edit-focus'),
-            @('--isolated-edit-hover', 'out/p4/control-edit-hover'),
-            @('--isolated-content', 'out/p4/control-content-visible'),
-            @('--isolated-list-focus', 'out/p4/control-list-focus'),
-            @('--isolated-content-focus', 'out/p4/control-content-focus')
+            @('--isolated-nonclient', 'out/build/control-style-nonclient'),
+            @('--isolated-edit-text', 'out/build/control-edit-visible'),
+            @('--isolated-edit-focus', 'out/build/control-edit-focus'),
+            @('--isolated-edit-hover', 'out/build/control-edit-hover'),
+            @('--isolated-content', 'out/build/control-content-visible'),
+            @('--isolated-list-focus', 'out/build/control-list-focus'),
+            @('--isolated-content-focus', 'out/build/control-content-focus')
           )
           $results = foreach ($profile in $profiles) {
-            & out/p4/qt_control_style_test.exe $profile[0] $profile[1] 2>&1 | Tee-Object -FilePath "$($profile[1]).log" | Out-Host
+            & out/build/qt_control_style_test.exe $profile[0] $profile[1] 2>&1 | Tee-Object -FilePath "$($profile[1]).log" | Out-Host
             [PSCustomObject]@{ profile = $profile[0]; exitCode = $LASTEXITCODE }
           }
-          $results | ConvertTo-Json | Set-Content out/p4/control-qualification.json -Encoding UTF8
+          $results | ConvertTo-Json | Set-Content out/build/control-qualification.json -Encoding UTF8
           if (@($results | Where-Object exitCode -ne 0).Count) { exit 1 }
           exit 0
       - name: Retain control diagnostics before optional OS language servicing
@@ -303,9 +319,9 @@ jobs:
         with:
           name: p4-windows-control-reports
           path: |
-            out/p4/control-*/report.json
-            out/p4/control-*.log
-            out/p4/control-qualification.json
+            out/build/control-*/report.json
+            out/build/control-*.log
+            out/build/control-qualification.json
           if-no-files-found: error
       - name: Qualify native Japanese input and command ordering
         if: ${{ !cancelled() && inputs.system_ime }}
@@ -320,7 +336,7 @@ jobs:
             Set-WinUserLanguageList $languages -Force
           }
           $capability = Get-WindowsCapability -Online -Name 'Language.Basic~~~ja-JP~0.0.1.0'
-          $capability | Select-Object Name,State | ConvertTo-Json | Set-Content out/p4/system-ime-install.json -Encoding UTF8
+          $capability | Select-Object Name,State | ConvertTo-Json | Set-Content out/build/system-ime-install.json -Encoding UTF8
           Write-Host "Japanese IME capability before servicing: $($capability.State)"
           if ($capability.State -ne 'Installed') {
             $installed = Add-WindowsCapability -Online -Name 'Language.Basic~~~ja-JP~0.0.1.0'
@@ -334,19 +350,19 @@ jobs:
             if ($service.Status -ne 'Running') { Start-Service $service.Name -ErrorAction Stop }
             $service.WaitForStatus('Running', [TimeSpan]::FromSeconds(10))
           }
-          $inputServices | Select-Object Name,Status,StartType | ConvertTo-Json | Set-Content out/p4/system-ime-environment.json -Encoding UTF8
+          $inputServices | Select-Object Name,Status,StartType | ConvertTo-Json | Set-Content out/build/system-ime-environment.json -Encoding UTF8
           Start-Process "$env:WINDIR/System32/ctfmon.exe" -WindowStyle Hidden
-          cmake --build out/p4 --config Release --target qt_system_ime_test native_ime_shutdown_test --parallel 3
+          cmake --build out/build --config Release --target qt_system_ime_test native_ime_shutdown_test --parallel 3
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          python tests/test_native_system_ime.py --test out/p4/qt_system_ime_test.exe --report out/p4/system-ime-ms-ime.json
+          python tests/test_native_system_ime.py --test out/build/qt_system_ime_test.exe --report out/build/system-ime-ms-ime.json
           $editorExit = $LASTEXITCODE
           # Run the editor first: a failed reference teardown can leave the
           # shared OS broker blocked and invalidate a following editor scenario.
           # The reference never turns an editor failure into a passing result.
-          python tests/test_native_ime_shutdown.py --test out/p4/native_ime_shutdown_test.exe --report out/p4/system-ime-native-reference.json
+          python tests/test_native_ime_shutdown.py --test out/build/native_ime_shutdown_test.exe --report out/build/system-ime-native-reference.json
           $referenceExit = $LASTEXITCODE
-          Get-Process ctfmon,imebroker,TextInputHost -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,SessionId,Path | ConvertTo-Json | Set-Content out/p4/system-ime-processes.json -Encoding UTF8
-          Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-15)} -ErrorAction SilentlyContinue | Where-Object { $_.Message -match 'imebroker|imjp|ctfmon' } | Select-Object TimeCreated,Id,ProviderName,Message | ConvertTo-Json | Set-Content out/p4/system-ime-events.json -Encoding UTF8
+          Get-Process ctfmon,imebroker,TextInputHost -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,SessionId,Path | ConvertTo-Json | Set-Content out/build/system-ime-processes.json -Encoding UTF8
+          Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-15)} -ErrorAction SilentlyContinue | Where-Object { $_.Message -match 'imebroker|imjp|ctfmon' } | Select-Object TimeCreated,Id,ProviderName,Message | ConvertTo-Json | Set-Content out/build/system-ime-events.json -Encoding UTF8
           if ($editorExit -ne 0) { exit $editorExit }
           if ($referenceExit -ne 0) { exit $referenceExit }
       - name: Qualify original composite capture and retain numerical diagnostics
@@ -354,17 +370,20 @@ jobs:
         env:
           MDS_GPU_BACKEND: d3d11
           MDS_GPU_DRIVER: software
-        run: ctest --test-dir out/p4 -C Release -L native-reference --output-on-failure --output-junit native-reference.xml
+        run: ctest --test-dir out/build -C Release -L native-reference --output-on-failure --output-junit native-reference.xml
       - name: Deploy and validate relocated package
-        if: ${{ !cancelled() && env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true' }}
+        if: ${{ success() && env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true' }}
         shell: bash
         run: |
-          cmake --build out/p4 --config Release --target dist --parallel 3
-          python tests/test_editor_distribution.py --dist out/dist
+          cmake --build out/build --config Release --target dist --parallel 3
+          for archive in out/releases/MikuDanceStudio-NG-*-portable.zip out/releases/MikuDanceStudio-NG-*-portable.tar.gz; do
+            [ -f "$archive" ] || continue
+            python tests/test_editor_distribution.py --archive "$archive" --report out/distribution-check.json
+          done
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() && env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true' }}
+        if: ${{ success() && env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true' }}
         with:
-          name: editor-dist-windows
+          name: editor-dist-windows-${{ matrix.arch }}
           path: |
             out/releases/MikuDanceStudio-NG-*.zip
             out/releases/MikuDanceStudio-NG-*.tar.gz
@@ -374,54 +393,57 @@ jobs:
         if: always() && !cancelled() && github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
         with:
           path: .cache/sccache
-          key: editor-objects-${{ inputs.windows_runner || 'windows-2022' }}-x64-qt683-${{ github.sha }}
+          key: editor-objects-${{ matrix.arch == 'arm64' && 'windows-11-arm' || inputs.windows_runner || 'windows-2022' }}-${{ matrix.arch }}-qt683-${{ github.sha }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: p4-windows
+          name: editor-tests-windows-${{ matrix.arch }}
           path: |
-            out/p4/p4.xml
-            out/p4/production/mme-cli/report.json
-            out/p4/production/mme-dependencies.json
-            out/p4/native-reference.xml
-            out/p4/native-reference/
-            out/p4/system-ime*
-            out/p4/control-style/
-            out/p4/control-qualification.json
-            out/p4/control-style-nonclient/
-            out/p4/control-edit-visible/
-            out/p4/control-edit-focus/
-            out/p4/control-edit-hover/
-            out/p4/edit-content/
-            out/p4/multiline-paint/
-            out/p4/multiline-active/
-            out/p4/multiline-extended/
-            out/p4/multiline-drag.xml
-            out/p4/multiline-unicode/
-            out/p4/static-label-portable/
-            out/p4/static-label-native/
-            out/p4/editor-chrome/
-            out/p4/control-content-visible/
-            out/p4/control-list-focus/
-            out/p4/control-content-focus/
+            out/build/p4.xml
+            out/build/production/mme-cli/report.json
+            out/build/production/mme-dependencies.json
+            out/build/native-reference.xml
+            out/build/native-reference/
+            out/build/system-ime*
+            out/build/control-style/
+            out/build/control-qualification.json
+            out/build/control-style-nonclient/
+            out/build/control-edit-visible/
+            out/build/control-edit-focus/
+            out/build/control-edit-hover/
+            out/build/edit-content/
+            out/build/multiline-paint/
+            out/build/multiline-active/
+            out/build/multiline-extended/
+            out/build/multiline-drag.xml
+            out/build/multiline-unicode/
+            out/build/static-label-portable/
+            out/build/static-label-native/
+            out/build/editor-chrome/
+            out/build/control-content-visible/
+            out/build/control-list-focus/
+            out/build/control-content-focus/
             out/distribution-check.*
-            out/p4/editor-frame-performance*.json
-            out/p4/native-audio*.json
-            out/p4/Testing/Temporary/
+            out/build/editor-frame-performance*.json
+            out/build/native-audio*.json
+            out/build/Testing/Temporary/
   linux:
     if: ${{ !inputs.mme_only && (github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'linux' || inputs.platform == 'linux-macos') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
+          fetch-depth: 0
       - name: Validate tagged product version
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: inputs.release_tag
         shell: bash
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: test "$RELEASE_TAG" = "v$(tr -d '\r\n' < VERSION)"
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python scripts/release.py --tag "$RELEASE_TAG"
       - uses: actions/cache@v4
         with:
-          path: out/p4/editor-fonts
+          path: out/build/editor-fonts
           key: editor-fonts-${{ runner.os }}-noto2004-b76b0433
       - uses: actions/setup-python@v5
         with:
@@ -457,30 +479,30 @@ jobs:
           CCACHE_MAXSIZE: 700M
           MDS_GPU_DRIVER: software
         run: |
-          cmake -S cmake/portable-editor -B out/p4 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/bin/dxc"
+          cmake -S cmake/portable-editor -B out/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/bin/dxc" -DMDS_RELEASE_TAG="${{ inputs.release_tag }}"
           if [ "${{ inputs.ui_only }}" = true ]; then
-            cmake --build out/p4 --target qt_editor_font_test qt_editor_chrome_test qt_numeric_test qt_edit_navigation_test qt_static_label_test --parallel 3
-            ctest --test-dir out/p4 -R '^(qt_editor_font|qt_editor_chrome|qt_numeric|qt_edit_navigation|qt_static_label)$' --output-on-failure --output-junit p4.xml
+            cmake --build out/build --target qt_editor_font_test qt_editor_chrome_test qt_numeric_test qt_edit_navigation_test qt_static_label_test --parallel 3
+            ctest --test-dir out/build -R '^(qt_editor_font|qt_editor_chrome|qt_numeric|qt_edit_navigation|qt_static_label)$' --output-on-failure --output-junit p4.xml
             exit $?
           fi
-          cmake --build out/p4 --parallel 3
-          cmake --build out/p4 --target qt_wayland_pointer_test --parallel 3
-          ctest --test-dir out/p4 -L 'p4|p5' --output-on-failure --output-junit p4.xml
+          cmake --build out/build --parallel 3
+          cmake --build out/build --target qt_wayland_pointer_test --parallel 3
+          ctest --test-dir out/build -L 'p4|p5' --output-on-failure --output-junit p4.xml
       - name: Qt X11 and Wayland surfaces in isolated displays
         if: ${{ !inputs.ui_only }}
         env:
           MDS_GPU_DRIVER: software
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: |
-          xvfb-run -a env QT_QPA_PLATFORM=xcb python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test --assets res/assets
+          xvfb-run -a env QT_QPA_PLATFORM=xcb python tests/test_runtime_cpu_scene.py --passes out/build/qt_presentation_test --assets res/assets
           export XDG_RUNTIME_DIR="$(mktemp -d)"
           chmod 700 "$XDG_RUNTIME_DIR"
-          weston --backend=headless-backend.so --use-pixman --socket=mds-p4 --width=1024 --height=768 --idle-time=0 >out/p4/weston.log 2>&1 &
+          weston --backend=headless-backend.so --use-pixman --socket=mds-p4 --width=1024 --height=768 --idle-time=0 >out/build/weston.log 2>&1 &
           compositor=$!
           trap 'kill "$compositor"; rm -rf "$XDG_RUNTIME_DIR"' EXIT
           for attempt in $(seq 1 50); do test -S "$XDG_RUNTIME_DIR/mds-p4" && break; sleep 0.1; done
           export WAYLAND_DISPLAY=mds-p4 QT_QPA_PLATFORM=wayland
-          python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test --assets res/assets
+          python tests/test_runtime_cpu_scene.py --passes out/build/qt_presentation_test --assets res/assets
       - name: Actual shown portable controls and menus
         if: ${{ !cancelled() && inputs.ui_shown }}
         timeout-minutes: 4
@@ -488,24 +510,24 @@ jobs:
           MDS_QT_ISOLATED_DISPLAY: '1'
           MDS_GPU_DRIVER: software
         run: |
-          cmake --build out/p4 --target qt_shown_ui_test --parallel 3
-          xvfb-run -a env QT_QPA_PLATFORM=xcb python tests/test_shown_ui.py --test out/p4/qt_shown_ui_test --assets res/assets --output out/p4/shown-ui
+          cmake --build out/build --target qt_shown_ui_test --parallel 3
+          xvfb-run -a env QT_QPA_PLATFORM=xcb python tests/test_shown_ui.py --test out/build/qt_shown_ui_test --assets res/assets --output out/build/shown-ui
       - name: Qualify original composite capture and retain numerical diagnostics
         if: ${{ !cancelled() && inputs.native_reference }}
         env:
           MDS_GPU_DRIVER: software
-        run: ctest --test-dir out/p4 -L native-reference --output-on-failure --output-junit native-reference.xml
+        run: ctest --test-dir out/build -L native-reference --output-on-failure --output-junit native-reference.xml
       - name: Qualify real IBus composition and command ordering
         if: ${{ !cancelled() && inputs.system_ime }}
         env:
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: |
           sudo apt-get install -y ibus ibus-libpinyin ibus-anthy dbus-x11 xdotool
-          cmake --build out/p4 --target qt_system_ime_test --parallel 3
-          xvfb-run -a dbus-run-session -- python tests/test_system_ime.py --test out/p4/qt_system_ime_test --report out/p4/system-ime.json
-          xvfb-run -a dbus-run-session -- python tests/test_system_ime.py --test out/p4/qt_system_ime_test --engine anthy --report out/p4/system-ime-anthy.json
+          cmake --build out/build --target qt_system_ime_test --parallel 3
+          xvfb-run -a dbus-run-session -- python tests/test_system_ime.py --test out/build/qt_system_ime_test --report out/build/system-ime.json
+          xvfb-run -a dbus-run-session -- python tests/test_system_ime.py --test out/build/qt_system_ime_test --engine anthy --report out/build/system-ime-anthy.json
       - name: Native PulseAudio silent clock
-        if: ${{ !cancelled() && !inputs.ui_only }}
+        if: ${{ success() && !inputs.ui_only }}
         run: |
           sudo apt-get install -y pulseaudio pulseaudio-utils
           pulseaudio --start --exit-idle-time=-1
@@ -515,17 +537,20 @@ jobs:
           pactl load-module module-null-sink sink_name=mds_acceptance rate=48000 channels=2 norewinds=1
           pactl set-default-sink mds_acceptance
           smoke_status=0
-          python tests/test_native_audio.py --test out/p4/qt_native_audio_test --seconds 3 --report out/p4/native-audio-smoke.json || smoke_status=$?
-          python tests/test_native_audio.py --test out/p4/qt_native_audio_test --report out/p4/native-audio.json
+          python tests/test_native_audio.py --test out/build/qt_native_audio_test --seconds 3 --report out/build/native-audio-smoke.json || smoke_status=$?
+          python tests/test_native_audio.py --test out/build/qt_native_audio_test --report out/build/native-audio.json
           test "$smoke_status" -eq 0
       - name: Deploy and validate relocated package
-        if: ${{ !cancelled() && !inputs.ui_only }}
+        if: ${{ success() && !inputs.ui_only }}
         shell: bash
         run: |
-          cmake --build out/p4 --config Release --target dist --parallel 3
-          python tests/test_editor_distribution.py --dist out/dist
+          cmake --build out/build --config Release --target dist --parallel 3
+          for archive in out/releases/MikuDanceStudio-NG-*-portable.zip out/releases/MikuDanceStudio-NG-*-portable.tar.gz; do
+            [ -f "$archive" ] || continue
+            python tests/test_editor_distribution.py --archive "$archive" --report out/distribution-check.json
+          done
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() && !inputs.ui_only }}
+        if: ${{ success() && !inputs.ui_only }}
         with:
           name: editor-dist-linux
           path: |
@@ -541,21 +566,21 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: p4-linux
+          name: editor-tests-linux-x64
           path: |
-            out/p4/p4.xml
-            out/p4/production/mme-cli/report.json
-            out/p4/production/mme-dependencies.json
-            out/p4/native-reference.xml
-            out/p4/native-reference/
-            out/p4/system-ime*
-            out/p4/editor-chrome/
-            out/p4/shown-ui/
-            out/p4/static-label-portable/
+            out/build/p4.xml
+            out/build/production/mme-cli/report.json
+            out/build/production/mme-dependencies.json
+            out/build/native-reference.xml
+            out/build/native-reference/
+            out/build/system-ime*
+            out/build/editor-chrome/
+            out/build/shown-ui/
+            out/build/static-label-portable/
             out/distribution-check.*
-            out/p4/editor-frame-performance*.json
-            out/p4/native-audio*.json
-            out/p4/Testing/Temporary/
+            out/build/editor-frame-performance*.json
+            out/build/native-audio*.json
+            out/build/Testing/Temporary/
   macos:
     if: ${{ !inputs.mme_only && (github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'macos' || inputs.platform == 'linux-macos') }}
     runs-on: ${{ inputs.macos_runner || 'macos-15' }}
@@ -563,15 +588,18 @@ jobs:
       MDS_MACOS_CACHE: ${{ inputs.macos_runner == 'macos-26' && 'macos26' || 'macos15' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
+          fetch-depth: 0
       - name: Validate tagged product version
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: inputs.release_tag
         shell: bash
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: test "$RELEASE_TAG" = "v$(tr -d '\r\n' < VERSION)"
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: python scripts/release.py --tag "$RELEASE_TAG"
       - uses: actions/cache@v4
         with:
-          path: out/p4/editor-fonts
+          path: out/build/editor-fonts
           key: editor-fonts-${{ runner.os }}-noto2004-b76b0433
       - uses: actions/setup-python@v5
         with:
@@ -629,34 +657,34 @@ jobs:
           MTL_DEBUG_LAYER: '1'
           MDS_TEST_VULKAN_LIBRARY: ${{ github.workspace }}/out/moltenvk/libMoltenVK.dylib
         run: |
-          cmake -S cmake/portable-editor -B out/p4 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DMDS_MOLTENVK_LIBRARY="$PWD/out/moltenvk/libMoltenVK.dylib" -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/bin/dxc"
+          cmake -S cmake/portable-editor -B out/build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 -DMDS_MOLTENVK_LIBRARY="$PWD/out/moltenvk/libMoltenVK.dylib" -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/bin/dxc" -DMDS_RELEASE_TAG="${{ inputs.release_tag }}"
           if [ "${{ inputs.ui_only }}" = true ]; then
-            cmake --build out/p4 --target qt_editor_font_test qt_editor_chrome_test qt_numeric_test qt_edit_navigation_test qt_static_label_test --parallel 3
-            ctest --test-dir out/p4 -R '^(qt_editor_font|qt_editor_chrome|qt_numeric|qt_edit_navigation|qt_static_label)$' --output-on-failure --output-junit p4.xml
+            cmake --build out/build --target qt_editor_font_test qt_editor_chrome_test qt_numeric_test qt_edit_navigation_test qt_static_label_test --parallel 3
+            ctest --test-dir out/build -R '^(qt_editor_font|qt_editor_chrome|qt_numeric|qt_edit_navigation|qt_static_label)$' --output-on-failure --output-junit p4.xml
             exit $?
           fi
-          cmake --build out/p4 --parallel 3
-          ctest --test-dir out/p4 -L 'p4|p5' --output-on-failure --output-junit p4.xml
-          MDS_QT_ISOLATED_DISPLAY=1 MDS_GPU_BACKEND=metal python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test --assets res/assets
-          MDS_QT_ISOLATED_DISPLAY=1 out/p4/qt_metal_present_test
-          MDS_QT_ISOLATED_DISPLAY=1 QT_SCALE_FACTOR=2 out/p4/qt_metal_present_test
-          MDS_QT_ISOLATED_DISPLAY=1 QT_SCALE_FACTOR=2 MDS_GPU_BACKEND=metal python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test --assets res/assets
+          cmake --build out/build --parallel 3
+          ctest --test-dir out/build -L 'p4|p5' --output-on-failure --output-junit p4.xml
+          MDS_QT_ISOLATED_DISPLAY=1 MDS_GPU_BACKEND=metal python tests/test_runtime_cpu_scene.py --passes out/build/qt_presentation_test --assets res/assets
+          MDS_QT_ISOLATED_DISPLAY=1 out/build/qt_metal_present_test
+          MDS_QT_ISOLATED_DISPLAY=1 QT_SCALE_FACTOR=2 out/build/qt_metal_present_test
+          MDS_QT_ISOLATED_DISPLAY=1 QT_SCALE_FACTOR=2 MDS_GPU_BACKEND=metal python tests/test_runtime_cpu_scene.py --passes out/build/qt_presentation_test --assets res/assets
           # MoltenVK currently trips an MTLDebugDevice lifetime assertion. Keep
           # native Metal API validation above; run the existing Vulkan checks
           # and cross-backend menu transaction in their own process below.
-          MTL_DEBUG_LAYER=0 MDS_QT_ISOLATED_DISPLAY=1 MDS_QT_TEST_BACKEND_SWITCH=1 python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test --assets res/assets
+          MTL_DEBUG_LAYER=0 MDS_QT_ISOLATED_DISPLAY=1 MDS_QT_TEST_BACKEND_SWITCH=1 python tests/test_runtime_cpu_scene.py --passes out/build/qt_presentation_test --assets res/assets
       - name: Qualify original composite capture and retain numerical diagnostics
         if: ${{ !cancelled() && inputs.native_reference }}
         env:
           MDS_GPU_BACKEND: metal
-        run: ctest --test-dir out/p4 -L native-reference --output-on-failure --output-junit native-reference.xml
+        run: ctest --test-dir out/build -L native-reference --output-on-failure --output-junit native-reference.xml
       - name: Qualify native Japanese input and command ordering
         if: ${{ !cancelled() && inputs.system_ime }}
         env:
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: |
-          cmake --build out/p4 --target qt_system_ime_test --parallel 3
-          python tests/test_native_system_ime.py --test out/p4/qt_system_ime_test --report out/p4/system-ime-kotoeri.json
+          cmake --build out/build --target qt_system_ime_test --parallel 3
+          python tests/test_native_system_ime.py --test out/build/qt_system_ime_test --report out/build/system-ime-kotoeri.json
       - name: Actual shown portable controls and menus
         if: ${{ !cancelled() && inputs.ui_shown }}
         timeout-minutes: 4
@@ -664,19 +692,22 @@ jobs:
           QT_QPA_PLATFORM: cocoa
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: |
-          cmake --build out/p4 --target qt_shown_ui_test --parallel 3
-          python tests/test_shown_ui.py --test out/p4/qt_shown_ui_test --assets res/assets --output out/p4/shown-ui
+          cmake --build out/build --target qt_shown_ui_test --parallel 3
+          python tests/test_shown_ui.py --test out/build/qt_shown_ui_test --assets res/assets --output out/build/shown-ui
       - name: Native CoreAudio silent clock
-        if: ${{ !cancelled() && !inputs.ui_only }}
-        run: python tests/test_native_audio.py --test out/p4/qt_native_audio_test --report out/p4/native-audio.json --allow-unavailable
+        if: ${{ success() && !inputs.ui_only }}
+        run: python tests/test_native_audio.py --test out/build/qt_native_audio_test --report out/build/native-audio.json --allow-unavailable
       - name: Deploy and validate relocated package
-        if: ${{ !cancelled() && !inputs.ui_only }}
+        if: ${{ success() && !inputs.ui_only }}
         shell: bash
         run: |
-          cmake --build out/p4 --config Release --target dist --parallel 3
-          python tests/test_editor_distribution.py --dist out/dist
+          cmake --build out/build --config Release --target dist --parallel 3
+          for archive in out/releases/MikuDanceStudio-NG-*-portable.zip out/releases/MikuDanceStudio-NG-*-portable.tar.gz; do
+            [ -f "$archive" ] || continue
+            python tests/test_editor_distribution.py --archive "$archive" --report out/distribution-check.json
+          done
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() && !inputs.ui_only }}
+        if: ${{ success() && !inputs.ui_only }}
         with:
           name: editor-dist-macos
           path: |
@@ -685,14 +716,14 @@ jobs:
             out/releases/MikuDanceStudio-NG-*.sha256
           if-no-files-found: error
       - name: Verify a native Metal package without MoltenVK
-        if: ${{ !cancelled() && !inputs.ui_only }}
+        if: ${{ success() && !inputs.ui_only }}
         env:
           CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
           MTL_DEBUG_LAYER: '1'
         run: |
-          cmake -S cmake/portable-editor -B out/p4 -DMIKUDANCESTUDIO_RHI_VULKAN=OFF
-          cmake --build out/p4 --target dist --parallel 3
-          python tests/test_editor_distribution.py --dist out/dist --report out/p4/metal-only-distribution.json
+          cmake -S cmake/portable-editor -B out/build -DMIKUDANCESTUDIO_RHI_VULKAN=OFF
+          cmake --build out/build --target dist --parallel 3
+          python tests/test_editor_distribution.py --dist out/dist --report out/build/metal-only-distribution.json
           test ! -f out/dist/MikuDanceStudioNG.app/Contents/Frameworks/libMoltenVK.dylib
       - uses: actions/cache/save@v4
         if: always() && github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
@@ -702,43 +733,19 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: p4-macos
+          name: editor-tests-macos-arm64
           path: |
-            out/p4/p4.xml
-            out/p4/production/mme-cli/report.json
-            out/p4/production/mme-dependencies.json
-            out/p4/native-reference.xml
-            out/p4/native-reference/
-            out/p4/system-ime*
-            out/p4/editor-chrome/
-            out/p4/shown-ui/
-            out/p4/static-label-portable/
+            out/build/p4.xml
+            out/build/production/mme-cli/report.json
+            out/build/production/mme-dependencies.json
+            out/build/native-reference.xml
+            out/build/native-reference/
+            out/build/system-ime*
+            out/build/editor-chrome/
+            out/build/shown-ui/
+            out/build/static-label-portable/
             out/distribution-check.*
-            out/p4/metal-only-distribution.*
-            out/p4/editor-frame-performance*.json
-            out/p4/native-audio*.json
-            out/p4/Testing/Temporary/
-  release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, linux, macos]
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: editor-dist-*
-          merge-multiple: true
-          path: packages
-      - name: Create draft release from tested packages
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          if gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft > release-state.txt; then
-            test "$(cat release-state.txt)" = true
-            gh release upload "$RELEASE_TAG" packages/* --clobber
-          else
-            gh release create "$RELEASE_TAG" --verify-tag --draft --title "MikuDanceStudio-NG $RELEASE_TAG" --generate-notes packages/*
-          fi
+            out/build/metal-only-distribution.*
+            out/build/editor-frame-performance*.json
+            out/build/native-audio*.json
+            out/build/Testing/Temporary/

@@ -8,7 +8,8 @@ enum class WindowSystem {
     Win32,
     Cocoa,
     Xcb,
-    Wayland
+    Wayland,
+    Android
 };
 struct NativeWindow {
     WindowSystem system = WindowSystem::None;
@@ -44,7 +45,8 @@ struct SwapchainDesc {
 };
 inline bool ValidSwapchainDesc(const SwapchainDesc& d) {
     return (d.window.system == WindowSystem::Win32 || d.window.system == WindowSystem::Cocoa ||
-            d.window.system == WindowSystem::Xcb || d.window.system == WindowSystem::Wayland) &&
+            d.window.system == WindowSystem::Xcb || d.window.system == WindowSystem::Wayland ||
+            d.window.system == WindowSystem::Android) &&
            d.window.handle && d.width && d.height &&
            (d.color == SurfaceColor::Rgba8 || d.color == SurfaceColor::Rgb8) &&
            (d.depth == SurfaceDepth::None || d.depth == SurfaceDepth::Depth16 ||

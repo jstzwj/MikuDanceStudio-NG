@@ -29,7 +29,10 @@ function(mds_add_mme_tests)
         target_link_libraries(mme_source_test PRIVATE mikudancestudio_mme_frontend)
         add_test(NAME mme_source COMMAND mme_source_test "${MDS_DXC}" "${CMAKE_CURRENT_BINARY_DIR}/mme-source")
         set_tests_properties(mme_source PROPERTIES LABELS "p5;headless;portable" TIMEOUT 90)
-        if(WIN32)
+        # Microsoft shipped this independent FX9 metadata oracle only for x86/x64.
+        # ARM64 still executes the portable frontend/semantic gates below.
+        if(WIN32 AND NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|arm64|aarch64)$"
+           AND NOT CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
             set(MDS_D3DX_ORACLE "" CACHE FILEPATH "Independent D3DX metadata oracle runtime (test only)")
             add_executable(mme_frontend_native_test tests/mme_frontend_native_test.cpp)
             target_link_libraries(mme_frontend_native_test PRIVATE mikudancestudio_mme_frontend d3dcompiler)

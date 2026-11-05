@@ -4,13 +4,13 @@ import configparser
 import hashlib
 import json
 from pathlib import Path
-import platform
 import re
 import shutil
 import subprocess
 import tarfile
 import tempfile
 import zipfile
+from release_contract import PRODUCT, EXECUTABLES, binary_arch, version, stem
 
 
 def run(*args, **kwargs):
@@ -144,7 +144,19 @@ def main():
     if args.config != 'Release':
         raise RuntimeError('Distribution builds must use Release')
     config = json.loads((build / 'qt-dist-config.json').read_text(encoding='utf-8'))
+    version(config['version'])
     source = Path(config['source'])
+    commit = run('git', '-C', source, 'rev-parse', 'HEAD', capture_output=True, text=True).stdout.strip()
+    dirty = bool(run('git', '-C', source, 'status', '--porcelain', '--untracked-files=no',
+                     capture_output=True, text=True).stdout.strip())
+    tag = config.get('release_tag', '')
+    if tag:
+        if tag != 'v' + config['version'] or dirty:
+            raise RuntimeError('Release packaging requires an unmodified tree and tag matching VERSION')
+        tagged = run('git', '-C', source, 'rev-parse', f'refs/tags/{tag}^{{commit}}',
+                     capture_output=True, text=True).stdout.strip()
+        if tagged != commit:
+            raise RuntimeError('Release packaging requires HEAD at the requested tag')
     dist = Path(config['dist']).absolute()
     archives = Path(config['archives']).absolute()
     # Only replace our own explicitly marked output; never delete an arbitrary
@@ -163,11 +175,10 @@ def main():
         shutil.copytree(source / 'res/licenses/Qt', stage / 'licenses/Qt')
         # stb carries its public-domain/MIT notice in the source distribution.
         copy_file(source / 'third_party/stb/stb_image.h', stage / 'licenses/stb_image.h')
-        commit = run('git', '-C', source, 'rev-parse', 'HEAD', capture_output=True, text=True).stdout.strip()
         metadata = {key: config[key] for key in ('system', 'qt', 'version', 'vulkan', 'metal')}
-        dirty = bool(run('git', '-C', source, 'status', '--porcelain', '--untracked-files=no',
-                         capture_output=True, text=True).stdout.strip())
-        metadata.update(commit=commit, arch=platform.machine(), development=True, modified=dirty)
+        architecture = binary_arch((stage / EXECUTABLES[config['system']]).read_bytes())
+        metadata.update(schema=1, product=PRODUCT, format='portable', commit=commit, tag=tag or None,
+                        arch=architecture, development=not bool(tag), modified=dirty)
         (stage / 'build-info.json').write_text(json.dumps(metadata, indent=2) + '\n', encoding='utf-8')
         (stage / '.mds-dist').write_text('MikuDanceStudio-NG distribution\n', encoding='utf-8')
         # Publish only a complete installation; a failed deploy retains the old dist.
@@ -175,8 +186,7 @@ def main():
             shutil.rmtree(dist)
         shutil.move(stage, dist)
     suffix = {'Windows': 'windows', 'Linux': 'linux', 'Darwin': 'macos'}[config['system']]
-    arch = {'AMD64': 'x64', 'x86_64': 'x64', 'aarch64': 'arm64'}.get(platform.machine(), platform.machine())
-    name = f'MikuDanceStudio-NG-{config["version"]}-{suffix}-{arch}'
+    name = stem(metadata)
     archive = archives / (name + ('.zip' if suffix == 'windows' else '.tar.gz'))
     if suffix == 'windows':
         with zipfile.ZipFile(archive, 'w', compression=zipfile.ZIP_DEFLATED) as target:

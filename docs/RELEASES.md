@@ -1,105 +1,115 @@
-# Versions and releases / 版本与发布
+# NG release and qualification guide
 
-The root `VERSION` file is the single editable product version, starting at
-`10.00`. CMake generates the C++ version header and Windows EXE version resource;
-the About dialog, Conan metadata and ZIP filenames read the same value.
-MMD 9.32 remains the behavioral reference, not this project's release number.
+NG publishes **portable desktop packages only**. It has no MSI, MSIX, EXE
+installer, DMG installer, DEB or RPM. Android is the platform exception: it
+requires an APK. The old DX9 application's releases belong to the original
+MikuDanceStudio repository and no longer publish from NG.
 
-版本只修改根目录 `VERSION`，格式为 `主版本.两位次版本`，例如 `10.00`、
-`10.01`、`10.08`、`11.00`。不要在源码里单独修改版本，不使用浮点数表示版本。
-Windows 数值版本的 `10.00` 为 `10.0.0.0`，显示文本仍为 `10.00`。
+`VERSION` is the single editable product version, now `0.0.1`, with the format
+`major.minor.patch`. CMake, application/About/version output, Windows version
+resources, macOS bundle metadata, Conan and archive names read that file. The
+matching Git tag is `v0.0.1`. NG does not continue the old library's `10.xx`
+version sequence; MMD 9.32 remains the behavior reference.
 
-## Publish / 发布
+## Release targets
 
-For **MikuDanceStudio-NG**, `portable-editor.yml` builds and tests the Qt editor
-on Windows x64, Linux x64 and macOS arm64. Branch builds upload development
-archives with Qt dependencies. A matching version tag creates a **draft** release
-only after all three packages pass their relocated, offscreen smoke tests.
-See [Qt distribution](DISTRIBUTION.md) for the `dist` target and runtime contents.
-The historical Windows DX9 release workflow below is now manual, with validation
-enabled by default; it no longer competes for NG version-tag releases.
+| Target | Output | Qualification requirement |
+| --- | --- | --- |
+| Windows x64 | `MikuDanceStudio-NG-vVERSION-windows-x64-portable.zip` | Native x64 editor/CPU tests, WARP presentation, extracted package |
+| Windows ARM64 | `MikuDanceStudio-NG-vVERSION-windows-arm64-portable.zip` | Native Windows 11 ARM runner, ARM Qt/DXC/runtime, extracted package |
+| macOS Apple Silicon | `MikuDanceStudio-NG-vVERSION-macos-arm64-portable.tar.gz` | Metal, optional MoltenVK, normal/2x presentation, extracted app |
+| Linux x64 | `MikuDanceStudio-NG-vVERSION-linux-x64-portable.tar.gz` | Vulkan, X11/Wayland, extracted package on Ubuntu 22.04 |
+| Android | `MikuDanceStudio-NG-vVERSION-android-universal.apk` | Both ARM64/x86_64 native libraries, signed APK, same APK installed on isolated x86_64 emulator |
 
-Commit the version and changes first, then push the matching tag:
+**v0.0.1 is held until all five targets pass.** A platform appearing in this
+table is a release requirement, not evidence that its implementation or tests
+have already passed. Android requires Android 13+ and Vulkan 1.3; its initial
+UI targets landscape tablets. Native Android ARM64 compilation is checked;
+emulator execution does not claim physical ARM GPU/driver coverage. macOS Intel,
+Linux ARM64, iOS and 32-bit Windows are not current NG release targets.
+
+## One publishing entry point
+
+`.github/workflows/release.yml` is the **only** publisher. Push an immutable
+version tag, or manually dispatch it with an existing version tag. It:
+
+1. Checks the exact tag/commit, `VERSION`, release notes and persistent Android
+   signing secrets before spending time on platform builds.
+2. Calls the existing editor qualification workflow for four desktop targets
+   and the Android qualification workflow. It does not run duplicate desktop
+   build definitions.
+3. Requires successful regressions before packaging. Desktop smoke tests
+   verify SHA-256 and archive identity, extract the actual archive, relocate it
+   again to a path containing spaces, remove SDK search paths, then open PMM,
+   switch all 15 languages and render without showing windows. Android installs
+   the same APK that will be published and exercises native rendering, window
+   recreation, device replacement and background/resume in an isolated emulator.
+4. Checks binary headers, version, clean source identity, tag and full commit.
+   Missing/duplicate targets and development packages fail the release.
+5. Writes `SHA256SUMS` and `release-manifest.json`, then publishes an early
+   **GitHub pre-release** from those artifacts. Existing Releases are immutable:
+   no automatic overwrite or retagging.
+
+Source and ordinary test builds use read-only repository permissions. Only the
+final publisher gets `contents: write`; it uses the built-in GitHub token, never
+a PAT. Native D3DX/compiler oracle DLLs are test-only and never ship in NG.
+The independent FX9 metadata oracle exists for Windows x86/x64 only; ARM64 runs
+the portable frontend gates and does not claim that native oracle result.
+
+## What each workflow does
+
+| Workflow | Responsibility | Trigger / outputs |
+| --- | --- | --- |
+| Portable editor | Build shared editor, P4/P5 regressions, presentation, portable deployment | Main/PR; focused manual qualification; reused by Release. Test evidence and development archives |
+| Android qualification | Build Qt Android ARM64+x86_64, APK, emulator lifecycle/rendering | Focused manual run or reused by Release; evidence and signed release artifact only when tagged |
+| Portable rendering | Backend/resource/pass/GPU contract regressions | Main/PR/manual; test evidence, no product Release |
+| Portable formats | Formats, encoding and CPU portability | Main/PR/manual; test evidence, no product Release |
+| Bullet 2.75 build | Original-source integrity and compiler/architecture physics checks | Main/PR/manual; test evidence, no product Release |
+| Release portable editor | Coordinate qualification and publish all five qualified packages | Version tag or explicit existing-tag dispatch |
+
+Do not dispatch the full matrix to inspect a single platform failure. First
+reproduce locally; use the editor's `platform`/qualification inputs or the
+Android workflow for the demonstrated gap. Documentation-only changes skip
+ordinary builds. Compiler caches are partitioned by OS/architecture/toolchain;
+Qt and dependency downloads use pinned versions. Never cache CMake build trees
+or reuse machine-specific compiler profiles.
+
+## Prepare a release
+
+Complete the required platform gates, update `VERSION` and
+`docs/releases/vVERSION.md`, then commit all production inputs. Review package
+scope against [the cross-platform plan](../cross_platform_plan.md). A preview
+release does not imply full P5/MME, Ray/C3 or physical mixed-DPI qualification.
+
+For Android, keep a durable signing keystore and configure the repository's
+`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and
+`ANDROID_KEY_PASSWORD` secrets. Keep an offline backup: subsequent APK updates
+must use the same key. Development emulator keys are temporary and never used
+for published APKs. Do not commit keystores/passwords or print secrets to logs.
 
 ```sh
-git tag -a v10.00 -m "MikuDanceStudio 10.00"
-git push origin v10.00
+python tests/test_release_contract.py
+python scripts/release.py --tag v0.0.1
+git tag -a v0.0.1 -m "MikuDanceStudio-NG v0.0.1"
+git push origin v0.0.1
 ```
 
-The portable editor workflow checks that the tag exactly matches `VERSION`.
-All three platforms must pass before it creates a draft; publishing that draft is
-an explicit release step. Branch pushes upload development artifacts only. The
-built-in `GITHUB_TOKEN` is used; no personal access token is needed.
+After the single tag workflow completes, verify the public Release's five
+packages and manifest. If qualification fails, retain logs and fix the problem;
+do not call a failed test a pass, replace published binaries, or relax a gate
+just to publish. Fixes before publication can use a new candidate tag/version;
+published tags and assets never move.
 
-??? `VERSION` ??????????? Qt ???????????????
-???????P4/C1 ????????????????????????
+## Local output layout
 
-## Legacy Windows release / ?? Windows ??
+| Path | Purpose |
+| --- | --- |
+| `out/build` | Desktop CMake build and test executables; not a distribution |
+| `out/android` | Android CMake/multi-ABI/Gradle intermediates; not a distribution |
+| `out/dist` | The current complete desktop runtime directory |
+| `out/releases` | Portable archives/APK and SHA-256 files |
+| `out/evidence` | Local screenshots, logs and qualification reports |
+| `out/qt`, `out/dxc*`, `out/editor-fonts` | Reusable, pinned SDK/dependency inputs |
 
-The manual `.github/workflows/release.yml` retains the DX9 x86/x64 build and
-validation path. It defaults to `validation_only=true`. An explicitly requested
-legacy release can set that option to false and provide an existing version tag;
-this is separate from the NG Qt workflow above.
-
-For a regression-only run, enable `validation_only` and set `tag` to the branch or
-commit to test. This uses the same x86/x64 build and test steps, preserves the test
-artifacts, and skips packaging and publishing. Existing version tags remain fixed.
-
-```sh
-gh workflow run release.yml -f tag=main -f validation_only=true
-```
-
-## Package and runtime / 压缩包与运行环境
-
-Each ZIP contains `MikuDanceStudio.exe`, `Data/MMDxShow.dll`, version/readme and
-license files. MME and the default toon textures are embedded in the executable.
-`LICENSE` contains the MIT license for MikuDanceStudio's own code.
-`licenses/MikuMikuDance.txt` preserves the original MikuMikuDance permission
-statement and disclaimer; the extracted resources described in `res/README.md`
-retain their original terms. `licenses/Bullet.txt` contains the Bullet license.
-External models, motions and effects are not included. Extract the entire folder
-and keep the `Data` subdirectory next to the EXE.
-
-Install the Microsoft Visual C++ 2015–2022 Redistributable for the chosen
-architecture, the legacy Visual C++ 2008 runtime required by the retained
-manifest, and the DirectX End-User Runtimes (June 2010). x64 imports `d3dx9_43.dll`;
-x86 imports `d3dx9_32.dll`. These Microsoft runtime installers are not bundled.
-The release workflow installs the checksum-pinned Microsoft runtime on its runner
-before CTest and saves JUnit results plus CTest logs, including on failure. GPU
-tests may explicitly skip with code 77 when the required device is unavailable;
-a skip is not a GPU parity result. Optional local `ray.fx` tests are enabled only
-when `MIKUDANCESTUDIO_RAY_TEST_EFFECT` is configured; CI does not supply that asset.
-That option also enables hidden editor fallback/recovery tests for each enabled
-RHI backend. See [RayMMD regression](RHI_RAY_REGRESSION.md) for coverage and
-the separate native DX9 image comparisons.
-
-压缩包需完整解压，运行库未打包。CI 构建不依赖本机安装的 MMD 或任何模型。
-
-## Reproduce the legacy release build
-
-The unmodified Bullet 2.75 `src` tree from `bullet-2.75.zip` is versioned under
-`recipes/bullet275/bullet-src`. `upstream.json` records the archive SHA-256 and
-every source file's checksum; each recipe build verifies the tree. The modern
-CMake build stays outside the upstream tree and builds the three rigid-body
-libraries used by the application. Numerical alignment uses compiler settings,
-with no Bullet algorithm, expression-order, class-layout or diagnostic patches.
-This does not guarantee bitwise equivalence with MMD's historical compiler.
-CI creates that local recipe before installing application dependencies.
-`--lockfile=""` deliberately bypasses the historical workstation lock, whose
-Bullet recipe revision predates these versioned sources.
-
-```powershell
-python -m pip install conan==2.27.1
-conan profile detect --force
-conan create recipes/bullet275 --profile:all profiles/x64 -s compiler.cppstd=17 -s build_type=Release --build=missing --lockfile=""
-conan install . --profile:all profiles/x64 -s compiler.cppstd=17 -s build_type=Release --build=missing --lockfile="" --output-folder=out/ci
-cmake -S . -B out/ci/build -G "Visual Studio 17 2022" -A x64 -DCMAKE_TOOLCHAIN_FILE="$PWD/out/ci/build/generators/conan_toolchain.cmake" -DBUILD_TESTING=ON -DMIKUDANCESTUDIO_DIAG=OFF
-cmake --build out/ci/build --config Release --parallel 4
-if ($LASTEXITCODE) { exit $LASTEXITCODE }
-ctest --test-dir out/ci/build -C Release --output-on-failure --timeout 90 --no-tests=error
-if ($LASTEXITCODE) { exit $LASTEXITCODE }
-python scripts/release.py --tag v10.00 --build-dir out/ci/build --arch x64
-```
-
-For x86 use `profiles/x86`, `-A Win32`, `--arch x86` and a separate output folder.
-The GitHub release publishing commands follow the [GitHub CLI release API](https://cli.github.com/manual/gh_release_create).
+Do not launch an executable from a random historical build directory or copy
+only the EXE out of a portable package. See [distribution instructions](DISTRIBUTION.md).

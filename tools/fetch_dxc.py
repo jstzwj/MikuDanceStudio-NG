@@ -7,6 +7,7 @@ import platform
 import tarfile
 import urllib.request
 import zipfile
+from release_contract import binary_arch
 
 VERSION = "v1.8.2505.1"
 RELEASES = {
@@ -17,6 +18,8 @@ RELEASES = {
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--arch", choices=('x64', 'arm64'),
+                        default='arm64' if platform.machine().lower() in ('arm64', 'aarch64') else 'x64')
     args = parser.parse_args()
     system = platform.system()
     name, checksum = RELEASES[system]
@@ -28,10 +31,15 @@ def main():
     if system == "Windows":
         archive = zipfile.ZipFile(io.BytesIO(data))
         for item in ("dxc.exe", "dxcompiler.dll", "dxil.dll"):
-            (args.output / item).write_bytes(archive.read(f"bin/x64/{item}"))
+            data = archive.read(f"bin/{args.arch}/{item}")
+            if binary_arch(data) != args.arch:
+                raise RuntimeError(f'DXC distribution has the wrong architecture: {item}')
+            (args.output / item).write_bytes(data)
         for item in ("LICENSE-LLVM.txt", "LICENSE-MS.txt", "ReleaseNotes.md"):
             if item in archive.namelist(): (args.output / item).write_bytes(archive.read(item))
     else:
+        if args.arch != 'x64':
+            raise RuntimeError('The pinned Linux DXC archive supports x64 only')
         archive = tarfile.open(fileobj=io.BytesIO(data), mode="r:gz")
         for item in ("bin/dxc", "lib/libdxcompiler.so", "lib/libdxil.so", "LICENSE-LLVM.txt", "LICENSE-MS.txt"):
             member = next((m for m in archive if m.name.lstrip("./") == item), None)

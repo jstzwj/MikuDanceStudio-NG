@@ -44,7 +44,20 @@ unsigned Viewport::AntialiasSamples() const {
 Viewport::Viewport(editor::EditorSession& session, const std::filesystem::path& assets)
     : session_(session), builtins_(assets) {
     setObjectName("mmd.viewport");
+#ifdef __ANDROID__
+    setSurfaceType(QSurface::VulkanSurface);
+    connect(qGuiApp, &QGuiApplication::applicationStateChanged, this,
+            [this](Qt::ApplicationState state) {
+                if (state != Qt::ApplicationActive) {
+                    controller_.Close();
+                    options_.surface.reset();
+                    frameCached_ = false;
+                    producer_.ResetHistory();
+                }
+            });
+#else
     setSurfaceType(QSurface::RasterSurface);
+#endif
     options_.backend = rhi::DefaultBackend();
     options_.vulkanLibrary = qEnvironmentVariable("MDS_TEST_VULKAN_LIBRARY").toStdString();
     if (qEnvironmentVariable("MDS_GPU_DRIVER") == "software")
@@ -126,6 +139,12 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
     const auto h = unsigned(std::max(1, qRound(height() * devicePixelRatio())));
     if (controller_.State() == rhi::PreviewState::Closed) {
         auto surface = QtSurface(*this, reason);
+#ifdef __ANDROID__
+        if (!surface && reason == "android-surface-pending") {
+            reason.clear();
+            return true; // Android creates the SurfaceView asynchronously.
+        }
+#endif
         if (!surface)
             return false;
         rhi::SwapchainDesc desc;

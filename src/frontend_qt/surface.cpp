@@ -2,11 +2,11 @@
 #include "surface_lease.hpp"
 #include <QGuiApplication>
 #include <QPointer>
-#if !defined(_WIN32) && !defined(__APPLE__)
+#if !defined(_WIN32) && !defined(__APPLE__) && !defined(__ANDROID__)
 #include <qpa/qplatformnativeinterface.h>
 #endif
 namespace mikudancestudio::qt {
-#ifndef __APPLE__
+#if !defined(__APPLE__) && !defined(__ANDROID__)
 std::shared_ptr<const rhi::WindowSurfaceSource> QtSurface(QWindow& window, std::string& reason) {
 #ifdef _WIN32
     if (QGuiApplication::platformName() != "windows") {

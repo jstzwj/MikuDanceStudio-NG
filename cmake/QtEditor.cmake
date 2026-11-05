@@ -24,6 +24,7 @@ elseif(UNIX)
 endif()
 function(mds_add_qt_editor)
     get_filename_component(root "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/.." ABSOLUTE)
+    include("${root}/cmake/Version.cmake")
     qt_add_library(mikudancestudio_frontend_qt STATIC
         "${root}/src/frontend_qt/language.cpp"
         "${root}/src/frontend_qt/preferences_dialog.cpp"
@@ -69,7 +70,7 @@ function(mds_add_qt_editor)
         target_compile_options(mikudancestudio_frontend_qt PRIVATE $<$<COMPILE_LANGUAGE:OBJCXX>:-fobjc-arc>)
         target_link_libraries(mikudancestudio_frontend_qt PRIVATE "-framework Cocoa" "-framework QuartzCore"
             "-framework AudioToolbox")
-    else()
+    elseif(NOT ANDROID)
         # The small platform adapter uses QPA to retrieve Wayland wl_surface.
         # Keep the Qt minor version pinned in CI and test both X11 and Wayland.
         target_link_libraries(mikudancestudio_frontend_qt PRIVATE Qt6::GuiPrivate)
@@ -111,7 +112,11 @@ function(mds_add_qt_editor)
     include("${root}/cmake/EditorFonts.cmake")
     add_custom_command(TARGET MikuDanceStudioNG POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${root}/res/assets" "$<TARGET_FILE_DIR:MikuDanceStudioNG>/assets")
-    include("${root}/cmake/QtDistribution.cmake")
+    if(ANDROID)
+        include("${root}/cmake/QtAndroid.cmake")
+    else()
+        include("${root}/cmake/QtDistribution.cmake")
+    endif()
     if(BUILD_TESTING)
         qt_add_executable(qt_translation_catalog_test "${root}/tests/qt_translation_catalog_test.cpp")
         target_link_libraries(qt_translation_catalog_test PRIVATE mikudancestudio_frontend_qt)

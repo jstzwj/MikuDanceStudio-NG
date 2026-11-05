@@ -7,6 +7,9 @@ qt_add_lrelease(mikudancestudio_frontend_qt TS_FILES ${mds_ts_files}
 qt_add_resources(mikudancestudio_frontend_qt editor_translations
     PREFIX "/i18n" BASE "${CMAKE_CURRENT_BINARY_DIR}/translations" FILES ${mds_qm_files})
 get_filename_component(mds_qt_prefix "${Qt6_DIR}/../../.." ABSOLUTE)
+if(ANDROID)
+    set(mds_qt_prefix "${QT_HOST_PATH}")
+endif()
 set(mds_qt_base_translations)
 foreach(mds_ts IN LISTS mds_ts_files)
     get_filename_component(mds_locale "${mds_ts}" NAME_WE)

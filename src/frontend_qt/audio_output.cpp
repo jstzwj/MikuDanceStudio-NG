@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <sstream>
 namespace mikudancestudio::qt {
-#if defined(Q_OS_LINUX)
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
 std::unique_ptr<AudioOutput> CreatePulseAudioOutput();
 #elif defined(Q_OS_MACOS)
 std::unique_ptr<AudioOutput> CreateCoreAudioOutput();
@@ -193,7 +193,7 @@ private:
 };
 }
 std::unique_ptr<AudioOutput> CreateAudioOutput() {
-#if defined(Q_OS_LINUX)
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
     return CreatePulseAudioOutput();
 #elif defined(Q_OS_MACOS)
     return CreateCoreAudioOutput();

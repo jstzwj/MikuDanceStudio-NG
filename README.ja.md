@@ -6,6 +6,8 @@
 
 MikuDanceStudio NG は、慣れ親しんだ MMD のアニメーション制作を、現代の描画技術と Windows・macOS・Linux のネイティブエディターへつなぐプロジェクトです。MikuMikuDance v9.32 の実装をソースコードとして再構築し、オリジナルの動作を手がかりに開発を進めています。
 
+配布は **デスクトップ向けポータブル版のみ**（インストーラーなし）と、Android 向け APK です。初回プレビュー `v0.0.1` は Windows x64／ARM64、Apple Silicon macOS、Linux x64、Android の全対象の検証後に公開します。[ビルド・テスト・公開の手順](docs/RELEASES.md)をご覧ください。
+
 ## 私たちの物語
 
 始まりは、8 年前のある夜でした。

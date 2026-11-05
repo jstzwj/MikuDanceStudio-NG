@@ -6,7 +6,8 @@
 namespace mikudancestudio::rhi {
 // The host owns the native window/display/layer. Physical pixel dimensions are
 // supplied separately by SwapchainDesc; a lease survives all native GPU users.
-// Cocoa handle = CAMetalLayer*, Win32 = HWND, Xcb/Wayland = window/surface token.
+// Cocoa = CAMetalLayer*, Win32 = HWND, Android = ANativeWindow*;
+// Xcb/Wayland = window/surface token.
 // No graphics API entry points or instance extensions belong to this contract.
 struct WindowSurfaceSource {
     NativeWindow window;
@@ -18,6 +19,7 @@ inline bool ValidWindowSurface(const WindowSurfaceSource& source) {
     const auto system = source.window.system;
     return source.window.handle && source.lease && source.health &&
            (system == WindowSystem::Win32 || system == WindowSystem::Cocoa ||
+            system == WindowSystem::Android ||
             ((system == WindowSystem::Xcb || system == WindowSystem::Wayland) && source.display));
 }
 inline std::shared_ptr<const WindowSurfaceSource>

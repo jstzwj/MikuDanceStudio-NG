@@ -11,6 +11,7 @@
 #include <QImage>
 #include <QMessageBox>
 #include <QProgressDialog>
+#include <QStandardPaths>
 #include <QSaveFile>
 #include <cmath>
 #include <fstream>
@@ -99,6 +100,13 @@ QString EditorWindow::ChooseFile(FileKind kind, bool save, const QString& title,
     dialog.setFileMode(save ? QFileDialog::AnyFile : QFileDialog::ExistingFile);
     dialog.setOption(QFileDialog::DontConfirmOverwrite, !confirmOverwrite);
     dialog.setOption(QFileDialog::DontUseNativeDialog, testing_);
+#ifdef __ANDROID__
+    // SAF folders are imported once with all dependencies. File operations then
+    // use that local workspace, preserving the core's filesystem/path contract.
+    dialog.setOption(QFileDialog::DontUseNativeDialog, true);
+    dialog.setDirectory(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) +
+                        "/workspaces");
+#endif
     if (save && filter.startsWith("Polygon Model files"))
         dialog.setDefaultSuffix("pmd");
     if (!suggestedName.isEmpty())

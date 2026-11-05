@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 
 include(cmake/Version.cmake)
-project(MikuDanceStudio VERSION "${MDS_VERSION_MAJOR}.${MDS_VERSION_MINOR}" LANGUAGES CXX)
+project(MikuDanceStudio VERSION "${MDS_VERSION}" LANGUAGES CXX)
 include(cmake/Formatting.cmake)
 configure_file(cmake/version.hpp.in generated/mikudancestudio/version.hpp @ONLY)
 configure_file(res/version.rc.in generated/version.rc @ONLY)
