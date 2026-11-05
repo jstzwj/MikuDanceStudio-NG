@@ -68,13 +68,14 @@ int main(int argc, char** argv) try {
     const auto focusAtEntry = GetFocus();
     QApplication app(argc, argv);
     HiddenDialogInputGuard hiddenInput;
-    const bool unicode = argc == 3 && QString::fromLocal8Bit(argv[2]) == "--unicode";
+    const bool contract = argc == 3 && QString::fromLocal8Bit(argv[2]) == "--unicode-contract";
+    const bool unicode = contract || (argc == 3 && QString::fromLocal8Bit(argv[2]) == "--unicode");
     if ((argc != 2 && !unicode) || QGuiApplication::platformName() != "windows")
         return 2;
     const QString output = QString::fromLocal8Bit(argv[1]);
     QDir().mkpath(output);
     QJsonArray records;
-    unsigned cases = 0, failures = 0;
+    unsigned cases = 0, failures = 0, rasterDifferences = 0, strictCases = 0, textFailures = 0;
     for (const char* code : {"en", "ja", "zh_CN"}) {
         qt::Language language;
         if (!language.Set(code))
@@ -147,12 +148,19 @@ int main(int argc, char** argv) try {
                             expected.save(output + '/' + stem + "-native.png");
                             actual.save(output + '/' + stem + "-qt.png");
                         }
-                        failures += difference != 0;
+                        const bool strict = !contract || (variant < 2 && nativeText == text);
+                        const bool preserved = field->toPlainText() == texts[variant];
+                        failures += strict && difference != 0;
+                        rasterDifferences += difference != 0;
+                        strictCases += strict;
+                        textFailures += !preserved;
                         records.append(
                             QJsonObject{{"case", stem},
                                         {"different", int(difference)},
                                         {"nativeText", QString::fromStdWString(nativeText)},
-                                        {"nativeTextPreserved", nativeText == text}});
+                                        {"nativeTextPreserved", nativeText == text},
+                                        {"textPreserved", preserved},
+                                        {"strictRaster", strict}});
                         ++cases;
                         const auto foreground = GetForegroundWindow();
                         DWORD process = 0;
@@ -170,17 +178,26 @@ int main(int argc, char** argv) try {
     if (!report.open(QIODevice::WriteOnly))
         return 1;
     report.write(
-        QJsonDocument(QJsonObject{{"cases", int(cases)},
-                                  {"failures", int(failures)},
-                                  {"windowsShown", false},
-                                  {"outerDialogAdaptation", "WS_EX_NOACTIVATE before creation"},
-                                  {"activationProtection",
-                                   "thread-local WH_CBT veto; foreground/focus assertions"},
-                                  {"records", records}})
+        QJsonDocument(
+            QJsonObject{
+                {"cases", int(cases)},
+                {"failures", int(failures)},
+                {"rasterDifferences", int(rasterDifferences)},
+                {"strictRasterCases", int(strictCases)},
+                {"textFailures", int(textFailures)},
+                {"unicodePolicy",
+                 contract
+                     ? "preserve complex/lossy Unicode; native-supported traditional text remains exact"
+                     : "exact raster"},
+                {"windowsShown", false},
+                {"outerDialogAdaptation", "WS_EX_NOACTIVATE before creation"},
+                {"activationProtection", "thread-local WH_CBT veto; foreground/focus assertions"},
+                {"records", records}})
             .toJson());
     std::cout << cases << " original multiline client paint states; " << failures
-              << " mismatches; never shown\n";
-    return cases != (unicode ? 360 : 432) || failures ? 1 : 0;
+              << " strict mismatches; " << strictCases << " strict states; " << rasterDifferences
+              << " raster diagnostics; " << textFailures << " text failures; never shown\n";
+    return cases != (unicode ? 360 : 432) || failures || textFailures ? 1 : 0;
 } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';
     return 1;

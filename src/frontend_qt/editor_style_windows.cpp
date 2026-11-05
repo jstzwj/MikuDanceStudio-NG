@@ -84,9 +84,15 @@ bool DrawWindowsMultilineText(QPainter& painter, const QPlainTextEdit& edit,
                               const WindowsMultilineLayout* layout) {
     if (edit.property("_mmdImePreedit").toBool())
         return false;
-    for (const auto character : edit.toPlainText())
-        if (character.unicode() > 0x7f)
+    for (const auto character : edit.toPlainText()) {
+        const auto value = character.unicode();
+        const bool cjk =
+            (value >= 0x3400 && value <= 0x9fff) ||
+            (value >= 0x3000 && value <= 0x30ff && character.category() != QChar::Mark_NonSpacing &&
+             character.category() != QChar::Mark_SpacingCombining);
+        if (value > 0x7f && !cjk)
             return false;
+    }
     const auto ratio = painter.device()->devicePixelRatioF();
     const auto rect = edit.viewport()->rect();
     WindowsCanvas canvas(qRound(rect.width() * ratio), qRound(rect.height() * ratio));

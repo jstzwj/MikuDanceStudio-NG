@@ -167,6 +167,9 @@ function(mds_add_qt_editor)
             add_test(NAME qt_multiline_paint COMMAND qt_multiline_paint_test "${CMAKE_BINARY_DIR}/multiline-paint")
             set_tests_properties(qt_multiline_paint PROPERTIES LABELS "p4;hidden;qt;appearance;oracle"
                 TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=windows")
+            add_test(NAME qt_multiline_unicode COMMAND qt_multiline_paint_test "${CMAKE_BINARY_DIR}/multiline-unicode" --unicode-contract)
+            set_tests_properties(qt_multiline_unicode PROPERTIES LABELS "p4;hidden;qt;appearance;oracle;unicode"
+                TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=windows")
             qt_add_executable(qt_multiline_hit_test "${root}/tests/qt_multiline_hit_test.cpp")
             target_link_libraries(qt_multiline_hit_test PRIVATE mikudancestudio_frontend_qt)
             add_test(NAME qt_multiline_hit COMMAND qt_multiline_hit_test

@@ -108,7 +108,8 @@ int main(int argc, char** argv) try {
     const QString output = QString::fromLocal8Bit(argv[1]);
     QDir().mkpath(output);
     QJsonArray dragRecords, textRecords;
-    unsigned dragFailures = 0, textFailures = 0, unicodeRasterDifferences = 0;
+    unsigned dragFailures = 0, textFailures = 0, unicodeRasterDifferences = 0,
+             traditionalRasterFailures = 0;
     const auto checkpoint = [&] {
         QFile report(output + "/report.json");
         Check(report.open(QIODevice::WriteOnly), "write extended multiline report");
@@ -120,8 +121,9 @@ int main(int argc, char** argv) try {
                     {"dragFailures", int(dragFailures)},
                     {"unicodeFailures", int(textFailures)},
                     {"unicodeRasterDifferences", int(unicodeRasterDifferences)},
+                    {"traditionalRasterFailures", int(traditionalRasterFailures)},
                     {"unicodePolicy",
-                     "preserve complete readable Unicode and editing; original raster differences retained as diagnostics"},
+                     "native-supported traditional CJK remains raster exact; preserve complete readable complex/lossy Unicode and editing, retaining raster diagnostics"},
                     {"drags", dragRecords},
                     {"unicode", textRecords}})
                 .toJson());
@@ -227,14 +229,17 @@ int main(int argc, char** argv) try {
                 actual.save(output + '/' + stem + "-qt.png");
                 const bool preserved = field->toPlainText() == text;
                 const auto editingFailures = UnicodeEditing(*field, text);
+                const bool strictRaster = variant < 2 && nativePreserved;
                 textRecords.append(QJsonObject{{"case", stem},
                                                {"different", int(different)},
                                                {"nativeTextPreserved", nativePreserved},
                                                {"nativeText", QString::fromStdWString(contents)},
                                                {"inputText", nativeText},
                                                {"textPreserved", preserved},
+                                               {"strictRaster", strictRaster},
                                                {"editingFailures", int(editingFailures)}});
                 unicodeRasterDifferences += different != 0;
+                traditionalRasterFailures += strictRaster && different != 0;
                 textFailures += !preserved || editingFailures != 0;
                 checkpoint();
             }
@@ -246,8 +251,9 @@ int main(int argc, char** argv) try {
     std::cout << dragRecords.size() << " actual outside-client drags; " << dragFailures
               << " differences; " << textRecords.size() << " Unicode preservation/editing cases; "
               << textFailures << " failures; " << unicodeRasterDifferences
-              << " raster diagnostics\n";
-    return dragFailures || textFailures ? 1 : 0;
+              << " raster diagnostics; " << traditionalRasterFailures
+              << " traditional CJK raster failures\n";
+    return dragFailures || textFailures || traditionalRasterFailures ? 1 : 0;
 } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';
     return 1;
