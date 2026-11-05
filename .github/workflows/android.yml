@@ -77,7 +77,8 @@ jobs:
           repository: KhronosGroup/Vulkan-Headers
           ref: v1.3.296
           path: out/vulkan-headers
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: objects
         with:
           path: .cache/ccache
           key: android-objects-qt683-ndk261-v1-${{ github.sha }}
@@ -106,6 +107,11 @@ jobs:
             '-DQT_ANDROID_MULTI_ABI_FORWARD_VARS=BUILD_TESTING;MDS_DXC;MDS_SPIRV_VAL;MDS_VULKAN_INCLUDE;MDS_RELEASE_TAG;MDS_EDITOR_FONT_FILE;CMAKE_SHARED_LINKER_FLAGS' \
             -DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384
           cmake --build out/android --target apk --parallel 3
+      - uses: actions/cache/save@v4
+        if: steps.objects.outputs.cache-hit != 'true'
+        with:
+          path: .cache/ccache
+          key: android-objects-qt683-ndk261-v1-${{ github.sha }}
       - name: Inspect and sign shipping APK with the persistent release key
         if: inputs.release_tag
         env:
@@ -146,8 +152,11 @@ jobs:
           api-level: 35
           arch: x86_64
           target: google_apis
-          # Nexus10 is present in the pinned command-line tools' device catalog.
-          profile: Nexus10
+          # Explicit tablet geometry avoids SDK-specific device catalog names.
+          ram-size: 3072M
+          pre-emulator-launch-script: |
+            sed -i '/^hw.lcd\./d; /^hw.initialOrientation=/d' "$ANDROID_AVD_HOME/test.avd/config.ini"
+            printf 'hw.lcd.width=1280\nhw.lcd.height=800\nhw.lcd.density=160\nhw.initialOrientation=landscape\n' >> "$ANDROID_AVD_HOME/test.avd/config.ini"
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader -feature Vulkan -noaudio -no-boot-anim -camera-back none
           script: |
