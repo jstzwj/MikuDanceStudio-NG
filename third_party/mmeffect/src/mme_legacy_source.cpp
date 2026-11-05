@@ -253,6 +253,8 @@ public:
             }
         }
         const auto value = present ? Join(t, start, p) : "";
+        if (present && value.empty())
+            Fail("initializer");
         Need(";");
         return value;
     }
@@ -526,8 +528,9 @@ public:
         v.annotations = annotations;
         if (type == "float4x4") {
             v.rows = v.columns = 4;
-        } else if (type == "float" || type == "int" || type == "bool" ||
-                   (describe && type == "string")) {
+        } else if (describe && type == "string") {
+            v.rows = v.columns = 0;
+        } else if (type == "float" || type == "int" || type == "bool") {
         } else if (type.size() == 6 && type.substr(0, 5) == "float" && type[5] >= '2' &&
                    type[5] <= '4')
             v.columns = unsigned(type[5] - '0');

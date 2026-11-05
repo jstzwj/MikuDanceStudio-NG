@@ -51,12 +51,15 @@ int main() try {
     Check(!MmeLegacyImport(metadata, strict, reason), "strict importer remains strict");
     const auto saved = result.techniques.size();
     MmeLegacyDiagnostic diagnostic;
-    Check(!MmeLegacyDescribe("#line 30 \"bad.fx\"\nfloat X=; technique T {pass P {Bad 0;}}", result,
-                             reason, &diagnostic),
+    Check(!MmeLegacyDescribe("#line 30 \"bad.fx\"\nfloat X=1; technique T {pass P {Bad 0;}}",
+                             result, reason, &diagnostic),
           "invalid declaration is rejected");
     Check(result.techniques.size() == saved && diagnostic.file == "bad.fx" &&
               diagnostic.line == 30 && diagnostic.technique == "T" && diagnostic.pass == "P",
           "failure preserves previous definition and source location");
+    Check(!MmeLegacyDescribe("float X=; technique T {}", result, reason, &diagnostic) &&
+              diagnostic.declaration == "X",
+          "empty initializer is not a valid default");
     std::cout
         << "FX definitions: defaults, shared flags, annotations, techniques, empty passes and diagnostics passed\n";
     return 0;

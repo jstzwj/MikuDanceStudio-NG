@@ -25,7 +25,7 @@ int main() try {
     CHECK(program.hlsl.find("uint TintEnabled") != std::string::npos);
     MmeLegacyDiagnostic diagnostic;
     CHECK(!MmeLegacyImport(
-        "#line 42 \"fixture.fxsub\"\nfloat4 broken = ;\ntechnique T { pass P { Bad 0; } }", program,
+        "#line 42 \"fixture.fxsub\"\nfloat4 value = 1;\ntechnique T { pass P { Bad 0; } }", program,
         reason, &diagnostic));
     CHECK(reason == "MME_legacy_syntax" && diagnostic.file == "fixture.fxsub" &&
           diagnostic.line == 43 && diagnostic.token == "0" && diagnostic.technique == "T" &&
