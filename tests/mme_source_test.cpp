@@ -16,6 +16,16 @@ void Write(const fs::path& path, const std::string& text) {
     Check(bool(file), "write fixture");
 }
 int main(int argc, char** argv) try {
+    // A tool can emit arbitrary bytes. Diagnostics must remain UTF-8 even
+    // when the compiler reports malformed output, without losing locations.
+    if (argc == 2 && std::string(argv[1]) == "--version") {
+        std::cout << "fixture preprocessor\n";
+        return 0;
+    }
+    if (argc > 2 && std::string(argv[1]) == "-P") {
+        std::cerr << "MDS_FX_SOURCE_0:7:2: error: invalid tool byte " << char(0xff) << '\n';
+        return 1;
+    }
     Check(argc == 3, "DXC and output directory required");
     const auto directory = fs::absolute(argv[2]);
     const auto cwd = fs::current_path();
@@ -92,6 +102,18 @@ int main(int argc, char** argv) try {
     Check(!PreprocessEffect(directory / "missing-root.fx", options, source, reason, &diagnostic) &&
               reason == "MME_source_not_found" && diagnostic.line == 1,
           "missing root has a stable diagnostic");
+    auto badTool = options;
+    badTool.preprocessor = fs::absolute(argv[0]);
+    Check(!PreprocessEffect(directory / "cp932.fx", badTool, source, reason, &diagnostic) &&
+              reason.find("\\xff") != std::string::npos && diagnostic.line == 7 &&
+              diagnostic.file.find("cp932.fx") != std::string::npos,
+          "tool byte repair and logical source mapping");
+    Write(directory / "filename.fx", "string File=__FILE__;\n");
+    Check(PreprocessEffect(directory / "filename.fx", options, source, reason) &&
+              source.expanded.find((directory / "filename.fx").generic_u8string()) !=
+                  std::string::npos &&
+              source.expanded.find("MDS_FX_SOURCE_") == std::string::npos,
+          "__FILE__ expands to the original canonical UTF-8 filename");
     std::cout
         << "FX source: frozen includes, guards, native macros, locations, encodings and budgets passed\n";
     return 0;

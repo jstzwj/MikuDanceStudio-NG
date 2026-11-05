@@ -53,7 +53,7 @@ on:
         default: false
       mme_only:
         type: boolean
-        description: Windows headless MME frontend and native oracle only (no Qt, GPU or packaging)
+        description: Headless MME frontend only (no Qt, GPU or packaging; platform selects runners)
         default: false
       system_ime:
         type: boolean
@@ -86,30 +86,55 @@ jobs:
           python scripts/format_sources.py --check --changed "$BASE_REVISION"
   mme:
     if: github.event_name == 'workflow_dispatch' && inputs.mme_only
-    runs-on: ${{ inputs.windows_runner || 'windows-2022' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJSON(inputs.platform == 'windows' && '["windows"]' || inputs.platform == 'linux' && '["linux"]' || inputs.platform == 'macos' && '["macos"]' || inputs.platform == 'linux-macos' && '["linux","macos"]' || '["windows","linux","macos"]') }}
+    runs-on: ${{ matrix.platform == 'windows' && (inputs.windows_runner || 'windows-2022') || matrix.platform == 'macos' && (inputs.macos_runner || 'macos-15') || 'ubuntu-22.04' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Fetch pinned source tools and independent oracle
+        if: runner.os != 'macOS'
+        shell: pwsh
         run: |
           python tools/fetch_dxc.py --output out/dxc
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python tools/fetch_d3dx_oracle.py --output out/d3dx-oracle
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($IsWindows) {
+            python tools/fetch_d3dx_oracle.py --output out/d3dx-oracle
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - uses: actions/cache/restore@v4
+        if: runner.os == 'macOS'
+        with:
+          path: out/dxc
+          key: dxc-b106a961-macos15-arm64-v1
+          fail-on-cache-miss: true
+      - name: Prepare cached native compiler
+        if: runner.os == 'macOS'
+        run: chmod +x out/dxc/bin/dxc
       - name: Build and qualify without Qt or GPU SDKs
+        shell: pwsh
         run: |
-          cmake -S cmake/portable-mme -B out/p5 -A x64 -DMDS_DXC="$PWD/out/dxc/dxc.exe" -DMDS_D3DX_ORACLE="$PWD/out/d3dx-oracle/D3DX9_43.dll"
+          $dxcPath = if ($IsWindows) { "$PWD/out/dxc/dxc.exe" } else { "$PWD/out/dxc/bin/dxc" }
+          $configureArgs = @('-S', 'cmake/portable-mme', '-B', 'out/p5', '-DCMAKE_BUILD_TYPE=Release', "-DMDS_DXC=$dxcPath")
+          $mmeTargets = @('mds_effect_cli', 'mme_source_test', 'mme_definition_test', 'mme_legacy_source_test', 'mme_standard_parameters_test', 'mme_scene_plan_test')
+          if ($IsWindows) {
+            $configureArgs += @('-A', 'x64', "-DMDS_D3DX_ORACLE=$PWD/out/d3dx-oracle/D3DX9_43.dll")
+            $mmeTargets += 'mme_frontend_native_test'
+          }
+          cmake @configureArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cmake --build out/p5 --config Release --target mds_effect_cli mme_source_test mme_definition_test mme_legacy_source_test mme_standard_parameters_test mme_scene_plan_test mme_frontend_native_test --parallel 3
+          cmake --build out/p5 --config Release --target @mmeTargets --parallel 3
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ctest --test-dir out/p5 -C Release -L p5 --no-tests=error --output-on-failure --output-junit p5.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: p5-windows
+          name: p5-${{ matrix.platform }}
           path: |
             out/p5/p5.xml
             out/p5/production/mme-cli/report.json

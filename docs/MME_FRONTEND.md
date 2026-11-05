@@ -44,7 +44,9 @@ Microsoft NuGet 包，通过 `-DMDS_D3DX_ORACLE=.../D3DX9_43.dll` 明确指定�
   `_INDEX=PSIZE15`；`MME_MIPMAP` 由宿主／CLI 显式选择。
 - 文件内容在一次加载中只读取一次，依赖图和宏一起保存在定义中。先冻结字面
   include，再让 DXC 以 legacy macro expansion 处理条件、函数宏和 token paste。
-  使用 `#line` 保留原文件位置；不修改宿主进程 cwd，不通过 shell 执行工具。
+  使用 ASCII 文件编号交给预处理器，再用冻结来源图恢复 UTF-8 `#line`／`__FILE__`
+  和诊断路径，避免依赖外部编译器的 Unicode 文件名诊断实现。非法工具日志字节
+  显式转义，不能破坏 JSON；不修改宿主进程 cwd，不通过 shell 执行工具。
 - 默认 16 MiB 源码／展开预算、256 文件、64 层 include、30 秒工具超时。合法的
   guarded cycle 保留条件语义，活动的无保护循环／深度溢出明确失败。
 - 依赖图保守包含非活动分支中实际存在的字面文件；缺失 include 在非活动分支
@@ -65,8 +67,9 @@ RHI 构建另注册原有运行时着色器编译器回归，验证共用子进�
 现有 Portable editor 的三个平台作业运行 `p4|p5`，不新增完整构建矩阵或反复
 dispatch。三平台 CI 证据取得前，P5.1 的跨平台验收仍待确认。
 
-Windows 纯前端补验可用 Portable editor 的 `mme_only=true`，只构建专用入口并
-运行 8 项无设备测试；不安装 Qt、不创建 GPU 设备，也不重复其他平台和发布包。
+纯前端补验可用 Portable editor 的 `mme_only=true`，按 `platform` 选择独立作业，
+只构建专用入口并运行 Windows 8 项／Linux、macOS 各 7 项无设备测试；不安装 Qt、
+不创建 GPU 设备，也不重复发布包。macOS 复用渲染工作流已建立的固定 DXC 缓存。
 
 本地 Ray 根效果的原始文件已通过预处理，随后在 `Shader/math.fxsub:97` 的
 `EncodeRGBM` 函数参数默认值处明确报告解析缺口。该结果只证明真实 include 链

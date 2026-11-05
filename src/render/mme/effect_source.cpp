@@ -12,28 +12,53 @@
 namespace mikudancestudio::mme {
 namespace {
 namespace fs = std::filesystem;
+std::size_t Utf8Width(const std::string& text, std::size_t at) {
+    const auto c = static_cast<unsigned char>(text[at++]);
+    if (c < 128)
+        return c ? 1 : 0;
+    unsigned count = c >= 0xc2 && c <= 0xdf   ? 1
+                     : c >= 0xe0 && c <= 0xef ? 2
+                     : c >= 0xf0 && c <= 0xf4 ? 3
+                                              : 0;
+    if (!count || text.size() - at < count)
+        return 0;
+    const auto next = static_cast<unsigned char>(text[at]);
+    if ((c == 0xe0 && next < 0xa0) || (c == 0xed && next >= 0xa0) || (c == 0xf0 && next < 0x90) ||
+        (c == 0xf4 && next >= 0x90))
+        return 0;
+    for (unsigned n = 0; n < count; ++n)
+        if ((static_cast<unsigned char>(text[at + n]) & 0xc0) != 0x80)
+            return 0;
+    return count + 1;
+}
 bool Utf8(const std::string& text) {
     for (std::size_t i = 0; i < text.size();) {
-        const auto c = static_cast<unsigned char>(text[i++]);
-        if (!c)
+        const auto width = Utf8Width(text, i);
+        if (!width)
             return false;
-        if (c < 128)
-            continue;
-        unsigned count = c >= 0xc2 && c <= 0xdf   ? 1
-                         : c >= 0xe0 && c <= 0xef ? 2
-                         : c >= 0xf0 && c <= 0xf4 ? 3
-                                                  : 0;
-        if (!count || text.size() - i < count)
-            return false;
-        const auto next = static_cast<unsigned char>(text[i]);
-        if ((c == 0xe0 && next < 0xa0) || (c == 0xed && next >= 0xa0) ||
-            (c == 0xf0 && next < 0x90) || (c == 0xf4 && next >= 0x90))
-            return false;
-        while (count--)
-            if ((static_cast<unsigned char>(text[i++]) & 0xc0) != 0x80)
-                return false;
+        i += width;
     }
     return true;
+}
+std::string ToolText(const std::string& text) {
+    std::string output;
+    const char* hex = "0123456789abcdef";
+    for (std::size_t i = 0; i < text.size();) {
+        const auto width = Utf8Width(text, i);
+        if (width) {
+            output.append(text, i, width);
+            i += width;
+        } else {
+            const auto c = static_cast<unsigned char>(text[i++]);
+            output += "\\x";
+            output += hex[c >> 4];
+            output += hex[c & 15];
+        }
+    }
+    return output;
+}
+std::string SourceName(unsigned id) {
+    return "MDS_FX_SOURCE_" + std::to_string(id);
 }
 std::string Read(const fs::path& path, std::size_t limit) {
     std::ifstream input(path, std::ios::binary);
@@ -145,10 +170,11 @@ struct Bundle {
         stack.insert(id);
         // Recursion may reallocate files, so retain value copies of this file.
         const auto file = source.files[id];
-        if (file.utf8.find("MDS_FX_INCLUDE_ONCE_") != std::string::npos)
+        if (file.utf8.find("MDS_FX_INCLUDE_ONCE_") != std::string::npos ||
+            file.utf8.find("MDS_FX_SOURCE_") != std::string::npos)
             throw std::runtime_error("MME_source_reserved_include_marker");
         const auto marker = "MDS_FX_INCLUDE_ONCE_" + std::to_string(id);
-        std::string output = "#line 1 " + Quote(file.path.generic_u8string()) + '\n';
+        std::string output = "#line 1 " + Quote(SourceName(id)) + '\n';
         std::istringstream input(file.utf8);
         std::string line;
         unsigned number = 0;
@@ -216,8 +242,8 @@ struct Bundle {
                             output += Expand(child, depth + 1);
                     }
                 }
-                output += "#line " + std::to_string(number + 1) + " " +
-                          Quote(file.path.generic_u8string()) + '\n';
+                output +=
+                    "#line " + std::to_string(number + 1) + " " + Quote(SourceName(id)) + '\n';
             } else if (std::regex_match(visible, match, directive) && match[1] == "pragma" &&
                        match[2] == "once") {
                 once = true;
@@ -230,8 +256,8 @@ struct Bundle {
                 else
                     output += visible + '\n';
                 if (number != firstLine)
-                    output += "#line " + std::to_string(number + 1) + " " +
-                              Quote(file.path.generic_u8string()) + '\n';
+                    output +=
+                        "#line " + std::to_string(number + 1) + " " + Quote(SourceName(id)) + '\n';
             }
             if (output.size() > options.maxSourceBytes)
                 throw std::runtime_error("MME_source_budget");
@@ -244,6 +270,27 @@ struct Bundle {
         return output;
     }
 };
+// The compiler sees ASCII source identities. Some DXC builds corrupt Unicode
+// #line filenames in diagnostics. Restore paths using our frozen source graph,
+// including __FILE__ string expansions; source/macros reserve this prefix.
+std::string SourceText(const std::string& text, const EffectSource& source, bool quoted) {
+    const std::regex name(quoted ? "\"MDS_FX_SOURCE_([0-9]{1,4})\""
+                                 : "MDS_FX_SOURCE_([0-9]{1,4})\\b");
+    std::string output;
+    std::size_t offset = 0;
+    for (std::sregex_iterator it(text.begin(), text.end(), name), end; it != end; ++it) {
+        const auto id = unsigned(std::stoul((*it)[1]));
+        output.append(text, offset, std::size_t(it->position()) - offset);
+        if (id < source.files.size()) {
+            const auto path = source.files[id].path.generic_u8string();
+            output += quoted ? Quote(path) : path;
+        } else
+            output += it->str();
+        offset = std::size_t(it->position() + it->length());
+    }
+    output.append(text, offset, std::string::npos);
+    return output;
+}
 }
 bool PreprocessEffect(const fs::path& path, const SourceOptions& options, EffectSource& output,
                       std::string& reason, MmeLegacyDiagnostic* diagnostic) {
@@ -276,6 +323,8 @@ bool PreprocessEffect(const fs::path& path, const SourceOptions& options, Effect
         const std::regex identifier("[A-Za-z_][A-Za-z_0-9]*");
         for (const auto& [name, value] : options.macros) {
             if (!std::regex_match(name, identifier) || name.rfind("MDS_FX_INCLUDE_ONCE_", 0) == 0 ||
+                name.rfind("MDS_FX_SOURCE_", 0) == 0 ||
+                value.find("MDS_FX_SOURCE_") != std::string::npos ||
                 value.find_first_of("\r\n") != std::string::npos ||
                 value.find('\0') != std::string::npos)
                 throw std::runtime_error("MME_source_macro");
@@ -287,15 +336,18 @@ bool PreprocessEffect(const fs::path& path, const SourceOptions& options, Effect
         if (!platform::RunToolProcess(compiler, args, workspace, options.timeoutMilliseconds,
                                       log) ||
             !fs::is_regular_file(preprocessed))
-            throw std::runtime_error("MME_preprocess_failed: " + log);
-        bundle.source.expanded = Read(preprocessed, options.maxSourceBytes);
-        bundle.source.preprocessorIdentity = identity;
+            throw std::runtime_error("MME_preprocess_failed: " + ToolText(log));
+        bundle.source.expanded =
+            SourceText(Read(preprocessed, options.maxSourceBytes), bundle.source, true);
+        if (bundle.source.expanded.size() > options.maxSourceBytes || !Utf8(bundle.source.expanded))
+            throw std::runtime_error("MME_preprocessed_source_encoding_or_budget");
+        bundle.source.preprocessorIdentity = ToolText(identity);
         bundle.source.macros = options.macros;
         output = std::move(bundle.source);
         reason.clear();
         return true;
     } catch (const std::exception& error) {
-        reason = error.what();
+        reason = SourceText(ToolText(error.what()), bundle.source, false);
         if (diagnostic) {
             diagnostic->stage = "preprocess";
             diagnostic->file = bundle.failureFile.empty() ? path.u8string() : bundle.failureFile;
