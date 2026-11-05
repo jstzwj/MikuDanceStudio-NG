@@ -1,5 +1,7 @@
 # 文档索引
 
+项目介绍与故事：[English](../README.md) · [简体中文](../README.zh-CN.md) · [日本語](../README.ja.md)。
+
 构建步骤见项目 [README](../README.md#building-from-source)，版本、打包与发布流程见 [RELEASES](RELEASES.md)。
 
 ## 当前维护文档
