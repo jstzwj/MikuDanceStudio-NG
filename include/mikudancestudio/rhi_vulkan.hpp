@@ -25,7 +25,7 @@ struct VulkanStats {
     std::size_t retiringResources = 0, peakRetiringResources = 0;
     unsigned validationErrors = 0;
     std::int32_t lastError = 0;
-    std::uint64_t presentations = 0, readbacks = 0;
+    std::uint64_t presentations = 0, readbacks = 0, swapchainRebuilds = 0;
     // Advertised queue capability; a virtual driver can still return only
     // zero-duration intervals. Consumers must not report those as 0 ms work.
     bool gpuTimingSupported = false;
@@ -61,6 +61,8 @@ enum class VulkanSurfaceLossPoint {
 // One-shot driver-result injection; still tears down/recreates real native
 // surfaces in acceptance tests. Never used by an application rendering path.
 bool LoseVulkanSurfaceForTest(Device&, VulkanSurfaceLossPoint);
+// One-shot VK_NOT_READY at image acquisition, without damaging the swapchain.
+bool DeferVulkanAcquireForTest(Device&);
 bool ReadVulkanPresentation(Device&, RgbaImage&);
 VulkanBundle CreateVulkanDevice(const SwapchainDesc&, VulkanDriver = VulkanDriver::Hardware,
                                 VulkanOptions = {});

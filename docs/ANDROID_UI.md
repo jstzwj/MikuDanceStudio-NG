@@ -35,3 +35,19 @@ Local regression: Android 14 / API 34, Pixel 7 Pro emulator, 1280x800 at density
 160; the Preferences and ordinary button touch gate passes. Test evidence belongs
 under `out/evidence/android-fixes`; private models and emulator data are not source
 or release assets.
+
+## Vulkan presentation
+
+The shared final color image is in displayed window coordinates. The swapchain
+therefore requests `VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR`; WSI applies the physical
+display transform. Declaring `currentTransform` without pre-rotating the image
+incorrectly rotates the scene on portrait-native displays. Both capability query
+and swapchain creation reject surfaces lacking identity-transform support instead
+of presenting an incorrectly oriented frame. Offscreen rendering is unaffected.
+
+`tests/test_android_presentation.py` checks the red/green world axes in actual
+screenshots, forces both landscape orientations and confirms the display really
+changed rotation. It repeats the check after background/resume and a cold window
+replacement. Android 14 / TITAN Xp passed these checks locally. The native
+acceptance gate additionally destroys/recreates the child surface and resets the
+device while preserving the loaded scene.

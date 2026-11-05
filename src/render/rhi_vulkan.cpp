@@ -353,12 +353,14 @@ public:
     unsigned activeImage = 0;
     bool presentationOutput = false, presentable = false, acquiredImage = false, retired = false;
     SurfaceHealth surfaceHealth = SurfaceHealth::Unknown;
+    VkSurfaceTransformFlagBitsKHR surfaceTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     bool swapchainReadback = false;
-    bool loseAtAcquire = false, loseAtPresent = false;
+    bool loseAtAcquire = false, loseAtPresent = false, deferAcquire = false;
     bool ValidSurface(const SwapchainDesc&) const;
     RebuildResult RebuildSurface(const SwapchainDesc&);
     void ReleaseSurface();
     SurfaceHealth Health() const;
+    SurfaceHealth SuboptimalHealth();
 
     bool Check(VkResult result) {
         stats.lastError = result;
@@ -1184,13 +1186,26 @@ public:
                 Health() == SurfaceHealth::Removed || surfaceHealth == SurfaceHealth::Resettable)
                 return false;
             const auto start = profiling ? ProfileClock::now() : ProfileClock::time_point{};
+            // Android can stop consuming a covered BufferQueue while menus or
+            // an IME Surface are being attached. Never block the GUI event loop
+            // which must finish those transitions before presentation resumes.
+#ifdef __ANDROID__
+            constexpr std::uint64_t acquireTimeout = 0;
+#else
+            constexpr std::uint64_t acquireTimeout = 5000000000ull;
+#endif
             const auto result =
-                loseAtAcquire ? VK_ERROR_SURFACE_LOST_KHR
-                              : vkAcquireNextImageKHR(native, chain, 5000000000ull, f.acquired,
-                                                      VK_NULL_HANDLE, &activeImage);
-            loseAtAcquire = false;
+                deferAcquire    ? VK_NOT_READY
+                : loseAtAcquire ? VK_ERROR_SURFACE_LOST_KHR
+                                : vkAcquireNextImageKHR(native, chain, acquireTimeout, f.acquired,
+                                                        VK_NULL_HANDLE, &activeImage);
+            loseAtAcquire = deferAcquire = false;
             if (profiling)
                 stats.acquireNanoseconds += Nanoseconds(start);
+            if (result == VK_NOT_READY || result == VK_TIMEOUT) {
+                surfaceHealth = SurfaceHealth::Busy;
+                return false;
+            }
             if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
                 Check(result);
                 if (result == VK_ERROR_OUT_OF_DATE_KHR)
@@ -1198,8 +1213,7 @@ public:
                 return false;
             }
             acquiredImage = true;
-            surfaceHealth =
-                result == VK_SUBOPTIMAL_KHR ? SurfaceHealth::Resettable : SurfaceHealth::Ready;
+            surfaceHealth = result == VK_SUBOPTIMAL_KHR ? SuboptimalHealth() : SurfaceHealth::Ready;
         }
         frameIndex = (frameIndex + 1) % FrameCount;
         if (f.timing) {
@@ -1512,6 +1526,23 @@ SurfaceHealth VulkanDevice::Health() const {
 #endif
     return surfaceHealth;
 }
+SurfaceHealth VulkanDevice::SuboptimalHealth() {
+#ifdef __ANDROID__
+    // Android reports SUBOPTIMAL whenever preTransform differs from the
+    // display hint. IDENTITY deliberately leaves rotation to WSI, so this
+    // advisory can persist after a successful rebuild. Rebuild only when
+    // the actual surface extent or transform changes, never every frame.
+    VkSurfaceCapabilitiesKHR caps{};
+    if (!Check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, surface, &caps)))
+        return surfaceHealth;
+    if (caps.currentTransform == surfaceTransform &&
+        (caps.currentExtent.width == UINT32_MAX ||
+         (caps.currentExtent.width == presentation.width &&
+          caps.currentExtent.height == presentation.height)))
+        return SurfaceHealth::Ready;
+#endif
+    return SurfaceHealth::Resettable;
+}
 void VulkanDevice::ReleaseSurface() {
     for (auto semaphore : readyToPresent)
         if (semaphore)
@@ -1535,6 +1566,12 @@ RebuildResult VulkanDevice::RebuildSurface(const SwapchainDesc& d) {
     if (!Check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, surface, &caps)))
         return RebuildResult::Failed;
     if (!(caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT))
+        return RebuildResult::Unsupported;
+    // finalColor is already in the window's displayed orientation. Declaring
+    // currentTransform would promise that we pre-rotated it to the display's
+    // native orientation (false on portrait-native phones). WSI must apply
+    // the display transform once to our canonical frame output.
+    if (!(caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR))
         return RebuildResult::Unsupported;
     if (!caps.currentExtent.width || !caps.currentExtent.height)
         return RebuildResult::RetryLater;
@@ -1596,7 +1633,7 @@ RebuildResult VulkanDevice::RebuildSurface(const SwapchainDesc& d) {
     const bool canRead = (caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) != 0;
     if (canRead)
         create.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-    create.preTransform = caps.currentTransform;
+    create.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
     create.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     if (!(caps.supportedCompositeAlpha & create.compositeAlpha)) {
         const auto flags = unsigned(caps.supportedCompositeAlpha);
@@ -1632,6 +1669,8 @@ RebuildResult VulkanDevice::RebuildSurface(const SwapchainDesc& d) {
             return RebuildResult::Failed;
     }
     presentation = d;
+    surfaceTransform = caps.currentTransform;
+    ++stats.swapchainRebuilds;
     presentationOutput = true;
     surfaceHealth = SurfaceHealth::Ready;
     swapchainReadback = canRead;
@@ -1653,8 +1692,10 @@ bool VulkanDevice::Present() {
     if (profiling)
         stats.presentNanoseconds += Nanoseconds(start);
     presentable = acquiredImage = false;
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    if (result == VK_ERROR_OUT_OF_DATE_KHR)
         surfaceHealth = SurfaceHealth::Resettable;
+    else if (result == VK_SUBOPTIMAL_KHR)
+        surfaceHealth = SuboptimalHealth();
     else if (result == VK_SUCCESS) {
         if (surfaceHealth != SurfaceHealth::Resettable)
             surfaceHealth = SurfaceHealth::Ready;
@@ -1683,6 +1724,7 @@ public:
         if (device.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.physical, device.surface,
                                                              &caps) != VK_SUCCESS ||
             !(caps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) ||
+            !(caps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) ||
             d.width < caps.minImageExtent.width || d.width > caps.maxImageExtent.width ||
             d.height < caps.minImageExtent.height || d.height > caps.maxImageExtent.height)
             return s;
@@ -2895,6 +2937,15 @@ bool SetVulkanQueueBlockedForTest(Device& base, bool blocked) {
     if (!d->Check(d->vkQueueSubmit2(d->queue, 1, &submit, VK_NULL_HANDLE)))
         return false;
     d->gateBlocked = true;
+    return true;
+}
+bool DeferVulkanAcquireForTest(Device& base) {
+    auto* d = dynamic_cast<VulkanDevice*>(&base);
+    if (!d || !d->Live() || d->inFrame || !d->chain || d->presentable ||
+        d->Health() != SurfaceHealth::Ready || d->loseAtAcquire || d->loseAtPresent ||
+        d->deferAcquire)
+        return false;
+    d->deferAcquire = true;
     return true;
 }
 bool LoseVulkanSurfaceForTest(Device& base, VulkanSurfaceLossPoint point) {

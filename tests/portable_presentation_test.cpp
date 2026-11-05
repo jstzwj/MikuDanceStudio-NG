@@ -279,6 +279,26 @@ int main(int argc, char** argv) try {
             CHECK(controller.Draw(frame, &actual) && actual.width == host->width &&
                   actual.height == host->height && actual.pixels == expected.bytes);
             CHECK(QueryVulkanStats(*controller.GetDevice()).readbacks == after.readbacks + 1);
+            if (i == 2) {
+                const auto stats = QueryVulkanStats(*controller.GetDevice());
+                const auto identity = controller.GetDevice()->Status().identity;
+                const auto uploads = controller.GetRenderer()->Stats().uploads;
+                CHECK(DeferVulkanAcquireForTest(*controller.GetDevice()));
+                CHECK(controller.Draw(frame) && controller.State() == PreviewState::Suspended &&
+                      controller.Reason() == "surface_busy");
+                CHECK(QueryVulkanStats(*controller.GetDevice()).submissions == stats.submissions &&
+                      QueryVulkanStats(*controller.GetDevice()).swapchainRebuilds ==
+                          stats.swapchainRebuilds);
+                // Retry directly, without Resize or resource/device replacement.
+                CHECK(controller.Draw(frame, &actual) &&
+                      controller.State() == PreviewState::Ready &&
+                      actual.pixels == expected.bytes &&
+                      controller.GetDevice()->Status().identity == identity &&
+                      controller.GetRenderer()->Stats().uploads == uploads &&
+                      QueryVulkanStats(*controller.GetDevice()).swapchainRebuilds ==
+                          stats.swapchainRebuilds &&
+                      QueryVulkanStats(*controller.GetDevice()).validationErrors == 0);
+            }
             if (i == 3) {
                 host->suspended = true;
                 CHECK(controller.Resize(0, 0) && controller.State() == PreviewState::Suspended);

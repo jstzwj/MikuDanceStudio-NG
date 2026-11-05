@@ -153,10 +153,12 @@ bool ScenePreviewController::SwitchBackend(const SwapchainDesc& desc,
 bool ScenePreviewController::SuspendUnavailableSurface() {
     const auto health = backend.swapchain->Health();
     if (health != SurfaceHealth::Suspended && health != SurfaceHealth::Resettable &&
-        health != SurfaceHealth::TemporarilyLost)
+        health != SurfaceHealth::TemporarilyLost && health != SurfaceHealth::Busy)
         return false;
     state = PreviewState::Suspended;
-    reason = health == SurfaceHealth::Suspended ? "window_suspended" : "surface_retry_later";
+    reason = health == SurfaceHealth::Suspended ? "window_suspended"
+             : health == SurfaceHealth::Busy    ? "surface_busy"
+                                                : "surface_retry_later";
     return true;
 }
 bool ScenePreviewController::ReadyToDraw() {
@@ -182,6 +184,8 @@ bool ScenePreviewController::ReadyToDraw() {
         hasPrepared = false;
         state = PreviewState::Ready;
     }
+    if (health == SurfaceHealth::Busy && state == PreviewState::Suspended)
+        state = PreviewState::Ready;
     return state == PreviewState::Ready;
 }
 bool ScenePreviewController::Draw(const ModelReplayStream& source, RgbaImage* acceptanceImage) {

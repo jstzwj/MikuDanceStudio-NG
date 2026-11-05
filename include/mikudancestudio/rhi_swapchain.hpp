@@ -62,7 +62,10 @@ enum class SurfaceHealth {
     Resettable,
     Removed,
     Unknown,
-    Suspended
+    Suspended,
+    // No presentation image available yet; retry on a later frame without
+    // rebuilding the surface or invalidating resources.
+    Busy
 };
 enum class RebuildReason {
     Resize,
