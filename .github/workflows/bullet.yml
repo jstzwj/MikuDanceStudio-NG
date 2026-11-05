@@ -17,6 +17,7 @@ on:
       - 'tests/physics_tolerance*'
       - 'tests/physics_trajectory_test.cpp'
   push:
+    branches: [main]
     paths:
       - '.github/workflows/bullet.yml'
       - 'recipes/bullet275/**'
