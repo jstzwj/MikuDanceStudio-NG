@@ -46,7 +46,37 @@ int main(int argc, char** argv) try {
     }
     if (count != Language::Available().size() * 773)
         throw std::runtime_error("incomplete catalog coverage");
+    // The SDK does not ship Vietnamese. Check every entry of our independently
+    // compiled context-based Qt widget supplement, including file/edit menus.
+    QTranslator vietnamese;
+    if (!vietnamese.load(":/i18n/qt/qtbase_vi.qm"))
+        throw std::runtime_error("cannot load Vietnamese Qt supplement");
+    QFile supplement(QDir(QString::fromLocal8Bit(argv[1])).filePath("qtbase_vi.ts"));
+    if (!supplement.open(QIODevice::ReadOnly))
+        throw std::runtime_error("cannot read Vietnamese Qt source");
+    QXmlStreamReader xml(&supplement);
+    QString context, source, expected;
+    int standardCount = 0;
+    while (!xml.atEnd()) {
+        xml.readNext();
+        if (xml.isStartElement()) {
+            if (xml.name() == u"name")
+                context = xml.readElementText();
+            else if (xml.name() == u"source")
+                source = xml.readElementText();
+            else if (xml.name() == u"translation")
+                expected = xml.readElementText();
+        } else if (xml.isEndElement() && xml.name() == u"message") {
+            if (vietnamese.translate(context.toUtf8().constData(), source.toUtf8().constData()) !=
+                expected)
+                throw std::runtime_error("Vietnamese Qt TS/QM mismatch: " + source.toStdString());
+            ++standardCount;
+        }
+    }
+    if (xml.hasError() || standardCount < 100)
+        throw std::runtime_error("incomplete Vietnamese standard-widget coverage");
     std::cout << count << " compiled Qt translations match their TS sources\n";
+    std::cout << standardCount << " Vietnamese Qt widget translations match their TS source\n";
     return 0;
 } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';

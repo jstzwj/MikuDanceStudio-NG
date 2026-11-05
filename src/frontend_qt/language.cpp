@@ -9,7 +9,11 @@ const QVector<LanguageInfo>& Language::Available() {
         {"en", QStringLiteral("English")},     {"ja", QStringLiteral("日本語")},
         {"zh_CN", QStringLiteral("简体中文")}, {"zh_TW", QStringLiteral("繁體中文")},
         {"ko", QStringLiteral("한국어")},      {"fr", QStringLiteral("Français")},
-        {"de", QStringLiteral("Deutsch")},     {"es", QStringLiteral("Español")}};
+        {"de", QStringLiteral("Deutsch")},     {"es", QStringLiteral("Español")},
+        {"it", QStringLiteral("Italiano")},    {"pt_BR", QStringLiteral("Português (Brasil)")},
+        {"ru", QStringLiteral("Русский")},     {"nl", QStringLiteral("Nederlands")},
+        {"pl", QStringLiteral("Polski")},      {"tr", QStringLiteral("Türkçe")},
+        {"vi", QStringLiteral("Tiếng Việt")}};
     return languages;
 }
 QString Language::Resolve(QString code) {
@@ -20,8 +24,8 @@ QString Language::Resolve(QString code) {
         return QLocale(code).script() == QLocale::TraditionalHanScript ? "zh_TW" : "zh_CN";
     code = code.section('_', 0, 0).toLower();
     for (const auto& language : Available())
-        if (language.code == code)
-            return code;
+        if (language.code.section('_', 0, 0) == code)
+            return language.code;
     return "en";
 }
 Language::Language() {

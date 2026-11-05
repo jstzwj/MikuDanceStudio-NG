@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import re
 import xml.etree.ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
@@ -21,6 +22,17 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--lupdate', required=True)
 args = parser.parse_args()
 catalog.check()
+expected_languages = {'en', 'ja', 'zh_CN', 'zh_TW', 'ko', 'fr', 'de', 'es',
+                      'it', 'pt_BR', 'ru', 'nl', 'pl', 'tr', 'vi'}
+assert {path.stem.removeprefix('mikudancestudio_') for path in
+        catalog.DIRECTORY.glob('mikudancestudio_*.ts')} == expected_languages
+supplement = ET.parse(catalog.DIRECTORY / 'qtbase_vi.ts').getroot()
+assert supplement.attrib['language'] == 'vi'
+for message in supplement.findall('./context/message'):
+    source, target = message.findtext('source', ''), message.findtext('translation', '')
+    assert target and message.find('translation').get('type') is None, source
+    assert sorted(re.findall(r'%(?:L?\d+|n)', source)) == sorted(
+        re.findall(r'%(?:L?\d+|n)', target)), source
 with tempfile.TemporaryDirectory(prefix='mds-linguist-') as directory:
     copies = []
     for source in sorted(catalog.DIRECTORY.glob('mikudancestudio_*.ts')):
@@ -33,4 +45,4 @@ with tempfile.TemporaryDirectory(prefix='mds-linguist-') as directory:
     assert result.returncode == 0, result.stdout + result.stderr
     for source, copy in copies:
         assert contents(source) == contents(copy), f'lupdate changed finished translations: {source}'
-print('All eight catalogs survive native Qt lupdate without lost or unfinished translations')
+print(f'All {len(copies)} catalogs survive native Qt lupdate without lost or unfinished translations')

@@ -79,13 +79,21 @@ int main(int argc, char** argv) try {
     Check(qt::Language::Resolve("zh-Hant-HK") == "zh_TW" &&
               qt::Language::Resolve("zh-Hans-SG") == "zh_CN" &&
               qt::Language::Resolve("fr-CA") == "fr" && qt::Language::Resolve("de-AT") == "de" &&
+              qt::Language::Resolve("pt-BR") == "pt_BR" &&
+              qt::Language::Resolve("pt-PT") == "pt_BR" && qt::Language::Resolve("ru-RU") == "ru" &&
+              qt::Language::Resolve("vi-VN") == "vi" &&
               qt::Language::Resolve("unsupported") == "en",
           "regional locale resolution");
     Check(!independent.Set("unsupported") && independent.Code() == "en",
           "invalid language leaves loaded catalog intact");
+    QStringList languageCodes;
+    for (const auto& language : qt::Language::Available())
+        languageCodes.append(language.code);
+    languageCodes.append({"en", "ja"});
     for (const int method : {0, 1, 2})
-        for (const char* code :
-             {"en", "ja", "zh_CN", "zh_TW", "ko", "fr", "de", "es", "en", "ja"}) {
+        for (const auto& languageCode : languageCodes) {
+            const auto utf8 = languageCode.toUtf8();
+            const char* code = utf8.constData();
             if (method) {
                 auto* file = window.findChild<QMenu*>("menu.file");
                 QPointer<QMenu> menuGuard = file;

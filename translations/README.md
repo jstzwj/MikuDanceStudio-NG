@@ -4,8 +4,10 @@ The editor uses Qt Linguist ID-based translation (`QT_TRID_NOOP`, `QTranslator`,
 `lupdate`, `lrelease -idbased`). The directory follows Muffin's
 `translations/<application>_<locale>.ts` convention. Supported languages are
 English, Japanese, Simplified Chinese, Traditional Chinese, Korean, French,
-German and Spanish. The original English/Japanese/Simplified Chinese texts are
-preserved, including intentionally empty Japanese controls.
+German, Spanish, Italian, Portuguese (Brazil), Russian, Dutch, Polish, Turkish
+and Vietnamese, matching Muffin's complete language list. The original English,
+Japanese and Simplified Chinese texts are preserved, including intentionally
+empty Japanese controls.
 
 - `mikudancestudio_<locale>.ts`: editable Qt Linguist catalogs, 773 IDs each.
 - `messages.hpp`: generated ID/source declarations for extraction and English
@@ -17,13 +19,19 @@ preserved, including intentionally empty Japanese controls.
 - Qt's `qtbase_<locale>.qm` files come from the configured Qt SDK, are embedded
   at `:/i18n/qt`, and translate standard buttons and file dialogs without an SDK
   or external translation search path at runtime.
+- `qtbase_vi.ts` is a project-owned supplement for Qt 6.8 standard buttons,
+  file dialogs, file-system labels and text-edit menus. Qt does not ship a
+  Vietnamese catalog in this SDK; this source is compiled with regular
+  context-based `lrelease`, embedded and deployed alongside the app catalogs.
+  Other Qt modules continue to use their upstream source text where untranslated.
 
 Open **File → Preferences… → Language** to select a native language name or
 **Follow system language**. Apply/OK updates the existing editor in place and
 saves the preference; Cancel discards the pending selection. Loading a model,
 editing animation, undo history and GPU resources are unaffected. Regional
 locales resolve to the supported base language; Traditional Chinese locales
-resolve separately. Unsupported system locales use English. Existing `language`
+resolve separately. Portuguese locales use the Brazilian Portuguese catalog.
+Unsupported system locales use English. Existing `language`
 settings remain compatible. The original MMD Japanese/English command remains
 available for original-command compatibility.
 New-language button captions fit within the original control rectangles and
@@ -64,4 +72,4 @@ compiled QM entry against its TS, tests `qtTrId`, and checks Qt standard-dialog
 translations. Loaded PMD/PMX language-switch tests exercise File-menu mouse
 dispatch, Apply/OK/Cancel, system selection, persisted preferences and restart
 without showing any test window. The relocated distribution check exercises all
-eight languages with SDK search paths removed.
+fifteen languages with SDK search paths removed.

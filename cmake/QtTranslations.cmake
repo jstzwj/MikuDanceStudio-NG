@@ -12,6 +12,20 @@ foreach(mds_ts IN LISTS mds_ts_files)
     get_filename_component(mds_locale "${mds_ts}" NAME_WE)
     string(REPLACE "mikudancestudio_" "" mds_locale "${mds_locale}")
     if(NOT mds_locale STREQUAL "en")
+        if(EXISTS "${root}/translations/qtbase_${mds_locale}.ts")
+            # Qt has no Vietnamese catalog in this SDK. Compile the small
+            # project-owned standard-widget supplement using normal contexts.
+            set(mds_base_ts "${root}/translations/qtbase_${mds_locale}.ts")
+            set_source_files_properties("${mds_base_ts}" PROPERTIES
+                OUTPUT_LOCATION "${CMAKE_CURRENT_BINARY_DIR}/translations")
+            qt_add_lrelease(TS_FILES "${mds_base_ts}"
+                QM_FILES_OUTPUT_VARIABLE mds_extra_base_qm OPTIONS -nounfinished)
+            qt_add_resources(mikudancestudio_frontend_qt "qt_base_${mds_locale}"
+                PREFIX "/i18n/qt" BASE "${CMAKE_CURRENT_BINARY_DIR}/translations"
+                FILES ${mds_extra_base_qm})
+            list(APPEND mds_qm_files ${mds_extra_base_qm})
+            continue()
+        endif()
         set(mds_qt_base "${mds_qt_prefix}/translations/qtbase_${mds_locale}.qm")
         if(NOT EXISTS "${mds_qt_base}")
             message(FATAL_ERROR "Missing Qt standard-dialog translation: ${mds_qt_base}")
