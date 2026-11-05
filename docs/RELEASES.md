@@ -87,6 +87,11 @@ For Android, keep a durable signing keystore and configure the repository's
 must use the same key. Development emulator keys are temporary and never used
 for published APKs. Do not commit keystores/passwords or print secrets to logs.
 
+The Android release certificate's SHA-256 fingerprint is
+`aea46ca1b43d29b0d784a77d20ba42d4a8bbc714f5e48418432eaacc9a81c30a`.
+Check it in `apksigner verify --print-certs` output when auditing a downloaded APK;
+development qualification packages deliberately use a different, temporary key.
+
 ```sh
 python tests/test_release_contract.py
 python scripts/release.py --tag v0.0.1
