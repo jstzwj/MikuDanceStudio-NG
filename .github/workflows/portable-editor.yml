@@ -13,7 +13,7 @@ on:
         type: choice
         description: Platform to validate (all by default)
         default: all
-        options: [all, windows, linux, macos]
+        options: [all, windows, linux, macos, linux-macos]
       macos_runner:
         type: choice
         description: macOS acceptance image
@@ -342,7 +342,7 @@ jobs:
             out/p4/native-audio*.json
             out/p4/Testing/Temporary/
   linux:
-    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'linux'
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'linux' || inputs.platform == 'linux-macos'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -488,7 +488,7 @@ jobs:
             out/p4/native-audio*.json
             out/p4/Testing/Temporary/
   macos:
-    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'macos'
+    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'macos' || inputs.platform == 'linux-macos'
     runs-on: ${{ inputs.macos_runner || 'macos-15' }}
     env:
       MDS_MACOS_CACHE: ${{ inputs.macos_runner == 'macos-26' && 'macos26' || 'macos15' }}

@@ -162,6 +162,7 @@ int main(int argc, char** argv) try {
                         layout.setTextOption(option);
                         qreal height = 0;
                         int consumed = 0;
+                        QStringList rows;
                         layout.beginLayout();
                         while (true) {
                             auto line = layout.createLine();
@@ -171,11 +172,18 @@ int main(int argc, char** argv) try {
                             complete &= line.naturalTextWidth() <= label->contentsRect().width();
                             height += line.height();
                             consumed += line.textLength();
+                            rows.append(
+                                label->text().mid(line.textStart(), line.textLength()).trimmed());
                             ++lines;
                         }
                         layout.endLayout();
                         complete &= consumed == label->text().size() &&
                                     height <= label->contentsRect().height();
+                        // Independently observed original STATIC line breaks,
+                        // including the word that used to land under the
+                        // parent's right-hand clip with a narrower open font.
+                        if (language.Code() == "en" && description->id == 659 && i == 9)
+                            complete &= rows == QStringList{"accessory described", "after models"};
                     }
                     actual.save(output + '/' + stem + "-qt.png");
                     failures += different != 0 || !complete;
@@ -208,6 +216,7 @@ int main(int argc, char** argv) try {
     }
     if (!native) {
         QWidget parent;
+        parent.resize(700, 100);
         QFont font("Noto Sans CJK JP");
         font.setPixelSize(12);
         parent.setFont(qt::MatchEditorFontMetrics(font));
@@ -234,6 +243,16 @@ int main(int argc, char** argv) try {
         render();
         Check(QFontInfo(label.font()).family() == "Noto Sans CJK SC",
               "fitted caption continues inheriting the parent's language font");
+        parent.resize(306, 272);
+        label.setGeometry(179, 169, 140, 30);
+        label.setText("accessory described after models");
+        render();
+        Check(label.geometry() == QRect(179, 169, 140, 30) && label.contentsRect().width() == 127,
+              "text wrapping respects the parent's actual clip without moving the control");
+        label.move(0, 169);
+        render();
+        Check(label.contentsRect().width() == 140,
+              "moving back inside parent restores full content width");
     }
     QFile report(output + "/report.json");
     Check(report.open(QIODevice::WriteOnly), "static label report");

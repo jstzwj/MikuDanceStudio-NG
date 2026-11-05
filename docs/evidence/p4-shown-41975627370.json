@@ -1,0 +1,257 @@
+{
+  "schema": 1,
+  "run": "41975627370",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41975627370",
+  "revision": "78eef9635f7825fd0ff2a57509b166ecef5ed635",
+  "ci_conclusion": "success",
+  "visual_qualification": "failure",
+  "p4_c1_accepted": false,
+  "scope": "One targeted three-platform batch: Windows actual outside drag/caret plus previous focused control gates; Linux/macOS five frontend gates and shown clients, no repeated IME/audio/rendering",
+  "platforms": {
+    "windows": {
+      "ordinary_gates": {
+        "tests": 5,
+        "failures": 0,
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41975627370/windows/p4/p4.xml",
+          "sha256": "39c3adc7f4c99df9a8ee4d134d38c4e1e20cea621a0f9307df98c0734214fa7f"
+        }
+      },
+      "multiline_numeric_caption_gates": {
+        "tests": 9,
+        "failures": 0,
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41975627370/windows/p4/multiline-drag.xml",
+          "sha256": "3e2444efb3df9855249b411f0c365452365597200f58f8d0b9bd5593683a5b66"
+        }
+      },
+      "multiline-active": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41975627370/windows/p4/multiline-active/report.json",
+          "sha256": "f35f5fbad5ed5eebb0cc1758f86a36f050f33f98156a488075a71e52954634ad"
+        },
+        "png_count": 144,
+        "image_manifest_sha256": "c48278c80161b4f38d11944e2a0ca7e6b9f6f0bf8bcd0615001193cbd521cf2e",
+        "actualOsMouseCapture": true,
+        "caretFailures": 0,
+        "mouseFailures": 0,
+        "paintFailures": 0,
+        "windowsShown": true,
+        "paint": 72,
+        "mouse": 90
+      },
+      "multiline-extended": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41975627370/windows/p4/multiline-extended/report.json",
+          "sha256": "e8d8835756112fb6068017009083a8a2ffb56cdcc3800c0cac0508dd3466fec5"
+        },
+        "png_count": 96,
+        "image_manifest_sha256": "49a8d21295294990e434a0b18518a60b8bccdd648054382e9f6b6f9c4cd6751d",
+        "actualOsMouseCapture": true,
+        "captureCaretPhase": "full native/Qt blink cycles; both complete RGB frame sets must match exactly",
+        "dragFailures": 0,
+        "nativeCaretBlinkMs": 530,
+        "traditionalRasterFailures": 0,
+        "unicodeFailures": 0,
+        "unicodePolicy": "native-supported traditional CJK remains raster exact; preserve complete readable complex/lossy Unicode and editing, retaining raster diagnostics",
+        "unicodeRasterDifferences": 22,
+        "windowsShown": true,
+        "drags": 18,
+        "unicode": 30,
+        "matching_drag_states": 18,
+        "exact_caret_frame_sets": 18,
+        "native_phase_counts": [
+          1
+        ],
+        "qt_phase_counts": [
+          1
+        ]
+      },
+      "multiline-unicode": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41975627370/windows/p4/multiline-unicode/report.json",
+          "sha256": "fd8aab5e77b7af62f558edc40fdb116c3af17669e4bfeb18248d7567ba45097e"
+        },
+        "png_count": 532,
+        "image_manifest_sha256": "2499b72c806201a1c5c68e5bb7aada944c060c35f709cbb451d2eab1443d49c8",
+        "activationProtection": "thread-local WH_CBT veto; foreground/focus assertions",
+        "cases": 360,
+        "failures": 0,
+        "outerDialogAdaptation": "WS_EX_NOACTIVATE before creation",
+        "rasterDifferences": 264,
+        "strictRasterCases": 96,
+        "textFailures": 0,
+        "unicodePolicy": "preserve complex/lossy Unicode; native-supported traditional text remains exact",
+        "windowsShown": false
+      },
+      "static-label-native": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41975627370/windows/p4/static-label-native/report.json",
+          "sha256": "a71832c8e2495137f20b264474ceb841b711dda3ba44fbdbe1b6d425070deec6"
+        },
+        "png_count": 1072,
+        "image_manifest_sha256": "31a72fdd5e40e61eda9420158b889b5e26a845179040392ea0cb3d49c19474df",
+        "cases": 536,
+        "failures": 0,
+        "native": true,
+        "windowsShown": false
+      },
+      "static-label-portable": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41975627370/windows/p4/static-label-portable/report.json",
+          "sha256": "123822ad996f03ddda3cd9fda50f81838fc3573d47f789254e0be0bf26264dc2"
+        },
+        "png_count": 804,
+        "image_manifest_sha256": "7091de2befc3dd77a31088c2593b49c79ed77198a2d52e5a76940fdd69dee650",
+        "cases": 804,
+        "failures": 0,
+        "native": false,
+        "windowsShown": false
+      }
+    },
+    "linux": {
+      "ordinary_gates": {
+        "tests": 5,
+        "failures": 0,
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41975627370/linux/p4/p4.xml",
+          "sha256": "1b6f140b2687de6c63e8f5cddff98ebf3cb030e099de8e0c27d0a60bb29bbef3"
+        }
+      },
+      "static-label-portable": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41975627370/linux/p4/static-label-portable/report.json",
+          "sha256": "42ece2124ae7bcc55127bda79602ec436a6fed0be58bf452464375cc85b5124c"
+        },
+        "png_count": 804,
+        "image_manifest_sha256": "73ca487cd3cb353d5cb83c63bde5c95bcd28a88c2e2cfde01ff29bc3af64ced7",
+        "cases": 804,
+        "failures": 0,
+        "native": false,
+        "windowsShown": false
+      },
+      "shown-ui": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41975627370/linux/p4/shown-ui/report.json",
+          "sha256": "a7e5e9f30ee7928318e85c15b4a1eca15d2efc419893704a69d4c03061c0a3b8"
+        },
+        "png_count": 207,
+        "image_manifest_sha256": "df956f53d0662c6b99d9518fe9a7ad5394ddcc68b20cc9f4011b285060761009",
+        "actualShownWindows": true,
+        "comboPopups": 12,
+        "focusedEdits": 45,
+        "hoveredButtons": 51,
+        "platform": "xcb",
+        "screenDpr": 1,
+        "scrolledLists": 9,
+        "scrolledMultiline": 3,
+        "syntheticScale": false,
+        "dialogs": 57,
+        "menus": 27,
+        "font": [
+          "Liberation Sans",
+          "Noto Sans CJK JP",
+          "Noto Sans CJK SC"
+        ],
+        "windowColor": [
+          "#f0f0f0"
+        ],
+        "buttonColor": [
+          "#f0f0f0"
+        ],
+        "highlightColor": [
+          "#0078d4"
+        ],
+        "dpr": [
+          "1"
+        ],
+        "caption_own_bounds_checks": 312
+      },
+      "independent_visual_review": {
+        "accepted": false,
+        "diagnosis": "Original accessory-order label extends 13 logical pixels beyond its parent. Open-font word wrapping uses its complete 140px rectangle, placing after on a first line whose end is clipped by the 127px visible area. Own-label QTextLayout passed but does not prove ancestor-visible completeness. Production follow-up uses ancestor intersection without changing child geometry.",
+        "images": [
+          {
+            "path": "out/evidence/p4/p4-shown-41975627370/linux/p4/shown-ui/en-dialog659-normal.png",
+            "sha256": "206d0557bff5961574f7be95ba5d18d39081a2d6c24c6d01ca0d4e6397b6328c"
+          }
+        ]
+      }
+    },
+    "macos": {
+      "ordinary_gates": {
+        "tests": 5,
+        "failures": 0,
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41975627370/macos/p4/p4.xml",
+          "sha256": "790543261ceca4b3fc01535c24b6e78016a44222398e33ce04fe369e450ed6ce"
+        }
+      },
+      "static-label-portable": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41975627370/macos/p4/static-label-portable/report.json",
+          "sha256": "ea88cc56934bdf5c51429d12d324190f4eb467100cf946f18ce548597d02a38c"
+        },
+        "png_count": 804,
+        "image_manifest_sha256": "6cf36b5cb507aaf1c21b85f55cca76f608a9e273b7cfeb4a94221ee0ccb1ae18",
+        "cases": 804,
+        "failures": 0,
+        "native": false,
+        "windowsShown": false
+      },
+      "shown-ui": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41975627370/macos/p4/shown-ui/report.json",
+          "sha256": "920aefe12ec01442e2bb949d58851ae1ac32e768cf418c7e98624c145828c14e"
+        },
+        "png_count": 207,
+        "image_manifest_sha256": "d17c1c1098b3a1a02f9af3db8adad4cdf55f756cf707f12662e79a8c740d7fe1",
+        "actualShownWindows": true,
+        "comboPopups": 12,
+        "focusedEdits": 45,
+        "hoveredButtons": 51,
+        "platform": "cocoa",
+        "screenDpr": 1,
+        "scrolledLists": 9,
+        "scrolledMultiline": 3,
+        "syntheticScale": false,
+        "dialogs": 57,
+        "menus": 27,
+        "font": [
+          "Arial",
+          "Noto Sans CJK JP",
+          "Noto Sans CJK SC",
+          "Tahoma"
+        ],
+        "windowColor": [
+          "#f0f0f0"
+        ],
+        "buttonColor": [
+          "#f0f0f0"
+        ],
+        "highlightColor": [
+          "#0078d4"
+        ],
+        "dpr": [
+          "1"
+        ],
+        "caption_own_bounds_checks": 312
+      },
+      "independent_visual_review": {
+        "accepted": false,
+        "diagnosis": "Original accessory-order label extends 13 logical pixels beyond its parent. Open-font word wrapping uses its complete 140px rectangle, placing after on a first line whose end is clipped by the 127px visible area. Own-label QTextLayout passed but does not prove ancestor-visible completeness. Production follow-up uses ancestor intersection without changing child geometry.",
+        "images": [
+          {
+            "path": "out/evidence/p4/p4-shown-41975627370/macos/p4/shown-ui/en-dialog659-normal.png",
+            "sha256": "d53044bf1c2ff32ee78aa8cb23d6b531cc819288151901724689dc17c482ea25"
+          }
+        ]
+      }
+    }
+  },
+  "limitations": [
+    "Do not equate a successful CI workflow with the independent visual acceptance; retain the clipping failure",
+    "Shown clients use actual DPR 1; no OS decoration or physical mixed-DPI qualification",
+    "Complex/lossy Unicode complete-text policy and non-Windows open-font glyph policy are user approved; traditional Windows rasters remain strict"
+  ]
+}

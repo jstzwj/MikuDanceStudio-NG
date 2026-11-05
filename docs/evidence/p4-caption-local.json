@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "production_revision": "78eef9635f7825fd0ff2a57509b166ecef5ed635",
+  "p4_c1_accepted": false,
+  "local_display_policy": "Offscreen or never-shown owned windows with CBT activation/focus veto and memory DCs; no desktop interaction",
+  "all_build": {
+    "passed": true,
+    "log": {
+      "path": "out/build/p4-caption-verified-build.log",
+      "sha256": "cdfc9012a4f634d169d0be9d4e47dc565130fe7a664fc4ad7c4090ec2ce2b54e"
+    }
+  },
+  "qt_suite": {
+    "tests": 45,
+    "failures": 0,
+    "report": {
+      "path": "out/build/p4-caption-final-qt.xml",
+      "sha256": "40adde331b3be66e40db54c0dc90f453ee1d1c975d509757ce39d695cfd24756"
+    }
+  },
+  "distribution": {
+    "passed": true,
+    "build": {
+      "path": "out/build/p4-caption-final-dist.log",
+      "sha256": "d8f6df5ca243d1b9f890a38b0741a54036982acbf6ca5f52cd18e31987bbf48c"
+    },
+    "report": {
+      "path": "out/build/p4-caption-final-distribution.json",
+      "sha256": "7cb0ceb90e6838e607b3fd4a27e8bf3bd51906caf9187d07c66e475b0c2f0b40"
+    },
+    "check": {
+      "path": "out/build/p4-caption-final-distribution-check.log",
+      "sha256": "f47b956555fcef035d47966ccd907eaf7ede8dbd9e85d6c90d64b769134544b2"
+    },
+    "executable": {
+      "path": "out/dist/MikuDanceStudioNG.exe",
+      "sha256": "685301784171e886c4a4354d1a84d072c854ed256cc6aa2f0f3157ed21e03b6b"
+    },
+    "archive": {
+      "path": "out/releases/MikuDanceStudio-NG-10.15-windows-x64.zip",
+      "sha256": "ab1c591de65c89830c52bea0859c34656330aeda0266344abcb28e9f1ce31930"
+    }
+  },
+  "font_policy": "User permits open-font glyph differences outside Windows; original control geometry, wrapping, complete text and interaction retained. Windows original STATIC rasters remain exact.",
+  "static_captions": {
+    "native": {
+      "cases": 536,
+      "failures": 0,
+      "report": {
+        "path": "out/build/static-label-native/report.json",
+        "sha256": "a71832c8e2495137f20b264474ceb841b711dda3ba44fbdbe1b6d425070deec6"
+      }
+    },
+    "portable": {
+      "cases": 804,
+      "failures": 0,
+      "report": {
+        "path": "out/build/static-label-portable/report.json",
+        "sha256": "123822ad996f03ddda3cd9fda50f81838fc3573d47f789254e0be0bf26264dc2"
+      }
+    }
+  },
+  "preserved_intermediate_failures": [
+    {
+      "diagnosis": "Initial native adapter used incorrect SHIFTJIS mapping for dialog STATIC captions; enabled/disabled native mismatch",
+      "suite": {
+        "tests": 2,
+        "failures": 1,
+        "report": {
+          "path": "out/build/p4-static.xml",
+          "sha256": "885f31f061c062ccae7d5d281b7e3abbedc8967c86b09869c23974182fcae204"
+        }
+      },
+      "log": {
+        "path": "out/build/p4-static-test.log",
+        "sha256": "4be120b95a327ba7ed2cda2fb3447ad3ad29779398d66417201cba14a0554958"
+      }
+    },
+    {
+      "diagnosis": "TEXTSTYLE theme text color differs from actual original STATIC; rejected theme approximation",
+      "suite": {
+        "tests": 2,
+        "failures": 1,
+        "report": {
+          "path": "out/build/p4-static-fix.xml",
+          "sha256": "716c2cb9d67be651b3d18c6e941298a6dbbe4530ccc63ad5086206eb2d530d76"
+        }
+      },
+      "log": {
+        "path": "out/build/p4-static-fix-test.log",
+        "sha256": "831756e1a7dc383ee5008cb1fb28f2677fdd287769b1552ff8443c6a4e892b42"
+      }
+    },
+    {
+      "diagnosis": "Resolved font override froze inherited family; fixed by overriding only stretch",
+      "suite": {
+        "tests": 2,
+        "failures": 1,
+        "report": {
+          "path": "out/build/p4-static-lifetime.xml",
+          "sha256": "e5ccfe51cb9b32b5bc97322ad214c38df3ab756f00c315eda48b49b6446565e8"
+        }
+      },
+      "log": {
+        "path": "out/build/p4-static-lifetime-test.log",
+        "sha256": "7c6e97e0365bbc48e84b02b7b262bfb3a0463b5bc51158da39a083647cf10684"
+      }
+    }
+  ],
+  "limitations": [
+    "Actual Windows outside-caret and X11/Cocoa shown captions require remote result 41975627370",
+    "Physical mixed-DPI transition remains unexecuted; no P4/C1 acceptance"
+  ]
+}

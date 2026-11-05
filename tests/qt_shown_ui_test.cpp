@@ -182,6 +182,14 @@ int main(int argc, char** argv) try {
                     layout.endLayout();
                     complete &= consumed == label->text().size() &&
                                 height <= label->contentsRect().height();
+                    auto available = label->rect();
+                    for (auto* ancestor = label->parentWidget(); ancestor;
+                         ancestor = ancestor->parentWidget()) {
+                        available &= QRect(label->mapFrom(ancestor, QPoint()), ancestor->size());
+                        if (ancestor->isWindow())
+                            break;
+                    }
+                    complete &= available.contains(label->contentsRect());
                     Check(label->wordWrap() && complete,
                           "shown static caption wraps completely inside original geometry");
                     auto caption = controls.last().toObject();
@@ -189,6 +197,8 @@ int main(int argc, char** argv) try {
                     caption["fontStretch"] = label->font().stretch();
                     caption["lines"] = lines;
                     caption["complete"] = complete;
+                    caption["contentRect"] = Rectangle(label->contentsRect());
+                    caption["availableRect"] = Rectangle(available);
                     controls[controls.size() - 1] = caption;
                 }
                 if (auto* edit = qobject_cast<QLineEdit*>(child)) {

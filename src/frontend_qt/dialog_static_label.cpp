@@ -22,7 +22,8 @@ DialogStaticLabel::DialogStaticLabel(const QString& text, std::uint32_t style, Q
 bool DialogStaticLabel::event(QEvent* event) {
     const auto handled = QLabel::event(event);
     if (!fitting_ &&
-        (event->type() == QEvent::FontChange || event->type() == QEvent::ApplicationFontChange)) {
+        (event->type() == QEvent::FontChange || event->type() == QEvent::ApplicationFontChange ||
+         event->type() == QEvent::Move)) {
         FitPortableFont();
     }
     return handled;
@@ -35,6 +36,24 @@ void DialogStaticLabel::FitPortableFont() {
     if (fitting_ || QGuiApplication::platformName() == "windows" || !wordWrap() ||
         contentsRect().isEmpty() || text().isEmpty())
         return;
+    // Some original STATIC rectangles extend beyond their parent dialog. A
+    // narrower open font can put another word on that first line, where the
+    // parent's clip then cuts it off. Wrap inside the actual ancestor client
+    // area while preserving the original child rectangle.
+    auto visible = rect();
+    for (auto* ancestor = parentWidget(); ancestor; ancestor = ancestor->parentWidget()) {
+        visible &= QRect(mapFrom(ancestor, QPoint()), ancestor->size());
+        if (ancestor->isWindow())
+            break;
+    }
+    if (visible.isEmpty())
+        return;
+    const QMargins margins(visible.left(), visible.top(), width() - visible.right() - 1,
+                           height() - visible.bottom() - 1);
+    fitting_ = true;
+    if (contentsMargins() != margins)
+        setContentsMargins(margins);
+    fitting_ = false;
     const auto bounds = contentsRect();
     const auto inherited = parentWidget() ? parentWidget()->font() : font();
     auto fitted = inherited;

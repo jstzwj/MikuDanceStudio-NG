@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "production_revision": "3d4df1d33d6c3f97a27c62e833c6a41a913e9e5f",
+  "p4_c1_accepted": false,
+  "local_display_policy": "Only offscreen or never-shown owned widgets, memory DCs and activation veto; no local OS input/focus/IME/display changes",
+  "all_build": {
+    "passed": true,
+    "log": {
+      "path": "out/build/p4-layout-final-build.log",
+      "sha256": "3595a7e97afa2d1a55859d6dd593a09c1ae865db61bef7f44e233f7789431289"
+    }
+  },
+  "qt_suite": {
+    "tests": 43,
+    "failures": 0,
+    "report": {
+      "path": "out/build/p4-layout-final-qt.xml",
+      "sha256": "73edb55c1cd185006c2d29dc63cee17ca75199824123a829bc88c6b1951ff22d"
+    }
+  },
+  "distribution": {
+    "passed": true,
+    "log": {
+      "path": "out/build/p4-layout-final-distribution-check.log",
+      "sha256": "f47b956555fcef035d47966ccd907eaf7ede8dbd9e85d6c90d64b769134544b2"
+    },
+    "report": {
+      "path": "out/build/p4-layout-final-distribution.json",
+      "sha256": "95f127aa9b7b82716bb827867c5bc7f3052c716e4dd4bfaede0445ec74c1b2a2"
+    },
+    "executable": {
+      "path": "out/dist/MikuDanceStudioNG.exe",
+      "sha256": "39d3f876d3061eea6351bbd4511b186f87a7b5803d3e87725c9c78ffcfc573b5"
+    },
+    "archive": {
+      "path": "out/releases/MikuDanceStudio-NG-10.15-windows-x64.zip",
+      "sha256": "2aa6fd2364e2bfe9b42dce45b546835d2a190421b1bf8b7df42942554bff9421"
+    }
+  },
+  "guard": {
+    "extended_actual_input_refused_locally_before_qapplication": true,
+    "build": {
+      "path": "out/build/p4-caret-cycle-build.log",
+      "sha256": "11391f489478419242da511c3fe53d4f1b99138ad9a4a7d5329021cc0ff3f920"
+    },
+    "executable": {
+      "path": "out/build/Release/qt_multiline_extended_test.exe",
+      "sha256": "7bfd6b06e3cd7faf075ebc8c4da20c623250544f54ca7711f629e507a0a1419e"
+    }
+  },
+  "preserved_failures": [
+    {
+      "scope": "695d21c full suite exposed stale attached layout pointer during native numeric dialog destruction",
+      "suite": {
+        "tests": 43,
+        "failures": 2,
+        "report": {
+          "path": "out/build/p4-shown-final-qt.xml",
+          "sha256": "d0a38505857f5cb673246cf7818dd8c167313a2643669a7ee7a956f0233c9663"
+        }
+      },
+      "log": {
+        "path": "out/build/p4-shown-final-qt.log",
+        "sha256": "24dda5c967cc43ce8e74a0b1f053fe90869fa2ef2b0a28aa8ed1c4f9d2bce2e5"
+      }
+    },
+    {
+      "scope": "Uncommitted setDocument intermediate repair omitted original default font; six multiline gates failed. Corrected before final commit.",
+      "suite": {
+        "tests": 43,
+        "failures": 6,
+        "report": {
+          "path": "out/build/p4-layout-lifetime-qt.xml",
+          "sha256": "0b121845861047643f7aed4666f30aa1f4f17a6551cb5cb246554042bcc41a7d"
+        }
+      },
+      "log": {
+        "path": "out/build/p4-layout-lifetime-qt.log",
+        "sha256": "3889647ea525fabda1881618f7eb195d9372021c048378429abbd04bbc4af73c"
+      }
+    }
+  ],
+  "limitations": [
+    "Direct and frozen input tests are distinct from actual isolated OS input",
+    "Full native caret-cycle observation requires the remote Windows follow-up",
+    "No physical mixed-DPI or native OS window-decoration qualification"
+  ]
+}
