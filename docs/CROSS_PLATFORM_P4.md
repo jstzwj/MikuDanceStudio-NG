@@ -5,6 +5,41 @@ includes strict MMD v9.32 layout/behavior parity and multilingual UI, as request
 on 2026-11-01. These are acceptance requirements, not claims about this revision.
 
 Current gate status is maintained in [P4 acceptance status](P4_ACCEPTANCE_STATUS.md).
+Latest [41975627370](evidence/p4-shown-41975627370.json) passes all three CI jobs.
+Windows qualifies all 18 actual outside drags and complete caret-cycle frame sets
+exactly, plus 536 enabled/disabled STATIC captions, eight focused traditional CJK
+clients, 96 hidden CJK states, complete text in 360 states, 30 actual Unicode
+editing cases and the previous 72 paints/72 caret rectangles/90 OS gestures.
+Complex/lossy Unicode retains complete text under the user-approved policy;
+supported traditional text remains exact. The original outside-release caret
+behavior is now qualified; the prior failed cycles remain recorded separately.
+
+Linux/macOS 26 each pass five frontend gates and shown three-language clients
+(57 dialogs, 27 menus per platform), including focus, hover, popups and scrolling.
+At that revision independent screenshot review rejected a clipped English accessory
+caption: the original child rectangle extends beyond its parent. The qualified
+follow-up below wraps inside the ancestor-visible area while preserving geometry. CI success alone
+does not qualify the visual result. The user permits open-font glyph differences
+outside Windows; geometry, wrapping, complete text and interaction remain strict.
+See the [shown UI record](P4_SHOWN_UI_QUALIFICATION.md) for scope and retained failures.
+
+The ancestor clip repair at `f1b9c64` passes ALL_BUILD, **45/45** local Qt regressions,
+the independent original line-break/ancestor-clip gates and relocated distribution;
+see [local evidence](evidence/p4-parent-clip-local.json). Targeted Linux/macOS-only
+[41976890117](evidence/p4-shown-41976890117.json) passes five frontend gates per
+platform, 804 portable caption states, 57 dialogs/27 menus and all focus/hover/
+popup/scroll profiles. Each platform checks 312 visible captions for complete
+layout and ancestor containment. Independent native-pixel screenshot review
+confirms the original English line breaks and complete Japanese caption, closing
+the remaining recorded software UI gap under the approved open-font policy.
+It does not repeat the already qualified Windows input, IME, audio or rendering profiles.
+Physical mixed-DPI transitions remain unexecuted without a separate two-monitor
+environment. Native decorations and portable font rasterization are scoped
+separately; these are not claims of complete pixel identity across systems.
+
+Earlier scoped qualification:
+
+<!-- Retain the original results and limitations below as history. -->
 Run 41843478422 passes Windows **85/85** ordinary tests and all seven shown-control
 profiles, including active EDIT and hover with exact original-resource comparison.
 The latest Windows-only run [41870574500](evidence/p4-active-41870574500.json) at

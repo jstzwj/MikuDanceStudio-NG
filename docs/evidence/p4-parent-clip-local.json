@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "production_revision": "f1b9c64366877406914d94090b40c606007c8a52",
+  "p4_c1_accepted": false,
+  "artifact_lifetime": "Paths under out are mutable build outputs; hashes identify the artifacts measured for this revision",
+  "local_display_policy": "Offscreen or never-shown owned windows with CBT activation/focus veto and memory DCs; no desktop interaction",
+  "all_build": {
+    "passed": true,
+    "log": {
+      "path": "out/build/p4-parent-final-build.log",
+      "sha256": "6294ff718d978647c404e051f1f9e78d6a748ba059e8e4f2cd4ea1caf35e54ac"
+    }
+  },
+  "qt_suite": {
+    "tests": 45,
+    "failures": 0,
+    "report": {
+      "path": "out/build/p4-parent-final-qt.xml",
+      "sha256": "71e189eddfe568f212bcf5d3261ae0827afaeaca5d8376f2e2e5abadb3737e6d"
+    }
+  },
+  "final_original_line_break_gate": {
+    "tests": 2,
+    "failures": 0,
+    "report": {
+      "path": "out/build/p4-parent-wrap.xml",
+      "sha256": "5b3622a70b57f05a13f744e464cd8ab5e15406b13f2d32dbb3bc903b5447ab68"
+    }
+  },
+  "shown_guard_target_build": {
+    "path": "out/build/p4-parent-wrap-build.log",
+    "sha256": "2af34de734ae15442b4ef59fca9ac833e11315c7ae4e1c8fc5f0fa3d5aee7319"
+  },
+  "distribution": {
+    "passed": true,
+    "build": {
+      "path": "out/build/p4-parent-final-dist.log",
+      "sha256": "fef0c71ccc5e042b160a5b2c0a027998948ff87c257f81f47e4d0b5dd954285d"
+    },
+    "report": {
+      "path": "out/build/p4-parent-final-distribution.json",
+      "sha256": "8453d6b13934c6c8192634ae00d9daf3bab19590fd780571f0352ba90d4c1447"
+    },
+    "check": {
+      "path": "out/build/p4-parent-final-distribution-check.log",
+      "sha256": "f47b956555fcef035d47966ccd907eaf7ede8dbd9e85d6c90d64b769134544b2"
+    },
+    "executable": {
+      "path": "out/dist/MikuDanceStudioNG.exe",
+      "sha256": "cfd9ac57b51b916f54c5965cb8f686a1e1dd41d3c8200fa70393565aa0f4a7b3"
+    },
+    "archive": {
+      "path": "out/releases/MikuDanceStudio-NG-10.15-windows-x64.zip",
+      "sha256": "59f02cced356a5762f8da2ee9becf4425f7d3b614a24cf99b63c72ebea4ca1f9"
+    }
+  },
+  "static_captions": {
+    "native": {
+      "cases": 536,
+      "failures": 0,
+      "report": {
+        "path": "out/build/static-label-native/report.json",
+        "sha256": "a71832c8e2495137f20b264474ceb841b711dda3ba44fbdbe1b6d425070deec6"
+      }
+    },
+    "portable": {
+      "cases": 804,
+      "failures": 0,
+      "report": {
+        "path": "out/build/static-label-portable/report.json",
+        "sha256": "123822ad996f03ddda3cd9fda50f81838fc3573d47f789254e0be0bf26264dc2"
+      }
+    }
+  },
+  "parent_clip_contract": "Preserve child rectangle, fit text to its intersection with all ancestor clients; restore content width when moved back inside parent. Original accessory caption retains observed accessory described / after models line breaks.",
+  "preserved_test_fixture_failure": {
+    "diagnosis": "Never-shown test parent had platform-default size too small for the widening test after adding ancestor clipping. Set explicit 700x100 fixture size; all caption cases and native rasters remained correct.",
+    "suite": {
+      "tests": 2,
+      "failures": 1,
+      "report": {
+        "path": "out/build/p4-parent-clip.xml",
+        "sha256": "f64660a24ec9be64e8c3e86a5da6c3e2edf5cbf2fc87fd16ae0170734cd22983"
+      }
+    },
+    "log": {
+      "path": "out/build/p4-parent-clip-test.log",
+      "sha256": "7d7c0fb40328e8c70665f3b2f4e0037998553cac8d04a114943bc2c93e192937"
+    }
+  },
+  "limitations": [
+    "Actual X11/Cocoa ancestor-visible caption qualification is recorded separately in p4-shown-41976890117.json",
+    "Physical mixed-DPI transition remains unexecuted; GitHub repository has zero self-hosted runners; no P4/C1 acceptance"
+  ]
+}

@@ -4,11 +4,13 @@
 
 更新时间：2026-11-05。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
 
-最新 P4 验收（2026-11-05）：**P4／C1 仍未完成**。[当前验收表](docs/P4_ACCEPTANCE_STATUS.md) 是当前结论，旧运行的失败及分项范围保留在各自证据中。Windows 已通过原生 IME 三语言及自然退出、七组实际显示态单行／列表／下拉框对照，以及最新 [41870574500](docs/evidence/p4-active-41870574500.json) 的 72 组聚焦多行绘制、72 组光标矩形、90 次真实 OS 鼠标手势和五项隐藏观察器。所有控件专项保持精确比较。
+最新 P4 验收（2026-11-05）：**P4／C1 仍未完成，剩余明确阻断为真实混合 DPI 跨屏实测**。[当前验收表](docs/P4_ACCEPTANCE_STATUS.md) 是当前结论，旧运行的失败及分项范围保留在各自证据中。Windows 原生 IME 三语言及自然退出、七组单行／列表／下拉框专项通过。[41975627370](docs/evidence/p4-shown-41975627370.json) 再次通过 72 组聚焦多行绘制、72 组光标矩形、90 次真实 OS 手势，并通过 8 个聚焦传统 CJK 客户区、96 个隐藏 CJK 精确比较及 30 个实际 Unicode 编辑案例。复杂／原版损坏的 Unicode 按用户确认保留完整可读可编辑能力，不复制原版缺字或数据丢失。
 
-Linux／macOS 26 在 [41868268491](docs/evidence/p4-active-41868268491.json) 各通过四项针对字体、界面组合和编辑的门禁，新三语言、双尺寸截图已复看，菜单字体修复关闭。本地 ALL_BUILD、41/41 Qt 回归、744 个冻结原版命中端点的双向拖选及更新后 `out/dist` 的搬迁检查通过，见[本轮本地证据](docs/evidence/p4-active-local.json)。这不是新一轮完整三平台回归，也不重复已通过的 IME、音频和整帧专项。
+Linux／macOS 26 在 [41976890117](docs/evidence/p4-shown-41976890117.json) 各通过五项前端门禁、804 个三语言离屏标签状态、57 个实际对话框、27 个菜单及焦点、悬停、弹出控件和滚动专项；各 312 个可见标签完整排版并位于所有祖先客户区内。问题截图与生产物理页复看通过，英文附件说明保持原版断行，日文长标签完整。原版浅灰配色已统一。截图和字体／DPR 范围见[显示态补验](docs/P4_SHOWN_UI_QUALIFICATION.md)。`f1b9c64` 本地 ALL_BUILD、45/45 Qt 回归、独立断行／裁切门禁及更新后 `out/dist` 搬迁启动通过。这是定向增量资格，没有重复已通过的 IME、音频和整帧专项。
 
-仍需补齐客户区外拖选自动滚动、多行复杂文本绘制、非 Windows 完整显示态外观，以及真实混合 DPI 跨屏验收。本地只有单个 96-DPI RDP 屏，跨屏专项等待独立双屏环境，不以环境变量模拟代替、不操作用户桌面。完整场景已按用户接受的视觉标准通过，复制、深度等严格契约继续保留。详细历史见[控件验收记录](docs/P4_ACTIVE_EDIT_QUALIFICATION.md)。
+客户区外拖选已通过 41975627370：18 个实际选区／行号／水平偏移及完整光标周期画面集合全部精确匹配。该轮 Windows 五项隐藏与九项多行／数值缩放／标签门禁通过。用户允许非 Windows 开放字体的字形差异，要求保留控件几何、正确换行、完整文字及操作；Windows 原版对照保持严格。536 个原版标签启用／禁用状态精确匹配。41975627370 曾在 CI 全绿后由截图发现父窗口裁切；该失败保留，41976890117 已补齐实际可见范围契约并复验通过。
+
+真实混合 DPI 跨屏尚未执行：本地只有单个 96-DPI RDP 屏，等待独立双屏环境，不以环境变量模拟代替、不操作用户桌面。完整场景已按用户接受的视觉标准通过；复制、深度和传统文本严格契约继续保留。系统窗口装饰范围单独记录，不能据此声称全部外观逐像素一致。
 
 实施状态：**P0 已完成**。三平台基础构建、两轮精确文件／数值回归、统一 Bullet 包装与分配／销毁验证、macOS 无窗口 Vulkan 探测均已执行；Windows x64／x86 编辑器构建通过。能力表、最低环境决策、依赖图、证据和仍未覆盖的范围见 [P0 实施与验收记录](docs/CROSS_PLATFORM_P0.md)。
 
@@ -18,7 +20,7 @@ Linux／macOS 26 在 [41868268491](docs/evidence/p4-active-41868268491.json) 各
 
 **P3 已完成**：生产 Vulkan 加载器、Surface、运行时 SPIR-V 编译与 P2 快照的共享 RHI 消费链路已接通。Windows 隐藏窗口、macOS Cocoa、Linux X11／Wayland 呈现及三平台离屏门禁均实际通过，常规呈现帧没有图像回读；Sour Miku 静态／动画的 DX11／DX12／Vulkan 最终输出逐字节一致。验收证据、CPU 性能基线与基础场景支持边界见 [P3 实施记录](docs/CROSS_PLATFORM_P3.md)。
 
-**P4 remains in progress; C1 is not accepted.** Shared editing, PMM save/reopen, bone selection/history, three-language Qt UI, RHI presentation, WAV and image-sequence export have three-platform regression evidence. The combined PMD/PMX/accessory/screen/WAV/physics/all-key-pool workflow passes. 94/103 original menu commands are implemented; nine belong to later media/Kinect phases. Complete-scene output uses the user-approved visual policy with strict diagnostics retained, and passes on hardware plus Windows WARP/Metal/software Vulkan. Windows Server 2025 native IME passes all three UI languages and natural exit. Complete original UI/input/font/DPI qualification remains open. [P4 acceptance record](docs/CROSS_PLATFORM_P4.md) distinguishes current gates from the historical increments below.
+**P4 remains in progress; C1 is not accepted.** Shared editing, PMM save/reopen, bone selection/history, three-language Qt UI, RHI presentation, WAV and image-sequence export have three-platform regression evidence. The combined PMD/PMX/accessory/screen/WAV/physics/all-key-pool workflow passes. 94/103 original menu commands are implemented; nine belong to later media/Kinect phases. Complete-scene output uses the user-approved visual policy with strict diagnostics retained, and passes on hardware plus Windows WARP/Metal/software Vulkan. Windows Server 2025 native IME passes all three UI languages and natural exit. Recorded UI/input/font profiles now pass within the user-approved Unicode/open-font policies; actual physical mixed-DPI monitor qualification remains open. [P4 acceptance record](docs/CROSS_PLATFORM_P4.md) distinguishes current gates from the historical increments below.
 
 以下为早期增量历史，保留当时失败与覆盖范围；当前验收状态以上方最新记录及验收表为准。
 

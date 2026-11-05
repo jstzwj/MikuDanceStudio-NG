@@ -1,0 +1,242 @@
+{
+  "schema": 1,
+  "run": "41976890117",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41976890117",
+  "revision": "f1b9c64366877406914d94090b40c606007c8a52",
+  "ci_conclusion": "success",
+  "visual_qualification": "passed_within_recorded_scope",
+  "p4_c1_accepted": false,
+  "scope": "Linux/macOS-only caption ancestor-clipping follow-up: five frontend gates plus actual shown clients; no Windows, IME, audio, media, rendering or package reruns",
+  "reuses_windows_qualification": "p4-shown-41975627370.json at 78eef96; production follow-up affects only portable caption fitting, Windows QPA exits before that code",
+  "font_policy": "User permits open-font glyph differences outside Windows; preserve geometry, original wrapping, complete readable text and interaction. Windows traditional rasters remain exact.",
+  "platforms": {
+    "linux": {
+      "ordinary_gates": {
+        "tests": 5,
+        "failures": 0,
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41976890117/linux/p4/p4.xml",
+          "sha256": "ec3c193795b6c1300ebd9394308b004633c06faad8b3f1206758d19adadfae22"
+        }
+      },
+      "shown-ui": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41976890117/linux/p4/shown-ui/report.json",
+          "sha256": "fe6545d665a6cfbefc223782a9f7a94c0a31c53f374b4e9948b62d7b68998c55"
+        },
+        "png_count": 207,
+        "image_manifest_sha256": "9ba31375a54e205265457e67aeb2d35d8f8c7f1772a4897e3b4894d19c1b136f",
+        "actualShownWindows": true,
+        "comboPopups": 12,
+        "focusedEdits": 45,
+        "hoveredButtons": 51,
+        "platform": "xcb",
+        "screenDpr": 1,
+        "scrolledLists": 9,
+        "scrolledMultiline": 3,
+        "syntheticScale": false,
+        "dialogs": 57,
+        "menus": 27,
+        "font": [
+          "Liberation Sans",
+          "Noto Sans CJK JP",
+          "Noto Sans CJK SC"
+        ],
+        "windowColor": [
+          "#f0f0f0"
+        ],
+        "buttonColor": [
+          "#f0f0f0"
+        ],
+        "highlightColor": [
+          "#0078d4"
+        ],
+        "dpr": [
+          "1"
+        ],
+        "ancestor_visible_caption_checks": 312,
+        "incomplete_captions": 0,
+        "font_stretches": [
+          93,
+          97,
+          98,
+          100
+        ],
+        "accessory_caption": [
+          {
+            "availableRect": [
+              0,
+              0,
+              127,
+              30
+            ],
+            "class": "QLabel",
+            "complete": true,
+            "contentRect": [
+              0,
+              0,
+              127,
+              30
+            ],
+            "font": "Liberation Sans",
+            "fontStretch": 100,
+            "id": -1,
+            "lines": 2,
+            "rect": [
+              179,
+              169,
+              140,
+              30
+            ],
+            "text": "accessory described after models",
+            "visible": true
+          }
+        ]
+      },
+      "static-label-portable": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41976890117/linux/p4/static-label-portable/report.json",
+          "sha256": "42ece2124ae7bcc55127bda79602ec436a6fed0be58bf452464375cc85b5124c"
+        },
+        "png_count": 804,
+        "image_manifest_sha256": "05fab6334e86f4e55a50e25139ee99bddccf9eb5c7b365512ec94753193d1de2",
+        "cases": 804,
+        "failures": 0,
+        "native": false,
+        "windowsShown": false
+      },
+      "independent_visual_review": {
+        "accepted": true,
+        "scope": "Native-pixel contact sheets of six three-language physics-key/accessory-order dialogs per platform plus most compressed captions and production physics dialog pages. All visible caption layouts separately check complete text and ancestor containment. English accessory note preserves accessory described / after models. Japanese long physics caption is complete on one line. Open-font glyph differences retained.",
+        "images": [
+          {
+            "path": "out/evidence/p4/p4-shown-41976890117/linux/p4/shown-ui/en-dialog659-normal.png",
+            "sha256": "0718009332b44724f3b24eee7d10de926de29615f4352baf6c35fae0f4daf551"
+          },
+          {
+            "path": "out/evidence/p4/p4-shown-41976890117/linux/p4/shown-ui/ja-dialog812-normal.png",
+            "sha256": "464415dd44e95340fdb93fa835cdd9ed24b0d500aadddbd0f3e1b2b0f4f9a652"
+          }
+        ],
+        "client_capture_only": true
+      }
+    },
+    "macos": {
+      "ordinary_gates": {
+        "tests": 5,
+        "failures": 0,
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41976890117/macos/p4/p4.xml",
+          "sha256": "aa73b6eac5ac0d535fd4e4d27ee2477c6b6e1c1d6baf7fcde60d02ef61ed4ab4"
+        }
+      },
+      "shown-ui": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41976890117/macos/p4/shown-ui/report.json",
+          "sha256": "ca3d0fb8a2a148cf7898dd27dfc387da0dabf96e151f48de9a6b67f946210e27"
+        },
+        "png_count": 207,
+        "image_manifest_sha256": "cce7a280984c340146bee9b7a5a683aa955677ff901118caef5e062f706807f5",
+        "actualShownWindows": true,
+        "comboPopups": 12,
+        "focusedEdits": 45,
+        "hoveredButtons": 51,
+        "platform": "cocoa",
+        "screenDpr": 1,
+        "scrolledLists": 9,
+        "scrolledMultiline": 3,
+        "syntheticScale": false,
+        "dialogs": 57,
+        "menus": 27,
+        "font": [
+          "Arial",
+          "Noto Sans CJK JP",
+          "Noto Sans CJK SC",
+          "Tahoma"
+        ],
+        "windowColor": [
+          "#f0f0f0"
+        ],
+        "buttonColor": [
+          "#f0f0f0"
+        ],
+        "highlightColor": [
+          "#0078d4"
+        ],
+        "dpr": [
+          "1"
+        ],
+        "ancestor_visible_caption_checks": 312,
+        "incomplete_captions": 0,
+        "font_stretches": [
+          96,
+          98,
+          99,
+          100
+        ],
+        "accessory_caption": [
+          {
+            "availableRect": [
+              0,
+              0,
+              127,
+              30
+            ],
+            "class": "QLabel",
+            "complete": true,
+            "contentRect": [
+              0,
+              0,
+              127,
+              30
+            ],
+            "font": "Arial",
+            "fontStretch": 100,
+            "id": -1,
+            "lines": 2,
+            "rect": [
+              179,
+              169,
+              140,
+              30
+            ],
+            "text": "accessory described after models",
+            "visible": true
+          }
+        ]
+      },
+      "static-label-portable": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41976890117/macos/p4/static-label-portable/report.json",
+          "sha256": "ea88cc56934bdf5c51429d12d324190f4eb467100cf946f18ce548597d02a38c"
+        },
+        "png_count": 804,
+        "image_manifest_sha256": "3f045f7e4c1ad0682ff58eb19e86658dc965f0062b93ef7525b6006467fd4de1",
+        "cases": 804,
+        "failures": 0,
+        "native": false,
+        "windowsShown": false
+      },
+      "independent_visual_review": {
+        "accepted": true,
+        "scope": "Native-pixel contact sheets of six three-language physics-key/accessory-order dialogs per platform plus most compressed captions and production physics dialog pages. All visible caption layouts separately check complete text and ancestor containment. English accessory note preserves accessory described / after models. Japanese long physics caption is complete on one line. Open-font glyph differences retained.",
+        "images": [
+          {
+            "path": "out/evidence/p4/p4-shown-41976890117/macos/p4/shown-ui/en-dialog659-normal.png",
+            "sha256": "6dd88cc6e7308d954675d22a71c31213c76647b1bd105120f1e82df14a3e8a1e"
+          },
+          {
+            "path": "out/evidence/p4/p4-shown-41976890117/macos/p4/shown-ui/ja-dialog812-normal.png",
+            "sha256": "a9d7dd006bcb70f4f6e9967245adde3be6bcc1c68ad9c84dae3ca7b321474b66"
+          }
+        ],
+        "client_capture_only": true
+      }
+    }
+  },
+  "limitations": [
+    "Actual X11/Cocoa clients at DPR 1 only; no OS decoration or physical mixed-DPI qualification",
+    "Physical mixed-DPI transition remains unexecuted on a dedicated environment, so P4/C1 is not accepted",
+    "The preceding successful CI run had a rejected independent visual result; that evidence remains unchanged"
+  ]
+}
