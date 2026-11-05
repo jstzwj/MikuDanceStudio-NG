@@ -7,6 +7,10 @@ namespace mikudancestudio::rhi {
 Backend DefaultBackend() {
 #ifdef MIKUDANCESTUDIO_RHI_METAL
     return Backend::Metal;
+#elif defined(MIKUDANCESTUDIO_RHI_D3D11)
+    // Windows supplies DX11; a Vulkan SDK at build time does not imply that
+    // the user's machine has a Vulkan driver installed.
+    return Backend::D3D11;
 #elif defined(MIKUDANCESTUDIO_RHI_VULKAN)
     return Backend::Vulkan;
 #else

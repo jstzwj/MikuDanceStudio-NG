@@ -71,6 +71,10 @@ int main(int argc, char** argv) {
               << std::endl;
     {
         qt::EditorWindow sizing(assets, true);
+#ifdef _WIN32
+        if (rhi::BackendAvailable(rhi::Backend::D3D11))
+            CHECK(sizing.RenderWindow()->Options().backend == rhi::Backend::D3D11);
+#endif
         auto& editor = sizing.Session();
         CHECK(editor.ImportModel(root / "articulated.pmx", reason));
         CHECK(editor.SetBone(0, 0, {2, 3, 4}, {0, 0, 0, 1}, reason));
