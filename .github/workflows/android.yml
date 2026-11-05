@@ -142,7 +142,7 @@ jobs:
           target: google_apis
           profile: pixel_tablet
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader -feature Vulkan -noaudio -no-boot-anim -camera-back none
           script: |
             apk=$(find out/releases -name '*-android-universal.apk' -print -quit)
             test -n "$apk"

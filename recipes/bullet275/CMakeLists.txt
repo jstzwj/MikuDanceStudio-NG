@@ -15,6 +15,11 @@ foreach(component LinearMath BulletCollision BulletDynamics)
     if(MSVC)
         target_compile_options(${component} PUBLIC
             /fp:precise /Zc:alignedNew)
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(ARM64|arm64|aarch64)$"
+           OR CMAKE_GENERATOR_PLATFORM STREQUAL "ARM64")
+            target_compile_options(${component} PUBLIC
+                "/FI${CMAKE_CURRENT_SOURCE_DIR}/compat/msvc_arm64_scalar.hpp")
+        endif()
         if(CMAKE_SIZEOF_VOID_P EQUAL 4)
             # VC9's default scalar evaluation model; retain float btScalar.
             target_compile_options(${component} PUBLIC /arch:IA32)

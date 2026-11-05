@@ -267,17 +267,17 @@ jobs:
         if: env.MDS_OBSERVERS_ONLY == 'true'
         run: ctest --test-dir out/build -C Release -R '^(qt_control_style|qt_control_text|qt_list_content|qt_edit_content|qt_multiline_paint)$' --output-on-failure --output-junit p4.xml
       - name: Actual multiline focus and mouse qualification
-        if: ${{ !cancelled() && inputs.native_multiline }}
+        if: ${{ success() && inputs.native_multiline }}
         timeout-minutes: 4
         env:
           QT_QPA_PLATFORM: windows
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: out/build/qt_multiline_active_test.exe out/build/multiline-active
       - name: Native silent audio clock
-        if: ${{ !cancelled() && env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true' }}
+        if: ${{ success() && env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true' }}
         run: python tests/test_native_audio.py --test out/build/qt_native_audio_test.exe --report out/build/native-audio.json --allow-unavailable
       - name: Outside-client multiline drag and complex text qualification
-        if: ${{ !cancelled() && inputs.ui_shown }}
+        if: ${{ success() && inputs.ui_shown }}
         timeout-minutes: 4
         env:
           QT_QPA_PLATFORM: windows
@@ -287,7 +287,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           out/build/qt_multiline_extended_test.exe out/build/multiline-extended
       - name: Qualify native EDIT nonclient paint
-        if: ${{ !cancelled() && inputs.native_controls }}
+        if: ${{ success() && inputs.native_controls }}
         timeout-minutes: 10
         shell: pwsh
         env:
@@ -314,7 +314,7 @@ jobs:
           if (@($results | Where-Object exitCode -ne 0).Count) { exit 1 }
           exit 0
       - name: Retain control diagnostics before optional OS language servicing
-        if: ${{ !cancelled() && inputs.native_controls }}
+        if: ${{ success() && inputs.native_controls }}
         uses: actions/upload-artifact@v4
         with:
           name: p4-windows-control-reports
@@ -324,7 +324,7 @@ jobs:
             out/build/control-qualification.json
           if-no-files-found: error
       - name: Qualify native Japanese input and command ordering
-        if: ${{ !cancelled() && inputs.system_ime }}
+        if: ${{ success() && inputs.system_ime }}
         timeout-minutes: 15
         shell: powershell
         env:
@@ -366,7 +366,7 @@ jobs:
           if ($editorExit -ne 0) { exit $editorExit }
           if ($referenceExit -ne 0) { exit $referenceExit }
       - name: Qualify original composite capture and retain numerical diagnostics
-        if: ${{ !cancelled() && inputs.native_reference }}
+        if: ${{ success() && inputs.native_reference }}
         env:
           MDS_GPU_BACKEND: d3d11
           MDS_GPU_DRIVER: software
@@ -504,7 +504,7 @@ jobs:
           export WAYLAND_DISPLAY=mds-p4 QT_QPA_PLATFORM=wayland
           python tests/test_runtime_cpu_scene.py --passes out/build/qt_presentation_test --assets res/assets
       - name: Actual shown portable controls and menus
-        if: ${{ !cancelled() && inputs.ui_shown }}
+        if: ${{ success() && inputs.ui_shown }}
         timeout-minutes: 4
         env:
           MDS_QT_ISOLATED_DISPLAY: '1'
@@ -513,12 +513,12 @@ jobs:
           cmake --build out/build --target qt_shown_ui_test --parallel 3
           xvfb-run -a env QT_QPA_PLATFORM=xcb python tests/test_shown_ui.py --test out/build/qt_shown_ui_test --assets res/assets --output out/build/shown-ui
       - name: Qualify original composite capture and retain numerical diagnostics
-        if: ${{ !cancelled() && inputs.native_reference }}
+        if: ${{ success() && inputs.native_reference }}
         env:
           MDS_GPU_DRIVER: software
         run: ctest --test-dir out/build -L native-reference --output-on-failure --output-junit native-reference.xml
       - name: Qualify real IBus composition and command ordering
-        if: ${{ !cancelled() && inputs.system_ime }}
+        if: ${{ success() && inputs.system_ime }}
         env:
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: |
@@ -674,19 +674,19 @@ jobs:
           # and cross-backend menu transaction in their own process below.
           MTL_DEBUG_LAYER=0 MDS_QT_ISOLATED_DISPLAY=1 MDS_QT_TEST_BACKEND_SWITCH=1 python tests/test_runtime_cpu_scene.py --passes out/build/qt_presentation_test --assets res/assets
       - name: Qualify original composite capture and retain numerical diagnostics
-        if: ${{ !cancelled() && inputs.native_reference }}
+        if: ${{ success() && inputs.native_reference }}
         env:
           MDS_GPU_BACKEND: metal
         run: ctest --test-dir out/build -L native-reference --output-on-failure --output-junit native-reference.xml
       - name: Qualify native Japanese input and command ordering
-        if: ${{ !cancelled() && inputs.system_ime }}
+        if: ${{ success() && inputs.system_ime }}
         env:
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: |
           cmake --build out/build --target qt_system_ime_test --parallel 3
           python tests/test_native_system_ime.py --test out/build/qt_system_ime_test --report out/build/system-ime-kotoeri.json
       - name: Actual shown portable controls and menus
-        if: ${{ !cancelled() && inputs.ui_shown }}
+        if: ${{ success() && inputs.ui_shown }}
         timeout-minutes: 4
         env:
           QT_QPA_PLATFORM: cocoa

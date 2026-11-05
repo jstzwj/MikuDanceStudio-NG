@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import time
+import shlex
 import cpu_import_fixture
 
 PACKAGE = 'io.github.jstzwj.mikudancestudiong'
@@ -39,7 +40,7 @@ def wait_report(name, expected):
 def start(arguments):
     # QtActivity's loader accepts this documented development extra. No shell
     # interpolation or real-device input is used; this runner owns the emulator.
-    adb('shell', 'am', 'start', '-W', '-n', ACTIVITY, '--es', 'applicationArguments', arguments)
+    adb('shell', 'am', 'start', '-W', '-n', ACTIVITY, '--es', 'applicationArguments', shlex.quote(arguments))
 
 
 def main():
