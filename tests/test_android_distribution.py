@@ -49,6 +49,9 @@ def main():
     parser.add_argument('--output', type=Path, default=Path('out/android-tests'))
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
+    emulator = adb('shell', 'getprop', 'ro.kernel.qemu', capture_output=True, text=True)
+    if emulator.stdout.strip() != '1':
+        raise RuntimeError('Android qualification requires an isolated emulator, not a physical device')
     try:
         adb('install', '-r', str(args.apk))
         adb('shell', 'mkdir', '-p', FILES + '/fixtures')

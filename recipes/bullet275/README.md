@@ -27,6 +27,14 @@ there are no unconditional `/O2` overrides or unsupported `/RTC-` switches.
 Visual Studio 2022's precise model disables floating-point contraction by default;
 MSVC has no `/fp:contract-` switch.
 
+Windows ARM64 selects Bullet's existing single-precision scalar branch through
+the external `compat/msvc_arm64_scalar.hpp` forced include. Stock 2.75 assumes
+every MSVC Windows target supports x86 SSE; the adapter hides `WIN32` only while
+including `btScalar.h`, restores it immediately, and propagates the same ABI to
+all consumers. `_WIN32`, Windows APIs, algorithms and the 382 archived upstream
+files remain unchanged. This matches the scalar selection on other ARM hosts;
+it does not emulate x86 intrinsics or change `btScalar` to double.
+
 The package and application both require C++17 and use `/Zc:alignedNew`.
 This keeps allocation and virtual deletion consistent for over-aligned upstream
 classes, including the dispatcher, without changing their definitions.

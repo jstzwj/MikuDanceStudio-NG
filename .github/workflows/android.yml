@@ -40,6 +40,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
       - uses: android-actions/setup-android@v3
         with:
           cmdline-tools-version: '12266719'
@@ -51,7 +52,7 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y ninja-build ccache spirv-tools libxcb-cursor0 libxkbcommon-x11-0
           python -m pip install -r requirements-build.txt
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         id: qt
         with:
           path: out/qt
@@ -59,6 +60,11 @@ jobs:
       - name: Install matching host tools and both Android SDKs
         if: steps.qt.outputs.cache-hit != 'true'
         run: python tools/setup_qt.py --target android --output out/qt
+      - uses: actions/cache/save@v4
+        if: steps.qt.outputs.cache-hit != 'true'
+        with:
+          path: out/qt
+          key: qt683-linux-android-arm64-x64-host-v1
       - uses: actions/cache@v4
         id: compiler
         with:
@@ -140,7 +146,8 @@ jobs:
           api-level: 35
           arch: x86_64
           target: google_apis
-          profile: pixel_tablet
+          # Nexus10 is present in the pinned command-line tools' device catalog.
+          profile: Nexus10
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader -feature Vulkan -noaudio -no-boot-anim -camera-back none
           script: |

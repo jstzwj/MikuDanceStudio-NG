@@ -12,7 +12,7 @@ class Bullet275Conan(ConanFile):
     name = "bullet275"
     version = "2.75"
     settings = "os", "compiler", "build_type", "arch"
-    exports_sources = ("bullet-src/*", "CMakeLists.txt", "upstream.json", "verify_sources.py")
+    exports_sources = ("bullet-src/*", "compat/*", "CMakeLists.txt", "upstream.json", "verify_sources.py")
 
     def layout(self):
         cmake_layout(self)
@@ -39,6 +39,8 @@ class Bullet275Conan(ConanFile):
     def package(self):
         copy(self, "*.h", os.path.join(self.source_folder, "bullet-src", "src"),
              os.path.join(self.package_folder, "include"))
+        copy(self, "*.hpp", os.path.join(self.source_folder, "compat"),
+             os.path.join(self.package_folder, "include", "bullet275_compat"))
         for component in ("LinearMath", "BulletCollision", "BulletDynamics"):
             for pattern in ("*.lib", "*.a"):
                 copy(self, pattern, os.path.join(self.build_folder, component),
@@ -55,5 +57,8 @@ class Bullet275Conan(ConanFile):
             self.cpp_info.cxxflags = ["/fp:precise", "/Zc:alignedNew"]
             if self.settings.arch == "x86":
                 self.cpp_info.cxxflags.append("/arch:IA32")
+            elif self.settings.arch == "armv8":
+                self.cpp_info.cxxflags.append("/FI" + os.path.join(
+                    self.package_folder, "include", "bullet275_compat", "msvc_arm64_scalar.hpp"))
         else:
             self.cpp_info.cxxflags = ["-ffp-contract=off"]

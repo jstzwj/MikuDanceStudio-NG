@@ -195,7 +195,7 @@ jobs:
           path: .cache/sccache
           key: editor-objects-${{ matrix.arch == 'arm64' && 'windows-11-arm' || inputs.windows_runner || 'windows-2022' }}-${{ matrix.arch }}-qt683-${{ github.sha }}
           restore-keys: editor-objects-${{ matrix.arch == 'arm64' && 'windows-11-arm' || inputs.windows_runner || 'windows-2022' }}-${{ matrix.arch }}-qt683-
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         id: renderer-tools
         with:
           path: |
@@ -223,6 +223,13 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           New-Item -ItemType Directory -Force out/spirv-tools | Out-Null
           Copy-Item out/spirv-build/tools/spirv-val.exe out/spirv-tools/
+      - uses: actions/cache/save@v4
+        if: steps.renderer-tools.outputs.cache-hit != 'true'
+        with:
+          path: |
+            out/dxc
+            out/spirv-tools
+          key: editor-tools-windows-${{ matrix.arch }}-dxc1825051-spirv20252-v1
       - name: Fetch independent MME metadata oracle (x64 test only)
         if: matrix.arch == 'x64'
         run: python tools/fetch_d3dx_oracle.py --output out/d3dx-oracle
