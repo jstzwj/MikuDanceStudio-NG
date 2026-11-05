@@ -139,9 +139,10 @@ public:
     std::set<std::string> names;
     std::string constants, code;
     MmeLegacyDiagnostic* diagnostic;
+    bool describe = false;
     std::string declaration, technique, pass;
-    explicit Parser(const std::string& text, bool scene, MmeLegacyDiagnostic* d)
-        : source(text), t(Lex(text, &offsets)), diagnostic(d) {
+    explicit Parser(const std::string& text, bool scene, MmeLegacyDiagnostic* d, bool metadata)
+        : source(text), t(Lex(text, &offsets)), diagnostic(d), describe(metadata) {
         result.scene = scene;
     }
     std::string Peek() const { return p < t.size() ? t[p] : ""; }
@@ -221,8 +222,11 @@ public:
         }
     }
     std::string Semantic() { return Eat(":") ? Upper(Name()) : ""; }
-    void Initializer() {
+    std::string Initializer() {
+        const auto start = p + 1;
+        bool present = false;
         if (Eat("=")) {
+            present = true;
             unsigned paren = 0, brace = 0, bracket = 0;
             while (Peek() != ";" || paren || brace || bracket) {
                 const auto v = Take();
@@ -248,7 +252,9 @@ public:
                     Fail("multiple_declarators");
             }
         }
+        const auto value = present ? Join(t, start, p) : "";
         Need(";");
+        return value;
     }
     std::string Body() {
         const auto start = p;
@@ -287,6 +293,7 @@ public:
         Unique(technique);
         std::map<std::string, std::string> annotations;
         Annotations(annotations);
+        MmeLegacyTechnique metadata{technique, annotations, {}};
         // The source importer retains shader declarations. Production export
         // separately validates the actual parsed SAS material command table.
         Need("{");
@@ -298,7 +305,8 @@ public:
             this->pass = pass.name;
             annotations.clear();
             Annotations(annotations);
-            if (!annotations.empty() && (!result.scene || annotations.size() != 1 ||
+            pass.annotations = annotations;
+            if (!describe && !annotations.empty() && (!result.scene || annotations.size() != 1 ||
                                          annotations["SCRIPT"] != "Draw=Buffer;"))
                 Fail("pass_annotations");
             Need("{");
@@ -326,13 +334,15 @@ public:
                         Fail("duplicate_state");
                 }
             }
-            if (pass.vertex.empty() || pass.pixel.empty())
+            if (!describe && (pass.vertex.empty() || pass.pixel.empty()))
                 Fail("missing_shaders");
+            metadata.passes.push_back(unsigned(result.passes.size()));
             result.passes.push_back(std::move(pass));
             if (result.passes.size() > 64)
                 Fail("pass_budget");
         }
         Eat(";");
+        result.techniques.push_back(std::move(metadata));
     }
     void Declaration() {
         const auto begin = p;
@@ -382,7 +392,7 @@ public:
                 Fail("array_extent");
             Need("]");
         }
-        if (isStatic || isConst) {
+        if (!describe && (isStatic || isConst)) {
             if (!isConst)
                 Fail("static_initializer");
             Initializer();
@@ -395,7 +405,7 @@ public:
         const auto semantic = Semantic();
         std::map<std::string, std::string> annotations;
         Annotations(annotations);
-        if (result.scene && semantic == "STANDARDSGLOBAL") {
+        if (!describe && result.scene && semantic == "STANDARDSGLOBAL") {
             if (type != "float" || elements != 1 || shared || annotations.size() != 3 ||
                 annotations["SCRIPTCLASS"] != "scene" ||
                 annotations["SCRIPTORDER"] != "postprocess" ||
@@ -413,12 +423,12 @@ public:
             const bool upload = annotations.empty() &&
                                 (semantic == "MATERIALTEXTURE" || semantic == "MATERIALSPHEREMAP" ||
                                  semantic == "MATERIALTOONTEXTURE");
-            if (elements != 1 ||
+            if (elements != 1 || (!describe &&
                 !(result.scene ? (target || sharedReference)
                                : (upload || sharedReference ||
-                                  (target && semantic == "OFFSCREENRENDERTARGET"))))
+                                  (target && semantic == "OFFSCREENRENDERTARGET")))))
                 Fail("texture_semantic");
-            if (target && !annotations.empty()) {
+            if (!describe && target && !annotations.empty()) {
                 static const std::set<std::string> supported = {
                     "FORMAT",     "MIPLEVELS", "LEVELS", "DEFAULTEFFECT", "CLEARCOLOR",
                     "CLEARDEPTH", "WIDTH",     "HEIGHT", "VIEWPORTRATIO"};
@@ -511,15 +521,26 @@ public:
         v.type = type;
         v.semantic = semantic;
         v.elements = elements;
+        v.shared = shared;
+        v.immutable = isStatic || isConst;
+        v.annotations = annotations;
         if (type == "float4x4") {
             v.rows = v.columns = 4;
-        } else if (type == "float" || type == "int" || type == "bool") {
+        } else if (type == "float" || type == "int" || type == "bool" ||
+                   (describe && type == "string")) {
         } else if (type.size() == 6 && type.substr(0, 5) == "float" && type[5] >= '2' &&
                    type[5] <= '4')
             v.columns = unsigned(type[5] - '0');
         else
             Fail("parameter_type");
-        if (!annotations.empty()) {
+        if (describe) {
+            const auto object = annotations.find("OBJECT");
+            if (object != annotations.end())
+                v.object = Upper(object->second);
+            if (semantic == "STANDARDSGLOBAL")
+                result.scene = annotations["SCRIPTCLASS"] == "scene" ||
+                               annotations["SCRIPTCLASS"] == "sceneorobject";
+        } else if (!annotations.empty()) {
             if (semantic == "CONTROLOBJECT") {
                 for (const auto& a : annotations)
                     if (a.first != "NAME" && a.first != "ITEM")
@@ -536,7 +557,7 @@ public:
                 v.object = Upper(annotations["OBJECT"]);
             }
         }
-        Initializer();
+        v.initializer = Initializer();
         constants +=
             (v.rows == 4 ? "row_major " : "") + (type == "bool" ? "uint" : type) + " " + name;
         if (elements > 1)
@@ -631,13 +652,13 @@ public:
 }
 namespace {
 bool Import(const std::string& source, MmeLegacyProgram& out, std::string& reason, bool scene,
-            MmeLegacyDiagnostic* diagnostic) {
+            MmeLegacyDiagnostic* diagnostic, bool describe = false) {
     if (diagnostic)
         *diagnostic = {};
     try {
         if (source.size() > 16 * 1024 * 1024)
             throw std::runtime_error("MME_legacy_source_budget");
-        Parser parser(source, scene, diagnostic);
+        Parser parser(source, scene, diagnostic, describe);
         while (!parser.Peek().empty()) {
             parser.declaration.clear();
             parser.technique.clear();
@@ -649,7 +670,10 @@ bool Import(const std::string& source, MmeLegacyProgram& out, std::string& reaso
             else
                 parser.Declaration();
         }
-        parser.Finish();
+        if (!describe)
+            parser.Finish();
+        else if (parser.result.techniques.empty())
+            parser.Fail("missing_techniques");
         out = std::move(parser.result);
         reason.clear();
         return true;
@@ -670,6 +694,10 @@ bool Import(const std::string& source, MmeLegacyProgram& out, std::string& reaso
         return false;
     }
 }
+}
+bool MmeLegacyDescribe(const std::string& source, MmeLegacyProgram& out, std::string& reason,
+                       MmeLegacyDiagnostic* diagnostic) {
+    return Import(source, out, reason, false, diagnostic, true);
 }
 bool MmeLegacyImport(const std::string& source, MmeLegacyProgram& out, std::string& reason,
                      MmeLegacyDiagnostic* diagnostic) {

@@ -69,6 +69,8 @@ target_include_directories(mikudancestudio_formats PUBLIC ${CMAKE_CURRENT_SOURCE
 add_library(mikudancestudio_cpu_math STATIC src/math/cpu_math.cpp)
 target_include_directories(mikudancestudio_cpu_math PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(mikudancestudio_cpu_math PUBLIC cxx_std_17)
+include(cmake/Mme.cmake)
+mds_add_mme()
 if(MSVC)
     target_compile_options(mikudancestudio_cpu_math PRIVATE /fp:precise)
 endif()
@@ -236,13 +238,22 @@ if(BUILD_TESTING)
         --manifest ${CMAKE_CURRENT_BINARY_DIR}/generated/model_runtime_targets.json
         --output ${CMAKE_CURRENT_BINARY_DIR}/p1-dependencies.json)
     set_tests_properties(model_runtime_cli model_runtime_dependencies PROPERTIES LABELS "headless;portable;p1")
-    add_executable(mme_legacy_source_test tests/mme_legacy_source_test.cpp third_party/mmeffect/src/mme_legacy_source.cpp)
+    add_executable(mme_legacy_source_test tests/mme_legacy_source_test.cpp)
+    target_link_libraries(mme_legacy_source_test PRIVATE mikudancestudio_mme_frontend)
     target_compile_definitions(mme_legacy_source_test PRIVATE MDS_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME mme_legacy_source COMMAND mme_legacy_source_test)
-    add_executable(mme_standard_parameters_test tests/mme_standard_parameters_test.cpp third_party/mmeffect/src/mme_standard_parameters.cpp)
+    add_executable(mme_standard_parameters_test tests/mme_standard_parameters_test.cpp)
+    target_link_libraries(mme_standard_parameters_test PRIVATE mikudancestudio_mme_runtime)
     add_test(NAME mme_standard_parameters COMMAND mme_standard_parameters_test)
-    add_executable(mme_scene_plan_test tests/mme_scene_plan_test.cpp third_party/mmeffect/src/mme_scene_plan.cpp)
+    add_executable(mme_scene_plan_test tests/mme_scene_plan_test.cpp)
+    target_link_libraries(mme_scene_plan_test PRIVATE mikudancestudio_mme_runtime)
     add_test(NAME mme_scene_plan COMMAND mme_scene_plan_test)
+    add_executable(mme_definition_test tests/mme_definition_test.cpp)
+    target_link_libraries(mme_definition_test PRIVATE mikudancestudio_mme_frontend)
+    target_compile_definitions(mme_definition_test PRIVATE MDS_TEST_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME mme_definition COMMAND mme_definition_test)
+    set_tests_properties(mme_legacy_source mme_standard_parameters mme_scene_plan mme_definition
+        PROPERTIES LABELS "p5;headless;portable")
     add_executable(rhi_shader_contract_test tests/rhi_shader_contract_test.cpp)
     target_link_libraries(rhi_shader_contract_test PRIVATE mikudancestudio_rhi)
     add_test(NAME rhi_shader_contract COMMAND rhi_shader_contract_test)
@@ -1053,9 +1064,6 @@ include(cmake/D3dxRuntime.cmake)
 add_library(MMEffect STATIC
     third_party/mmeffect/src/mme_host.cpp
     third_party/mmeffect/src/mme_portable.cpp
-    third_party/mmeffect/src/mme_scene_plan.cpp
-    third_party/mmeffect/src/mme_legacy_source.cpp
-    third_party/mmeffect/src/mme_standard_parameters.cpp
     third_party/mmeffect/src/mmhack/mmhack_registry.cpp
     third_party/mmeffect/src/mmhack/mmhack_material.cpp
     third_party/mmeffect/src/mmhack/mmhack_material_table.cpp
@@ -1089,7 +1097,7 @@ target_include_directories(MMEffect PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include          # d3dx_api.hpp (typed forwarding to PE imports)
 )
 target_compile_definitions(MMEffect PUBLIC MIKUDANCESTUDIO_MME_EMBEDDED=1)
-target_link_libraries(MMEffect PUBLIC D3DXRuntime)
+target_link_libraries(MMEffect PUBLIC D3DXRuntime mikudancestudio_mme_runtime)
 target_link_libraries(MMEffect PRIVATE
     d3dcompiler # immutable portable source preprocessing at native effect load
     user32       # Windows, menus and messages

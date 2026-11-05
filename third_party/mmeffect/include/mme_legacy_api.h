@@ -16,6 +16,9 @@ struct MmeLegacyDiagnostic {
 struct MmeLegacyVariable {
     std::string name, type, semantic, object;
     unsigned rows = 1, columns = 1, elements = 1;
+    bool shared = false, immutable = false;
+    std::string initializer;
+    std::map<std::string, std::string> annotations;
 };
 struct MmeLegacySampler {
     std::string name, texture, semantic;
@@ -29,6 +32,12 @@ struct MmeLegacySampler {
 struct MmeLegacyPass {
     std::string technique, name, vertex, pixel;
     std::map<std::string, std::string> states;
+    std::map<std::string, std::string> annotations;
+};
+struct MmeLegacyTechnique {
+    std::string name;
+    std::map<std::string, std::string> annotations;
+    std::vector<unsigned> passes;
 };
 struct MmeLegacyInput {
     std::string semantic;
@@ -45,6 +54,7 @@ struct MmeLegacyProgram {
     std::vector<MmeLegacyVariable> variables;
     std::vector<MmeLegacySampler> samplers;
     std::vector<MmeLegacyPass> passes;
+    std::vector<MmeLegacyTechnique> techniques;
     // FX-only declarations are removed. Numeric values are read from b1;
     // textures/samplers have deterministic ordered tN/sN bindings.
     std::string hlsl;
@@ -70,5 +80,9 @@ bool MmeLegacyShader(const MmeLegacyProgram&, const MmeLegacyPass&, std::string&
 
 bool MmeLegacyImportScene(const std::string&, MmeLegacyProgram&, std::string& reason,
                           MmeLegacyDiagnostic* diagnostic = nullptr);
+// Syntax/metadata only: preserves source defaults and annotations without
+// requiring SAS objects or asserting shader, state or execution support.
+bool MmeLegacyDescribe(const std::string&, MmeLegacyProgram&, std::string& reason,
+                       MmeLegacyDiagnostic* diagnostic = nullptr);
 std::vector<unsigned> MmeLegacySamplers(const MmeLegacyProgram&, const MmeLegacyPass&,
                                         bool vertex = false);
