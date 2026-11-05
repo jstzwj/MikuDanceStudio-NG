@@ -133,7 +133,15 @@ bool Viewport::ReloadTextures(std::string& reason) {
     return true;
 }
 bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
-    if ((!isExposed() && !hiddenAcceptance) || width() < 1 || height() < 1)
+#ifdef __ANDROID__
+    // Qt's Vulkan window normally publishes exposure after QVulkanInstance
+    // acquires its surface. RHI owns that instance instead: bootstrap the
+    // visible native child, then let QtSurface require a valid SurfaceView.
+    const bool ready = isVisible() && QGuiApplication::applicationState() == Qt::ApplicationActive;
+#else
+    const bool ready = isExposed();
+#endif
+    if ((!ready && !hiddenAcceptance) || width() < 1 || height() < 1)
         return true;
     const auto w = unsigned(std::max(1, qRound(width() * devicePixelRatio())));
     const auto h = unsigned(std::max(1, qRound(height() * devicePixelRatio())));

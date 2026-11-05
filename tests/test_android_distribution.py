@@ -31,8 +31,9 @@ def read_report(name):
         return None
 
 
-def wait_report(name, expected):
+def wait_report(name, expected, output):
     deadline = time.monotonic() + 150
+    capture_after = time.monotonic() + 5
     stopped = 0
     while time.monotonic() < deadline:
         report = read_report(name)
@@ -40,6 +41,12 @@ def wait_report(name, expected):
             raise RuntimeError(f'Android gate failed: {report}')
         if report and (not expected or report.get('state') in expected):
             return report
+        if time.monotonic() >= capture_after:
+            with (output / (name + '.waiting.png')).open('wb') as image:
+                adb('exec-out', 'screencap', '-p', stdout=image)
+            windows = adb('shell', 'dumpsys', 'window', 'windows', capture_output=True, text=True).stdout
+            (output / (name + '.windows.txt')).write_text(windows, encoding='utf-8')
+            capture_after = float('inf')
         process = subprocess.run(['adb', 'shell', 'pidof', PACKAGE], capture_output=True, text=True, timeout=15)
         stopped = 0 if process.stdout.strip() else stopped + 1
         if stopped >= 10:
@@ -99,7 +106,7 @@ def main():
                                          d['properties']['deviceType']) for d in devices], 'driver:', driver)
         adb('logcat', '-c')
         start('--deployment-check ' + FILES + '/deployment.json ' + FILES + '/fixtures/v2.pmm', driver)
-        deployment = wait_report('deployment.json', None)
+        deployment = wait_report('deployment.json', None, args.output)
         version = (Path(__file__).resolve().parents[1] / 'VERSION').read_text().strip()
         if deployment.get('version') != version or len(deployment.get('languages', [])) != 15:
             raise RuntimeError(f'Incomplete Android deployment check: {deployment}')
@@ -110,11 +117,11 @@ def main():
         adb('shell', 'am', 'force-stop', PACKAGE)
         arguments = '--android-acceptance ' + FILES + '/native.json ' + FILES + '/fixtures/v2.pmm'
         start(arguments, driver)
-        wait_report('native.json', ('await-lifecycle',))
+        wait_report('native.json', ('await-lifecycle',), args.output)
         adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
         time.sleep(2)
         start(arguments, driver)
-        native = wait_report('native.json', ('passed',))
+        native = wait_report('native.json', ('passed',), args.output)
         if not native.get('suspended') or not native.get('resumed') or native.get('submissions', 0) < 3:
             raise RuntimeError(f'Android native lifecycle was not exercised: {native}')
         (args.output / 'native.json').write_text(json.dumps(native, indent=2) + '\n')

@@ -10,6 +10,7 @@
 namespace mikudancestudio::qt {
 int RunAndroidAcceptance(QApplication& app, EditorWindow& window, const QString& report) {
     int phase = 0;
+    qint64 nextProgress = 0;
     bool suspended = false, resumed = false;
     QElapsedTimer elapsed;
     elapsed.start();
@@ -19,6 +20,13 @@ int RunAndroidAcceptance(QApplication& app, EditorWindow& window, const QString&
             return false;
         QJsonObject result{{"state", state},
                            {"version", app.applicationVersion()},
+                           {"phase", phase},
+                           {"applicationState", int(app.applicationState())},
+                           {"windowVisible", window.isVisible()},
+                           {"viewportVisible", window.RenderWindow()->isVisible()},
+                           {"viewportExposed", window.RenderWindow()->isExposed()},
+                           {"width", window.RenderWindow()->width()},
+                           {"height", window.RenderWindow()->height()},
                            {"submissions", qint64(window.RenderWindow()->Submissions())},
                            {"suspended", suspended},
                            {"resumed", resumed},
@@ -39,6 +47,10 @@ int RunAndroidAcceptance(QApplication& app, EditorWindow& window, const QString&
             app.exit(10);
             return;
         }
+        if (phase < 2 && elapsed.elapsed() >= nextProgress) {
+            save("await-surface");
+            nextProgress = elapsed.elapsed() + 1000;
+        }
         if (app.applicationState() != Qt::ApplicationActive)
             return;
         std::string reason;
@@ -53,8 +65,10 @@ int RunAndroidAcceptance(QApplication& app, EditorWindow& window, const QString&
         if (phase == 0) {
             // Native surface retirement and reacquisition use the ordinary
             // editor path. Retain the PMM/model state across replacement.
+            viewport->hide();
             viewport->destroy();
             viewport->create();
+            viewport->show();
             phase = 1;
         } else if (phase == 1) {
             if (!viewport->Reset(reason)) {
