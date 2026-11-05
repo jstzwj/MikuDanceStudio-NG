@@ -56,6 +56,17 @@ QImage QtClient(QPlainTextEdit& field, QSize size) {
     field.render(&image);
     return image.copy(2, 2, size.width(), size.height());
 }
+QImage NativeCaretClient(HWND control) {
+    GUITHREADINFO gui{sizeof gui};
+    Check(GetGUIThreadInfo(0, &gui) && gui.hwndCaret == control,
+          "snapshot caret belongs to the original test control");
+    // Qt's test flash time is zero, but the original EDIT still uses USER32's
+    // blink interval. A stationary 700-ms drag can leave it in the off phase.
+    // Restart only this test-owned real caret before capturing every pixel;
+    // without changing system blink settings, omitting the caret or masking pixels.
+    Check(HideCaret(control) && ShowCaret(control), "restart owned caret visible phase");
+    return Client(control);
+}
 unsigned UnicodeEditing(QPlainTextEdit& field, const QString& text) {
     Check(field.hasFocus(), "Unicode editing retains real focus");
     Check(GetAncestor(GetForegroundWindow(), GA_ROOT) ==
@@ -118,6 +129,9 @@ int main(int argc, char** argv) try {
                 QJsonObject{
                     {"windowsShown", true},
                     {"actualOsMouseCapture", true},
+                    {"nativeCaretBlinkMs", int(GetCaretBlinkTime())},
+                    {"captureCaretPhase",
+                     "restart test-owned USER32 caret; Qt test flash time zero"},
                     {"dragFailures", int(dragFailures)},
                     {"unicodeFailures", int(textFailures)},
                     {"unicodeRasterDifferences", int(unicodeRasterDifferences)},
@@ -169,7 +183,8 @@ int main(int argc, char** argv) try {
                 native, start + QPoint(origin.x, origin.y),
                 endpoints[direction] + QPoint(origin.x, origin.y),
                 [&] { return NativeState(control, text); }, nativeSamples);
-            const auto nativeImage = Client(control);
+            const auto nativeImage = NativeCaretClient(control);
+            Check(NativeState(control, text) == expected, "caret phase preserves drag state");
             dialog.activateWindow();
             SetForegroundWindow(reinterpret_cast<HWND>(dialog.winId()));
             QApplication::setActiveWindow(&dialog);
@@ -211,7 +226,7 @@ int main(int argc, char** argv) try {
                 const bool nativePreserved = QString::fromStdWString(contents) == nativeText;
                 NativeFocus(native, control);
                 SendMessageW(control, EM_SETSEL, 0, selected ? -1 : 0);
-                const auto expected = Client(control);
+                const auto expected = NativeCaretClient(control);
                 dialog.activateWindow();
                 SetForegroundWindow(reinterpret_cast<HWND>(dialog.winId()));
                 QApplication::setActiveWindow(&dialog);

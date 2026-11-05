@@ -1,0 +1,283 @@
+{
+  "schema": 1,
+  "run": "41964669418",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41964669418",
+  "revision": "1dec2a2079d5bb209233d75bcb3bd667a297d0a6",
+  "conclusion": "failure",
+  "p4_c1_accepted": false,
+  "scope": "Targeted actual shown UI and hidden observers; not full ordinary, IME, scene or distribution qualification",
+  "platforms": {
+    "windows": {
+      "ordinary_gates": {
+        "count": 5,
+        "failed": 0,
+        "artifact": {
+          "path": "out/evidence/p4/p4-shown-41964669418/windows/p4/p4.xml",
+          "sha256": "26bee66570520823f254d17fe9b7177c0a7c8e343e1081a7989c4ee2d242f1ff"
+        }
+      },
+      "multiline-extended": {
+        "png_count": 96,
+        "manifest_sha256": "23f9ef4809cdaa0b34e12b0c65c6e4b8ac087c99a3eae99454ae8bae2191d641",
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41964669418/windows/p4/multiline-extended/report.json",
+          "sha256": "8b226093bd24e89207e31df9f6fa564bb048a19ad91de52f1f6c2b11530280e0"
+        },
+        "actualOsMouseCapture": true,
+        "dragFailures": 18,
+        "unicodeFailures": 28,
+        "windowsShown": true,
+        "actual_drags": 18,
+        "drag_state_mismatches": 18,
+        "unicode_cases": 30,
+        "unicode_editing_failures": 0,
+        "independent_raster_recheck": [
+          {
+            "case": "en-drag0",
+            "different": 9070,
+            "bounds": [
+              4,
+              1,
+              272,
+              98
+            ]
+          },
+          {
+            "case": "en-drag1",
+            "different": 10765,
+            "bounds": [
+              4,
+              1,
+              272,
+              97
+            ]
+          },
+          {
+            "case": "en-drag2",
+            "different": 252,
+            "bounds": [
+              4,
+              43,
+              22,
+              57
+            ]
+          },
+          {
+            "case": "en-drag3",
+            "different": 11659,
+            "bounds": [
+              4,
+              6,
+              272,
+              97
+            ]
+          },
+          {
+            "case": "en-drag4",
+            "different": 9116,
+            "bounds": [
+              4,
+              1,
+              272,
+              98
+            ]
+          },
+          {
+            "case": "en-drag5",
+            "different": 16095,
+            "bounds": [
+              4,
+              1,
+              272,
+              97
+            ]
+          },
+          {
+            "case": "ja-drag0",
+            "different": 7866,
+            "bounds": [
+              4,
+              1,
+              274,
+              84
+            ]
+          },
+          {
+            "case": "ja-drag1",
+            "different": 8534,
+            "bounds": [
+              4,
+              1,
+              274,
+              83
+            ]
+          },
+          {
+            "case": "ja-drag2",
+            "different": 192,
+            "bounds": [
+              4,
+              37,
+              20,
+              49
+            ]
+          },
+          {
+            "case": "ja-drag3",
+            "different": 6884,
+            "bounds": [
+              4,
+              5,
+              274,
+              83
+            ]
+          },
+          {
+            "case": "ja-drag4",
+            "different": 7749,
+            "bounds": [
+              4,
+              1,
+              274,
+              84
+            ]
+          },
+          {
+            "case": "ja-drag5",
+            "different": 10452,
+            "bounds": [
+              4,
+              1,
+              274,
+              83
+            ]
+          },
+          {
+            "case": "zh_CN-drag0",
+            "different": 7866,
+            "bounds": [
+              4,
+              1,
+              274,
+              84
+            ]
+          },
+          {
+            "case": "zh_CN-drag1",
+            "different": 8534,
+            "bounds": [
+              4,
+              1,
+              274,
+              83
+            ]
+          },
+          {
+            "case": "zh_CN-drag2",
+            "different": 192,
+            "bounds": [
+              4,
+              37,
+              20,
+              49
+            ]
+          },
+          {
+            "case": "zh_CN-drag3",
+            "different": 6884,
+            "bounds": [
+              4,
+              5,
+              274,
+              83
+            ]
+          },
+          {
+            "case": "zh_CN-drag4",
+            "different": 7749,
+            "bounds": [
+              4,
+              1,
+              274,
+              84
+            ]
+          },
+          {
+            "case": "zh_CN-drag5",
+            "different": 10452,
+            "bounds": [
+              4,
+              1,
+              274,
+              83
+            ]
+          }
+        ]
+      }
+    },
+    "linux": {
+      "ordinary_gates": {
+        "count": 4,
+        "failed": 0,
+        "artifact": {
+          "path": "out/evidence/p4/p4-shown-41964669418/linux/p4/p4.xml",
+          "sha256": "07751586ff8624eca11413a886ab9b79da8e652513f529c819332c59e77ed643"
+        }
+      },
+      "shown-ui": {
+        "png_count": 207,
+        "manifest_sha256": "6b8eada46914cfa26fa8739435ee239b31ed3f3ab085cf4c44d61996b5701581",
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41964669418/linux/p4/shown-ui/report.json",
+          "sha256": "5995f77938260793814b2c1178ca67d0e2fcfe28a5eb42e25be23d6730abd522"
+        },
+        "actualShownWindows": true,
+        "comboPopups": 12,
+        "focusedEdits": 45,
+        "hoveredButtons": 51,
+        "platform": "xcb",
+        "screenDpr": 1,
+        "scrolledLists": 9,
+        "scrolledMultiline": 3,
+        "syntheticScale": false,
+        "dialogs": 57,
+        "menus": 27
+      }
+    },
+    "macos": {
+      "ordinary_gates": {
+        "count": 4,
+        "failed": 0,
+        "artifact": {
+          "path": "out/evidence/p4/p4-shown-41964669418/macos/p4/p4.xml",
+          "sha256": "03a1b297e970be92de5f0c175ccbf0a57dbe01f4e8792dc2f4ae87d2c6ae437f"
+        }
+      },
+      "shown-ui": {
+        "png_count": 25,
+        "manifest_sha256": "6e220eccdb1c0132f4e8d60f4ca459d775dabae86dd3fc11ca73daf664b44149",
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41964669418/macos/p4/shown-ui/report.json",
+          "sha256": "57f0dfd2c844572773d901599d62c1236fec02a55bdd3df9d5aff983dac34b40"
+        },
+        "actualShownWindows": true,
+        "comboPopups": 0,
+        "focusedEdits": 8,
+        "hoveredButtons": 7,
+        "platform": "cocoa",
+        "screenDpr": 1,
+        "scrolledLists": 0,
+        "scrolledMultiline": 0,
+        "syntheticScale": false,
+        "dialogs": 8,
+        "menus": 0
+      }
+    }
+  },
+  "limitations": [
+    "18 actual drag state/raster differences; complete samples retained",
+    "Unicode originally counted all 28 raster differences as failures, before user-approved complete Unicode policy; old failure is not rewritten",
+    "Linux corrected production physics shown matrix succeeds",
+    "macOS stops after eight English profiles because QCursor warp did not deliver actual hover to the next button"
+  ]
+}

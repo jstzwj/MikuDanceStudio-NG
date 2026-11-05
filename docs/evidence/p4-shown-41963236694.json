@@ -1,0 +1,75 @@
+{
+  "schema": 1,
+  "run": "41963236694",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41963236694",
+  "revision": "3314b4b1c22dccd900f712a8e3238902f161f891",
+  "conclusion": "failure",
+  "p4_c1_accepted": false,
+  "scope": "Targeted actual shown UI and hidden observers; not full ordinary, IME, scene or distribution qualification",
+  "platforms": {
+    "windows": {
+      "ordinary_gates": {
+        "count": 5,
+        "failed": 0,
+        "artifact": {
+          "path": "out/evidence/p4/p4-shown-41963236694/windows/p4/p4.xml",
+          "sha256": "8dddd55bb2825be9b28fc3040b24777f0378299cfea954a2397b3a9f8171113a"
+        }
+      },
+      "multiline-extended": {
+        "png_count": 12,
+        "manifest_sha256": "3102f6a290062dc7e683344b5c1d2ca81b072de17ddc29da6ed8097ae8f1458b",
+        "report_missing_due_to_early_abort": true
+      }
+    },
+    "linux": {
+      "ordinary_gates": {
+        "count": 4,
+        "failed": 0,
+        "artifact": {
+          "path": "out/evidence/p4/p4-shown-41963236694/linux/p4/p4.xml",
+          "sha256": "28a44bd1483ed225278603a7ab2aa34b71284c766e7595f2f8a26fd09ca2a880"
+        }
+      },
+      "shown-ui": {
+        "png_count": 228,
+        "manifest_sha256": "42a35502b17bbce3e463013be2272025845cf411bedff3e40f770ee6e689907f",
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41963236694/linux/p4/shown-ui/report.json",
+          "sha256": "14edc989070e527ddef7f51c7a01385622ff685947e66b3587e40c5f1c932d9d"
+        },
+        "actualShownWindows": true,
+        "comboPopups": 33,
+        "focusedEdits": 48,
+        "hoveredButtons": 51,
+        "platform": "xcb",
+        "screenDpr": 1,
+        "scrolledLists": 9,
+        "scrolledMultiline": 3,
+        "syntheticScale": false,
+        "dialogs": 57,
+        "menus": 27
+      }
+    },
+    "macos": {
+      "ordinary_gates": {
+        "count": 4,
+        "failed": 0,
+        "artifact": {
+          "path": "out/evidence/p4/p4-shown-41963236694/macos/p4/p4.xml",
+          "sha256": "ab92b8f1ff44634eb7dc7e204d09adff4984d217e840bd5b8c91e9fe32f5d7b7"
+        }
+      },
+      "shown-ui": {
+        "png_count": 69,
+        "manifest_sha256": "364eb058be2f3390dba37b2e2c59b711c753c9c1554a49831eceeb14c8f4756c",
+        "report_missing_due_to_early_abort": true
+      }
+    }
+  },
+  "limitations": [
+    "Linux initial generic physics wrapper exposes mutually exclusive pages; all three physics images withdrawn, replaced by production ModelPhysicsDialog in later runs",
+    "Windows aborted at original English ES_OEMCONVERT Unicode loss after six drag captures; no complete report",
+    "macOS stopped after 19 English dialogs and two menus at actual menu exposure; no complete report"
+  ]
+}

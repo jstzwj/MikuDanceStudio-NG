@@ -1,0 +1,300 @@
+{
+  "schema": 1,
+  "run": "41967344547",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41967344547",
+  "revision": "44f4e984d26f91fa800a7aeade5a79389a93996b",
+  "conclusion": "failure",
+  "p4_c1_accepted": false,
+  "scope": "Targeted actual shown UI and hidden observers; not full ordinary, IME, scene or distribution qualification",
+  "platforms": {
+    "windows": {
+      "ordinary_gates": {
+        "count": 5,
+        "failed": 0,
+        "artifact": {
+          "path": "out/evidence/p4/p4-shown-41967344547/windows/p4/p4.xml",
+          "sha256": "e87a4d81151bf7a86209ac9ba991c0d7f8e46d401e7a5a873c1ba32316c97fb1"
+        }
+      },
+      "multiline-extended": {
+        "png_count": 96,
+        "manifest_sha256": "a4bbb55cc8a7881bfe72b783561fdfea52ae5c82a5aa5747b68bafbc585e2b6c",
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41967344547/windows/p4/multiline-extended/report.json",
+          "sha256": "44f96294174b6a47ffff572ff4797cf66b16dc8a24907ea407e417e39ac1e0a7"
+        },
+        "actualOsMouseCapture": true,
+        "dragFailures": 18,
+        "unicodeFailures": 0,
+        "unicodePolicy": "preserve complete readable Unicode and editing; original raster differences retained as diagnostics",
+        "unicodeRasterDifferences": 28,
+        "windowsShown": true,
+        "actual_drags": 18,
+        "drag_state_mismatches": 0,
+        "unicode_cases": 30,
+        "unicode_editing_failures": 0,
+        "independent_raster_recheck": [
+          {
+            "case": "en-drag0",
+            "different": 14,
+            "bounds": [
+              141,
+              1,
+              142,
+              15
+            ]
+          },
+          {
+            "case": "en-drag1",
+            "different": 14,
+            "bounds": [
+              141,
+              71,
+              142,
+              85
+            ]
+          },
+          {
+            "case": "en-drag2",
+            "different": 14,
+            "bounds": [
+              22,
+              43,
+              23,
+              57
+            ]
+          },
+          {
+            "case": "en-drag3",
+            "different": 14,
+            "bounds": [
+              187,
+              43,
+              188,
+              57
+            ]
+          },
+          {
+            "case": "en-drag4",
+            "different": 14,
+            "bounds": [
+              22,
+              1,
+              23,
+              15
+            ]
+          },
+          {
+            "case": "en-drag5",
+            "different": 14,
+            "bounds": [
+              187,
+              71,
+              188,
+              85
+            ]
+          },
+          {
+            "case": "ja-drag0",
+            "different": 12,
+            "bounds": [
+              136,
+              1,
+              137,
+              13
+            ]
+          },
+          {
+            "case": "ja-drag1",
+            "different": 12,
+            "bounds": [
+              136,
+              61,
+              137,
+              73
+            ]
+          },
+          {
+            "case": "ja-drag2",
+            "different": 12,
+            "bounds": [
+              20,
+              37,
+              21,
+              49
+            ]
+          },
+          {
+            "case": "ja-drag3",
+            "different": 12,
+            "bounds": [
+              189,
+              37,
+              190,
+              49
+            ]
+          },
+          {
+            "case": "ja-drag4",
+            "different": 12,
+            "bounds": [
+              20,
+              1,
+              21,
+              13
+            ]
+          },
+          {
+            "case": "ja-drag5",
+            "different": 12,
+            "bounds": [
+              189,
+              61,
+              190,
+              73
+            ]
+          },
+          {
+            "case": "zh_CN-drag0",
+            "different": 12,
+            "bounds": [
+              136,
+              1,
+              137,
+              13
+            ]
+          },
+          {
+            "case": "zh_CN-drag1",
+            "different": 12,
+            "bounds": [
+              136,
+              61,
+              137,
+              73
+            ]
+          },
+          {
+            "case": "zh_CN-drag2",
+            "different": 12,
+            "bounds": [
+              20,
+              37,
+              21,
+              49
+            ]
+          },
+          {
+            "case": "zh_CN-drag3",
+            "different": 12,
+            "bounds": [
+              189,
+              37,
+              190,
+              49
+            ]
+          },
+          {
+            "case": "zh_CN-drag4",
+            "different": 12,
+            "bounds": [
+              20,
+              1,
+              21,
+              13
+            ]
+          },
+          {
+            "case": "zh_CN-drag5",
+            "different": 12,
+            "bounds": [
+              189,
+              61,
+              190,
+              73
+            ]
+          }
+        ]
+      },
+      "multiline-active": {
+        "png_count": 144,
+        "manifest_sha256": "1b1b22347512ca392bcbe87316db05f40a38a848df864ffbb6f02f0b4fbbdc79",
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41967344547/windows/p4/multiline-active/report.json",
+          "sha256": "f35f5fbad5ed5eebb0cc1758f86a36f050f33f98156a488075a71e52954634ad"
+        },
+        "actualOsMouseCapture": true,
+        "caretFailures": 0,
+        "mouseFailures": 0,
+        "paintFailures": 0,
+        "windowsShown": true,
+        "paint_cases": 72,
+        "mouse_cases": 90
+      }
+    },
+    "linux": {
+      "ordinary_gates": {
+        "count": 4,
+        "failed": 0,
+        "artifact": {
+          "path": "out/evidence/p4/p4-shown-41967344547/linux/p4/p4.xml",
+          "sha256": "deee580989e00207aa789222c04c54289e0d778161095e3bf15d5022da996dac"
+        }
+      },
+      "shown-ui": {
+        "png_count": 207,
+        "manifest_sha256": "6b8eada46914cfa26fa8739435ee239b31ed3f3ab085cf4c44d61996b5701581",
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41967344547/linux/p4/shown-ui/report.json",
+          "sha256": "5995f77938260793814b2c1178ca67d0e2fcfe28a5eb42e25be23d6730abd522"
+        },
+        "actualShownWindows": true,
+        "comboPopups": 12,
+        "focusedEdits": 45,
+        "hoveredButtons": 51,
+        "platform": "xcb",
+        "screenDpr": 1,
+        "scrolledLists": 9,
+        "scrolledMultiline": 3,
+        "syntheticScale": false,
+        "dialogs": 57,
+        "menus": 27
+      }
+    },
+    "macos": {
+      "ordinary_gates": {
+        "count": 4,
+        "failed": 0,
+        "artifact": {
+          "path": "out/evidence/p4/p4-shown-41967344547/macos/p4/p4.xml",
+          "sha256": "9925e7a9ac39f3f2d4bfc52bd15d8cfa975f93591ff9501e73c4d80e2cb0afd6"
+        }
+      },
+      "shown-ui": {
+        "png_count": 207,
+        "manifest_sha256": "e646d40a9b2a5c55d71cdffe5408605df300a635cb978ae20fbd3d33530a577f",
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41967344547/macos/p4/shown-ui/report.json",
+          "sha256": "413eb07b130383da2232ac62843f039b9dd1c73f899cef29dd9e7f8d887e4694"
+        },
+        "actualShownWindows": true,
+        "comboPopups": 12,
+        "focusedEdits": 45,
+        "hoveredButtons": 51,
+        "platform": "cocoa",
+        "screenDpr": 1,
+        "scrolledLists": 9,
+        "scrolledMultiline": 3,
+        "syntheticScale": false,
+        "dialogs": 57,
+        "menus": 27
+      }
+    }
+  },
+  "limitations": [
+    "Both portable shown matrices succeed at real DPR 1; no OS decorations or physical mixed-DPI claim",
+    "All 18 actual drag states match, but raster remains a one-pixel-wide caret column (12 or 14 pixels) because native blink phase differs after a stationary 700-ms hold",
+    "30 Unicode OS editing cases pass; traditional CJK raster remains pending subsequent Windows-specific correction",
+    "Previous 72 focused ASCII clients/caret rectangles and 90 actual OS gestures pass"
+  ]
+}

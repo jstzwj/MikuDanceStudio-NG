@@ -4,6 +4,7 @@
 #include <QFontDatabase>
 #include <QFontInfo>
 #include <QFileInfo>
+#include <algorithm>
 #include <map>
 #include <tuple>
 #ifdef _WIN32
@@ -20,8 +21,24 @@ QFont SystemMenuFont() {
 }
 QFont MatchEditorFontMetrics(QFont font) {
     auto strategy = font.styleStrategy();
-    if (QFontInfo(font).family().startsWith("Noto Sans CJK "))
+    const auto family = QFontInfo(font).family();
+    if (family.startsWith("Noto Sans CJK "))
         strategy = QFont::StyleStrategy(strategy | QFont::PreferTypoLineMetrics);
+#ifdef _WIN32
+    if (family == "MS Gothic" || family == "MS PGothic" || family == "MS UI Gothic") {
+        auto families = font.families();
+        // Prefer the installed, metric-compatible Windows CJK fallback before
+        // Noto. Mixing MS Gothic and Noto ascenders/descenders expands a native
+        // 12-pixel row to 17 (or 13 even with typo metrics). The multiline
+        // document layout separately excludes external leading, as EDIT does.
+        // No system font is copied or redistributed.
+        if (!families.contains("SimSun")) {
+            const auto index = families.indexOf(family);
+            families.insert(index < 0 ? std::min(1, int(families.size())) : index + 1, "SimSun");
+            font.setFamilies(families);
+        }
+    }
+#endif
     // Resolve even the default explicitly: a Latin control must not inherit
     // its parent's CJK metrics policy through QWidget::setFont/QPainter::setFont.
     font.setStyleStrategy(strategy);

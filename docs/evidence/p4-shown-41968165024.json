@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "run": "41968165024",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41968165024",
+  "revision": "bbbb18db950df06caa80a6835cf9dc982ee26ac0",
+  "conclusion": "failure",
+  "p4_c1_accepted": false,
+  "scope": "Windows-only native CJK and complete Unicode qualification; Linux/macOS, IME, old focused ASCII and scene tests not repeated",
+  "hidden_observers": {
+    "count": 5,
+    "failures": 0,
+    "report": {
+      "path": "out/evidence/p4/p4-shown-41968165024/windows/p4/p4.xml",
+      "sha256": "33221cc3bbb7e8c84d16f7fd5f01287993dfc4dc1e31286398d81385040ef1e6"
+    }
+  },
+  "multiline-unicode": {
+    "activationProtection": "thread-local WH_CBT veto; foreground/focus assertions",
+    "cases": 360,
+    "failures": 0,
+    "outerDialogAdaptation": "WS_EX_NOACTIVATE before creation",
+    "rasterDifferences": 264,
+    "strictRasterCases": 96,
+    "textFailures": 0,
+    "unicodePolicy": "preserve complex/lossy Unicode; native-supported traditional text remains exact",
+    "windowsShown": false,
+    "report": {
+      "path": "out/evidence/p4/p4-shown-41968165024/windows/p4/multiline-unicode/report.json",
+      "sha256": "fd8aab5e77b7af62f558edc40fdb116c3af17669e4bfeb18248d7567ba45097e"
+    }
+  },
+  "multiline-extended": {
+    "actualOsMouseCapture": true,
+    "dragFailures": 18,
+    "traditionalRasterFailures": 2,
+    "unicodeFailures": 0,
+    "unicodePolicy": "native-supported traditional CJK remains raster exact; preserve complete readable complex/lossy Unicode and editing, retaining raster diagnostics",
+    "unicodeRasterDifferences": 24,
+    "windowsShown": true,
+    "report": {
+      "path": "out/evidence/p4/p4-shown-41968165024/windows/p4/multiline-extended/report.json",
+      "sha256": "8eab6a31cf8cf01801cfcf20326f2c5e6625a1e0234dc070179fdd4d65f1f4e1"
+    },
+    "drag_state_mismatches": 0,
+    "actual_unicode_editing_failures": 0,
+    "traditional_cjk": [
+      {
+        "case": "ja-unicode0-selected0",
+        "different": 0
+      },
+      {
+        "case": "ja-unicode0-selected1",
+        "different": 0
+      },
+      {
+        "case": "ja-unicode1-selected0",
+        "different": 0
+      },
+      {
+        "case": "ja-unicode1-selected1",
+        "different": 505
+      },
+      {
+        "case": "zh_CN-unicode0-selected0",
+        "different": 0
+      },
+      {
+        "case": "zh_CN-unicode0-selected1",
+        "different": 0
+      },
+      {
+        "case": "zh_CN-unicode1-selected0",
+        "different": 0
+      },
+      {
+        "case": "zh_CN-unicode1-selected1",
+        "different": 505
+      }
+    ]
+  },
+  "limitations": [
+    "All 18 drag states match; all raster differences remain the unsynchronized caret phase already isolated in 41967344547",
+    "96 hidden native-supported traditional Unicode states pass exactly, all 360 NG texts preserved",
+    "Six of eight focused CJK clients pass exactly; the other two contain a 101-by-5 extra selection strip from a font-fallback row-height expansion",
+    "All 30 Unicode actual OS edit cases pass",
+    "No acceptance is granted to the two failed CJK states or physical DPI"
+  ]
+}

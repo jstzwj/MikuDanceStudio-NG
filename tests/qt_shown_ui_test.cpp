@@ -141,6 +141,9 @@ int main(int argc, char** argv) try {
             record["template"] = description->id;
             record["font"] = QFontInfo(dialog.font()).family();
             record["fontPixelSize"] = QFontInfo(dialog.font()).pixelSize();
+            record["windowColor"] = dialog.palette().window().color().name();
+            record["buttonColor"] = dialog.palette().button().color().name();
+            record["highlightColor"] = dialog.palette().highlight().color().name();
             QJsonArray controls;
             QLineEdit* firstEdit = nullptr;
             QAbstractButton* firstButton = nullptr;

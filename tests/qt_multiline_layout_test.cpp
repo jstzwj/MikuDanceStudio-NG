@@ -6,7 +6,10 @@
 #include <QJsonObject>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QTextBlock>
+#include <QTextLayout>
 #include <QImage>
+#include "multiline_text_cases.hpp"
 #include <iostream>
 
 using namespace mikudancestudio;
@@ -61,6 +64,39 @@ int main(int argc, char** argv) {
             }
             ++comparisons;
         }
+    }
+    for (const auto* code : {"ja", "zh_CN"}) {
+        qt::Language language;
+        if (!language.Set(code))
+            return 1;
+        Dialog dialog(language);
+        auto* field = dialog.Field();
+        const auto samples = MultilineUnicodeCases();
+        for (unsigned variant = 0; variant < 2; ++variant) {
+            field->setPlainText(samples[variant] + "\nrow3");
+            QImage paint(field->size(), QImage::Format_RGB32);
+            field->render(&paint);
+            for (auto block = field->document()->begin(); block.isValid(); block = block.next()) {
+                const auto caret =
+                    field->cursorRect(QTextCursor(block)).translated(field->viewport()->pos());
+                // Independently measured original MS UI Gothic EDIT profile:
+                // first glyph/caret y=3, fixed 12-pixel rows, including fallback.
+                if (caret.y() != 3 + 12 * block.blockNumber() || caret.height() != 12) {
+                    std::cerr << code << " CJK fallback row=" << block.blockNumber()
+                              << " y=" << caret.y() << " height=" << caret.height() << '\n';
+                    for (int i = 0; i < block.layout()->lineCount(); ++i) {
+                        const auto line = block.layout()->lineAt(i);
+                        std::cerr << " line height=" << line.height() << " ascent=" << line.ascent()
+                                  << " descent=" << line.descent() << " leading=" << line.leading()
+                                  << " included=" << line.leadingIncluded() << '\n';
+                    }
+                    ++failures;
+                }
+                ++comparisons;
+            }
+        }
+        if (dialog.isVisible())
+            return 1;
     }
     std::cout << comparisons << " original multiline character/tab/line origins; " << failures
               << " mismatches; never shown\n";

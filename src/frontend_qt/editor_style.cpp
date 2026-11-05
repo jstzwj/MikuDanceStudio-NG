@@ -264,8 +264,18 @@ void InstallEditorStyle(QApplication& app) {
 #endif
     if (!base)
         base = QStyleFactory::create(QStringLiteral("Fusion"));
-    // Retain the platform palette. standardPalette() on QWindowsStyle is the
-    // classic beige palette, not the original's current common-controls theme.
+    // On Windows retain the current common-controls palette, rather than
+    // QWindowsStyle's classic beige. Portable clients use the original light
+    // dialog profile instead of inheriting Cocoa white or a host dark theme.
     app.setStyle(new EditorStyle(base));
+#ifndef _WIN32
+    auto palette = base->standardPalette();
+    palette.setColor(QPalette::Window, QColor(240, 240, 240));
+    palette.setColor(QPalette::Button, QColor(240, 240, 240));
+    palette.setColor(QPalette::Highlight, QColor(0, 120, 212));
+    for (const auto role : {QPalette::WindowText, QPalette::Text, QPalette::ButtonText})
+        palette.setColor(QPalette::Disabled, role, QColor(109, 109, 109));
+    app.setPalette(palette);
+#endif
 }
 }

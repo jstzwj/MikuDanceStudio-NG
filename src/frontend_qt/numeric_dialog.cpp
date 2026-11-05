@@ -34,10 +34,43 @@
 #include <cmath>
 namespace mikudancestudio::qt {
 namespace {
+#ifdef _WIN32
+class DialogMultilineLayout final : public QPlainTextDocumentLayout {
+public:
+    explicit DialogMultilineLayout(QTextDocument* document) : QPlainTextDocumentLayout(document) {}
+    QRectF blockBoundingRect(const QTextBlock& block) const override {
+        auto bounds = QPlainTextDocumentLayout::blockBoundingRect(block);
+        if (!block.isValid() || !block.layout()->preeditAreaText().isEmpty())
+            return bounds;
+        for (const auto c : block.text()) {
+            const auto value = c.unicode();
+            if (!(value < 128 || (value >= 0x3400 && value <= 0x9fff) ||
+                  (value >= 0x3000 && value <= 0x30ff && c.category() != QChar::Mark_NonSpacing &&
+                   c.category() != QChar::Mark_SpacingCombining)))
+                return bounds;
+        }
+        // EDIT advances by tmHeight, excluding a fallback font's external
+        // leading. Adjust the actual QTextLines, not just the paint rectangle:
+        // selection, cursor, hit testing, scrolling and IME share this layout.
+        // Complex Unicode/preedit retains Qt's full shaping and spacing.
+        qreal top = 0;
+        for (int i = 0; i < block.layout()->lineCount(); ++i) {
+            auto line = block.layout()->lineAt(i);
+            line.setLeadingIncluded(false);
+            line.setPosition(QPointF(line.x(), top));
+            top += line.height();
+        }
+        return QPlainTextDocumentLayout::blockBoundingRect(block);
+    }
+};
+#endif
 class DialogMultilineEdit final : public QPlainTextEdit {
 public:
     DialogMultilineEdit(bool english, bool border, int scrollColumn, QWidget* parent)
         : QPlainTextEdit(parent), scrollColumn_(scrollColumn) {
+#ifdef _WIN32
+        document()->setDocumentLayout(new DialogMultilineLayout(document()));
+#endif
         // Original EM_GETRECT/EM_POSFROMCHAR: four client pixels on the
         // left, one above; the default 32-DLU tabs are 56 logical pixels.
         // Apply them to Qt's actual viewport/document, so drawing, hit testing,
