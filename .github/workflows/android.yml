@@ -158,11 +158,9 @@ jobs:
             sed -i '/^hw.lcd\./d; /^hw.initialOrientation=/d' "$ANDROID_AVD_HOME/test.avd/config.ini"
             printf 'hw.lcd.width=1280\nhw.lcd.height=800\nhw.lcd.density=160\nhw.initialOrientation=landscape\n' >> "$ANDROID_AVD_HOME/test.avd/config.ini"
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader -feature Vulkan -noaudio -no-boot-anim -camera-back none
-          script: |
-            apk=$(find out/releases -name '*-android-universal.apk' -print -quit)
-            test -n "$apk"
-            python tests/test_android_distribution.py --apk "$apk" --output out/android-tests
+          emulator-options: -no-window -no-snapshot -gpu swiftshader -feature Vulkan -noaudio -no-boot-anim -camera-back none
+          # The action runs each script line in a new shell; keep this one command.
+          script: python tests/test_android_distribution.py --apk out/releases/*-android-universal.apk --output out/android-tests
       - uses: actions/upload-artifact@v4
         if: success() && inputs.release_tag
         with:
