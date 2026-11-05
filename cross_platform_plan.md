@@ -4,7 +4,7 @@
 
 更新时间：2026-11-05。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
 
-最新 P4 验收（2026-11-05）：**P4／C1 仍未完成，剩余明确阻断为真实混合 DPI 跨屏实测**。[当前验收表](docs/P4_ACCEPTANCE_STATUS.md) 是当前结论，旧运行的失败及分项范围保留在各自证据中。Windows 原生 IME 三语言及自然退出、七组单行／列表／下拉框专项通过。[41975627370](docs/evidence/p4-shown-41975627370.json) 再次通过 72 组聚焦多行绘制、72 组光标矩形、90 次真实 OS 手势，并通过 8 个聚焦传统 CJK 客户区、96 个隐藏 CJK 精确比较及 30 个实际 Unicode 编辑案例。复杂／原版损坏的 Unicode 按用户确认保留完整可读可编辑能力，不复制原版缺字或数据丢失。
+最新阶段决定（2026-11-05）：**P4 按用户调整后的范围阶段验收，允许进入 P5；真实混合 DPI 跨屏实测延后补验**。该项目仍未执行，不记为实测通过，也不扩大为 P7 正式发行资格。[当前验收表](docs/P4_ACCEPTANCE_STATUS.md) 是当前结论，[P5 实施计划](docs/CROSS_PLATFORM_P5.md) 记录代码核查与下一批工作。旧运行的失败及分项范围保留在各自证据中。Windows 原生 IME 三语言及自然退出、七组单行／列表／下拉框专项通过。[41975627370](docs/evidence/p4-shown-41975627370.json) 再次通过 72 组聚焦多行绘制、72 组光标矩形、90 次真实 OS 手势，并通过 8 个聚焦传统 CJK 客户区、96 个隐藏 CJK 精确比较及 30 个实际 Unicode 编辑案例。复杂／原版损坏的 Unicode 按用户确认保留完整可读可编辑能力，不复制原版缺字或数据丢失。
 
 Linux／macOS 26 在 [41976890117](docs/evidence/p4-shown-41976890117.json) 各通过五项前端门禁、804 个三语言离屏标签状态、57 个实际对话框、27 个菜单及焦点、悬停、弹出控件和滚动专项；各 312 个可见标签完整排版并位于所有祖先客户区内。问题截图与生产物理页复看通过，英文附件说明保持原版断行，日文长标签完整。原版浅灰配色已统一。截图和字体／DPR 范围见[显示态补验](docs/P4_SHOWN_UI_QUALIFICATION.md)。`f1b9c64` 本地 ALL_BUILD、45/45 Qt 回归、独立断行／裁切门禁及更新后 `out/dist` 搬迁启动通过。这是定向增量资格，没有重复已通过的 IME、音频和整帧专项。
 
@@ -12,7 +12,7 @@ Linux／macOS 26 在 [41976890117](docs/evidence/p4-shown-41976890117.json) 各�
 
 真实混合 DPI 跨屏尚未执行：本地只有单个 96-DPI RDP 屏，等待独立双屏环境，不以环境变量模拟代替、不操作用户桌面。完整场景已按用户接受的视觉标准通过；复制、深度和传统文本严格契约继续保留。系统窗口装饰范围单独记录，不能据此声称全部外观逐像素一致。
 
-2026-11-05 CI 恢复：`4d1f343` 修正了帧常量空间扩容后未更新的预算溢出测试，并过滤纯文档构建、取消被新提交取代的自动任务。[同轮三平台编辑器](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41996325186) 的 Windows 93／93、Linux 81／81、macOS 76／76 项常规 P4 门禁及三平台发布包、15 种语言检查全部通过；Portable rendering、Portable formats、Bullet 工作流也全部通过。具体根因与证据见 [CI 核查](docs/CI_STATUS.md)。用户确认暂时没有独立双屏环境，真实跨屏仍未执行，**P4／C1 状态不变**。
+2026-11-05 CI 恢复：`4d1f343` 修正了帧常量空间扩容后未更新的预算溢出测试，并过滤纯文档构建、取消被新提交取代的自动任务。[同轮三平台编辑器](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41996325186) 的 Windows 93／93、Linux 81／81、macOS 76／76 项常规 P4 门禁及三平台发布包、15 种语言检查全部通过；Portable rendering、Portable formats、Bullet 工作流也全部通过。具体根因与证据见 [CI 核查](docs/CI_STATUS.md)。用户确认暂时没有独立双屏环境，真实跨屏仍未执行；本轮 CI 结束时 P4 仍未验收，随后用户同意将此项延后，当前阶段决定以上方最新记录为准。
 
 实施状态：**P0 已完成**。三平台基础构建、两轮精确文件／数值回归、统一 Bullet 包装与分配／销毁验证、macOS 无窗口 Vulkan 探测均已执行；Windows x64／x86 编辑器构建通过。能力表、最低环境决策、依赖图、证据和仍未覆盖的范围见 [P0 实施与验收记录](docs/CROSS_PLATFORM_P0.md)。
 
@@ -22,7 +22,7 @@ Linux／macOS 26 在 [41976890117](docs/evidence/p4-shown-41976890117.json) 各�
 
 **P3 已完成**：生产 Vulkan 加载器、Surface、运行时 SPIR-V 编译与 P2 快照的共享 RHI 消费链路已接通。Windows 隐藏窗口、macOS Cocoa、Linux X11／Wayland 呈现及三平台离屏门禁均实际通过，常规呈现帧没有图像回读；Sour Miku 静态／动画的 DX11／DX12／Vulkan 最终输出逐字节一致。验收证据、CPU 性能基线与基础场景支持边界见 [P3 实施记录](docs/CROSS_PLATFORM_P3.md)。
 
-**P4 remains in progress; C1 is not accepted.** Shared editing, PMM save/reopen, bone selection/history, three-language Qt UI, RHI presentation, WAV and image-sequence export have three-platform regression evidence. The combined PMD/PMX/accessory/screen/WAV/physics/all-key-pool workflow passes. 94/103 original menu commands are implemented; nine belong to later media/Kinect phases. Complete-scene output uses the user-approved visual policy with strict diagnostics retained, and passes on hardware plus Windows WARP/Metal/software Vulkan. Windows Server 2025 native IME passes all three UI languages and natural exit. Recorded UI/input/font profiles now pass within the user-approved Unicode/open-font policies; actual physical mixed-DPI monitor qualification remains open. [P4 acceptance record](docs/CROSS_PLATFORM_P4.md) distinguishes current gates from the historical increments below.
+**P4 is accepted for progression under the revised scope.** The user deferred physical mixed-DPI monitor qualification on 2026-11-05; it remains untested, and this decision does not imply P7 release qualification. [P5 planning](docs/CROSS_PLATFORM_P5.md) records the next implementation batches. Shared editing, PMM save/reopen, bone selection/history, multilingual Qt UI, RHI presentation, WAV and image-sequence export have three-platform regression evidence. The combined PMD/PMX/accessory/screen/WAV/physics/all-key-pool workflow passes. 94/103 original menu commands are implemented; nine belong to later media/Kinect phases. Complete-scene output uses the user-approved visual policy with strict diagnostics retained, and passes on hardware plus Windows WARP/Metal/software Vulkan. Windows Server 2025 native IME passes all three original UI languages and natural exit. Recorded UI/input/font profiles pass within the user-approved Unicode/open-font policies. [P4 acceptance record](docs/CROSS_PLATFORM_P4.md) distinguishes current gates from the historical increments below.
 
 以下为早期增量历史，保留当时失败与覆盖范围；当前验收状态以上方最新记录及验收表为准。
 
@@ -267,7 +267,7 @@ python recipes/bullet275/verify_sources.py
 
 ## 6. 阶段安排与退出条件
 
-P0、P1、P2、P3 已完成，P4 正在实施，P5 及后续阶段待实施；已有能力作为输入复用。阶段顺序表示依赖，不能以完成文档或成功编译替代运行验收。
+P0、P1、P2、P3 已完成；P4 按用户调整后的范围阶段验收，真实混合 DPI 延后补验；P5 已完成本轮代码调研，后续按 [P5 批次](docs/CROSS_PLATFORM_P5.md) 实施，不能把已有部分构件或计划文档当作 C2 完成。
 
 | 阶段 | 依赖 | 主要交付 | 退出条件 |
 |---|---|---|---|
@@ -275,7 +275,7 @@ P0、P1、P2、P3 已完成，P4 正在实施，P5 及后续阶段待实施；�
 | P1：数学与最小模型链路 | P0 | 独立数学层、与 `MMDApp` 无关的最小模型资源／实例、无窗口 CLI、公开生成输入 | 三平台同一生成 PMX＋VMD 完成加载、基本骨骼／Morph 求值和 CPU 顶点输出；不加载 D3DX、不创建窗口；未覆盖 IK／物理等能力明确标记 |
 | P2：完整 CPU 运行时 | P1 | PMD／PMX 现有支持范围、完整姿态／IK／Morph／物理调度、附件、PMM 会话、加载卸载 | 公开多功能场景和真实模型完成播放、拖动、停止、重置、保存重载；Windows 共享路径对照通过；无重复更新和生命周期错误 |
 | P3：三平台渲染与呈现 | P0；最小场景使用 P1；完整场景使用 P2 | 跨平台加载器、Surface、着色器编译、能力协商、共享场景呈现 | 三平台离屏链路和各自窗口呈现通过；阴影、纹理、后处理、mip、HDR、缩放与恢复有证据；常规帧无呈现回读 |
-| P4：基础编辑器 C1 | P2＋P3 | 共享编辑命令、撤销重做、Qt 前端、基础 WAV 与图像序列导出；补齐 C1 场景渲染并优化 CPU 帧生产 | 三平台完成打开→编辑→播放→保存→重开→导出；时间轴／输入／DPI 验收通过；可声明 C1 |
+| P4：基础编辑器 C1 | P2＋P3 | 共享编辑命令、撤销重做、Qt 前端、基础 WAV 与图像序列导出；补齐 C1 场景渲染并优化 CPU 帧生产 | 三平台完成打开→编辑→播放→保存→重开→导出；时间轴／输入／已测缩放档位通过。2026-11-05 用户同意真实混合 DPI 延后，按此调整范围阶段验收；原始实机 DPI 项仍未测 |
 | P5：跨平台 MME C2 | 独立前端可从 P0 开始；执行依赖 P2＋P3 | 去 D3DX 的效果导入、参数池、语义、脚本调度、编译与缓存、明确降级策略 | 无 DX9 环境直接读取原始公开 `.fx`，执行受支持材质／场景／子效果链；三平台门禁通过；Windows 原生对照通过 |
 | P6：媒体与产品完善 | P4；效果导出依赖相应 P5 能力 | 背景视频、视频编码、完整媒体定位、配置迁移、扩展接口 | 长时间音画同步、离屏导出、取消／错误恢复、资源上限与干净环境测试通过 |
 | P7：发布资格与 C3 扩展 | C1 发布依赖 P4；C2 发布依赖 P5；完整媒体依赖 P6 | 三平台安装包、符号与日志、功能支持报告、真实 GPU 覆盖；Ray 完整链路专项 | 每个包只承诺实际通过范围；完整 Ray 单独完成所有执行阶段与整帧对照后才声明 C3 对应能力 |
@@ -308,7 +308,7 @@ macOS 能力探测、跨平台效果前端和平台服务接口可在基础内�
 
 ### 6.4 实施与合并方式
 
-P4 新增要求（2026-11-01）：Qt 前端以 MMD v9.32 的界面与操作行为严格一致为验收目标，同时支持多国语言。首批语言暂定简体中文、英文、日文；使用稳定消息 ID 和独立翻译目录，语言切换不改变业务状态。控件顺序、几何、菜单、快捷键、状态联动及各编辑操作要有原版独立对照；不能以相似截图或仅跑通一条工作流声明一比一完成。不同系统字体、窗口装饰及 DPI 的测量范围必须单独记录。全部验收完成前，P4 保持“实施中”。本地测试只走离屏／隐藏窗口，实际窗口交互只在隔离 runner 上验证。
+P4 新增要求（2026-11-01）：Qt 前端以 MMD v9.32 的界面与操作行为严格一致为验收目标，同时支持多国语言。首批语言暂定简体中文、英文、日文；使用稳定消息 ID 和独立翻译目录，语言切换不改变业务状态。控件顺序、几何、菜单、快捷键、状态联动及各编辑操作要有原版独立对照；不能以相似截图或仅跑通一条工作流声明一比一完成。不同系统字体、窗口装饰及 DPI 的测量范围必须单独记录。原要求为全部验收完成前 P4 保持“实施中”；2026-11-05 用户调整为真实混合 DPI 延后补验，其余已取得资格的范围阶段放行。本地测试只走离屏／隐藏窗口，实际窗口交互只在隔离 runner 上验证。
 
 P4 实施顺序：可编辑 PMM 文档与关键帧拓扑 → 共享 EditorSession／命令／撤销重做 → Qt 原版布局与多语言 → RHI、输入、时间轴与 C1 渲染补齐 → WAV 同步与固定步进图像序列导出 → 三平台闭环及原版差分验收。
 

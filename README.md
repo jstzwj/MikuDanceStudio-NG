@@ -58,9 +58,10 @@ on the questions it left behind.
 ## Where we are
 
 NG is under active development. The portable core, CPU scene runtime and initial
-cross-platform rendering milestones **P0–P3 are complete**. The **P4 editor
-acceptance remains open**, with physical mixed-DPI monitor testing still to be
-completed. Full MME and Ray-MMD compatibility remains ongoing work; current
+cross-platform rendering milestones **P0–P3 are complete**. The **P4 editor milestone
+is accepted under a revised scope**, with physical mixed-DPI monitor testing
+deferred as a known limitation. Next is [P5: cross-platform MME](docs/CROSS_PLATFORM_P5.md).
+Full MME and Ray-MMD compatibility remains ongoing work; current
 support covers the documented effect subsets.
 
 | Platform | NG rendering backends | Current development baseline |

@@ -1,8 +1,11 @@
 # P4 implementation and acceptance
 
-Status: **in progress**. P4 and C1 have not been accepted. The current work also
-includes strict MMD v9.32 layout/behavior parity and multilingual UI, as requested
-on 2026-11-01. These are acceptance requirements, not claims about this revision.
+Status: **accepted for progression under the revised scope on 2026-11-05**.
+The user deferred actual physical mixed-DPI monitor qualification and authorized
+progression to P5. That test remains unexecuted and recorded as a known limitation;
+this is not a claim that every original P4/C1 gate passed or that P7 release
+qualification is complete. The MMD v9.32 layout/behavior and multilingual profiles
+retain their recorded scope. Earlier nonacceptance results below remain historical.
 
 Current gate status is maintained in [P4 acceptance status](P4_ACCEPTANCE_STATUS.md).
 Latest [41975627370](evidence/p4-shown-41975627370.json) passes all three CI jobs.
