@@ -40,6 +40,10 @@ on:
         type: boolean
         description: Qualify shown multiline focus, paint and OS mouse gestures on isolated Windows runner
         default: false
+      ui_shown:
+        type: boolean
+        description: Remaining shown UI qualification (Windows outside drags/Unicode, Linux/macOS focus/popups)
+        default: false
       observers_only:
         type: boolean
         description: Windows hidden control observers only (no shown input or package rebuild)
@@ -147,6 +151,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if ($env:MDS_OBSERVERS_ONLY -eq 'true') {
             cmake --build out/p4 --config Release --target qt_control_style_test qt_multiline_paint_test qt_multiline_active_test --parallel 3
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            if ('${{ inputs.ui_shown }}' -eq 'true') {
+              cmake --build out/p4 --config Release --target qt_multiline_extended_test --parallel 3
+            }
             exit $LASTEXITCODE
           }
           if ($env:MDS_IME_ONLY -eq 'true') {
@@ -154,6 +162,10 @@ jobs:
             exit $LASTEXITCODE
           }
           cmake --build out/p4 --config Release --parallel 3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ('${{ inputs.ui_shown }}' -eq 'true') {
+            cmake --build out/p4 --config Release --target qt_multiline_extended_test --parallel 3
+          }
       - name: Offscreen editor and generated export
         # IME-only dispatches qualify the native input client; push/PR and
         # control/reference dispatches retain the complete editor regression.
@@ -183,6 +195,13 @@ jobs:
       - name: Native silent audio clock
         if: ${{ !cancelled() && env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true' }}
         run: python tests/test_native_audio.py --test out/p4/qt_native_audio_test.exe --report out/p4/native-audio.json --allow-unavailable
+      - name: Outside-client multiline drag and complex text qualification
+        if: ${{ !cancelled() && inputs.ui_shown }}
+        timeout-minutes: 4
+        env:
+          QT_QPA_PLATFORM: windows
+          MDS_QT_ISOLATED_DISPLAY: '1'
+        run: out/p4/qt_multiline_extended_test.exe out/p4/multiline-extended
       - name: Qualify native EDIT nonclient paint
         if: ${{ !cancelled() && inputs.native_controls }}
         timeout-minutes: 10
@@ -306,6 +325,7 @@ jobs:
             out/p4/edit-content/
             out/p4/multiline-paint/
             out/p4/multiline-active/
+            out/p4/multiline-extended/
             out/p4/editor-chrome/
             out/p4/control-content-visible/
             out/p4/control-list-focus/
@@ -387,6 +407,15 @@ jobs:
           for attempt in $(seq 1 50); do test -S "$XDG_RUNTIME_DIR/mds-p4" && break; sleep 0.1; done
           export WAYLAND_DISPLAY=mds-p4 QT_QPA_PLATFORM=wayland
           python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test --assets res/assets
+      - name: Actual shown portable controls and menus
+        if: ${{ !cancelled() && inputs.ui_shown }}
+        timeout-minutes: 4
+        env:
+          MDS_QT_ISOLATED_DISPLAY: '1'
+          MDS_GPU_DRIVER: software
+        run: |
+          cmake --build out/p4 --target qt_shown_ui_test --parallel 3
+          xvfb-run -a env QT_QPA_PLATFORM=xcb out/p4/qt_shown_ui_test res/assets out/p4/shown-ui
       - name: Qualify original composite capture and retain numerical diagnostics
         if: ${{ !cancelled() && inputs.native_reference }}
         env:
@@ -445,6 +474,7 @@ jobs:
             out/p4/native-reference/
             out/p4/system-ime*
             out/p4/editor-chrome/
+            out/p4/shown-ui/
             out/distribution-check.*
             out/p4/editor-frame-performance*.json
             out/p4/native-audio*.json
@@ -550,6 +580,15 @@ jobs:
         run: |
           cmake --build out/p4 --target qt_system_ime_test --parallel 3
           python tests/test_native_system_ime.py --test out/p4/qt_system_ime_test --report out/p4/system-ime-kotoeri.json
+      - name: Actual shown portable controls and menus
+        if: ${{ !cancelled() && inputs.ui_shown }}
+        timeout-minutes: 4
+        env:
+          QT_QPA_PLATFORM: cocoa
+          MDS_QT_ISOLATED_DISPLAY: '1'
+        run: |
+          cmake --build out/p4 --target qt_shown_ui_test --parallel 3
+          out/p4/qt_shown_ui_test res/assets out/p4/shown-ui
       - name: Native CoreAudio silent clock
         if: ${{ !cancelled() && !inputs.ui_only }}
         run: python tests/test_native_audio.py --test out/p4/qt_native_audio_test --report out/p4/native-audio.json --allow-unavailable
@@ -593,6 +632,7 @@ jobs:
             out/p4/native-reference/
             out/p4/system-ime*
             out/p4/editor-chrome/
+            out/p4/shown-ui/
             out/distribution-check.*
             out/p4/metal-only-distribution.*
             out/p4/editor-frame-performance*.json

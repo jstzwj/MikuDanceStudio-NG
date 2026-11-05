@@ -1,0 +1,202 @@
+#include "multiline_native.hpp"
+#include <QTextBoundaryFinder>
+
+namespace {
+QJsonObject NativeState(HWND control, const QString& text) {
+    RECT formatting{};
+    SendMessageW(control, EM_GETRECT, 0, LPARAM(&formatting));
+    const auto origin = SendMessageW(control, EM_POSFROMCHAR, 0, 0);
+    return {{"selection", Selection(control, text)},
+            {"firstVisible", int(SendMessageW(control, EM_GETFIRSTVISIBLELINE, 0, 0))},
+            {"horizontal", int(formatting.left) - short(LOWORD(origin))}};
+}
+QJsonObject QtState(QPlainTextEdit& field) {
+    const auto cursor = field.textCursor();
+    return {{"selection", QJsonArray{cursor.selectionStart(), cursor.selectionEnd()}},
+            {"firstVisible", field.verticalScrollBar()->value()},
+            {"horizontal", field.horizontalScrollBar()->value()}};
+}
+template <class State>
+QJsonObject OutsideDrag(HWND root, QPoint start, QPoint end, State state, QJsonArray& samples) {
+    QTest::qWait(int(GetDoubleClickTime()) + 30);
+    Check(GetAncestor(GetForegroundWindow(), GA_ROOT) == root, "outside-drag owns foreground");
+    MouseDelivery::Move(root, start);
+    Button(true);
+    Check(GetCapture() && GetAncestor(GetCapture(), GA_ROOT) == root,
+          "outside-drag capture belongs to test dialog");
+    MouseDelivery::Move(root, end);
+    QElapsedTimer elapsed;
+    elapsed.start();
+    auto previous = state();
+    unsigned stable = 0;
+    do {
+        QTest::qWait(100);
+        const auto current = state();
+        samples.append(QJsonObject{{"elapsedMs", int(elapsed.elapsed())}, {"state", current}});
+        stable = current == previous ? stable + 1 : 0;
+        previous = current;
+    } while ((elapsed.elapsed() < 700 || stable < 4) && elapsed.elapsed() < 3500);
+    Check(GetCapture() && GetAncestor(GetCapture(), GA_ROOT) == root,
+          "outside-drag retains actual OS capture");
+    Button(false);
+    Check(!GetCapture(), "outside-drag releases actual OS capture");
+    return state();
+}
+unsigned Different(const QImage& expected, const QImage& actual) {
+    Check(expected.size() == actual.size(), "complete multiline client dimensions");
+    unsigned different = 0;
+    for (int y = 0; y < expected.height(); ++y)
+        for (int x = 0; x < expected.width(); ++x)
+            different += (expected.pixel(x, y) & 0xffffff) != (actual.pixel(x, y) & 0xffffff);
+    return different;
+}
+QImage QtClient(QPlainTextEdit& field, QSize size) {
+    QImage image(field.size(), QImage::Format_RGB32);
+    field.render(&image);
+    return image.copy(2, 2, size.width(), size.height());
+}
+}
+int main(int argc, char** argv) try {
+    Check(qEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
+              qEnvironmentVariable("MDS_QT_ISOLATED_DISPLAY") == "1",
+          "extended actual multiline input requires an isolated GitHub runner");
+    QApplication app(argc, argv);
+    Check(argc == 2 && QGuiApplication::platformName() == "windows", "Windows QPA and output");
+    app.setCursorFlashTime(0);
+    MouseDelivery delivery;
+    const QString output = QString::fromLocal8Bit(argv[1]);
+    QDir().mkpath(output);
+    QJsonArray dragRecords, textRecords;
+    unsigned dragFailures = 0, textFailures = 0;
+    for (const auto* code : {"en", "ja", "zh_CN"}) {
+        qt::Language language;
+        Check(language.Set(code), "UI language");
+        Dialog dialog(language);
+        auto* field = dialog.Field();
+        dialog.move(440, 32);
+        dialog.show();
+        const auto native =
+            CreateDialogParamW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(dialog.Template().id),
+                               nullptr, Reference, 0);
+        Check(native != nullptr, "unchanged original multiline reference");
+        const auto control = GetDlgItem(native, 668);
+        Check(control != nullptr && IsWindowUnicode(control), "Unicode original EDIT instance");
+        SetWindowPos(native, nullptr, 32, 32, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_SHOWWINDOW);
+        QTest::qWait(50);
+        QString text;
+        for (int row = 0; row < 16; ++row)
+            text += QString("%1 abc def %2%3")
+                        .arg(row, 2, 10, QLatin1Char('0'))
+                        .arg(QString(56, 'x'), row == 15 ? "" : "\n");
+        const auto caption = QString(text).replace("\n", "\r\n").toStdWString();
+        for (unsigned direction = 0; direction < 6; ++direction) {
+            Check(SetWindowTextW(control, caption.c_str()), "native drag document");
+            NativeFocus(native, control);
+            SendMessageW(control, EM_SETSEL, 0, 0);
+            SendMessageW(control, EM_LINESCROLL, 4, 4);
+            const auto initial = NativeState(control, text);
+            RECT client{};
+            GetClientRect(control, &client);
+            const QPoint start(client.right / 2, client.bottom / 2);
+            const QPoint endpoints[]{
+                QPoint(start.x(), -8), QPoint(start.x(), client.bottom + 8),
+                QPoint(-8, start.y()), QPoint(client.right + 8, start.y()),
+                QPoint(-8, -8),        QPoint(client.right + 8, client.bottom + 8)};
+            POINT origin{};
+            ClientToScreen(control, &origin);
+            QJsonArray nativeSamples, qtSamples;
+            const auto expected = OutsideDrag(
+                native, start + QPoint(origin.x, origin.y),
+                endpoints[direction] + QPoint(origin.x, origin.y),
+                [&] { return NativeState(control, text); }, nativeSamples);
+            const auto nativeImage = Client(control);
+            dialog.activateWindow();
+            SetForegroundWindow(reinterpret_cast<HWND>(dialog.winId()));
+            QApplication::setActiveWindow(&dialog);
+            field->setPlainText(text);
+            field->moveCursor(QTextCursor::Start);
+            field->setFocus(Qt::OtherFocusReason);
+            field->verticalScrollBar()->setValue(initial["firstVisible"].toInt());
+            field->horizontalScrollBar()->setValue(initial["horizontal"].toInt());
+            QTest::qWait(30);
+            const auto qtOrigin = field->mapToGlobal(QPoint(2, 2));
+            const auto actual = OutsideDrag(
+                reinterpret_cast<HWND>(dialog.winId()), start + qtOrigin,
+                endpoints[direction] + qtOrigin, [&] { return QtState(*field); }, qtSamples);
+            const auto qtImage = QtClient(*field, nativeImage.size());
+            const auto different = Different(nativeImage, qtImage);
+            const auto stem = QString("%1-drag%2").arg(code).arg(direction);
+            nativeImage.save(output + '/' + stem + "-native.png");
+            qtImage.save(output + '/' + stem + "-qt.png");
+            dragRecords.append(QJsonObject{{"language", code},
+                                           {"direction", int(direction)},
+                                           {"initial", initial},
+                                           {"native", expected},
+                                           {"qt", actual},
+                                           {"different", int(different)},
+                                           {"nativeSamples", nativeSamples},
+                                           {"qtSamples", qtSamples}});
+            dragFailures += expected != actual || different != 0;
+        }
+        const QString texts[]{
+            QString::fromUtf8("初音ミク 日本語\nかな カナ 漢字"),
+            QString::fromUtf8("初音未来 中文\n简体中文 多行备注"),
+            QString::fromUtf8("caf\xc3\xa9 e\xcc\x81 na\xc3\xafve\nA\xcc\x8a office ffi"),
+            QString::fromUtf8(
+                "Miku \xf0\x9f\x8e\xb5 \xf0\x9f\x8c\x9f\n\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x92\xbb music"),
+            QString::fromUtf8(
+                "English \xd8\xa7\xd9\x84\xd8\xb9\xd8\xb1\xd8\xa8\xd9\x8a\xd8\xa9 123\nabc \xd7\xa9\xd7\x9c\xd7\x95\xd7\x9d xyz")};
+        for (unsigned variant = 0; variant < std::size(texts); ++variant)
+            for (unsigned selected = 0; selected < 2; ++selected) {
+                const auto text = texts[variant];
+                const auto nativeText = QString(text).replace("\n", "\r\n");
+                Check(SetWindowTextW(control, nativeText.toStdWString().c_str()),
+                      "Unicode native contents");
+                std::wstring contents(size_t(GetWindowTextLengthW(control)) + 1, 0);
+                contents.resize(GetWindowTextW(control, contents.data(), int(contents.size())));
+                Check(QString::fromStdWString(contents) == nativeText,
+                      "native reference preserves Unicode");
+                NativeFocus(native, control);
+                SendMessageW(control, EM_SETSEL, 0, selected ? -1 : 0);
+                const auto expected = Client(control);
+                dialog.activateWindow();
+                SetForegroundWindow(reinterpret_cast<HWND>(dialog.winId()));
+                QApplication::setActiveWindow(&dialog);
+                field->setPlainText(text);
+                field->setFocus(Qt::OtherFocusReason);
+                field->moveCursor(QTextCursor::Start);
+                if (selected)
+                    field->selectAll();
+                QTest::qWait(20);
+                const auto actual = QtClient(*field, expected.size());
+                const auto different = Different(expected, actual);
+                const auto stem =
+                    QString("%1-unicode%2-selected%3").arg(code).arg(variant).arg(selected);
+                expected.save(output + '/' + stem + "-native.png");
+                actual.save(output + '/' + stem + "-qt.png");
+                textRecords.append(QJsonObject{{"case", stem},
+                                               {"different", int(different)},
+                                               {"textPreserved", field->toPlainText() == text}});
+                textFailures += different != 0 || field->toPlainText() != text;
+            }
+        DestroyWindow(native);
+        dialog.close();
+        QCoreApplication::processEvents();
+    }
+    QFile report(output + "/report.json");
+    Check(report.open(QIODevice::WriteOnly), "write extended multiline report");
+    report.write(QJsonDocument(QJsonObject{{"windowsShown", true},
+                                           {"actualOsMouseCapture", true},
+                                           {"dragFailures", int(dragFailures)},
+                                           {"unicodeFailures", int(textFailures)},
+                                           {"drags", dragRecords},
+                                           {"unicode", textRecords}})
+                     .toJson());
+    std::cout << dragRecords.size() << " actual outside-client drags; " << dragFailures
+              << " differences; " << textRecords.size() << " Unicode paints; " << textFailures
+              << " differences\n";
+    return dragFailures || textFailures ? 1 : 0;
+} catch (const std::exception& error) {
+    std::cerr << error.what() << '\n';
+    return 1;
+}

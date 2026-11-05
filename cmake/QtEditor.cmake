@@ -143,6 +143,8 @@ function(mds_add_qt_editor)
         set_tests_properties(qt_edit_navigation PROPERTIES LABELS "p4;offscreen;qt;input;oracle"
             TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         target_link_libraries(qt_editor_chrome_test PRIVATE mikudancestudio_frontend_qt)
+        qt_add_executable(qt_shown_ui_test EXCLUDE_FROM_ALL "${root}/tests/qt_shown_ui_test.cpp")
+        target_link_libraries(qt_shown_ui_test PRIVATE mikudancestudio_frontend_qt Qt6::Test)
         if(WIN32)
             qt_add_executable(qt_multiline_paint_test "${root}/tests/qt_multiline_paint_test.cpp"
                 "${root}/res/frontend_qt/windows.manifest" "${root}/res/templates/dialog/dialogs.rc")
@@ -152,6 +154,9 @@ function(mds_add_qt_editor)
             qt_add_executable(qt_multiline_active_test "${root}/tests/qt_multiline_active_test.cpp"
                 "${root}/res/frontend_qt/windows.manifest" "${root}/res/templates/dialog/dialogs.rc")
             target_link_libraries(qt_multiline_active_test PRIVATE mikudancestudio_frontend_qt Qt6::Test gdi32 user32)
+            qt_add_executable(qt_multiline_extended_test EXCLUDE_FROM_ALL "${root}/tests/qt_multiline_extended_test.cpp"
+                "${root}/res/frontend_qt/windows.manifest" "${root}/res/templates/dialog/dialogs.rc")
+            target_link_libraries(qt_multiline_extended_test PRIVATE mikudancestudio_frontend_qt Qt6::Test gdi32 user32)
             qt_add_executable(qt_monitor_transition_test "${root}/tests/qt_monitor_transition_test.cpp"
                 "${root}/res/frontend_qt/windows.manifest")
             target_link_libraries(qt_monitor_transition_test PRIVATE mikudancestudio_frontend_qt Qt6::Test user32)
