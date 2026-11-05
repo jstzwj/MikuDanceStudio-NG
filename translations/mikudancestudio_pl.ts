@@ -3149,5 +3149,17 @@ Najpierw dodaj bryłę.</translation>
             <source>Apply</source>
             <translation>Zastosuj</translation>
         </message>
+        <message id="mobile.timeline">
+            <source>Timeline</source>
+            <translation>Oś czasu</translation>
+        </message>
+        <message id="mobile.controls">
+            <source>Controls</source>
+            <translation>Sterowanie</translation>
+        </message>
+        <message id="mobile.viewport">
+            <source>Viewport</source>
+            <translation>Widok</translation>
+        </message>
     </context>
 </TS>

@@ -3149,5 +3149,17 @@ Please add body first.</source>
             <source>Apply</source>
             <translation>Uygula</translation>
         </message>
+        <message id="mobile.timeline">
+            <source>Timeline</source>
+            <translation>Zaman çizelgesi</translation>
+        </message>
+        <message id="mobile.controls">
+            <source>Controls</source>
+            <translation>Denetimler</translation>
+        </message>
+        <message id="mobile.viewport">
+            <source>Viewport</source>
+            <translation>Görünüm</translation>
+        </message>
     </context>
 </TS>

@@ -1550,6 +1550,12 @@ inline constexpr TranslationMessage kTranslationMessages[] = {
     {QT_TRID_NOOP("preferences.cancel"), "Cancel"},
     //% "Apply"
     {QT_TRID_NOOP("preferences.apply"), "Apply"},
+    //% "Timeline"
+    {QT_TRID_NOOP("mobile.timeline"), "Timeline"},
+    //% "Controls"
+    {QT_TRID_NOOP("mobile.controls"), "Controls"},
+    //% "Viewport"
+    {QT_TRID_NOOP("mobile.viewport"), "Viewport"},
 };
 struct EmptyTranslation { const char* id; const char* language; };
 inline constexpr EmptyTranslation kEmptyTranslations[] = {

@@ -3151,5 +3151,17 @@ Please add body first.</translation>
             <source>Apply</source>
             <translation>Apply</translation>
         </message>
+        <message id="mobile.timeline">
+            <source>Timeline</source>
+            <translation>Timeline</translation>
+        </message>
+        <message id="mobile.controls">
+            <source>Controls</source>
+            <translation>Controls</translation>
+        </message>
+        <message id="mobile.viewport">
+            <source>Viewport</source>
+            <translation>Viewport</translation>
+        </message>
     </context>
 </TS>

@@ -5,6 +5,7 @@
 #include <QMenuBar>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QTimer>
 #include <limits>
 
 namespace mikudancestudio::qt {
@@ -246,6 +247,16 @@ void EditorWindow::BuildMenus() {
     preferences->setShortcut(QKeySequence::Preferences);
     file->insertAction(actions_.at("file.exit"), preferences);
     connect(preferences, &QAction::triggered, this, &EditorWindow::Preferences);
+#ifdef __ANDROID__
+    for (auto* menu : findChildren<QMenu*>()) {
+        // aboutToShow precedes native popup creation and nested event delivery.
+        // Waiting until activePopupWidget() becomes non-null is too late if a
+        // timer submits while Android is attaching the native overlay.
+        connect(menu, &QMenu::aboutToShow, this, [this] { ++presentationPauses_; });
+        connect(menu, &QMenu::aboutToHide, this,
+                [this] { QTimer::singleShot(0, this, [this] { --presentationPauses_; }); });
+    }
+#endif
 }
 
 void EditorWindow::RetranslateMenus() {

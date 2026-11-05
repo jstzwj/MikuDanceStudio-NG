@@ -5,9 +5,14 @@
 #include "model_physics_dialog.hpp"
 #include "mikudancestudio/file_drop.hpp"
 #include <QApplication>
+#include <QAbstractButton>
+#include <QCompleter>
+#include <QLineEdit>
 #include <QCloseEvent>
 #include <QFile>
 #include <QFileDialog>
+#include <QScopeGuard>
+#include <QLayout>
 #include <QImage>
 #include <QMessageBox>
 #include <QProgressDialog>
@@ -94,6 +99,10 @@ void EditorWindow::closeEvent(QCloseEvent* e) {
 QString EditorWindow::ChooseFile(FileKind kind, bool save, const QString& title,
                                  const QString& filter, const QString& suggestedName,
                                  bool confirmOverwrite) {
+#ifdef __ANDROID__
+    ++presentationPauses_;
+    const auto resume = qScopeGuard([this] { --presentationPauses_; });
+#endif
     const auto initial = fileHistory_.Initial(kind, QCoreApplication::applicationDirPath());
     QFileDialog dialog(separate_ ? separate_ : this, title, initial, filter);
     dialog.setObjectName("editor.fileDialog");
@@ -108,6 +117,24 @@ QString EditorWindow::ChooseFile(FileKind kind, bool save, const QString& title,
     // use that local workspace, preserving the core's filesystem/path contract.
     dialog.setOption(QFileDialog::DontUseNativeDialog, true);
     dialog.setDirectory(AndroidWorkspaceRoot());
+    // The desktop QFileDialog minimum can exceed a landscape phone's entire
+    // available height, placing Open/Cancel below the navigation bar. Its file
+    // views already scroll; let the outer layout fit the actual safe area.
+    dialog.layout()->setSizeConstraint(QLayout::SetNoConstraint);
+    dialog.setMinimumSize(280, 160);
+    dialog.setWindowFlags(Qt::Window);
+    dialog.setWindowState(Qt::WindowMaximized);
+    // Touching Open/Cancel must not hide the keyboard on press, move the
+    // button during adjustResize, and lose the release. Hardware Tab navigation
+    // remains available; text focus survives until the dialog actually closes.
+    for (auto* button : dialog.findChildren<QAbstractButton*>())
+        button->setFocusPolicy(Qt::TabFocus);
+    // QFileDialog's asynchronous filename completer opens a popup after an
+    // IME commit. On Android it consumes the first outside touch on Open.
+    // Keep completion inline so it cannot intercept the confirmation gesture.
+    if (auto* edit = dialog.findChild<QLineEdit*>("fileNameEdit"))
+        if (auto* completer = edit->completer())
+            completer->setCompletionMode(QCompleter::InlineCompletion);
 #endif
     if (save && filter.startsWith("Polygon Model files"))
         dialog.setDefaultSuffix("pmd");

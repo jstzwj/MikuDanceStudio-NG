@@ -3149,5 +3149,17 @@ Hãy thêm vật rắn trước.</translation>
             <source>Apply</source>
             <translation>Áp dụng</translation>
         </message>
+        <message id="mobile.timeline">
+            <source>Timeline</source>
+            <translation>Dòng thời gian</translation>
+        </message>
+        <message id="mobile.controls">
+            <source>Controls</source>
+            <translation>Điều khiển</translation>
+        </message>
+        <message id="mobile.viewport">
+            <source>Viewport</source>
+            <translation>Khung nhìn</translation>
+        </message>
     </context>
 </TS>

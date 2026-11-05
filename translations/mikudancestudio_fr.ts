@@ -3149,5 +3149,17 @@ Ajoutez d’abord un corps.</translation>
             <source>Apply</source>
             <translation>Appliquer</translation>
         </message>
+        <message id="mobile.timeline">
+            <source>Timeline</source>
+            <translation>Chronologie</translation>
+        </message>
+        <message id="mobile.controls">
+            <source>Controls</source>
+            <translation>Commandes</translation>
+        </message>
+        <message id="mobile.viewport">
+            <source>Viewport</source>
+            <translation>Vue</translation>
+        </message>
     </context>
 </TS>

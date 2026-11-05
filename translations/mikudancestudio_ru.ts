@@ -3149,5 +3149,17 @@ Please add body first.</source>
             <source>Apply</source>
             <translation>Применить</translation>
         </message>
+        <message id="mobile.timeline">
+            <source>Timeline</source>
+            <translation>Шкала времени</translation>
+        </message>
+        <message id="mobile.controls">
+            <source>Controls</source>
+            <translation>Управление</translation>
+        </message>
+        <message id="mobile.viewport">
+            <source>Viewport</source>
+            <translation>Область просмотра</translation>
+        </message>
     </context>
 </TS>

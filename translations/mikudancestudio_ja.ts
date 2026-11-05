@@ -3157,5 +3157,17 @@ Please add body first.</source>
             <source>Apply</source>
             <translation>適用</translation>
         </message>
+        <message id="mobile.timeline">
+            <source>Timeline</source>
+            <translation>タイムライン</translation>
+        </message>
+        <message id="mobile.controls">
+            <source>Controls</source>
+            <translation>操作パネル</translation>
+        </message>
+        <message id="mobile.viewport">
+            <source>Viewport</source>
+            <translation>ビューポート</translation>
+        </message>
     </context>
 </TS>

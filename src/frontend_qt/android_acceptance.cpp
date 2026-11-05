@@ -6,8 +6,111 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimer>
+#include <QInputMethod>
+#include <QLineEdit>
+#include <QMouseEvent>
+#include <QAbstractButton>
+#include <QJsonArray>
+#include <QTouchEvent>
 
 namespace mikudancestudio::qt {
+namespace {
+class InputObserver final : public QObject {
+public:
+    using QObject::QObject;
+    QJsonArray events;
+    bool eventFilter(QObject* target, QEvent* event) override {
+        if (event->type() == QEvent::TouchBegin || event->type() == QEvent::TouchEnd) {
+            const auto* touch = static_cast<QTouchEvent*>(event);
+            const auto point =
+                touch->points().isEmpty() ? QPointF() : touch->points().front().position();
+            events.append(QJsonObject{{"type", int(event->type())},
+                                      {"class", target->metaObject()->className()},
+                                      {"x", point.x()},
+                                      {"y", point.y()}});
+            while (events.size() > 4)
+                events.removeFirst();
+        }
+        auto* widget = qobject_cast<QWidget*>(target);
+        if (widget && (event->type() == QEvent::MouseButtonPress ||
+                       event->type() == QEvent::MouseButtonRelease)) {
+            const auto* mouse = static_cast<QMouseEvent*>(event);
+            const auto* button = qobject_cast<QAbstractButton*>(widget);
+            const auto origin = widget->mapToGlobal(QPoint());
+            events.append(QJsonObject{{"type", int(event->type())},
+                                      {"widget", widget->objectName()},
+                                      {"class", widget->metaObject()->className()},
+                                      {"text", button ? button->text() : QString()},
+                                      {"x", mouse->globalPosition().x()},
+                                      {"y", mouse->globalPosition().y()},
+                                      {"left", origin.x()},
+                                      {"top", origin.y()}});
+            while (events.size() > 4)
+                events.removeFirst();
+        }
+        return false;
+    }
+};
+}
+void StartAndroidUiReport(EditorWindow& window, const QString& report) {
+    // Opt-in observer of the ordinary editor. It never injects commands, changes
+    // the document, renders a separate scene or changes the application's mode.
+    auto* timer = new QTimer(&window);
+    auto* input = new InputObserver(&window);
+    qApp->installEventFilter(input);
+    QObject::connect(timer, &QTimer::timeout, &window, [&window, report, input] {
+        const auto& session = window.Session();
+        const auto& camera = session.Runtime().Session()->Pose().camera;
+        auto* focus = QApplication::focusWidget();
+        const auto edit = qobject_cast<QLineEdit*>(focus);
+        QJsonArray nativeWindows;
+        for (auto* native : QGuiApplication::allWindows())
+            nativeWindows.append(QJsonObject{{"name", native->objectName()},
+                                             {"visible", native->isVisible()},
+                                             {"exposed", native->isExposed()},
+                                             {"focused", native == QGuiApplication::focusWindow()},
+                                             {"type", int(native->type())}});
+        QJsonObject result{
+            {"windows", nativeWindows},
+            {"editorVisible", window.isVisible()},
+            {"language", window.CurrentLanguage()},
+            {"models", int(session.Assets().models.size())},
+            {"selectedModel", session.Selected().model},
+            {"frame", session.Document().timeline.currentFrame},
+            {"playing", session.Playing()},
+            {"revision", qint64(session.Revision())},
+            {"cameraX", camera.rotation[0]},
+            {"cameraY", camera.rotation[1]},
+            {"submissions", qint64(window.RenderWindow()->Submissions())},
+            {"surfaceRebuilds", qint64(window.RenderWindow()->SurfaceRebuilds())},
+            {"presentationState", int(window.RenderWindow()->PresentationState())},
+            {"presentationReason",
+             QString::fromStdString(window.RenderWindow()->PresentationReason())},
+            {"presentationBlocked", window.RenderWindow()->presentationBlocked &&
+                                        window.RenderWindow()->presentationBlocked()},
+            {"frameBuilds", qint64(window.RenderWindow()->FrameBuilds())},
+            {"viewportVisible", window.RenderWindow()->isVisible()},
+            {"viewportExposed", window.RenderWindow()->isExposed()},
+            {"applicationState", int(QGuiApplication::applicationState())},
+            {"modal", QApplication::activeModalWidget()
+                          ? QApplication::activeModalWidget()->objectName()
+                          : QString()},
+            {"popup", QApplication::activePopupWidget()
+                          ? QApplication::activePopupWidget()->metaObject()->className()
+                          : QString()},
+            {"viewportWidth", window.RenderWindow()->width()},
+            {"viewportHeight", window.RenderWindow()->height()},
+            {"imeVisible", QGuiApplication::inputMethod()->isVisible()},
+            {"focus", focus ? focus->objectName() : QString()},
+            {"focusText", edit ? edit->text() : QString()},
+            {"input", input->events},
+            {"error", window.LastError()}};
+        QFile file(report);
+        if (file.open(QIODevice::WriteOnly))
+            file.write(QJsonDocument(result).toJson());
+    });
+    timer->start(250);
+}
 int RunAndroidAcceptance(QApplication& app, EditorWindow& window, const QString& report) {
     int phase = 0;
     qint64 nextProgress = 0;

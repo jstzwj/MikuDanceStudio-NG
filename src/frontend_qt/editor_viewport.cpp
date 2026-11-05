@@ -1,5 +1,6 @@
 #include "editor_window.hpp"
 #include "editor_canvas.hpp"
+#include "mobile_editor.hpp"
 #include "model_physics_dialog.hpp"
 #include "mikudancestudio/sidebar_navigation.hpp"
 #include <QComboBox>
@@ -8,6 +9,9 @@
 #include <QResizeEvent>
 #include <QScopedValueRollback>
 #include <QScrollBar>
+#ifdef __ANDROID__
+#include <QAccessibleWidget>
+#endif
 
 namespace mikudancestudio::qt {
 using namespace editor;
@@ -18,8 +22,19 @@ void EditorWindow::CreateViewport(const rhi::BackendOptions& options) {
     auto* next = new Viewport(session_, assets_);
     next->SetOptions(options);
     auto* container = QWidget::createWindowContainer(next, separate_ ? separate_ : canvas_);
+#ifdef __ANDROID__
+    container->setAccessibleName("Scene viewport");
+    // Android enumerates the focused native child's editor root. Keep its
+    // QWidget container a leaf so QAccessibleWindowContainer cannot refer back
+    // to that editor and introduce a cycle. Register explicitly: Qt may have
+    // already cached the built-in interface during container construction.
+    if (auto* previous = QAccessible::queryAccessibleInterface(container))
+        QAccessible::deleteAccessibleInterface(QAccessible::uniqueId(previous));
+    QAccessible::registerAccessibleInterface(new QAccessibleWidget(container, QAccessible::Canvas));
+#endif
     auto* old = viewportContainer_;
     viewport_ = next;
+    viewport_->presentationBlocked = [this] { return presentationPauses_ > 0; };
     viewport_->installEventFilter(this);
     viewportContainer_ = container;
     if (old)
@@ -185,6 +200,22 @@ void EditorWindow::SetFullScreenViewport(bool enabled) {
 void EditorWindow::Layout() {
     if (!canvas_)
         return;
+    const bool mobilePlatform = QGuiApplication::platformName() == "android" ||
+                                qEnvironmentVariableIsSet("MDS_TEST_MOBILE_UI");
+    const bool compact =
+        mobilePlatform && !fullScreen_ && !separate_ && MobileEditor::Required(canvas_->size());
+    if (compact) {
+        if (!mobile_)
+            mobile_ = new MobileEditor(language_, canvas_);
+        canvas_->setProperty("mmdMobileLayout", true);
+        mobile_->Arrange(controls_, timeline_, interpolation_, viewportContainer_,
+                         session_.Selected().model == 255);
+        return;
+    }
+    if (mobile_ && canvas_->property("mmdMobileLayout").toBool()) {
+        mobile_->Restore(controls_, timeline_, interpolation_, viewportContainer_);
+        canvas_->setProperty("mmdMobileLayout", false);
+    }
     if (fullScreen_) {
         const auto& settings = session_.Document().envelope.settings;
         const auto rect =

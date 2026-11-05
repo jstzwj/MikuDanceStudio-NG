@@ -50,6 +50,10 @@ QString Canvas::ViewportTitle() const {
 }
 void Canvas::paintEvent(QPaintEvent*) {
     QPainter p(this);
+    if (property("mmdMobileLayout").toBool()) {
+        p.fillRect(rect(), QColor(64, 64, 64));
+        return;
+    }
     if (fullScreen_) {
         p.fillRect(rect(), Qt::black);
         return;

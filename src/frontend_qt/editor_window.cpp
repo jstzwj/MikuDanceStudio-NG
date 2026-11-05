@@ -50,8 +50,17 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     setObjectName("mmd.editor");
     setAcceptDrops(true);
     installEventFilter(this);
+#ifdef __ANDROID__
+    setMinimumSize(320, 160);
+#else
     setMinimumSize(640, 480);
+#endif
     resize(1024, 768);
+#ifdef __ANDROID__
+    // Android owns the Activity bounds. Follow its available geometry on
+    // keyboard resizing and rotation instead of retaining a desktop window size.
+    setWindowState(Qt::WindowMaximized);
+#endif
     menuBar()->setNativeMenuBar(false);
     setFont(EditorFont(language_.Code()));
     // The original menu retains the system non-client font, independently

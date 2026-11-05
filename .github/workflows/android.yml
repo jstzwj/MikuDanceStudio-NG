@@ -174,7 +174,7 @@ jobs:
     needs: apk
     if: ${{ !cancelled() && (needs.apk.result == 'success' || inputs.candidate_run) }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -200,6 +200,11 @@ jobs:
           path: out/releases
           github-token: ${{ github.token }}
           run-id: ${{ inputs.candidate_run || github.run_id }}
+      - name: Prepare real touch, presentation and Android input-method tests
+        run: |
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+          python -m pip install -r requirements-android-tests.txt
+          python tools/build_android_test_ime.py --sdk "$ANDROID_HOME"
       - name: Permit KVM only on this isolated emulator runner
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules

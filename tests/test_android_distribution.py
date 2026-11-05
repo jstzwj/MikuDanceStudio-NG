@@ -10,6 +10,7 @@ import re
 import zipfile
 import sys
 import hashlib
+import shutil
 import cpu_import_fixture
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from release_contract import inspect_archive
@@ -25,7 +26,7 @@ def adb(*args, **kwargs):
 
 
 def read_report(name):
-    result = subprocess.run(['adb', 'shell', 'cat', FILES + '/' + name], capture_output=True, text=True, timeout=15)
+    result = subprocess.run(['adb', 'shell', 'cat', FILES + '/' + name], capture_output=True, text=True, encoding='utf-8', timeout=15)
     try:
         return json.loads(result.stdout)
     except json.JSONDecodeError:
@@ -95,7 +96,15 @@ def main():
         uid = application_uid.group(1)
         adb('shell', 'mkdir', '-p', FILES + '/fixtures')
         with tempfile.TemporaryDirectory() as temporary:
-            cpu_import_fixture.write(Path(temporary))
+            fixture = Path(temporary)
+            cpu_import_fixture.write(fixture)
+            # SAF workspace import renames the selected UserFile root. Exercise
+            # old-machine paths without rewriting the PMM on the device.
+            (fixture / 'relocated.pmm').write_bytes(cpu_import_fixture.scene(
+                2, model=r'HB\DownLoad\MMD\UserFile\Model\triangle.pmx'))
+            (fixture / 'Model').mkdir()
+            for name in ('triangle.pmx', 'checker.bmp'):
+                shutil.copyfile(fixture / name, fixture / 'Model' / name)
             adb('push', *(str(path) for path in sorted(Path(temporary).iterdir())), FILES + '/fixtures/')
         adb('shell', 'chown', '-R', uid + ':' + uid, FILES)
         adb('shell', 'restorecon', '-RF', FILES)
@@ -140,6 +149,15 @@ def main():
         (args.output / 'native.json').write_text(json.dumps(native, indent=2) + '\n')
         with (args.output / 'presentation.png').open('wb') as image:
             adb('exec-out', 'screencap', '-p', stdout=image)
+        # These drive the ordinary editor, using real Android touch events and
+        # an emulator-only IME. The opt-in JSON observer never performs edits.
+        root = Path(__file__).resolve().parents[1]
+        subprocess.run([sys.executable, str(root / 'tests/test_android_presentation.py'),
+                        '--driver', driver, '--output', str(args.output / 'orientation')],
+                       check=True, timeout=300)
+        subprocess.run([sys.executable, str(root / 'tests/test_android_ui.py'),
+                        '--driver', driver, '--phone', '--ime', str(root / 'out/android-test-ime/test-ime.apk'),
+                        '--output', str(args.output / 'touch')], check=True, timeout=900)
     except Exception:
         # Root on the isolated emulator permits stacks from the unchanged,
         # non-debuggable shipping APK. Collect before stopping a hung process.

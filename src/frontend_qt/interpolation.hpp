@@ -8,6 +8,7 @@ class Interpolation final : public QWidget {
 public:
     Interpolation(editor::EditorSession&, QWidget*);
     void SetChannel(unsigned);
+    void SetDisplayScale(double);
     unsigned Channel() const { return channel_; }
     std::function<void(bool, const std::string&)> changed;
 
@@ -22,6 +23,7 @@ private:
     editor::EditorSession& session_;
     unsigned channel_ = 3;
     int point_ = -1;
+    double displayScale_ = 1;
     void End();
 };
 }

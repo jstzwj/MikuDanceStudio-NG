@@ -5,10 +5,10 @@ installer, DMG installer, DEB or RPM. Android is the platform exception: it
 requires an APK. The old DX9 application's releases belong to the original
 MikuDanceStudio repository and no longer publish from NG.
 
-`VERSION` is the single editable product version, now `0.0.1`, with the format
+`VERSION` is the single editable product version, now `0.0.2`, with the format
 `major.minor.patch`. CMake, application/About/version output, Windows version
 resources, macOS bundle metadata, Conan and archive names read that file. The
-matching Git tag is `v0.0.1`. NG does not continue the old library's `10.xx`
+matching Git tag is `v0.0.2`. NG does not continue the old library's `10.xx`
 version sequence; MMD 9.32 remains the behavior reference.
 
 ## Release targets
@@ -21,10 +21,9 @@ version sequence; MMD 9.32 remains the behavior reference.
 | Linux x64 | `MikuDanceStudio-NG-vVERSION-linux-x64-portable.tar.gz` | Vulkan, X11/Wayland, extracted package on Ubuntu 22.04 |
 | Android | `MikuDanceStudio-NG-vVERSION-android-universal.apk` | Both ARM64/x86_64 native libraries, signed APK, same APK installed on isolated x86_64 emulator |
 
-**v0.0.1 is held until all five targets pass.** A platform appearing in this
+**Each release is held until all five targets pass.** A platform appearing in this
 table is a release requirement, not evidence that its implementation or tests
-have already passed. Android requires Android 13+ and Vulkan 1.3; its initial
-UI targets landscape tablets. Native Android ARM64 compilation is checked;
+have already passed. Android requires Android 13+ and Vulkan 1.3; tablets retain the full landscape layout and phones use collapsible panels. Native Android ARM64 compilation is checked;
 emulator execution does not claim physical ARM GPU/driver coverage. macOS Intel,
 Linux ARM64, iOS and 32-bit Windows are not current NG release targets.
 
@@ -53,7 +52,9 @@ version tag, or manually dispatch it with an existing version tag. It:
    again to a path containing spaces, remove SDK search paths, then open PMM,
    switch all 15 languages and render without showing windows. Android installs
    the same APK that will be published and exercises native rendering, window
-   recreation, device replacement and background/resume in an isolated emulator.
+   recreation, device replacement, both landscape orientations, background/resume,
+   actual menu/button touches, PMX/PMM import, language switching and the native
+   Android input connection in an isolated emulator.
 4. Checks binary headers, version, clean source identity, tag and full commit.
    Missing/duplicate targets and development packages fail the release.
 5. Writes `SHA256SUMS` and `release-manifest.json`, then publishes an early
@@ -110,9 +111,9 @@ development qualification packages deliberately use a different, temporary key.
 
 ```sh
 python tests/test_release_contract.py
-python scripts/release.py --tag v0.0.1
-git tag -a v0.0.1 -m "MikuDanceStudio-NG v0.0.1"
-git push origin v0.0.1
+python scripts/release.py --tag v0.0.2
+git tag -a v0.0.2 -m "MikuDanceStudio-NG v0.0.2"
+git push origin v0.0.2
 ```
 
 After the single tag workflow completes, verify the public Release's five

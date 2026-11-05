@@ -70,8 +70,21 @@ SceneResourceResolver::Candidates(SceneResourceKind kind, const std::array<char,
                     append(root / suffix);
                 if (!projectRoot.empty())
                     append(projectRoot / suffix);
-                else
+                else {
                     append(scenePath_.parent_path() / suffix);
+                    // Android imports the selected folder's contents into a
+                    // uniquely named workspace. If that folder was UserFile,
+                    // its Model/Accessory/etc. hierarchy is still intact but
+                    // the literal UserFile parent no longer exists. Rebase the
+                    // saved hierarchy at this PMM's directory; never search by
+                    // basename or recursively select an unrelated resource.
+                    auto inside = suffix.begin();
+                    std::filesystem::path relative;
+                    for (++inside; inside != suffix.end(); ++inside)
+                        relative /= *inside;
+                    if (!relative.empty())
+                        append(scenePath_.parent_path() / relative);
+                }
             }
             // Windows drive/UNC paths are not relative paths on POSIX either.
             const auto portable = decoded->generic_u8string();

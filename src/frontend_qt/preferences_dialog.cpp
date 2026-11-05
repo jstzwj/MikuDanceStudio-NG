@@ -14,6 +14,10 @@ PreferencesDialog::PreferencesDialog(Language& language, std::function<bool(cons
       buttons_(new QDialogButtonBox(
           QDialogButtonBox::Ok | QDialogButtonBox::Cancel | QDialogButtonBox::Apply, this)) {
     setObjectName("preferences");
+#ifdef __ANDROID__
+    setWindowFlags(Qt::Window);
+    setWindowState(Qt::WindowMaximized);
+#endif
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     setWindowModality(Qt::WindowModal);
     languages_->setObjectName("preferences.language");

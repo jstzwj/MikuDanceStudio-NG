@@ -1,6 +1,7 @@
 #include "interpolation.hpp"
 #include <QPainter>
 #include <QMouseEvent>
+#include <cmath>
 namespace mikudancestudio::qt {
 QImage InterpolationImage(const editor::InterpolationSelection& selected) {
     QImage image(128, 128, QImage::Format_ARGB32);
@@ -77,8 +78,17 @@ void Interpolation::SetChannel(unsigned channel) {
     }
     update();
 }
+void Interpolation::SetDisplayScale(double scale) {
+    if (!std::isfinite(scale) || scale < 1 || scale > 3 || scale == displayScale_)
+        return;
+    End();
+    displayScale_ = scale;
+    setFixedSize(qRound(128 * scale), qRound(128 * scale));
+    update();
+}
 void Interpolation::paintEvent(QPaintEvent*) {
     QPainter painter(this);
+    painter.scale(displayScale_, displayScale_);
     painter.drawImage(0, 0, InterpolationImage(session_.Interpolation(channel_)));
 }
 void Interpolation::mousePressEvent(QMouseEvent* event) {
@@ -89,8 +99,8 @@ void Interpolation::mousePressEvent(QMouseEvent* event) {
         return;
     const auto& c = selection.curves.front();
     for (int i = 0; i < 2; ++i)
-        if (std::abs(event->position().x() - c[2 * i]) < 5 &&
-            std::abs(event->position().y() - (127 - c[2 * i + 1])) < 5) {
+        if (std::abs(event->position().x() / displayScale_ - c[2 * i]) < 5 &&
+            std::abs(event->position().y() / displayScale_ - (127 - c[2 * i + 1])) < 5) {
             if (session_.BeginGesture())
                 point_ = i;
             break;
@@ -100,9 +110,9 @@ void Interpolation::mouseMoveEvent(QMouseEvent* event) {
     if (point_ < 0)
         return;
     std::string reason;
-    const bool ok =
-        session_.MoveInterpolationPoint(channel_, unsigned(point_), int(event->position().x()),
-                                        127 - int(event->position().y()), reason);
+    const bool ok = session_.MoveInterpolationPoint(
+        channel_, unsigned(point_), int(event->position().x() / displayScale_),
+        127 - int(event->position().y() / displayScale_), reason);
     if (!ok)
         End();
     if (changed)

@@ -34,6 +34,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/editor_window.cpp"
         "${root}/src/frontend_qt/editor_canvas.cpp"
         "${root}/src/frontend_qt/editor_viewport.cpp"
+        "${root}/src/frontend_qt/mobile_editor.cpp"
         "${root}/src/frontend_qt/editor_files.cpp"
         "${root}/src/frontend_qt/editor_dialogs.cpp"
         "${root}/src/frontend_qt/editor_input.cpp"
@@ -118,6 +119,13 @@ function(mds_add_qt_editor)
         include("${root}/cmake/QtDistribution.cmake")
     endif()
     if(BUILD_TESTING)
+        qt_add_executable(qt_mobile_editor_test "${root}/tests/qt_mobile_editor_test.cpp")
+        target_link_libraries(qt_mobile_editor_test PRIVATE mikudancestudio_frontend_qt Qt6::Test)
+        add_test(NAME qt_mobile_editor COMMAND ${Python3_EXECUTABLE}
+            "${root}/tests/test_runtime_cpu_scene.py"
+            --passes $<TARGET_FILE:qt_mobile_editor_test> --assets "${root}/res/assets")
+        set_tests_properties(qt_mobile_editor PROPERTIES LABELS "p4;android;offscreen;qt;input"
+            TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_translation_catalog_test "${root}/tests/qt_translation_catalog_test.cpp")
         target_link_libraries(qt_translation_catalog_test PRIVATE mikudancestudio_frontend_qt)
         add_test(NAME qt_translation_runtime COMMAND qt_translation_catalog_test "${root}/translations")

@@ -3149,5 +3149,17 @@ Voeg eerst een lichaam toe.</translation>
             <source>Apply</source>
             <translation>Toepassen</translation>
         </message>
+        <message id="mobile.timeline">
+            <source>Timeline</source>
+            <translation>Tijdlijn</translation>
+        </message>
+        <message id="mobile.controls">
+            <source>Controls</source>
+            <translation>Bediening</translation>
+        </message>
+        <message id="mobile.viewport">
+            <source>Viewport</source>
+            <translation>Weergave</translation>
+        </message>
     </context>
 </TS>

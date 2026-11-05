@@ -3149,5 +3149,17 @@ Añade uno primero.</translation>
             <source>Apply</source>
             <translation>Aplicar</translation>
         </message>
+        <message id="mobile.timeline">
+            <source>Timeline</source>
+            <translation>Línea de tiempo</translation>
+        </message>
+        <message id="mobile.controls">
+            <source>Controls</source>
+            <translation>Controles</translation>
+        </message>
+        <message id="mobile.viewport">
+            <source>Viewport</source>
+            <translation>Vista</translation>
+        </message>
     </context>
 </TS>

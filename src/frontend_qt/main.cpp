@@ -169,6 +169,8 @@ int main(int argc, char** argv) {
 #ifdef __ANDROID__
     parser.addOption(
         {"android-acceptance", "Isolated emulator presentation and lifecycle check", "report"});
+    parser.addOption(
+        {"android-ui-report", "Observe ordinary editor UI state for emulator tests", "report"});
 #endif
     parser.process(app);
     if (parser.isSet("gpu-driver")) {
@@ -203,6 +205,8 @@ int main(int argc, char** argv) {
     if (parser.isSet("android-acceptance"))
         return mikudancestudio::qt::RunAndroidAcceptance(app, window,
                                                          parser.value("android-acceptance"));
+    if (parser.isSet("android-ui-report"))
+        mikudancestudio::qt::StartAndroidUiReport(window, parser.value("android-ui-report"));
     if (!window.menuBar()->actions().isEmpty()) {
         auto* menu = window.menuBar()->actions().front()->menu();
         auto* action = menu->addAction(QObject::tr("Import workspace folder…"));

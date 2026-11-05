@@ -3149,5 +3149,17 @@ Bitte zuerst einen Körper hinzufügen.</translation>
             <source>Apply</source>
             <translation>Anwenden</translation>
         </message>
+        <message id="mobile.timeline">
+            <source>Timeline</source>
+            <translation>Zeitleiste</translation>
+        </message>
+        <message id="mobile.controls">
+            <source>Controls</source>
+            <translation>Bedienelemente</translation>
+        </message>
+        <message id="mobile.viewport">
+            <source>Viewport</source>
+            <translation>Ansicht</translation>
+        </message>
     </context>
 </TS>

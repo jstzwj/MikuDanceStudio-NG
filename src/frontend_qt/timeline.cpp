@@ -13,6 +13,7 @@ Timeline::Timeline(EditorSession& s, Language& l, const std::filesystem::path& a
     : QWidget(p), session_(s), language_(l) {
     icons_.load(QString::fromUtf8((assets / "sidebar_icon_sheet.bmp").u8string().c_str()));
     setObjectName("mmd.timeline");
+    setAccessibleName("Timeline grid");
     setFocusPolicy(Qt::StrongFocus);
     setMouseTracking(true);
 }

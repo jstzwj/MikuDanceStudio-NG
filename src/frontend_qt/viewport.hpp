@@ -10,6 +10,9 @@
 namespace mikudancestudio::qt {
 render::SceneRenderSources EditorRenderSources(const editor::EditorAssets&);
 std::shared_ptr<const rhi::WindowSurfaceSource> QtSurface(QWindow&, std::string&);
+#ifdef __ANDROID__
+void ResizeAndroidSurface(QWindow&, QSize);
+#endif
 unsigned SceneAntialiasSamples(const rhi::Device&);
 struct FrameCpuTimings {
     double view = 0, assets = 0, scene = 0, overlay = 0;
@@ -33,15 +36,22 @@ public:
     unsigned AntialiasSamples() const;
     std::function<void(QPoint, Qt::MouseButtons, Qt::KeyboardModifiers)> drag;
     std::function<void(int)> zoom;
+    std::function<bool()> presentationBlocked;
     std::function<void(bool, const std::string&)> changed;
     std::function<render::PhysicsEditView()> physicsEdit;
     std::function<bool(unsigned, int, bool)> physicsDrag;
     std::uint64_t Submissions() const;
     std::uint64_t FrameBuilds() const { return frameBuilds_; }
+    rhi::PreviewState PresentationState() const { return controller_.State(); }
+    const std::string& PresentationReason() const { return controller_.Reason(); }
+    std::uint64_t SurfaceRebuilds() const;
     bool BeginHeaderDrag(unsigned operation, QPoint position, QPoint restore,
                          QWindow* inputSurface = nullptr);
     bool HeaderDragging() const { return headerDragOperation_ != 0; }
     void CancelInput();
+#ifdef __ANDROID__
+    QAccessibleInterface* accessibleRoot() const override;
+#endif
 
 protected:
     bool event(QEvent*) override;
@@ -76,6 +86,9 @@ private:
     bool profileFrame_ = false;
     FrameCpuTimings cpuTimings_;
     bool loadedAssets_ = false, pressed_ = false;
+#ifdef __ANDROID__
+    QSize androidSurfaceSize_;
+#endif
     int boneDragMode_ = 0;
     unsigned physicsDragMode_ = 0;
     unsigned sceneDragMode_ = 0;
@@ -99,6 +112,9 @@ private:
     QPointF anchor_;
     std::vector<cpu_bone::ScreenPoint> bonePoints_;
     QPointF previous_;
+    bool touchNavigation_ = false;
+    QPointF touchCenter_;
+    double touchSpan_ = 0;
 };
 // Export uses its own scene/renderer. It never reads the editor swapchain.
 bool RenderImage(const runtime::SceneRuntime&, const editor::EditorAssets&,

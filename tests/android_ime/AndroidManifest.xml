@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="io.github.jstzwj.mds.testime">
+    <uses-sdk android:minSdkVersion="33" android:targetSdkVersion="35" />
+    <application android:label="NG emulator test keyboard" android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <service android:name=".UiObserver" android:exported="true" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter>
+            <meta-data android:name="android.accessibilityservice" android:resource="@xml/observer" />
+        </service>
+        <service android:name=".TestKeyboard" android:exported="true" android:permission="android.permission.BIND_INPUT_METHOD">
+            <intent-filter><action android:name="android.view.InputMethod" /></intent-filter>
+            <meta-data android:name="android.view.im" android:resource="@xml/method" />
+        </service>
+    </application>
+</manifest>

@@ -1,11 +1,18 @@
 #include "viewport.hpp"
 #include "mikudancestudio/background_placement.hpp"
+#include "mikudancestudio/rhi_vulkan.hpp"
 #include <QPlatformSurfaceEvent>
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <QGuiApplication>
+#ifdef __ANDROID__
+#include <QApplication>
+#include <qpa/qplatformwindow.h>
+#endif
 #include <QCursor>
 #include <QCoreApplication>
+#include <QTouchEvent>
+#include <QLineF>
 #include <cmath>
 #include <chrono>
 namespace mikudancestudio::qt {
@@ -30,6 +37,14 @@ unsigned SceneAntialiasSamples(const rhi::Device& device) {
             return samples;
     return 1;
 }
+std::uint64_t Viewport::SurfaceRebuilds() const {
+#ifdef MIKUDANCESTUDIO_RHI_VULKAN
+    if (auto* device = const_cast<rhi::ScenePreviewController&>(controller_).GetDevice();
+        device && device->BackendType() == rhi::Backend::Vulkan)
+        return rhi::QueryVulkanStats(*device).swapchainRebuilds;
+#endif
+    return 0;
+}
 unsigned Viewport::AntialiasSamples() const {
     if (const auto* device = controller_.GetDevice())
         return SceneAntialiasSamples(*device);
@@ -51,6 +66,7 @@ Viewport::Viewport(editor::EditorSession& session, const std::filesystem::path& 
                 if (state != Qt::ApplicationActive) {
                     controller_.Close();
                     options_.surface.reset();
+                    androidSurfaceSize_ = {};
                     frameCached_ = false;
                     producer_.ResetHistory();
                 }
@@ -69,6 +85,17 @@ Viewport::~Viewport() {
     FinishBoxSelection();
     controller_.Close();
 }
+#ifdef __ANDROID__
+QAccessibleInterface* Viewport::accessibleRoot() const {
+    // Android enumerates the focused native window. The embedded Vulkan child
+    // has no QWidget tree of its own; expose its containing editor instead of
+    // hiding the menus and mobile panels whenever the viewport receives focus.
+    auto* root = parent();
+    while (root && root->parent())
+        root = root->parent();
+    return root ? root->accessibleRoot() : QWindow::accessibleRoot();
+}
+#endif
 void Viewport::SetOptions(const rhi::BackendOptions& options) {
     FinishToolDrag();
     FinishBoxSelection();
@@ -133,18 +160,46 @@ bool Viewport::ReloadTextures(std::string& reason) {
     return true;
 }
 bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
+    if (presentationBlocked && presentationBlocked()) {
+        reason.clear();
+        return true;
+    }
 #ifdef __ANDROID__
-    // Qt's Vulkan window normally publishes exposure after QVulkanInstance
-    // acquires its surface. RHI owns that instance instead: bootstrap the
-    // visible native child, then let QtSurface require a valid SurfaceView.
+    // RHI owns the Vulkan instance; bootstrap Qt's visible native child, then
+    // let QtSurface asynchronously acquire the valid matching SurfaceView.
     const bool ready = isVisible() && QGuiApplication::applicationState() == Qt::ApplicationActive;
+    if (QApplication::activeModalWidget() || QApplication::activePopupWidget()) {
+        reason.clear();
+        return true;
+    }
 #else
     const bool ready = isExposed();
 #endif
     if ((!ready && !hiddenAcceptance) || width() < 1 || height() < 1)
         return true;
-    const auto w = unsigned(std::max(1, qRound(width() * devicePixelRatio())));
-    const auto h = unsigned(std::max(1, qRound(height() * devicePixelRatio())));
+    auto pixels =
+        QSize(qRound(width() * devicePixelRatio()), qRound(height() * devicePixelRatio()));
+#ifdef __ANDROID__
+    // QWindow's logical geometry is rounded from the native child rectangle.
+    // Multiplying back can add a pixel at fractional DPR, leaving swapchain
+    // resize permanently pending. The platform rectangle is authoritative.
+    if (handle())
+        pixels = handle()->geometry().size();
+#endif
+    const auto w = unsigned(std::max(1, pixels.width()));
+    const auto h = unsigned(std::max(1, pixels.height()));
+#ifdef __ANDROID__
+    if (options_.surface && options_.surface->health() == rhi::SurfaceHealth::Removed) {
+        if (!controller_.Close()) {
+            reason = controller_.Reason();
+            return false;
+        }
+        options_.surface.reset();
+        androidSurfaceSize_ = {};
+        frameCached_ = false;
+        producer_.ResetHistory();
+    }
+#endif
     if (controller_.State() == rhi::PreviewState::Closed) {
         auto surface = QtSurface(*this, reason);
 #ifdef __ANDROID__
@@ -166,15 +221,40 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
             return false;
         }
     }
+#ifdef __ANDROID__
+    if (androidSurfaceSize_ != pixels) {
+        ResizeAndroidSurface(*this, pixels);
+        androidSurfaceSize_ = pixels;
+    }
+#endif
     if (!controller_.Resize(w, h)) {
+#ifdef __ANDROID__
+        if (options_.surface->health() == rhi::SurfaceHealth::Removed) {
+            reason.clear();
+            return true;
+        }
+#endif
         reason = controller_.Reason();
         return false;
+    }
+    // Android delivers Qt geometry and native Surface dimensions separately.
+    // RetryLater retains the old swapchain; do not submit a new-sized frame to
+    // it (or let recovery rebuild the old extent while drawing the new frame).
+    if (controller_.State() == rhi::PreviewState::Suspended) {
+        reason.clear();
+        return true;
     }
     if (!PrepareFrame(w, h, reason))
         return false;
     const auto submissions = Submissions();
     if (!controller_.Draw(cachedFrame_)) {
         frameCached_ = false;
+#ifdef __ANDROID__
+        if (options_.surface->health() == rhi::SurfaceHealth::Removed) {
+            reason.clear();
+            return true;
+        }
+#endif
         reason = controller_.Reason();
         return false;
     }
@@ -443,10 +523,53 @@ void Viewport::CancelInput() {
     FinishToolDrag();
     FinishBoxSelection();
     pressed_ = false;
+    touchNavigation_ = false;
+    touchSpan_ = 0;
     if (active && changed)
         changed(true, {});
 }
 bool Viewport::event(QEvent* event) {
+#ifdef __ANDROID__
+    if (event->type() == QEvent::TouchBegin || event->type() == QEvent::TouchUpdate ||
+        event->type() == QEvent::TouchEnd || event->type() == QEvent::TouchCancel) {
+        auto* touch = static_cast<QTouchEvent*>(event);
+        const auto& points = touch->points();
+        if (event->type() == QEvent::TouchCancel || event->type() == QEvent::TouchEnd) {
+            const bool handled = touchNavigation_;
+            touchNavigation_ = false;
+            touchSpan_ = 0;
+            if (handled) {
+                touch->accept();
+                return true;
+            }
+        } else if (!points.isEmpty() &&
+                   (touchNavigation_ || points.size() > 1 ||
+                    (session_.Selected().model == 255 && ToolAt(points[0].position()) == 0))) {
+            const auto center = points.size() > 1
+                                    ? (points[0].position() + points[1].position()) / 2
+                                    : points[0].position();
+            const double span =
+                points.size() > 1 ? QLineF(points[0].position(), points[1].position()).length() : 0;
+            if (touchNavigation_ && (span > 0) == (touchSpan_ > 0)) {
+                const auto delta = DevicePoint(center - touchCenter_);
+                if (drag && !delta.isNull())
+                    drag(delta, span > 0 ? Qt::MiddleButton : Qt::RightButton, Qt::NoModifier);
+                if (zoom && span > 0 && touchSpan_ > 0) {
+                    const int wheel = qRound(120 * std::log(span / touchSpan_) / std::log(1.1));
+                    if (wheel)
+                        zoom(wheel);
+                }
+            } else {
+                CancelInput();
+            }
+            touchNavigation_ = true;
+            touchCenter_ = center;
+            touchSpan_ = span;
+            touch->accept();
+            return true;
+        }
+    }
+#endif
     const bool geometryChanged = event->type() == QEvent::ScreenChangeInternal ||
                                  event->type() == QEvent::DevicePixelRatioChange ||
                                  event->type() == QEvent::Resize;
@@ -465,6 +588,9 @@ bool Viewport::event(QEvent* event) {
         controller_.Close();
         producer_.ResetHistory();
         options_.surface.reset();
+#ifdef __ANDROID__
+        androidSurfaceSize_ = {};
+#endif
     }
     return QWindow::event(event);
 }

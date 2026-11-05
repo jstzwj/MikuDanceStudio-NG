@@ -21,6 +21,7 @@ class GravityDialog;
 class EnglishNameDialog;
 class ModelPhysicsDialog;
 class PreferencesDialog;
+class MobileEditor;
 class EditorWindow final : public QMainWindow {
 public:
     explicit EditorWindow(std::filesystem::path assets, bool testing = false,
@@ -62,12 +63,14 @@ private:
     Viewport* viewport_ = nullptr;
     QWidget* viewportContainer_ = nullptr;
     QWidget* separate_ = nullptr;
+    MobileEditor* mobile_ = nullptr;
     QPointer<EdgeThicknessDialog> edgeDialog_;
     QPointer<GroundShadowDialog> groundShadowDialog_;
     QPointer<GravityDialog> gravityDialog_;
     QPointer<EnglishNameDialog> englishDialog_;
     QPointer<ModelPhysicsDialog> physicsDialog_;
     QPointer<PreferencesDialog> preferencesDialog_;
+    int presentationPauses_ = 0;
     std::uint64_t gravityEpoch_ = 0;
     std::uint8_t edgeModel_ = 255;
     std::weak_ptr<const runtime::ModelResource> edgeResource_;

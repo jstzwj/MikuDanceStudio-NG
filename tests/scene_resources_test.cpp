@@ -63,6 +63,31 @@ int main(int argc, char** argv) {
         CHECK(result == project / "UserFile" / item.second);
     }
     CHECK(resolver.ResolveAccessory(0, Path("Z:/MMD/UserFile/Accessory/test.x"), result));
+    // A folder import can rename UserFile while retaining its contents. Keep
+    // the old saved hierarchy and CP932 decoding, rather than guessing a model
+    // by filename or requiring the user to rewrite every PMM resource path.
+    const auto workspace = base / "workspace-123456";
+    Write(workspace / "Model" / name, model);
+    Write(workspace / "Accessory/test.x", {1});
+    Write(workspace / "Wave/test.wav", {2});
+    Write(workspace / "BackGround/test.bmp", {3});
+    SceneResourceResolver imported(workspace / "sample.pmm");
+    for (const auto& prefix : {"G:\\MMD\\", "HB\\DownLoad\\MMD\\", "//server/share/"}) {
+        CHECK(imported.ResolveModel(
+            1, Path(prefix + std::string("UserFile/Model/") + name.u8string()), parsed));
+        CHECK(imported.Resolved().at(1) == workspace / "Model" / name);
+    }
+    for (const auto& item : {std::pair{SceneResourceKind::Accessory, "Accessory/test.x"},
+                             {SceneResourceKind::Wave, "Wave/test.wav"},
+                             {SceneResourceKind::Background, "BackGround/test.bmp"}}) {
+        CHECK(imported.ResolveFile(item.first, Path("Z:/MMD/UserFile/" + std::string(item.second)),
+                                   result));
+        CHECK(result == workspace / item.second);
+    }
+    CHECK(!imported.ResolveFile(SceneResourceKind::Wave, Path("Z:/missing/test.wav"), result));
+    imported.AddSearchRoot(install);
+    CHECK(imported.ResolveModel(1, Path("Z:/MMD/UserFile/Model/" + name.u8string()), parsed));
+    CHECK(imported.Resolved().at(1) == install / "UserFile/Model" / name);
     // An explicit installation root has the native executable-root precedence.
     resolver.AddSearchRoot(install);
     CHECK(resolver.ResolveModel(0, Path("Z:/MMD/UserFile/Model/" + name.u8string()), parsed));
