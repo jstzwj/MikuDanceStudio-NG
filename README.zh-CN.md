@@ -10,9 +10,9 @@ MikuDanceStudio NG 希望把我们熟悉的 MMD 动画工作流，带到现代�
 
 故事的开始，要回到八年前。
 
-那一晚，我和 **[Ray-MMD](https://github.com/ray-cast/ray-mmd) 的作者 Ray-Sama** 聊了很久，一直聊到天亮。我们聊 Ray-MMD 为什么难以继续做下去，聊 MMD 的 DirectX 9 渲染有哪些限制，也聊那些还想实现、却被挡在门外的东西。
+那一晚，我和 **[Ray-MMD](https://github.com/ray-cast/ray-mmd) 的作者 Rui** 聊了很久，一直聊到天亮。我们聊 Ray-MMD 为什么难以继续做下去，聊 MMD 的 DirectX 9 渲染有哪些限制，也聊那些还想实现、却被挡在门外的东西。
 
-Ray-Sama 也尝试过另一条路：自己写一个渲染引擎。他为此投入了五年。受限于 MMD 本身的生态，这次尝试最终仍没能走到理想中的结果，使用体验也没有达到他的期待。
+Rui 也尝试过另一条路：自己写一个渲染引擎。他为此投入了五年。受限于 MMD 本身的生态，这次尝试最终仍没能走到理想中的结果，使用体验也没有达到他的期待。
 
 这段经历，一直留在这个项目的起点。一个渲染器的身后，还有模型、动作、特效，还有多年积累下来的作品与使用习惯。要把这些一起带向未来，需要照顾的，是创作过程里的每一个细节。
 
@@ -67,7 +67,7 @@ cmake --build out/build --config Release --target dist --parallel 3
 
 ## 感谢
 
-感谢 **樋口優（Yu Higuchi）** 创造了 [MikuMikuDance](https://learnmmd.com/downloads/)，让那么多人有了开始创作的地方。感谢 **Ray-Sama** 带来的 Ray-MMD，感谢他为寻找下一条路投入的岁月，也感谢八年前那一晚的长谈。
+感谢 **樋口優（Yu Higuchi）** 创造了 [MikuMikuDance](https://learnmmd.com/downloads/)，让那么多人有了开始创作的地方。感谢 **Rui** 带来的 Ray-MMD，感谢他为寻找下一条路投入的岁月，也感谢八年前那一晚的长谈。
 
 感谢模型、动作、特效、音乐与教程的作者，感谢 MME 社区，感谢每一位愿意分享经验的人。正是这些积累，让 MMD 成为值得继续做下去的事情。也感谢 Qt、Bullet Physics，以及本项目所使用的开源工具的维护者。
 

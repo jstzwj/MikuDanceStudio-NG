@@ -11,12 +11,12 @@ behavior as our reference.
 
 ## Our story
 
-Eight years ago, I spent a night talking with **Ray-Sama, the author of
+Eight years ago, I spent a night talking with **Rui, the author of
 [Ray-MMD](https://github.com/ray-cast/ray-mmd)**. We talked until morning about
 why Ray-MMD could not keep moving forward, and the limits of MMD's DirectX 9
 renderer. There was still so much we wanted to do with it.
 
-Ray-Sama also tried building a rendering engine of his own. He spent five years
+Rui also tried building a rendering engine of his own. He spent five years
 on that path. Working within the constraints of MMD's ecosystem, the attempt
 ultimately fell short of the result and the experience he had hoped for.
 
@@ -114,7 +114,7 @@ rendering backend and steps to reproduce when reporting an issue.
 
 To **Yu Higuchi (樋口優)**, for creating
 [MikuMikuDance](https://learnmmd.com/downloads/) and giving so many people a place
-to begin creating. To **Ray-Sama**, for Ray-MMD, the years spent exploring what
+to begin creating. To **Rui**, for Ray-MMD, the years spent exploring what
 could come next, and that conversation eight years ago.
 
 And to the authors of models, motions, effects, music and tutorials, to the MME
