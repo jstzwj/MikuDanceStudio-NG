@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "stage": "P5.1",
+  "date": "2026-11-05",
+  "code_commit": "d58037972a321d2907045a7980e5317148c4d946",
+  "scope": "FX source preprocessing and metadata; no GPU execution, instance defaults evaluation or Qt effect integration",
+  "status": "passed for the documented initial subset",
+  "c2_complete": false,
+  "qualification": {
+    "run_id": 42020565345,
+    "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42020565345",
+    "all_jobs_successful": true,
+    "total_tests": 22,
+    "platforms": {
+      "windows": {
+        "status": "passed",
+        "test_count": 8,
+        "tests": [
+          "mme_legacy_source",
+          "mme_standard_parameters",
+          "mme_scene_plan",
+          "mme_definition",
+          "mme_frontend_cli",
+          "mme_frontend_dependencies",
+          "mme_source",
+          "mme_frontend_native"
+        ],
+        "preprocessor_identity": "dxcompiler.dll: 1.9 - 1.8.2505.32 (b106a961d); dxil.dll: 1.9(1.8.2505.32)\r\n",
+        "production_targets": [
+          "mds_effect_cli",
+          "mikudancestudio_formats",
+          "mikudancestudio_mme_frontend",
+          "mikudancestudio_tool_process"
+        ]
+      },
+      "linux": {
+        "status": "passed",
+        "test_count": 7,
+        "tests": [
+          "mme_legacy_source",
+          "mme_standard_parameters",
+          "mme_scene_plan",
+          "mme_definition",
+          "mme_frontend_cli",
+          "mme_frontend_dependencies",
+          "mme_source"
+        ],
+        "preprocessor_identity": "libdxcompiler.so: 1.9(dev;4950-b106a961); libdxil.so: 1.9\n",
+        "production_targets": [
+          "mds_effect_cli",
+          "mikudancestudio_formats",
+          "mikudancestudio_mme_frontend",
+          "mikudancestudio_tool_process"
+        ]
+      },
+      "macos": {
+        "status": "passed",
+        "test_count": 7,
+        "tests": [
+          "mme_legacy_source",
+          "mme_standard_parameters",
+          "mme_scene_plan",
+          "mme_definition",
+          "mme_frontend_cli",
+          "mme_frontend_dependencies",
+          "mme_source"
+        ],
+        "preprocessor_identity": "libdxcompiler.dylib: 1.9(dev;1-b106a961)\n",
+        "production_targets": [
+          "mds_effect_cli",
+          "mikudancestudio_formats",
+          "mikudancestudio_mme_frontend",
+          "mikudancestudio_tool_process"
+        ]
+      }
+    }
+  },
+  "cross_platform_metadata": {
+    "fixture": "assets/effects/frontend/Inspect.fx",
+    "macros": {
+      "MME_MIPMAP": "",
+      "_INDEX": "PSIZE15"
+    },
+    "equal": true,
+    "excluded_fields": [
+      "preprocessorIdentity",
+      "files[*].utf8Bytes"
+    ],
+    "exclusion_reason": "Compiler identity and raw source byte count can differ by platform and checkout newline policy; all semantic fields, paths, encodings and include edges are compared.",
+    "canonical_json_sha256": "acaf2f2a87fb43ed2c7b319d90973311d224bfdb0dc8f4ccb3f378937df1c623"
+  },
+  "initial_ci": {
+    "run_id": 42017674609,
+    "status": "failed",
+    "code_commit": "e620b1234e5a37c7f03a6cc16339ce35d7d38109",
+    "failures": {
+      "windows": "Native oracle package omitted dynamically loaded D3DCompiler_43.dll.",
+      "linux": "DXC Unicode source filename diagnostics contained invalid UTF-8; CLI JSON decode failed.",
+      "macos": "DXC Unicode source filename diagnostic did not preserve the original mapped location."
+    },
+    "resolution": "Pinned oracle includes both DLLs and explicitly loads its compiler. Preprocessing uses ASCII source IDs with frozen-graph UTF-8 path restoration and explicit invalid-log-byte escapes. Original assertions remain intact.",
+    "windows_oracle_only_recheck": 42019432258
+  },
+  "related_regressions": {
+    "portable_rendering": {
+      "run_id": 42017674374,
+      "status": "success"
+    },
+    "portable_formats": {
+      "run_id": 42017674627,
+      "status": "success"
+    },
+    "bullet_builds": {
+      "run_id": 42017674365,
+      "status": "success"
+    }
+  },
+  "remaining": [
+    "P5.2 parameter instances, default evaluation, shared pool and semantics",
+    "P5.3 scripts and effect assignment/resource scheduling",
+    "P5.4 effect assembly and backend execution",
+    "P5.5 Qt effect editing, persistence and export integration"
+  ]
+}

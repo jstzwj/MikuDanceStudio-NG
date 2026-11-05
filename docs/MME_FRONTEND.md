@@ -64,8 +64,17 @@ Windows 本地独立无 GPU 构建的 P5 测试 **8/8 通过**：四项定义／
 语义、注解、技术／Pass 顺序，以及部分默认值；没有用新解析器生成参考值。
 RHI 构建另注册原有运行时着色器编译器回归，验证共用子进程提取。
 
-现有 Portable editor 的三个平台作业运行 `p4|p5`，不新增完整构建矩阵或反复
-dispatch。三平台 CI 证据取得前，P5.1 的跨平台验收仍待确认。
+现有 Portable editor 的三个平台作业运行 `p4|p5`。初轮仅新增前端门禁出现失败：
+Windows 原生参考缺少动态加载的编译器；Linux／macOS 的 Unicode 文件名诊断分别
+损坏了工具日志 UTF-8 和位置映射。此次 CTest 中原有 P4 用例全部通过。已修复实际依赖及来源映射，
+保留原有断言，未重复完整构建矩阵。
+
+最终纯前端 CI [42020565345](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42020565345)
+通过 Windows **8/8**、Linux **7/7**、macOS **7/7**。下载三份 CLI 报告后，排除
+工具版本和源文件原始字节数，所有语义字段、路径、编码和 include 边严格一致。
+二进制依赖审计均通过；原始失败、修复和相关渲染／基础回归见
+[版本化验收证据](evidence/p5-frontend-42020565345.json)。P5.1 仅在上述明确子集内通过，
+P5／C2 整体仍未完成。
 
 纯前端补验可用 Portable editor 的 `mme_only=true`，按 `platform` 选择独立作业，
 只构建专用入口并运行 Windows 8 项／Linux、macOS 各 7 项无设备测试；不安装 Qt、
