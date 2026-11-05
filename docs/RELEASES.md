@@ -28,6 +28,9 @@ UI targets landscape tablets. Native Android ARM64 compilation is checked;
 emulator execution does not claim physical ARM GPU/driver coverage. macOS Intel,
 Linux ARM64, iOS and 32-bit Windows are not current NG release targets.
 
+See the [v0.0.1 qualification record](releases/v0.0.1-qualification.md) for
+completed candidate checks and remaining release gates.
+
 Android imports a selected document-provider folder into its private workspace,
 preserving project-relative paths without requesting broad storage permissions.
 Qualification uses a rootable, non-Play emulator only to transport generated
@@ -80,6 +83,12 @@ Android workflow for the demonstrated gap. Documentation-only changes skip
 ordinary builds. Compiler caches are partitioned by OS/architecture/toolchain;
 Qt and dependency downloads use pinned versions. Never cache CMake build trees
 or reuse machine-specific compiler profiles.
+
+Android builds/signs the APK once, then qualifies that artifact in a separate
+emulator job. For changes to diagnostic scripts, manually dispatch `android.yml`
+with `candidate_run` set to an earlier run ID to reuse its `android-candidate`
+APK. Evidence records that APK's original source identity. This development-only
+shortcut cannot publish; Release always builds and tests its own tagged APK.
 
 ## Prepare a release
 

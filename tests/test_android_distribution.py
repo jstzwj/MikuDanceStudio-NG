@@ -7,7 +7,11 @@ import tempfile
 import time
 import shlex
 import re
+import zipfile
+import sys
 import cpu_import_fixture
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
+from release_contract import inspect_archive
 
 PACKAGE = 'io.github.jstzwj.mikudancestudiong'
 ACTIVITY = PACKAGE + '/org.qtproject.qt.android.bindings.QtActivity'
@@ -15,11 +19,12 @@ FILES = '/data/user/0/' + PACKAGE + '/files'
 
 
 def adb(*args, **kwargs):
+    kwargs.setdefault('timeout', 45)
     return subprocess.run(['adb', *args], check=True, **kwargs)
 
 
 def read_report(name):
-    result = subprocess.run(['adb', 'shell', 'cat', FILES + '/' + name], capture_output=True, text=True)
+    result = subprocess.run(['adb', 'shell', 'cat', FILES + '/' + name], capture_output=True, text=True, timeout=15)
     try:
         return json.loads(result.stdout)
     except json.JSONDecodeError:
@@ -35,7 +40,7 @@ def wait_report(name, expected):
             raise RuntimeError(f'Android gate failed: {report}')
         if report and (not expected or report.get('state') in expected):
             return report
-        process = subprocess.run(['adb', 'shell', 'pidof', PACKAGE], capture_output=True, text=True)
+        process = subprocess.run(['adb', 'shell', 'pidof', PACKAGE], capture_output=True, text=True, timeout=15)
         stopped = 0 if process.stdout.strip() else stopped + 1
         if stopped >= 10:
             raise RuntimeError(f'Android process exited before writing {name}; see logcat.txt')
@@ -56,6 +61,9 @@ def main():
     parser.add_argument('--output', type=Path, default=Path('out/android-tests'))
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
+    inspect_archive(args.apk)
+    with zipfile.ZipFile(args.apk) as apk:
+        (args.output / 'build-info.json').write_bytes(apk.read('assets/build-info.json'))
     emulator = adb('shell', 'getprop', 'ro.kernel.qemu', capture_output=True, text=True)
     if emulator.stdout.strip() != '1':
         raise RuntimeError('Android qualification requires an isolated emulator, not a physical device')
@@ -67,7 +75,7 @@ def main():
     if adb('shell', 'id', '-u', capture_output=True, text=True).stdout.strip() != '0':
         raise RuntimeError('Use an isolated, rootable non-Play emulator image for qualification')
     try:
-        adb('install', '-r', str(args.apk))
+        adb('install', '-r', str(args.apk), timeout=120)
         packages = adb('shell', 'cmd', 'package', 'list', 'packages', '-U', PACKAGE,
                        capture_output=True, text=True).stdout
         application_uid = re.search(r'package:' + re.escape(PACKAGE) + r'\s+uid:(\d+)', packages)
@@ -112,6 +120,24 @@ def main():
         (args.output / 'native.json').write_text(json.dumps(native, indent=2) + '\n')
         with (args.output / 'presentation.png').open('wb') as image:
             adb('exec-out', 'screencap', '-p', stdout=image)
+    except Exception:
+        # Root on the isolated emulator permits stacks from the unchanged,
+        # non-debuggable shipping APK. Collect before stopping a hung process.
+        try:
+            process = adb('shell', 'pidof', PACKAGE, capture_output=True, text=True).stdout.strip()
+            if process:
+                trace = subprocess.run(['adb', 'shell', 'debuggerd', '-b', process.split()[0]],
+                                       capture_output=True, text=True, timeout=30)
+                (args.output / 'native-backtrace.txt').write_text(trace.stdout + trace.stderr, encoding='utf-8')
+            for name in ('deployment.json', 'native.json'):
+                report = read_report(name)
+                if report:
+                    (args.output / name).write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+            with (args.output / 'failure.png').open('wb') as image:
+                adb('exec-out', 'screencap', '-p', stdout=image)
+        except (subprocess.SubprocessError, OSError) as error:
+            print('Could not collect all native diagnostics:', error)
+        raise
     finally:
         adb('shell', 'am', 'force-stop', PACKAGE)
         log = adb('logcat', '-d', capture_output=True, text=True, encoding='utf-8', errors='replace').stdout
