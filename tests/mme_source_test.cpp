@@ -89,6 +89,9 @@ int main(int argc, char** argv) try {
     bounded = options;
     bounded.macros["BAD\nMACRO"] = "1";
     Check(!PreprocessEffect(directory / "cp932.fx", bounded, source, reason), "macro validation");
+    Check(!PreprocessEffect(directory / "missing-root.fx", options, source, reason, &diagnostic) &&
+              reason == "MME_source_not_found" && diagnostic.line == 1,
+          "missing root has a stable diagnostic");
     std::cout
         << "FX source: frozen includes, guards, native macros, locations, encodings and budgets passed\n";
     return 0;

@@ -99,7 +99,13 @@ struct Bundle {
     std::string failureFile;
     unsigned failureLine = 1;
     unsigned Load(const fs::path& requested) {
-        const auto path = fs::canonical(requested);
+        std::error_code error;
+        const auto path = fs::canonical(requested, error);
+        if (error || !fs::is_regular_file(path, error)) {
+            failureFile = requested.u8string();
+            failureLine = 1;
+            throw std::runtime_error("MME_source_not_found");
+        }
         if (const auto found = ids.find(path); found != ids.end())
             return found->second;
         if (source.files.size() >= options.maxFiles)
@@ -270,7 +276,8 @@ bool PreprocessEffect(const fs::path& path, const SourceOptions& options, Effect
         const std::regex identifier("[A-Za-z_][A-Za-z_0-9]*");
         for (const auto& [name, value] : options.macros) {
             if (!std::regex_match(name, identifier) || name.rfind("MDS_FX_INCLUDE_ONCE_", 0) == 0 ||
-                value.find_first_of("\r\n") != std::string::npos)
+                value.find_first_of("\r\n") != std::string::npos ||
+                value.find('\0') != std::string::npos)
                 throw std::runtime_error("MME_source_macro");
             args.push_back("-D");
             args.push_back(name + "=" + value);

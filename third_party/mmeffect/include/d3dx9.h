@@ -251,7 +251,7 @@ struct D3DXSEMANTIC {
 // ---------------------------------------------------------------------------
 // Slots 3..56 = ID3DXBaseEffect's 54 methods; 57..78 = ID3DXEffect's additional
 // 22 methods. The order is fixed by the ABI (see the file header).
-struct ID3DXEffect : public IUnknown {
+struct ID3DXBaseEffect : public IUnknown {
     // --- ID3DXBaseEffect (slots 3..56) --------------------------------------
     virtual HRESULT __stdcall GetDesc(D3DXEFFECT_DESC* desc) = 0;                 // 3
     virtual HRESULT __stdcall GetParameterDesc(D3DXHANDLE parameter,
@@ -361,6 +361,8 @@ struct ID3DXEffect : public IUnknown {
     virtual HRESULT __stdcall SetArrayRange(D3DXHANDLE parameter, unsigned int start,
                                             unsigned int end) = 0;                // 56
 
+};
+struct ID3DXEffect : public ID3DXBaseEffect {
     // --- ID3DXEffect (slots 57..78) ------------------------------------------
     virtual HRESULT __stdcall GetPool(ID3DXEffectPool** pool) = 0;                // 57
     virtual HRESULT __stdcall SetTechnique(D3DXHANDLE technique) = 0;             // 58

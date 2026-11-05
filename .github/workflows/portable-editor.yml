@@ -148,9 +148,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           New-Item -ItemType Directory -Force out/spirv-tools | Out-Null
           Copy-Item out/spirv-build/tools/spirv-val.exe out/spirv-tools/
+      - name: Fetch independent MME metadata oracle (test only)
+        run: python tools/fetch_d3dx_oracle.py --output out/d3dx-oracle
       - name: Build editor with DX11, DX12 and Vulkan
         run: |
-          cmake -S cmake/portable-editor -B out/p4 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/dxc.exe" -DMDS_SPIRV_VAL="$PWD/out/spirv-tools/spirv-val.exe"
+          cmake -S cmake/portable-editor -B out/p4 -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=sccache -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" -DMDS_DXC="$PWD/out/dxc/dxc.exe" -DMDS_SPIRV_VAL="$PWD/out/spirv-tools/spirv-val.exe" -DMDS_D3DX_ORACLE="$PWD/out/d3dx-oracle/D3DX9_43.dll"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if ($env:MDS_OBSERVERS_ONLY -eq 'true') {
             cmake --build out/p4 --config Release --target qt_control_style_test qt_multiline_paint_test qt_multiline_active_test --parallel 3
@@ -177,7 +179,7 @@ jobs:
           MDS_GPU_BACKEND: d3d11
           MDS_GPU_DRIVER: software
         run: |
-          ctest --test-dir out/p4 -C Release -L p4 --output-on-failure --output-junit p4.xml
+          ctest --test-dir out/p4 -C Release -L 'p4|p5' --output-on-failure --output-junit p4.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           out/p4/qt_editor_font_test.exe res/assets
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -319,6 +321,8 @@ jobs:
           name: p4-windows
           path: |
             out/p4/p4.xml
+            out/p4/production/mme-cli/report.json
+            out/p4/production/mme-dependencies.json
             out/p4/native-reference.xml
             out/p4/native-reference/
             out/p4/system-ime*
@@ -401,7 +405,7 @@ jobs:
           fi
           cmake --build out/p4 --parallel 3
           cmake --build out/p4 --target qt_wayland_pointer_test --parallel 3
-          ctest --test-dir out/p4 -L p4 --output-on-failure --output-junit p4.xml
+          ctest --test-dir out/p4 -L 'p4|p5' --output-on-failure --output-junit p4.xml
       - name: Qt X11 and Wayland surfaces in isolated displays
         if: ${{ !inputs.ui_only }}
         env:
@@ -480,6 +484,8 @@ jobs:
           name: p4-linux
           path: |
             out/p4/p4.xml
+            out/p4/production/mme-cli/report.json
+            out/p4/production/mme-dependencies.json
             out/p4/native-reference.xml
             out/p4/native-reference/
             out/p4/system-ime*
@@ -570,7 +576,7 @@ jobs:
             exit $?
           fi
           cmake --build out/p4 --parallel 3
-          ctest --test-dir out/p4 -L p4 --output-on-failure --output-junit p4.xml
+          ctest --test-dir out/p4 -L 'p4|p5' --output-on-failure --output-junit p4.xml
           MDS_QT_ISOLATED_DISPLAY=1 MDS_GPU_BACKEND=metal python tests/test_runtime_cpu_scene.py --passes out/p4/qt_presentation_test --assets res/assets
           MDS_QT_ISOLATED_DISPLAY=1 out/p4/qt_metal_present_test
           MDS_QT_ISOLATED_DISPLAY=1 QT_SCALE_FACTOR=2 out/p4/qt_metal_present_test
@@ -639,6 +645,8 @@ jobs:
           name: p4-macos
           path: |
             out/p4/p4.xml
+            out/p4/production/mme-cli/report.json
+            out/p4/production/mme-dependencies.json
             out/p4/native-reference.xml
             out/p4/native-reference/
             out/p4/system-ime*

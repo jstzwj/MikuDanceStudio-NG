@@ -82,6 +82,10 @@ def audit(program, manifest, stage='P1'):
                          'BULLET275::BULLET275', 'BulletDynamics', 'BulletCollision', 'LinearMath'})
         if 'mikudancestudio_math' in graph:
             expected.add('mikudancestudio_math')
+    elif stage == 'P5':
+        root = 'mds_effect_cli'
+        expected = {root, 'mikudancestudio_mme_frontend',
+                    'mikudancestudio_tool_process', 'mikudancestudio_formats'}
     if set(graph) != expected:
         raise RuntimeError(f'{stage} target manifest changed: {set(graph) ^ expected}')
     visited = set()
@@ -99,6 +103,8 @@ def audit(program, manifest, stage='P1'):
                 raise RuntimeError(f'non-portable runtime link: {name} -> {dependency}')
             pending.append(dependency)
         sources += [source for source in graph[name]['sources'] if source]
+    if stage == 'P5' and visited != expected:
+        raise RuntimeError(f'P5 manifest contains unreachable production targets: {expected - visited}')
     scanned = set()
     vendor_platform_headers = []
     vendor_include_aliases = []
@@ -113,6 +119,11 @@ def audit(program, manifest, stage='P1'):
         source = path.read_text(encoding='utf-8', errors='surrogateescape')
         for delimiter, name in re.findall(r'^\s*#\s*include\s*([<"])([^>"\n]+)[>"]', source, re.M):
             if name.lower() in FORBIDDEN_HEADERS:
+                if (stage == 'P5' and name.lower() == 'windows.h' and
+                        path.relative_to(ROOT).as_posix() == 'src/platform/tool_process.cpp'):
+                    vendor_platform_headers.append({'source': 'src/platform/tool_process.cpp',
+                                                    'header': name, 'purpose': 'isolated child process only'})
+                    continue
                 if (stage == 'P2' and name.lower() == 'windows.h' and
                         path.relative_to(ROOT).as_posix().lower() ==
                         'recipes/bullet275/bullet-src/src/linearmath/btquickprof.h'):
@@ -124,6 +135,8 @@ def audit(program, manifest, stage='P1'):
                 raise RuntimeError(f'forbidden project dependency: {path.name} -> {name}')
             candidates = [path.parent / name, ROOT / 'include' / name,
                           ROOT / 'recipes/bullet275/bullet-src/src' / name]
+            if stage == 'P5':
+                candidates.append(ROOT / 'third_party/mmeffect/include' / name)
             if (stage == 'P2' and
                     path.relative_to(ROOT).as_posix().lower() ==
                     'recipes/bullet275/bullet-src/src/bulletcollision/broadphasecollision/btdbvt.cpp' and
@@ -159,7 +172,7 @@ def main():
     parser.add_argument('--program', required=True, type=Path)
     parser.add_argument('--manifest', required=True, type=Path)
     parser.add_argument('--output', required=True, type=Path)
-    parser.add_argument('--stage', choices=['P1', 'P2'], default='P1')
+    parser.add_argument('--stage', choices=['P1', 'P2', 'P5'], default='P1')
     args = parser.parse_args()
     result = audit(args.program.resolve(), args.manifest, args.stage)
     args.output.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')

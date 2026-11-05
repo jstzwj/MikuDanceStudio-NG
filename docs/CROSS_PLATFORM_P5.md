@@ -2,7 +2,7 @@
 
 日期：2026-11-05。代码核查基线：`main@c6125a0`。
 
-**状态：调研完成，尚未完成 P5 实施或 C2 验收。** 用户同意 P4 阶段放行，真实
+**状态：P5.1 已实施并通过 Windows 本地无设备回归，三平台验收待 CI；P5.2—P5.5／C2 尚未完成。** 用户同意 P4 阶段放行，真实
 混合 DPI 跨屏实测延后；该未测项仍记录在 [P4 验收表](P4_ACCEPTANCE_STATUS.md)，
 不再阻挡 P5 开始。
 
@@ -47,8 +47,8 @@ EffectInstance ＋共享参数池＋当前 SceneRuntime／材质／时钟上下�
 RenderFrame／ShaderProgram → Null／DX11／DX12／Vulkan／Metal
 ```
 
-这些名称是建议接口，尚未声称已实现。建议建立 `mikudancestudio_mme_frontend`
-与 `mikudancestudio_mme_runtime` 两个生产目标；Qt 和旧 Windows 宿主共同调用。
+`EffectDefinition`、`mikudancestudio_mme_frontend` 与 `mikudancestudio_mme_runtime`
+已建立，旧 Windows 引擎链接共用 CPU 实现。Qt 的实例／装配接入仍按后续批次推进。
 公共接口使用固定宽度类型、稳定 ID、不可变字节和显式上下文，不能包含
 `ID3DXEffect`、`D3DXHANDLE`、HWND、COM、`MMDApp` 或编辑器全局对象。
 
@@ -59,6 +59,10 @@ RenderFrame／ShaderProgram → Null／DX11／DX12／Vulkan／Metal
 ## 实施批次
 
 ### P5.1：独立源码前端与可对照描述
+
+本批实现、支持边界和验证入口见 [无设备源码前端](MME_FRONTEND.md)。默认值目前
+保留表达式，实际求值与实例初始化属于 P5.2。原生元数据参考改用无设备的
+`ID3DXEffectCompiler`／`ID3DXBaseEffect`；绘制对照仍在 P5.4 验收。
 
 首批拆成三个可审查提交：
 
@@ -154,8 +158,8 @@ Windows 原生元数据对照通过。这里只承诺描述／导入，不把它
 
 ## 近期建议
 
-**下一批执行 P5.1 的三个提交。** 优先打通原始文件到可对照描述的独立入口，
-复用现有三项 CPU 基线。之后依次接实例／语义和脚本调度，最后接四后端与 Qt。
+**下一批执行 P5.2：参数实例、共享池与语义。** P5.1 的生产边界、原始文件加载与
+CLI／原生对照已经形成三个提交，先取得本批 CI 结果。之后依次接实例／语义和脚本调度，最后接四后端与 Qt。
 这能避免把仍依赖 DX9 的导入器直接搬进 Qt 后，再次围绕平台条件重构。
 
 依据：[跨平台计划](../cross_platform_plan.md)、[已有可移植效果](RHI_MME_PORTABLE.md)、
