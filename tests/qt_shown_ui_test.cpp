@@ -16,6 +16,7 @@
 #include <QScreen>
 #include <QScrollBar>
 #include <QTest>
+#include <QTextLayout>
 #include <QWindow>
 #include <iostream>
 
@@ -159,6 +160,37 @@ int main(int argc, char** argv) try {
                                             {"font", QFontInfo(child->font()).family()}});
                 if (!child->isVisible())
                     continue;
+                if (auto* label = qobject_cast<QLabel*>(child)) {
+                    QTextLayout layout(label->text(), label->font());
+                    QTextOption option;
+                    option.setWrapMode(QTextOption::WordWrap);
+                    layout.setTextOption(option);
+                    qreal height = 0;
+                    int consumed = 0, lines = 0;
+                    bool complete = true;
+                    layout.beginLayout();
+                    while (true) {
+                        auto line = layout.createLine();
+                        if (!line.isValid())
+                            break;
+                        line.setLineWidth(label->contentsRect().width());
+                        complete &= line.naturalTextWidth() <= label->contentsRect().width();
+                        height += line.height();
+                        consumed += line.textLength();
+                        ++lines;
+                    }
+                    layout.endLayout();
+                    complete &= consumed == label->text().size() &&
+                                height <= label->contentsRect().height();
+                    Check(label->wordWrap() && complete,
+                          "shown static caption wraps completely inside original geometry");
+                    auto caption = controls.last().toObject();
+                    caption["text"] = label->text();
+                    caption["fontStretch"] = label->font().stretch();
+                    caption["lines"] = lines;
+                    caption["complete"] = complete;
+                    controls[controls.size() - 1] = caption;
+                }
                 if (auto* edit = qobject_cast<QLineEdit*>(child)) {
                     edit->setText("12.5");
                     if (!firstEdit && edit->isEnabled() && !edit->isReadOnly())

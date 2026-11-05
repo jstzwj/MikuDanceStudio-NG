@@ -65,7 +65,7 @@ template <class Capture, class State>
 CaretCycle CaptureCaretCycle(Capture capture, State state, const QJsonObject& expected) {
     // Observe an entire blink cycle without changing native focus, position,
     // hide count or system settings. Compare the complete sets of actual RGB
-    // frames, including both caret phases, rather than masking a caret column
+    // frames, including every observed caret phase, rather than masking a caret column
     // or searching for a conveniently matching image. Extra states fail too.
     const auto limit = quint64(GetCaretBlinkTime()) * 2 + 100;
     CaretCycle cycle;
@@ -233,7 +233,11 @@ int main(int argc, char** argv) try {
                 },
                 [&] { return QtState(*field); }, actual);
             QJsonArray matrix;
-            bool phasesMatch = nativeCycle.images.size() == 2 && qtCycle.images.size() == 2;
+            // EDIT can intentionally hide the caret after an outside release.
+            // Require identical complete frame sets, including cardinality;
+            // an extra blinking Qt frame must still fail.
+            bool phasesMatch = !nativeCycle.images.empty() && nativeCycle.images.size() <= 2 &&
+                               nativeCycle.images.size() == qtCycle.images.size();
             for (const auto& nativeImage : nativeCycle.images) {
                 QJsonArray differences;
                 bool exact = false;

@@ -11,10 +11,12 @@ class QString;
 class QImage;
 class QWidget;
 class QPlainTextEdit;
+class QLabel;
 namespace mikudancestudio::ui {
 struct TrackbarGeometry;
 }
 namespace mikudancestudio::qt {
+bool DrawWindowsStaticText(QPainter&, const QLabel&, unsigned nativeStyle);
 struct WindowsEditLayout {
     int cursor = 0;
     int cursorX = 0; // logical caret coordinate after Qt's actual horizontal scroll

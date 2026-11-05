@@ -6,6 +6,7 @@
 #include <QStyleOptionButton>
 #include <QFontInfo>
 #include <QWidget>
+#include <QLabel>
 #include <QPlainTextEdit>
 #include <QTextBlock>
 #include <QScrollBar>
@@ -72,6 +73,66 @@ private:
     HBITMAP bitmap_ = nullptr;
     HGDIOBJ previous_ = nullptr;
 };
+}
+bool DrawWindowsStaticText(QPainter& painter, const QLabel& label, unsigned style) {
+    const auto ratio = painter.device()->devicePixelRatioF();
+    WindowsCanvas canvas(qRound(label.width() * ratio), qRound(label.height() * ratio));
+    if (canvas.image.isNull())
+        return false;
+    const auto font = label.font();
+    const auto family = font.families().value(0, QFontInfo(font).family()).toStdWString();
+    const auto nativeFont = CreateFontW(
+        -qRound(QFontInfo(font).pixelSize() * ratio), 0, 0, 0, font.bold() ? FW_BOLD : FW_NORMAL,
+        font.italic(), font.underline(), font.strikeOut(), DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+        CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, family.c_str());
+    if (!nativeFont)
+        return false;
+    const auto previous = SelectObject(canvas.dc, nativeFont);
+    if (!previous || previous == HGDI_ERROR) {
+        DeleteObject(nativeFont);
+        return false;
+    }
+    RECT bounds{0, 0, canvas.image.width(), canvas.image.height()};
+    FillRect(canvas.dc, &bounds, GetSysColorBrush(COLOR_BTNFACE));
+    SetBkMode(canvas.dc, TRANSPARENT);
+    SetTextColor(canvas.dc, GetSysColor(COLOR_WINDOWTEXT));
+    const auto kind = style & SS_TYPEMASK;
+    unsigned flags = DT_EXPANDTABS | (kind == SS_CENTER  ? DT_CENTER
+                                      : kind == SS_RIGHT ? DT_RIGHT
+                                                         : DT_LEFT);
+    if (kind == SS_LEFT || kind == SS_CENTER || kind == SS_RIGHT)
+        flags |= DT_WORDBREAK;
+    if (style & SS_NOPREFIX)
+        flags |= DT_NOPREFIX;
+    const auto text = label.text().toStdWString();
+    if (label.isEnabled()) {
+        DrawTextW(canvas.dc, text.c_str(), int(text.size()), &bounds, flags);
+    } else {
+        // STATIC uses the classic embossed disabled-text mask, including on
+        // themed dialogs. DrawState preserves its monochrome glyph coverage,
+        // highlight offset and system shadow color for wrapped text as well.
+        struct Caption {
+            const std::wstring& text;
+            unsigned flags;
+        } caption{text, flags};
+        DrawStateW(
+            canvas.dc, nullptr,
+            [](HDC dc, LPARAM data, WPARAM, int width, int height) -> BOOL {
+                const auto& caption = *reinterpret_cast<const Caption*>(data);
+                RECT bounds{0, 0, width, height};
+                DrawTextW(dc, caption.text.c_str(), int(caption.text.size()), &bounds,
+                          caption.flags);
+                return TRUE;
+            },
+            reinterpret_cast<LPARAM>(&caption), 0, 0, 0, bounds.right, bounds.bottom,
+            DST_COMPLEX | DSS_DISABLED);
+    }
+    GdiFlush();
+    canvas.image.setDevicePixelRatio(ratio);
+    painter.drawImage(QPoint(), canvas.image);
+    SelectObject(canvas.dc, previous);
+    DeleteObject(nativeFont);
+    return true;
 }
 void DrawWindowsMultilineBackground(QPainter& painter, const QRect& rect,
                                     const QPlainTextEdit& edit) {

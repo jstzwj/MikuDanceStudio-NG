@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "run": "41972392409",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41972392409",
+  "revision": "3d4df1d33d6c3f97a27c62e833c6a41a913e9e5f",
+  "conclusion": "failure",
+  "p4_c1_accepted": false,
+  "scope": "Windows-only observer/numeric lifetime/focused multiline/complete caret-cycle batch; no repeated IME, audio, rendering or other-platform qualification",
+  "ordinary_gates": {
+    "tests": 5,
+    "failures": 0,
+    "report": {
+      "path": "out/evidence/p4/p4-shown-41972392409/p4-windows/p4/p4.xml",
+      "sha256": "9ad12be04dd203432ba7b6e0b15fbb21d4b534db1c853eb3537945b252c43fc8"
+    }
+  },
+  "hidden_drag_unicode_layout_numeric": {
+    "tests": 7,
+    "failures": 0,
+    "report": {
+      "path": "out/evidence/p4/p4-shown-41972392409/p4-windows/p4/multiline-drag.xml",
+      "sha256": "e4e83514f0ddafe69a93907ae0fe606e76600e0a55be7763d093cea65f991a2e"
+    }
+  },
+  "multiline-active": {
+    "report": {
+      "path": "out/evidence/p4/p4-shown-41972392409/p4-windows/p4/multiline-active/report.json",
+      "sha256": "f35f5fbad5ed5eebb0cc1758f86a36f050f33f98156a488075a71e52954634ad"
+    },
+    "png_count": 144,
+    "image_manifest_sha256": "c48278c80161b4f38d11944e2a0ca7e6b9f6f0bf8bcd0615001193cbd521cf2e",
+    "actualOsMouseCapture": true,
+    "caretFailures": 0,
+    "mouseFailures": 0,
+    "paintFailures": 0,
+    "windowsShown": true,
+    "paint": 72,
+    "mouse": 90
+  },
+  "multiline-extended": {
+    "report": {
+      "path": "out/evidence/p4/p4-shown-41972392409/p4-windows/p4/multiline-extended/report.json",
+      "sha256": "1bbce0c658d24d64d3a5c76b50d7854868385f8437d7069dc55b3a79e8a8c191"
+    },
+    "png_count": 114,
+    "image_manifest_sha256": "c481969b63269f7c669ff1a56e733eaa501493b570bd4d9942cfdaf41c8d1fa3",
+    "actualOsMouseCapture": true,
+    "captureCaretPhase": "full native/Qt blink cycles; both complete RGB frame sets must match exactly",
+    "dragFailures": 18,
+    "nativeCaretBlinkMs": 530,
+    "traditionalRasterFailures": 0,
+    "unicodeFailures": 0,
+    "unicodePolicy": "native-supported traditional CJK remains raster exact; preserve complete readable complex/lossy Unicode and editing, retaining raster diagnostics",
+    "unicodeRasterDifferences": 22,
+    "windowsShown": true,
+    "drags": 18,
+    "unicode": 30,
+    "matching_drag_states": 18,
+    "native_phase_counts": [
+      1
+    ],
+    "qt_phase_counts": [
+      2
+    ],
+    "traditional_raster_cases": 8
+  },
+  "multiline-unicode": {
+    "report": {
+      "path": "out/evidence/p4/p4-shown-41972392409/p4-windows/p4/multiline-unicode/report.json",
+      "sha256": "fd8aab5e77b7af62f558edc40fdb116c3af17669e4bfeb18248d7567ba45097e"
+    },
+    "png_count": 532,
+    "image_manifest_sha256": "2499b72c806201a1c5c68e5bb7aada944c060c35f709cbb451d2eab1443d49c8",
+    "activationProtection": "thread-local WH_CBT veto; foreground/focus assertions",
+    "cases": 360,
+    "failures": 0,
+    "outerDialogAdaptation": "WS_EX_NOACTIVATE before creation",
+    "rasterDifferences": 264,
+    "strictRasterCases": 96,
+    "textFailures": 0,
+    "unicodePolicy": "preserve complex/lossy Unicode; native-supported traditional text remains exact",
+    "windowsShown": false
+  },
+  "diagnosis": "All 18 completed native outside releases stay in one captured caret-hidden frame for a full blink cycle; Qt incorrectly blinks between that exact frame and an extra 12/14-pixel caret column. This is an observed behavioral mismatch, not just arbitrary sampling phase. Preserve failed result; qualify production fix separately.",
+  "limitations": [
+    "Local 43/43 regression and distribution at this revision are recorded separately",
+    "Actual mixed-DPI transition remains unexecuted; no P4/C1 acceptance"
+  ]
+}

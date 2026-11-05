@@ -42,6 +42,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/editor_menus.cpp"
         "${root}/src/frontend_qt/editor_panels.cpp"
         "${root}/src/frontend_qt/numeric_dialog.cpp"
+        "${root}/src/frontend_qt/dialog_static_label.cpp"
         "${root}/src/frontend_qt/english_name_dialog.cpp"
         "${root}/src/frontend_qt/toon_dialog.cpp"
         "${root}/src/frontend_qt/model_physics_dialog.cpp"
@@ -238,6 +239,17 @@ function(mds_add_qt_editor)
         endif()
         add_test(NAME qt_editor_font COMMAND qt_editor_font_test "${root}/res/assets")
         set_tests_properties(qt_editor_font PROPERTIES LABELS "p4;offscreen;qt;font" TIMEOUT 30 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+        qt_add_executable(qt_static_label_test "${root}/tests/qt_static_label_test.cpp")
+        target_link_libraries(qt_static_label_test PRIVATE mikudancestudio_frontend_qt)
+        add_test(NAME qt_static_label COMMAND qt_static_label_test "${CMAKE_BINARY_DIR}/static-label-portable")
+        set_tests_properties(qt_static_label PROPERTIES LABELS "p4;offscreen;qt;appearance;font" TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+        if(WIN32)
+            target_sources(qt_static_label_test PRIVATE "${root}/res/frontend_qt/windows.manifest"
+                "${root}/res/templates/dialog/dialogs.rc")
+            target_link_libraries(qt_static_label_test PRIVATE gdi32 user32)
+            add_test(NAME qt_static_label_native COMMAND qt_static_label_test "${CMAKE_BINARY_DIR}/static-label-native" --native)
+            set_tests_properties(qt_static_label_native PROPERTIES LABELS "p4;hidden;qt;appearance;oracle" TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=windows")
+        endif()
         qt_add_executable(qt_c1_workflow_test "${root}/tests/qt_c1_workflow_test.cpp")
         target_link_libraries(qt_c1_workflow_test PRIVATE mikudancestudio_frontend_qt)
         add_test(NAME qt_c1_workflow COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"

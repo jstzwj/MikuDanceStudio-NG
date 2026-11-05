@@ -1,6 +1,7 @@
 #include "numeric_dialog.hpp"
 #include "editor_style.hpp"
 #include "editor_font.hpp"
+#include "dialog_static_label.hpp"
 #ifdef _WIN32
 #include "editor_style_windows.hpp"
 #endif
@@ -115,7 +116,8 @@ protected:
 #ifdef _WIN32
         if (QGuiApplication::platformName() == "windows") {
             QPainter painter(viewport());
-            const WindowsMultilineLayout layout{hasFocus(), caretVisible_};
+            const WindowsMultilineLayout layout{hasFocus(),
+                                                caretVisible_ && !outsideDragCaretHidden_};
             DrawWindowsMultilineText(painter, *this, &layout);
         }
 #endif
@@ -126,6 +128,14 @@ protected:
     void mouseMoveEvent(QMouseEvent* event) override { MouseEvent(event, QEvent::MouseMove); }
     void mouseReleaseEvent(QMouseEvent* event) override {
         MouseEvent(event, QEvent::MouseButtonRelease);
+#ifdef _WIN32
+        // The original EDIT keeps its caret hidden after releasing a
+        // captured drag outside the client. A subsequent key, focus or
+        // mouse press restores it. Do not blink over the selected run.
+        if (event->button() == Qt::LeftButton)
+            outsideDragCaretHidden_ = !viewport()->rect().contains(event->position().toPoint());
+        viewport()->update();
+#endif
     }
     void mouseDoubleClickEvent(QMouseEvent* event) override {
         MouseEvent(event, QEvent::MouseButtonDblClick);
@@ -255,8 +265,9 @@ protected:
                 mouseAnchor_ = -1;
             }
         }
-        if (type == QEvent::MouseButtonRelease)
+        if (type == QEvent::MouseButtonRelease) {
             mouseAnchor_ = -1;
+        }
         event->setAccepted(adjusted.isAccepted());
     }
     bool event(QEvent* event) override {
@@ -319,8 +330,10 @@ private:
 #ifdef _WIN32
     QTimer caretTimer_;
     bool caretVisible_ = false;
+    bool outsideDragCaretHidden_ = false;
     void ResetCaret() {
         caretTimer_.stop();
+        outsideDragCaretHidden_ = false;
         caretVisible_ = hasFocus();
         if (caretVisible_ && QApplication::cursorFlashTime() > 0)
             caretTimer_.start(std::max(1, QApplication::cursorFlashTime() / 2));
@@ -659,9 +672,7 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
             field->installEventFilter(this);
             widget = field;
         } else if (control.kind == ui::NumericControlKind::Static) {
-            auto* label = new QLabel(language.Text(control.message), this);
-            label->setAlignment(Qt::AlignLeft | Qt::AlignTop);
-            widget = label;
+            widget = new DialogStaticLabel(language.Text(control.message), control.style, this);
         } else if (control.kind == ui::NumericControlKind::Groupbox) {
             widget = new QGroupBox(language.Text(control.message), this);
         } else if (control.kind == ui::NumericControlKind::Slider) {
