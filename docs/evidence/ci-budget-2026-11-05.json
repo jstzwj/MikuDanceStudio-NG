@@ -1,0 +1,426 @@
+{
+  "schema": 1,
+  "date": "2026-11-05",
+  "revision": "4d1f343630a455a503f26937de5833a8c5a55d4a",
+  "p4_c1_accepted": false,
+  "remaining_acceptance_gate": "Actual physical mixed-DPI monitor transitions; no isolated two-monitor environment available.",
+  "local": {
+    "old_vulkan_generic_shader_failure_reproduced": true,
+    "ctest": {
+      "tests": 5,
+      "failures": 0,
+      "skipped": 0,
+      "names": [
+        "rhi_shader_contract",
+        "rhi_frame_budget",
+        "rhi_generic_shader_dx11",
+        "rhi_generic_shader_dx12",
+        "rhi_generic_shader_vulkan"
+      ]
+    },
+    "additional_direct_runs_passed": [
+      "rhi_frame_budget_test vulkan (hardware)",
+      "rhi_frame_budget_test d3d12 (software/WARP)",
+      "rhi_generic_shader_test dx12-software"
+    ],
+    "actionlint": "passed for all workflows; optional shellcheck and pyflakes disabled",
+    "clang_format": "21.1.8; changed first-party sources passed",
+    "desktop_interaction": false
+  },
+  "ci_runs": {
+    "rendering": 41996325208,
+    "editor": 41996325186,
+    "formats": 41996325090,
+    "bullet": 41996325360
+  },
+  "artifacts": [
+    {
+      "path": "out/build/ci-budget-regression.xml",
+      "sha256": "ab932326bf9d4337a705ecfc497ba7ffa4f684a2c555c545c911c21e4122eb17"
+    },
+    {
+      "path": "out/evidence/ci-audit/render-41993955253.log",
+      "sha256": "515564df6eaaf09dee15927aa12d62a87c6e84e2e568f423c3317621ba8eb608"
+    },
+    {
+      "path": "out/evidence/ci-audit/editor-41972392409.log",
+      "sha256": "3d5def67752e86950110ff00c22598bad95a58ef415f0769e4bace661941f9fd"
+    },
+    {
+      "path": "out/evidence/ci-audit/4d1f343/p3-linux/p3.xml",
+      "sha256": "ce15c94637e06e330d0b34ac704ce127dd8962845f8d6081acf6f2d8769067fa"
+    },
+    {
+      "path": "out/evidence/ci-audit/4d1f343/p3-macos/p3.xml",
+      "sha256": "79a917f998334a0c6c090d6074bf988104cb0451d284388e3f0db39785635a96"
+    },
+    {
+      "path": "out/evidence/ci-audit/4d1f343/native-metal/metal.xml",
+      "sha256": "4955e6aa3500d1277de33799ddf9ee7cc7afd2bbddb0287f4bd57a825c46d44e"
+    },
+    {
+      "path": "out/evidence/ci-audit/4d1f343/render-run.json",
+      "sha256": "95def066c761c7e526068adfb9486abf36360f1fa89e38c3b2fc46cdad781ee0"
+    },
+    {
+      "path": "out/evidence/ci-audit/4d1f343/editor-run.json",
+      "sha256": "983f1ca2c2f74dffebc7b995756644c15727180bcf9282abdfb50094214bb022"
+    },
+    {
+      "path": "out/evidence/ci-audit/4d1f343/formats-run.json",
+      "sha256": "7d1ad59086d0e91a5c4f52c3624be2ca3eadee11568b5e254c9a00f5f6b3fec3"
+    },
+    {
+      "path": "out/evidence/ci-audit/4d1f343/bullet-run.json",
+      "sha256": "085ba4161f1e5f74ed59707eb37f8c3c04f07198e27bcf02c23fe8e2bda7098f"
+    },
+    {
+      "path": "out/evidence/ci-audit/4d1f343/p4-windows/p4/p4.xml",
+      "sha256": "667572b762f601b7897593c680a6d0f8a399c6630fa1e2fcd2461ce134c7c285"
+    },
+    {
+      "path": "out/evidence/ci-audit/4d1f343/p4-windows/distribution-check.json",
+      "sha256": "eba35b01c2180024e1373ad2111766017d24d04ec9989d44760a0b9ad614cd68"
+    },
+    {
+      "path": "out/evidence/ci-audit/4d1f343/p4-linux/p4/p4.xml",
+      "sha256": "e6fa1ce4d0ef56194d017d9bb3600f6654d445f7ea3ef05b3cad1ed52cf835b2"
+    },
+    {
+      "path": "out/evidence/ci-audit/4d1f343/p4-linux/distribution-check.json",
+      "sha256": "7664f9e41d5867f2806faf948c6f31c55f1c11c225dcf77b7f566c0449e0bcdb"
+    },
+    {
+      "path": "out/evidence/ci-audit/4d1f343/p4-macos/p4/p4.xml",
+      "sha256": "3e3b27b6a15b4e31ff2eb296a6f44b6a5667b572290623fe95aca49d5e321c3c"
+    },
+    {
+      "path": "out/evidence/ci-audit/4d1f343/p4-macos/distribution-check.json",
+      "sha256": "36205a4d559015985295a32a1ed83e78cbb676bfcf177a766e94d4f79c9aad09"
+    }
+  ],
+  "remote_rendering": {
+    "run": 41996325208,
+    "conclusion": "success",
+    "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41996325208",
+    "jobs": [
+      {
+        "name": "mac-compiler",
+        "conclusion": "success"
+      },
+      {
+        "name": "linux",
+        "conclusion": "success"
+      },
+      {
+        "name": "metal",
+        "conclusion": "success"
+      },
+      {
+        "name": "macos",
+        "conclusion": "success"
+      }
+    ],
+    "suites": [
+      {
+        "name": "linux-software-vulkan",
+        "tests": 12,
+        "failures": 0,
+        "skipped": 0,
+        "test_names": [
+          "p3_generic_shader",
+          "p3_post_process",
+          "p3_mrt_hdr",
+          "p3_render_mips",
+          "p3_multipass_gpu",
+          "p3_frame_budget",
+          "p3_resources",
+          "p3_shader_compiler",
+          "p3_cpu_scene_render",
+          "p3_scene_frame_contract",
+          "rhi_surface",
+          "rhi_model_inputs"
+        ]
+      },
+      {
+        "name": "macos-moltenvk",
+        "tests": 15,
+        "failures": 0,
+        "skipped": 0,
+        "test_names": [
+          "p3_generic_shader",
+          "p3_post_process",
+          "p3_mrt_hdr",
+          "p3_render_mips",
+          "p3_multipass_gpu",
+          "p3_frame_budget",
+          "p3_resources",
+          "p3_shader_compiler",
+          "p3_cpu_scene_render",
+          "p3_scene_frame_contract",
+          "p3_performance",
+          "p3_presentation",
+          "p3_scene_presentation",
+          "rhi_surface",
+          "rhi_model_inputs"
+        ]
+      },
+      {
+        "name": "macos-native-metal",
+        "tests": 10,
+        "failures": 0,
+        "skipped": 0,
+        "test_names": [
+          "metal_resources",
+          "metal_generic_shader",
+          "metal_frame_budget",
+          "metal_post_process",
+          "metal_mrt_hdr",
+          "metal_render_mips",
+          "metal_multipass_gpu",
+          "metal_dynamic_buffer",
+          "metal_cpu_scenes",
+          "rhi_msaa_metal"
+        ]
+      }
+    ]
+  },
+  "remote_workflows": {
+    "rendering": {
+      "run": 41996325208,
+      "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41996325208",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "mac-compiler",
+          "conclusion": "success"
+        },
+        {
+          "name": "linux",
+          "conclusion": "success"
+        },
+        {
+          "name": "metal",
+          "conclusion": "success"
+        },
+        {
+          "name": "macos",
+          "conclusion": "success"
+        }
+      ]
+    },
+    "editor": {
+      "run": 41996325186,
+      "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41996325186",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "format",
+          "conclusion": "success"
+        },
+        {
+          "name": "windows",
+          "conclusion": "success"
+        },
+        {
+          "name": "macos",
+          "conclusion": "success"
+        },
+        {
+          "name": "linux",
+          "conclusion": "success"
+        },
+        {
+          "name": "release",
+          "conclusion": "skipped"
+        }
+      ]
+    },
+    "formats": {
+      "run": 41996325090,
+      "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41996325090",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "foundation (ubuntu-22.04, x64, Unix Makefiles)",
+          "conclusion": "success"
+        },
+        {
+          "name": "foundation (windows-2022, x64, Visual Studio 17 2022)",
+          "conclusion": "success"
+        },
+        {
+          "name": "foundation (windows-2022, Win32, Visual Studio 17 2022)",
+          "conclusion": "success"
+        },
+        {
+          "name": "foundation (macos-15, arm64, Unix Makefiles)",
+          "conclusion": "success"
+        }
+      ]
+    },
+    "bullet": {
+      "run": 41996325360,
+      "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41996325360",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "build (x64, Debug, 4.0.3)",
+          "conclusion": "success"
+        },
+        {
+          "name": "build (x86, Release, 4.0.3)",
+          "conclusion": "success"
+        },
+        {
+          "name": "build (x64, Release, 4.0.3)",
+          "conclusion": "success"
+        },
+        {
+          "name": "build (x64, Release, 3.21.4)",
+          "conclusion": "success"
+        },
+        {
+          "name": "build (x86, Release, 3.21.4)",
+          "conclusion": "success"
+        },
+        {
+          "name": "build (x86, Debug, 3.21.4)",
+          "conclusion": "success"
+        },
+        {
+          "name": "build (x86, Debug, 4.0.3)",
+          "conclusion": "success"
+        },
+        {
+          "name": "build (x64, Debug, 3.21.4)",
+          "conclusion": "success"
+        }
+      ]
+    }
+  },
+  "remote_editor": {
+    "suites": [
+      {
+        "platform": "windows",
+        "tests": 93,
+        "failures": 0,
+        "skipped": 0
+      },
+      {
+        "platform": "linux",
+        "tests": 81,
+        "failures": 0,
+        "skipped": 0
+      },
+      {
+        "platform": "macos",
+        "tests": 76,
+        "failures": 0,
+        "skipped": 0
+      }
+    ],
+    "distribution": [
+      {
+        "platform": "windows",
+        "qt": "6.8.3",
+        "languages": [
+          "en",
+          "ja",
+          "zh_CN",
+          "zh_TW",
+          "ko",
+          "fr",
+          "de",
+          "es",
+          "it",
+          "pt_BR",
+          "ru",
+          "nl",
+          "pl",
+          "tr",
+          "vi"
+        ],
+        "profiles": [
+          {
+            "platform": "offscreen",
+            "styleBase": "fusion",
+            "visible": false
+          },
+          {
+            "platform": "windows",
+            "styleBase": "windowsvista",
+            "visible": false
+          }
+        ]
+      },
+      {
+        "platform": "linux",
+        "qt": "6.8.3",
+        "languages": [
+          "en",
+          "ja",
+          "zh_CN",
+          "zh_TW",
+          "ko",
+          "fr",
+          "de",
+          "es",
+          "it",
+          "pt_BR",
+          "ru",
+          "nl",
+          "pl",
+          "tr",
+          "vi"
+        ],
+        "profiles": [
+          {
+            "platform": "offscreen",
+            "styleBase": "fusion",
+            "visible": false
+          }
+        ]
+      },
+      {
+        "platform": "macos",
+        "qt": "6.8.3",
+        "languages": [
+          "en",
+          "ja",
+          "zh_CN",
+          "zh_TW",
+          "ko",
+          "fr",
+          "de",
+          "es",
+          "it",
+          "pt_BR",
+          "ru",
+          "nl",
+          "pl",
+          "tr",
+          "vi"
+        ],
+        "profiles": [
+          {
+            "platform": "offscreen",
+            "styleBase": "fusion",
+            "visible": false
+          },
+          {
+            "platform": "offscreen",
+            "styleBase": "fusion",
+            "visible": false
+          },
+          {
+            "platform": "offscreen",
+            "styleBase": "fusion",
+            "visible": false
+          }
+        ]
+      }
+    ],
+    "scope": "Regular P4/offscreen regressions and scheduled presentation/audio/package checks; not new native IME or physical mixed-DPI qualification."
+  }
+}

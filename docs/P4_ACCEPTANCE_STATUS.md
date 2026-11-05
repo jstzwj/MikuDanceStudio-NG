@@ -20,7 +20,7 @@
 | 原版静态标签与开放字体 | 536 个 Windows 原版启用／禁用状态逐像素匹配；三平台各 804 个三语言离屏状态完整；动态改字、字体继承、变宽及移回父窗口范围的恢复通过 | 用户允许非 Windows 开放字体字形差异，几何／换行／完整文字／操作仍严格，Windows 原版对照不放宽 |
 | DPI | 缩放档位、坐标换算、表面重建及 Metal 2× 自动化通过；[真实跨屏程序](P4_PHYSICAL_DPI.md)已编译并验证本地保护 | **真实不同 DPI 显示器间移动窗口尚未执行**；本地仅单个 96-DPI RDP 屏，缺独立双屏会话 |
 | 完整场景输出 | WARP／Metal／软件 Vulkan 均通过[用户接受的整帧视觉标准](P4_VISUAL_COMPOSITE.md)；数值诊断和复制／重复／深度／资源严格门禁保留 | 无新增已知整帧视觉阻断；视觉政策不豁免 UI／输入验收 |
-| 构建和发布 | `f1b9c64` 本地 ALL_BUILD、45／45 Qt 回归及 `out/dist` 搬迁通过；536 个原生标签状态精确、804 个三语言离屏状态完整，另通过原版断行／父窗口裁切门禁，见[本地记录](evidence/p4-parent-clip-local.json) | 显示态增量复验单独记录；正式发行资格仍按 P7 |
+| 构建和发布 | `4d1f343` 的 [41996325186](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41996325186) 通过 Windows 93／93、Linux 81／81、macOS 76／76 项常规 P4 测试及三平台发布包搬迁、15 种语言检查，均无跳过；536 个原生标签状态、804 个三语言离屏状态及断行／父窗口裁切资格仍保留，见[本地记录](evidence/p4-parent-clip-local.json) | 常规回归不替代显示态／原生 IME／真实跨屏专项；正式发行资格仍按 P7 |
 
 41975627370 的三个 CI 任务全部成功，但独立截图复看未通过英文附件标签的父窗口裁切。
 Windows 光标行为已取得严格资格；非 Windows 补充修复须单独复验。CI 绿灯不等于
@@ -40,5 +40,5 @@ Windows 光标行为已取得严格资格；非 Windows 补充修复须单独复
 
 2026-11-05 CI 核查：仓库 runner 清单仍为空，用户确认暂时没有独立双屏环境。
 近期 Portable rendering 红灯已定位为帧常量空间扩容后未更新的溢出测试；
-最新两轮三平台 Portable editor 均通过。修复、具体运行及验证范围见
+本轮三平台 Portable editor、Portable rendering、Portable formats 和 Bullet 四个工作流均通过。修复、具体运行及验证范围见
 [CI 失败核查](CI_STATUS.md)。这次增量不关闭真实跨屏门禁。

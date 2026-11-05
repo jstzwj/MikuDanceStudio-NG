@@ -32,8 +32,27 @@
 DX12 WARP 的 1,024 次绘制测试，以及 DX12 WARP 通用着色器测试。
 `actionlint`、clang-format 和差异空白检查通过。
 
-远端 Linux／macOS／Metal 的本轮结果将在单次代码提交的自动任务结束后记录。
+远端 [41996325208](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41996325208)
+在 `4d1f343` 上全部通过：Linux 软件 Vulkan 12/12、macOS MoltenVK 15/15、
+原生 Metal 10/10，均无跳过。Linux X11／Wayland 呈现、场景及性能专项也通过。
+Metal 任务启用了 API 验证；其设备为 Apple Paravirtual device，不扩大为实体 GPU 验收。
+原本持续失败的三个任务已在同一轮修复验证中恢复。
 本轮没有修改运行时绘制算法、放宽图像阈值或跳过失败测试。
+
+同一提交的其余三个工作流也全部通过：
+
+- [Portable editor 41996325186](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41996325186)：
+  Windows 93/93、Linux 81/81、macOS 76/76 项常规 P4 测试，均无跳过；
+  三平台呈现、音频时钟、发布包重定位及 15 种语言检查通过。
+- [Portable formats 41996325090](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41996325090)：
+  Linux、macOS、Windows x64／Win32 四组基础运行时构建及重复测试通过。
+- [Bullet build regressions 41996325360](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41996325360)：
+  x86／x64、Debug／Release 与两版 CMake 的八组构建回归通过。
+
+这是一次代码推送触发的验证，没有额外手动 dispatch 或重跑。编辑器的这些常规门禁
+不替代先前记录的实际原生 IME、显示态专项，也不包含尚未执行的真实跨屏测试。
+
+本地报告、远端运行和下载报告的哈希见[版本化记录](evidence/ci-budget-2026-11-05.json)。
 
 ## P4 仍需什么
 

@@ -10,6 +10,8 @@
 |---|---|
 | [跨平台计划](../cross_platform_plan.md) | NG 独立维护路线、P0–P3 验收和后续阶段 |
 | [P3 验收](CROSS_PLATFORM_P3.md) | 三平台渲染／呈现、恢复、性能预算及硬件测量边界 |
+| [P4 验收](P4_ACCEPTANCE_STATUS.md) | 基础编辑器已通过的范围和真实混合 DPI 剩余门禁 |
+| [CI 失败核查](CI_STATUS.md) | 近期 Actions 红灯原因、历史修复与当前验证结果 |
 | [架构](ARCHITECTURE.md) | 子系统、模块边界与有意保留的兼容偏差 |
 | [源码结构检查](SOURCE_STRUCTURE.md) | Qt 窗口职责拆分、超过 2,000 行的自有源码及后续边界 |
 | [Qt 主界面对齐](QT_UI_ALIGNMENT.md) | 截图差异修正、场景状态区别和隐藏窗口验证范围 |
