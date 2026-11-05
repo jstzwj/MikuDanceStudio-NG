@@ -415,7 +415,7 @@ jobs:
           MDS_GPU_DRIVER: software
         run: |
           cmake --build out/p4 --target qt_shown_ui_test --parallel 3
-          xvfb-run -a env QT_QPA_PLATFORM=xcb out/p4/qt_shown_ui_test res/assets out/p4/shown-ui
+          xvfb-run -a env QT_QPA_PLATFORM=xcb python tests/test_shown_ui.py --test out/p4/qt_shown_ui_test --assets res/assets --output out/p4/shown-ui
       - name: Qualify original composite capture and retain numerical diagnostics
         if: ${{ !cancelled() && inputs.native_reference }}
         env:
@@ -588,7 +588,7 @@ jobs:
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: |
           cmake --build out/p4 --target qt_shown_ui_test --parallel 3
-          out/p4/qt_shown_ui_test res/assets out/p4/shown-ui
+          python tests/test_shown_ui.py --test out/p4/qt_shown_ui_test --assets res/assets --output out/p4/shown-ui
       - name: Native CoreAudio silent clock
         if: ${{ !cancelled() && !inputs.ui_only }}
         run: python tests/test_native_audio.py --test out/p4/qt_native_audio_test --report out/p4/native-audio.json --allow-unavailable

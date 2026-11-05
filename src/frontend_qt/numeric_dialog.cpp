@@ -89,11 +89,15 @@ protected:
         MouseEvent(event, QEvent::MouseButtonDblClick);
     }
     void MouseEvent(QMouseEvent* event, QEvent::Type type) {
-        const auto cursor = MultilineCursorForPosition(*this, event->position());
+        auto cursor = MultilineCursorForPosition(*this, event->position());
         const auto previous = textCursor();
         const auto rectangle = cursorRect(cursor);
-        // Let Qt retain selection anchors, shift/word selection, dragging,
-        // input-method commits and autoscroll. Change only its hit point.
+        const auto bounds = viewport()->rect();
+        const bool outside = !bounds.contains(event->position().toPoint());
+        const int horizontal = horizontalScrollBar()->value();
+        const int vertical = verticalScrollBar()->value();
+        // Qt owns IME delivery, capture and the autoscroll timer. Legacy ASCII
+        // selection retains its native hit point and directional anchor.
         auto position = event->position();
         if (viewport()->rect().contains(position.toPoint()) &&
             cursor.position() != cursorForPosition(position.toPoint()).position())
@@ -112,8 +116,23 @@ protected:
         bool ascii = !property("_mmdImePreedit").toBool();
         for (const auto character : cursor.block().text())
             ascii &= character.unicode() < 128;
-        if (ascii && viewport()->rect().contains(event->position().toPoint()) &&
+        if (ascii &&
             !(event->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
+            const bool dragging =
+                mouseAnchor_ >= 0 &&
+                ((type == QEvent::MouseMove && event->buttons() & Qt::LeftButton) ||
+                 type == QEvent::MouseButtonRelease);
+            if (outside && dragging) {
+                // QTextControl extends a pointer beyond the document to its
+                // absolute start/end, which also resets the other scroll axis.
+                // EDIT hits the visible edge at the current horizontal column.
+                // Keep Qt's timer-driven scroll step; replace only that hit.
+                horizontalScrollBar()->setValue(horizontal);
+                verticalScrollBar()->setValue(vertical);
+                auto point = event->position();
+                point.setY(std::clamp(point.y(), qreal(bounds.top()), qreal(bounds.bottom())));
+                cursor = MultilineCursorForPosition(*this, point);
+            }
             if (type == QEvent::MouseButtonPress && event->button() == Qt::LeftButton) {
                 mouseAnchor_ =
                     event->modifiers() & Qt::ShiftModifier ? previous.anchor() : cursor.position();
@@ -121,12 +140,15 @@ protected:
                 selected.setPosition(mouseAnchor_);
                 selected.setPosition(cursor.position(), QTextCursor::KeepAnchor);
                 setTextCursor(selected);
-            } else if (type == QEvent::MouseMove && event->buttons() & Qt::LeftButton &&
-                       mouseAnchor_ >= 0) {
+            } else if (dragging) {
                 auto selected = cursor;
                 selected.setPosition(mouseAnchor_);
                 selected.setPosition(cursor.position(), QTextCursor::KeepAnchor);
                 setTextCursor(selected);
+                if (outside) {
+                    horizontalScrollBar()->setValue(horizontal);
+                    verticalScrollBar()->setValue(vertical);
+                }
             } else if (type == QEvent::MouseButtonDblClick && event->button() == Qt::LeftButton) {
                 const auto block = cursor.block();
                 const auto end =

@@ -1,4 +1,5 @@
 #include "numeric_dialog.hpp"
+#include "multiline_text_cases.hpp"
 #include <QApplication>
 #include <QImage>
 #include <QFile>
@@ -8,6 +9,7 @@
 #include <QJsonObject>
 #include <QScrollBar>
 #include <iostream>
+#include <vector>
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
@@ -66,7 +68,8 @@ int main(int argc, char** argv) try {
     const auto focusAtEntry = GetFocus();
     QApplication app(argc, argv);
     HiddenDialogInputGuard hiddenInput;
-    if (argc != 2 || QGuiApplication::platformName() != "windows")
+    const bool unicode = argc == 3 && QString::fromLocal8Bit(argv[2]) == "--unicode";
+    if ((argc != 2 && !unicode) || QGuiApplication::platformName() != "windows")
         return 2;
     const QString output = QString::fromLocal8Bit(argv[1]);
     QDir().mkpath(output);
@@ -83,10 +86,14 @@ int main(int argc, char** argv) try {
         const auto control = GetDlgItem(native, 668);
         if (!native || !control || IsWindowVisible(native))
             return 1;
-        const QString texts[]{
+        std::vector<QString> texts{
             "abc def",          "1.5\n-12.5\n999",
             "  first\n\n last", "\t1\t2\tend",
             QString(90, 'x'),   "row0\nrow1\nrow2\nrow3\nrow4\nrow5\nrow6\nrow7\nrow8\nrow9"};
+        if (unicode) {
+            const auto samples = MultilineUnicodeCases();
+            texts.assign(samples.begin(), samples.end());
+        }
         for (unsigned variant = 0; variant < std::size(texts); ++variant)
             for (unsigned state = 0; state < 4; ++state)
                 for (unsigned scroll = 0; scroll < 3; ++scroll)
@@ -105,6 +112,9 @@ int main(int argc, char** argv) try {
                         const auto text =
                             QString(texts[variant]).replace("\n", "\r\n").toStdWString();
                         SetWindowTextW(control, text.c_str());
+                        std::wstring nativeText(size_t(GetWindowTextLengthW(control)) + 1, 0);
+                        nativeText.resize(
+                            GetWindowTextW(control, nativeText.data(), int(nativeText.size())));
                         SendMessageW(control, EM_SETSEL, 0, selected ? -1 : 0);
                         QImage actual(field->size(), QImage::Format_RGB32);
                         field->render(&actual); // Establish actual document scroll ranges.
@@ -138,7 +148,11 @@ int main(int argc, char** argv) try {
                             actual.save(output + '/' + stem + "-qt.png");
                         }
                         failures += difference != 0;
-                        records.append(QJsonObject{{"case", stem}, {"different", int(difference)}});
+                        records.append(
+                            QJsonObject{{"case", stem},
+                                        {"different", int(difference)},
+                                        {"nativeText", QString::fromStdWString(nativeText)},
+                                        {"nativeTextPreserved", nativeText == text}});
                         ++cases;
                         const auto foreground = GetForegroundWindow();
                         DWORD process = 0;
@@ -166,7 +180,7 @@ int main(int argc, char** argv) try {
             .toJson());
     std::cout << cases << " original multiline client paint states; " << failures
               << " mismatches; never shown\n";
-    return cases != 432 || failures ? 1 : 0;
+    return cases != (unicode ? 360 : 432) || failures ? 1 : 0;
 } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';
     return 1;

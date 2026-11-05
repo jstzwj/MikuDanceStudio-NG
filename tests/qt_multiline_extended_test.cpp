@@ -1,5 +1,5 @@
 #include "multiline_native.hpp"
-#include <QTextBoundaryFinder>
+#include "multiline_text_cases.hpp"
 
 namespace {
 QJsonObject NativeState(HWND control, const QString& text) {
@@ -68,6 +68,17 @@ int main(int argc, char** argv) try {
     QDir().mkpath(output);
     QJsonArray dragRecords, textRecords;
     unsigned dragFailures = 0, textFailures = 0;
+    const auto checkpoint = [&] {
+        QFile report(output + "/report.json");
+        Check(report.open(QIODevice::WriteOnly), "write extended multiline report");
+        report.write(QJsonDocument(QJsonObject{{"windowsShown", true},
+                                               {"actualOsMouseCapture", true},
+                                               {"dragFailures", int(dragFailures)},
+                                               {"unicodeFailures", int(textFailures)},
+                                               {"drags", dragRecords},
+                                               {"unicode", textRecords}})
+                         .toJson());
+    };
     for (const auto* code : {"en", "ja", "zh_CN"}) {
         qt::Language language;
         Check(language.Set(code), "UI language");
@@ -137,15 +148,9 @@ int main(int argc, char** argv) try {
                                            {"nativeSamples", nativeSamples},
                                            {"qtSamples", qtSamples}});
             dragFailures += expected != actual || different != 0;
+            checkpoint();
         }
-        const QString texts[]{
-            QString::fromUtf8("初音ミク 日本語\nかな カナ 漢字"),
-            QString::fromUtf8("初音未来 中文\n简体中文 多行备注"),
-            QString::fromUtf8("caf\xc3\xa9 e\xcc\x81 na\xc3\xafve\nA\xcc\x8a office ffi"),
-            QString::fromUtf8(
-                "Miku \xf0\x9f\x8e\xb5 \xf0\x9f\x8c\x9f\n\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x92\xbb music"),
-            QString::fromUtf8(
-                "English \xd8\xa7\xd9\x84\xd8\xb9\xd8\xb1\xd8\xa8\xd9\x8a\xd8\xa9 123\nabc \xd7\xa9\xd7\x9c\xd7\x95\xd7\x9d xyz")};
+        const auto texts = MultilineUnicodeCases();
         for (unsigned variant = 0; variant < std::size(texts); ++variant)
             for (unsigned selected = 0; selected < 2; ++selected) {
                 const auto text = texts[variant];
@@ -154,8 +159,7 @@ int main(int argc, char** argv) try {
                       "Unicode native contents");
                 std::wstring contents(size_t(GetWindowTextLengthW(control)) + 1, 0);
                 contents.resize(GetWindowTextW(control, contents.data(), int(contents.size())));
-                Check(QString::fromStdWString(contents) == nativeText,
-                      "native reference preserves Unicode");
+                const bool nativePreserved = QString::fromStdWString(contents) == nativeText;
                 NativeFocus(native, control);
                 SendMessageW(control, EM_SETSEL, 0, selected ? -1 : 0);
                 const auto expected = Client(control);
@@ -176,22 +180,18 @@ int main(int argc, char** argv) try {
                 actual.save(output + '/' + stem + "-qt.png");
                 textRecords.append(QJsonObject{{"case", stem},
                                                {"different", int(different)},
+                                               {"nativeTextPreserved", nativePreserved},
+                                               {"nativeText", QString::fromStdWString(contents)},
+                                               {"inputText", nativeText},
                                                {"textPreserved", field->toPlainText() == text}});
-                textFailures += different != 0 || field->toPlainText() != text;
+                textFailures += different != 0 || !nativePreserved || field->toPlainText() != text;
+                checkpoint();
             }
         DestroyWindow(native);
         dialog.close();
         QCoreApplication::processEvents();
     }
-    QFile report(output + "/report.json");
-    Check(report.open(QIODevice::WriteOnly), "write extended multiline report");
-    report.write(QJsonDocument(QJsonObject{{"windowsShown", true},
-                                           {"actualOsMouseCapture", true},
-                                           {"dragFailures", int(dragFailures)},
-                                           {"unicodeFailures", int(textFailures)},
-                                           {"drags", dragRecords},
-                                           {"unicode", textRecords}})
-                     .toJson());
+    checkpoint();
     std::cout << dragRecords.size() << " actual outside-client drags; " << dragFailures
               << " differences; " << textRecords.size() << " Unicode paints; " << textFailures
               << " differences\n";

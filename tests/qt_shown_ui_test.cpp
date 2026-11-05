@@ -1,5 +1,6 @@
 #include "numeric_dialog.hpp"
 #include "editor_window.hpp"
+#include "model_physics_dialog.hpp"
 #include <QApplication>
 #include <QAbstractButton>
 #include <QAbstractItemView>
@@ -58,8 +59,8 @@ int main(int argc, char** argv) try {
           "shown UI qualification requires an isolated GitHub runner");
     QApplication app(argc, argv);
     const auto platform = QGuiApplication::platformName();
-    Check(argc == 3 && (platform == "xcb" || platform == "cocoa"),
-          "shown UI qualification requires native X11 or Cocoa QPA, assets and output");
+    Check(argc == 4 && (platform == "xcb" || platform == "cocoa"),
+          "shown UI qualification requires native X11 or Cocoa QPA, assets, output and fixtures");
     app.setCursorFlashTime(0);
     const QString output = QString::fromLocal8Bit(argv[2]);
     QDir().mkpath(output);
@@ -81,12 +82,45 @@ int main(int argc, char** argv) try {
         &ui::kNumericModelPhysicsJa};
     QJsonArray records, menus;
     unsigned focused = 0, hovered = 0, popups = 0, listScrolls = 0, multilineScrolls = 0;
+    const auto checkpoint = [&] {
+        QFile report(output + "/report.json");
+        Check(report.open(QIODevice::WriteOnly), "write shown UI report");
+        report.write(
+            QJsonDocument(
+                QJsonObject{{"platform", platform},
+                            {"actualShownWindows", true},
+                            {"syntheticScale", qEnvironmentVariableIsSet("QT_SCALE_FACTOR")},
+                            {"screenDpr", app.primaryScreen()->devicePixelRatio()},
+                            {"focusedEdits", int(focused)},
+                            {"hoveredButtons", int(hovered)},
+                            {"comboPopups", int(popups)},
+                            {"scrolledLists", int(listScrolls)},
+                            {"scrolledMultiline", int(multilineScrolls)},
+                            {"dialogs", records},
+                            {"menus", menus}})
+                .toJson());
+    };
     for (const char* code : {"en", "ja", "zh_CN"}) {
         qt::Language language;
         Check(language.Set(code), "three-language shown UI");
         const auto& descriptions = language.Code() == "en" ? english : japanese;
         for (const auto* description : descriptions) {
-            Dialog dialog(*description, language);
+            editor::EditorSession model;
+            std::unique_ptr<qt::TemplateDialog> owned;
+            const bool physics = description == &ui::kNumericModelPhysicsEn ||
+                                 description == &ui::kNumericModelPhysicsJa;
+            if (physics) {
+                std::string reason;
+                Check(
+                    model.ImportModel(std::filesystem::absolute(argv[3]) / "triangle.pmd", reason),
+                    "public generated physics-dialog model");
+                auto actual = std::make_unique<qt::ModelPhysicsDialog>(model, language);
+                Check(actual->Valid(), "production physics dialog is bound to a live model");
+                owned = std::move(actual);
+            } else {
+                owned = std::make_unique<Dialog>(*description, language);
+            }
+            auto& dialog = *owned;
             dialog.move(40, 40);
             Expose(dialog);
             const auto stem = QString("%1-dialog%2").arg(code).arg(description->id);
@@ -105,8 +139,11 @@ int main(int argc, char** argv) try {
                     continue;
                 controls.append(QJsonObject{{"id", id.toInt()},
                                             {"class", child->metaObject()->className()},
+                                            {"visible", child->isVisible()},
                                             {"rect", Rectangle(child->geometry())},
                                             {"font", QFontInfo(child->font()).family()}});
+                if (!child->isVisible())
+                    continue;
                 if (auto* edit = qobject_cast<QLineEdit*>(child)) {
                     edit->setText("12.5");
                     if (!firstEdit && edit->isEnabled() && !edit->isReadOnly())
@@ -143,9 +180,13 @@ int main(int argc, char** argv) try {
                     ++multilineScrolls;
                 }
                 if (auto* combo = qobject_cast<QComboBox*>(child)) {
-                    combo->clear();
-                    combo->addItems(
-                        {"first", QString::fromUtf8("初音ミク"), QString::fromUtf8("简体中文")});
+                    if (!physics) {
+                        combo->clear();
+                        combo->addItems({"first", QString::fromUtf8("初音ミク"),
+                                         QString::fromUtf8("简体中文")});
+                    }
+                    if (!combo->isEnabled() || combo->count() == 0)
+                        continue;
                     combo->setFocus(Qt::OtherFocusReason);
                     combo->showPopup();
                     QTest::qWait(30);
@@ -176,7 +217,16 @@ int main(int argc, char** argv) try {
                 ++hovered;
             }
             record["controls"] = controls;
+            if (physics) {
+                auto* actual = static_cast<qt::ModelPhysicsDialog*>(&dialog);
+                static_cast<QAbstractButton*>(actual->Control(801))->click();
+                Check(actual->JointPage(), "production physics joint page");
+                Capture(dialog, output, stem + "-joint-page");
+                static_cast<QAbstractButton*>(actual->Control(800))->click();
+                Check(!actual->JointPage(), "production physics rigid-body page");
+            }
             records.append(record);
+            checkpoint();
             dialog.close();
             QCoreApplication::processEvents();
         }
@@ -187,38 +237,36 @@ int main(int argc, char** argv) try {
         const auto revision = editor.Session().Revision();
         for (auto* action : editor.menuBar()->actions())
             if (auto* menu = action->menu()) {
+                editor.activateWindow();
+                Check(QTest::qWaitForWindowActive(&editor), "editor active before each menu");
+                // Park away from menu bars before dispatching queued enter/move
+                // events, which can otherwise switch the newly opened menu.
+                QCursor::setPos(
+                    editor.mapToGlobal(QPoint(editor.width() / 2, editor.height() / 2)));
+                QTest::qWait(30);
                 menu->popup(editor.menuBar()->mapToGlobal(
                     editor.menuBar()->actionGeometry(action).bottomLeft()));
-                QTest::qWait(30);
-                Check(menu->isVisible() && menu->windowHandle()->isExposed(),
-                      "actual editor menu exposed");
+                const bool exposed = QTest::qWaitForWindowExposed(menu, 3000);
+                if (!menu->isVisible() || !exposed) {
+                    std::cerr << code << " menu=" << menu->title().toStdString()
+                              << " visible=" << menu->isVisible() << " exposed=" << exposed << '\n';
+                    throw std::runtime_error("actual editor menu exposed");
+                }
                 auto record =
                     Capture(*menu, output, QString("%1-menu%2").arg(code).arg(menus.size()));
                 record["title"] = menu->title();
                 record["language"] = code;
                 menus.append(record);
+                checkpoint();
                 menu->close();
+                QTest::qWait(50);
             }
         Check(editor.Session().Revision() == revision && !editor.Session().Dirty(),
               "shown menus do not edit the production document");
         editor.close();
         QCoreApplication::processEvents();
     }
-    QFile report(output + "/report.json");
-    Check(report.open(QIODevice::WriteOnly), "write shown UI report");
-    report.write(
-        QJsonDocument(QJsonObject{{"platform", platform},
-                                  {"actualShownWindows", true},
-                                  {"syntheticScale", qEnvironmentVariableIsSet("QT_SCALE_FACTOR")},
-                                  {"screenDpr", app.primaryScreen()->devicePixelRatio()},
-                                  {"focusedEdits", int(focused)},
-                                  {"hoveredButtons", int(hovered)},
-                                  {"comboPopups", int(popups)},
-                                  {"scrolledLists", int(listScrolls)},
-                                  {"scrolledMultiline", int(multilineScrolls)},
-                                  {"dialogs", records},
-                                  {"menus", menus}})
-            .toJson());
+    checkpoint();
     Check(records.size() == 57 && focused > 0 && hovered > 0 && popups > 0 && listScrolls > 0 &&
               multilineScrolls > 0 && !menus.isEmpty(),
           "complete shown UI matrix");
