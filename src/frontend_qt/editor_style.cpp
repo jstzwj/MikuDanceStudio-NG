@@ -142,6 +142,22 @@ public:
     }
     void drawControl(ControlElement element, const QStyleOption* option, QPainter* painter,
                      const QWidget* widget) const override {
+        if ((element == CE_PushButtonLabel || element == CE_CheckBoxLabel ||
+             element == CE_RadioButtonLabel) &&
+            widget && widget->property("mmdAdaptiveCaption").toBool())
+            if (const auto* button = qstyleoption_cast<const QStyleOptionButton*>(option)) {
+                // Qt paints new-language captions with width adaptation. The
+                // native MMD profiles retain their original GDI text metrics.
+                const auto font = FitCaptionFont(widget->font(), button->text,
+                                                 std::max(1, button->rect.width() - 4));
+                auto fitted = *button;
+                fitted.fontMetrics = QFontMetrics(font);
+                painter->save();
+                painter->setFont(font);
+                QProxyStyle::drawControl(element, &fitted, painter, widget);
+                painter->restore();
+                return;
+            }
         if (element == CE_ComboBoxLabel && widget && widget->property("mmdControlId").isValid() &&
             baseStyle()->objectName() != "windowsvista")
             if (const auto* combo = qstyleoption_cast<const QStyleOptionComboBox*>(option))
@@ -197,6 +213,7 @@ public:
             }
         if ((element == CE_PushButton || element == CE_CheckBox || element == CE_RadioButton) &&
             widget && widget->property("mmdControlId").isValid() &&
+            !widget->property("mmdAdaptiveCaption").toBool() &&
             baseStyle()->objectName() == "windowsvista")
             if (const auto* button = qstyleoption_cast<const QStyleOptionButton*>(option)) {
                 if (!button->icon.isNull() ||

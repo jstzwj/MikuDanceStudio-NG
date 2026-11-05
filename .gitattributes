@@ -9,6 +9,8 @@ src/**/*.inc text eol=lf
 src/**/*.mm text eol=lf
 tests/*.cpp text eol=lf
 tests/*.hpp text eol=lf
+translations/*.ts text eol=lf
+translations/*.hpp text eol=lf
 
 # Preserve upstream license files byte for byte, including their whitespace.
 res/licenses/Qt/*.txt -text -whitespace

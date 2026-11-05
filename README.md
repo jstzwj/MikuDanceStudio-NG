@@ -11,6 +11,8 @@ publishes Windows x64, Linux x64 and macOS arm64 development archives with Qt ru
 The Windows application described below remains available during that work.
 The Qt application's complete Windows runtime is `out/dist/MikuDanceStudioNG.exe`;
 its CMake cache/test binaries stay in `out/build` and archives in `out/releases`.
+UI language is set in **File → Preferences…**. Eight languages use Qt Linguist
+catalogs in [translations](translations/README.md), including Qt's standard dialogs.
 
 本仓库独立维护原 MikuDanceStudio 的 `next` 分支，默认分支为 `main`，完整提交历史保留。
 跨平台改造已完成 P0–P3，后续按[跨平台计划](cross_platform_plan.md)推进 P4 编辑器与 P5 MME。

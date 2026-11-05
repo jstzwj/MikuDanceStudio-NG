@@ -39,10 +39,10 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
     }
     QJsonArray languages;
     QJsonArray cancelLabels;
-    for (const char* language : {"en", "ja", "zh_CN"}) {
-        if (!window.SetLanguage(language))
+    for (const auto& language : qt::Language::Available()) {
+        if (!window.SetLanguage(language.code))
             return 3;
-        languages.append(language);
+        languages.append(language.code);
         cancelLabels.append(QCoreApplication::translate("QPlatformTheme", "Cancel"));
     }
     // Instantiate the multimedia backend without opening an audio output.
@@ -124,7 +124,8 @@ int main(int argc, char** argv) {
     parser.addHelpOption();
     parser.addVersionOption();
     parser.addPositionalArgument("project", "PMM project to open");
-    parser.addOption({"language", "UI language: en, ja, zh_CN", "language"});
+    parser.addOption(
+        {"language", "UI language: system, en, ja, zh_CN, zh_TW, ko, fr, de, es", "language"});
     parser.addOption({"assets", "Builtin asset directory", "directory",
                       QDir(QCoreApplication::applicationDirPath() + "/../Resources/assets").exists()
                           ? QCoreApplication::applicationDirPath() + "/../Resources/assets"

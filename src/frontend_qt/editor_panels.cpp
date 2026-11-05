@@ -75,7 +75,7 @@ void EditorWindow::RefreshScopes() {
             if (!(morph ? session_.Runtime().ResourceMorphIndex(model, int(index), channel, reason)
                         : session_.Runtime().ResourceBoneIndex(model, int(index), channel, reason)))
                 return;
-            add(ModelTrackLabel(session_, model, index, morph, language_.Code() == "en"),
+            add(ModelTrackLabel(session_, model, index, morph, language_.EnglishLayout()),
                 {KeyScopeKind::Track,
                  {morph ? Track::Morph : Track::Bone, model, unsigned(channel), 0}});
         };
@@ -162,7 +162,7 @@ void EditorWindow::RefreshPanels() {
             SyncComboItems(c, [&](auto add) {
                 for (std::size_t i = 0; i < m.ikSources.size(); ++i)
                     add(ModelTrackLabel(session_, m.slot, unsigned(m.ikSources[i]), false,
-                                        language_.Code() == "en", true),
+                                        language_.EnglishLayout(), true),
                         unsigned(i));
             });
             c->setCurrentIndex(std::max(0, c->findData(old)));
@@ -188,7 +188,7 @@ void EditorWindow::RefreshPanels() {
                 if (m.slot == slot)
                     for (std::size_t i = 0; i < m.boneNames.size(); ++i)
                         add(ModelTrackLabel(session_, m.slot, unsigned(i), false,
-                                            language_.Code() == "en", true),
+                                            language_.EnglishLayout(), true),
                             int(i));
         });
         c->setCurrentIndex(c->findData(bone));

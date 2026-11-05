@@ -116,7 +116,7 @@ def main():
             if not path.is_relative_to(package) or not path.is_dir():
                 raise RuntimeError(f'Package used an external {key} directory: {path}')
             evidence[key] = str(path.relative_to(package))
-        if evidence['visible'] or evidence['languages'] != ['en', 'ja', 'zh_CN'] or (evidence['width'], evidence['height']) != (96, 64):
+        if evidence['visible'] or evidence['languages'] != ['en', 'ja', 'zh_CN', 'zh_TW', 'ko', 'fr', 'de', 'es'] or (evidence['width'], evidence['height']) != (96, 64):
             raise RuntimeError(f'Incomplete package check: {evidence}')
         build = json.loads((package / 'build-info.json').read_text(encoding='utf-8'))
         if system == 'Darwin' and build.get('metal'):

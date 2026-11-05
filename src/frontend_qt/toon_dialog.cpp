@@ -3,7 +3,7 @@
 #include "mikudancestudio/english_name_edit.hpp"
 namespace mikudancestudio::qt {
 ToonDialog::ToonDialog(editor::EditorSession& session, const Language& language, QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericToonEn : ui::kNumericToonJa, language,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericToonEn : ui::kNumericToonJa, language,
                      parent),
       session_(session), slot_(session.Selected().model),
       resource_(session.Runtime().Resource(slot_)) {

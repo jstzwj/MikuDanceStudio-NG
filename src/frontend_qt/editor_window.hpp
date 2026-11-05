@@ -20,6 +20,7 @@ class GroundShadowDialog;
 class GravityDialog;
 class EnglishNameDialog;
 class ModelPhysicsDialog;
+class PreferencesDialog;
 class EditorWindow final : public QMainWindow {
 public:
     explicit EditorWindow(std::filesystem::path assets, bool testing = false,
@@ -36,6 +37,7 @@ public:
     bool LowPower() const { return lowPower_; }
     bool SetLanguage(const QString&);
     QString CurrentLanguage() const { return language_.Code(); }
+    QString LanguageSelection() const { return language_.Selection(); }
     bool Open(const std::filesystem::path&);
     bool Save(const std::filesystem::path&);
     void Dispatch(int id);
@@ -51,8 +53,8 @@ protected:
 private:
     editor::EditorSession session_;
     Language language_;
-    QTranslator standardTranslation_;
     void TranslateStandardDialogs();
+    void Preferences();
     std::filesystem::path assets_;
     QWidget* canvas_ = nullptr;
     Timeline* timeline_ = nullptr;
@@ -65,6 +67,7 @@ private:
     QPointer<GravityDialog> gravityDialog_;
     QPointer<EnglishNameDialog> englishDialog_;
     QPointer<ModelPhysicsDialog> physicsDialog_;
+    QPointer<PreferencesDialog> preferencesDialog_;
     std::uint64_t gravityEpoch_ = 0;
     std::uint8_t edgeModel_ = 255;
     std::weak_ptr<const runtime::ModelResource> edgeResource_;

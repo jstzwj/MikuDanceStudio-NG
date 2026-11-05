@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QFontDatabase>
 #include <QFontInfo>
+#include <QFontMetrics>
 #include <QFileInfo>
 #include <algorithm>
 #include <map>
@@ -14,6 +15,16 @@
 #endif
 
 namespace mikudancestudio::qt {
+QFont FitCaptionFont(QFont font, const QString& text, int width) {
+    const auto extent = QFontMetrics(font).horizontalAdvance(text);
+    if (extent > width && width > 0) {
+        const int stretch = font.stretch() ? font.stretch() : 100;
+        font.setStretch(std::max(1, stretch * width / extent));
+        while (font.stretch() > 1 && QFontMetrics(font).horizontalAdvance(text) > width)
+            font.setStretch(font.stretch() - 1);
+    }
+    return font;
+}
 QFont SystemMenuFont() {
     auto font = QApplication::font("QMenuBar");
     font.setResolveMask(QFont::AllPropertiesResolved);
@@ -77,7 +88,7 @@ QFont GlyphFont(const QString& language, int pixels, bool bold) {
     font.setPixelSize(pixels);
     font.setBold(bold);
 #ifdef _WIN32
-    if (language != "zh_CN") {
+    if (language == "en" || language == "ja") {
         const auto native =
             CreateFontW(-pixels, 0, 0, 0, bold ? 700 : 400, FALSE, FALSE, FALSE, SHIFTJIS_CHARSET,
                         OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH,

@@ -257,7 +257,7 @@ void EditorWindow::PhysicsKeys() {
     Refresh();
 }
 QString EditorWindow::ModelLabel(std::uint8_t slot) const {
-    return ModelDisplayLabel(session_, slot, language_.Code() == "en");
+    return ModelDisplayLabel(session_, slot, language_.EnglishLayout());
 }
 void EditorWindow::ToonTextures() {
     ToonDialog dialog(session_, language_, this);

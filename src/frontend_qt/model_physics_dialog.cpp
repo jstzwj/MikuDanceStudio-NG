@@ -21,8 +21,8 @@ QString Name(const char* bytes) {
 }
 ModelPhysicsDialog::ModelPhysicsDialog(editor::EditorSession& session, const Language& language,
                                        QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericModelPhysicsEn
-                                             : ui::kNumericModelPhysicsJa,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericModelPhysicsEn
+                                              : ui::kNumericModelPhysicsJa,
                      language, parent),
       session_(session), language_(language), slot_(session.Selected().model),
       resource_(session.Runtime().Resource(slot_)) {
@@ -39,7 +39,7 @@ ModelPhysicsDialog::ModelPhysicsDialog(editor::EditorSession& session, const Lan
     }
     Combo(707)->addItem(language_.Text("dialog.physics.none"));
     for (unsigned i = 0; i < resource_->Document().bones.size(); ++i) {
-        const auto name = ModelTrackLabel(session_, slot_, i, false, language.Code() == "en");
+        const auto name = ModelTrackLabel(session_, slot_, i, false, language.EnglishLayout());
         Combo(707)->addItem(name);
         Combo(743)->addItem(name);
     }

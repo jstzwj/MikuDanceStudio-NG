@@ -72,7 +72,7 @@ void Timeline::Refresh() {
                 };
                 const auto name = [&](const runtime::ModelDisplayEntry& entry) {
                     return ModelTrackLabel(session_, model, entry.index, entry.morph,
-                                           language_.Code() == "en");
+                                           language_.EnglishLayout());
                 };
                 const auto& groups = resource->DisplayGroups();
                 for (std::size_t i = 0; i < groups.size(); ++i) {
@@ -86,12 +86,12 @@ void Timeline::Refresh() {
                     } else {
                         const auto text =
                             group.role == 2 ? language_.Text("morph")
-                            : language_.Code() == "en" && m.englishNames &&
+                            : language_.EnglishLayout() && m.englishNames &&
                                     i < m.englishNames->groups.size()
                                 ? QString::fromUtf8(
                                       editor::EnglishNameDisplay(m.englishNames->groups[i]).c_str())
                                 : QString::fromUtf8(
-                                      group.names[language_.Code() == "en" ? 1 : 0].c_str());
+                                      group.names[language_.EnglishLayout() ? 1 : 0].c_str());
                         Row header({Track::Display, model, 0, 0}, text);
                         header.tracks.clear();
                         header.group = int(i);

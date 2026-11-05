@@ -4,6 +4,7 @@
 #include "numeric_dialog.hpp"
 #include "english_name_dialog.hpp"
 #include "model_physics_dialog.hpp"
+#include "preferences_dialog.hpp"
 #include "model_labels.hpp"
 #include "editor_font.hpp"
 #include "editor_style.hpp"
@@ -15,7 +16,6 @@
 #include <QAbstractButton>
 #include <QCheckBox>
 #include <QComboBox>
-#include <QLibraryInfo>
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -153,7 +153,7 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
         session_.SetWireframe(settings.value("renderer/wireframe", false).toBool());
         fileHistory_.enabled = settings.value("files/rememberFolders", true).toBool();
         fileHistory_.Restore(settings.value("files/directories").toStringList());
-        language_.Set(settings.value("language", language_.Code()).toString());
+        language_.Set(settings.value("language", language_.Selection()).toString());
         separateGeometry_ = settings.value("viewport/separateGeometry").toByteArray();
         separateSize_ = settings.value("viewport/separateSize", separateSize_).toSize();
         if (!separateSize_.isValid())
@@ -283,19 +283,30 @@ bool EditorWindow::SetLanguage(const QString& language) {
     TranslateStandardDialogs();
     if (!testing_) {
         QSettings settings;
-        settings.setValue("language", language);
+        settings.setValue("language", language_.Selection());
     }
     RetranslateMenus();
     Texts();
     Refresh();
+    if (preferencesDialog_) {
+        preferencesDialog_->Retranslate();
+        preferencesDialog_->Reset();
+    }
     return true;
 }
 void EditorWindow::TranslateStandardDialogs() {
-    QCoreApplication::removeTranslator(&standardTranslation_);
-    if (language_.Code() != "en" &&
-        standardTranslation_.load("qtbase_" + language_.Code(),
-                                  QLibraryInfo::path(QLibraryInfo::TranslationsPath)))
-        QCoreApplication::installTranslator(&standardTranslation_);
+    language_.Activate();
+}
+void EditorWindow::Preferences() {
+    if (!preferencesDialog_)
+        preferencesDialog_ = new PreferencesDialog(
+            language_, [this](const QString& code) { return SetLanguage(code); }, this);
+    preferencesDialog_->Reset();
+    if (!testing_ && isVisible()) {
+        preferencesDialog_->show();
+        preferencesDialog_->raise();
+        preferencesDialog_->activateWindow();
+    }
 }
 void EditorWindow::Texts() {
     setFont(EditorFont(language_.Code()));
@@ -306,8 +317,11 @@ void EditorWindow::Texts() {
         if (auto* control = Control(id))
             control->setFont(FrameNavigationFont());
     for (const auto& pair : controls_)
-        if (auto* button = qobject_cast<QAbstractButton*>(pair.second))
+        if (auto* button = qobject_cast<QAbstractButton*>(pair.second)) {
             button->setText(language_.Text(QString("control.%1").arg(pair.first)));
+            button->setProperty("mmdAdaptiveCaption", language_.AdaptiveCaptions());
+            button->setToolTip(language_.AdaptiveCaptions() ? button->text() : QString());
+        }
 }
 void EditorWindow::RefreshFrameTimer() {
     const double requested = session_.Document().view.fpsLimit;
@@ -439,7 +453,7 @@ void EditorWindow::Refresh() {
                             if (session_.Runtime().ResourceMorphIndex(m.slot, int(i), channel,
                                                                       reason))
                                 add(ModelTrackLabel(session_, m.slot, unsigned(i), true,
-                                                    language_.Code() == "en"),
+                                                    language_.EnglishLayout()),
                                     unsigned(channel));
                         }
                 });

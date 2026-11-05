@@ -609,24 +609,26 @@ bool NativeDialogDoublePrefix(const QString& text, int limit, double& result) {
 }
 TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Language& language,
                                QWidget* parent)
-    : QDialog(parent), template_(description), english_(language.Code() == "en") {
+    : QDialog(parent), template_(description), english_(language.EnglishLayout()) {
     InstallEditorStyle(*qApp);
     setWindowTitle(language.Text(template_.title));
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
     QFont font;
-    font.setFamilies(
-        language.Code() == "en"
-            ? QStringList{QString::fromUtf8(template_.fontFamily), "Liberation Sans", "Helvetica",
-                          "DejaVu Sans"}
-            : QStringList{QString::fromUtf8(template_.fontFamily),
-                          language.Code() == "ja" ? "Noto Sans CJK JP" : "Noto Sans CJK SC",
-                          "Hiragino Sans", "Microsoft YaHei", "PingFang SC"});
+    font.setFamilies(language.EnglishLayout()
+                         ? QStringList{QString::fromUtf8(template_.fontFamily), "Liberation Sans",
+                                       "Helvetica", "DejaVu Sans"}
+                         : QStringList{QString::fromUtf8(template_.fontFamily),
+                                       language.Code() == "ja"      ? "Noto Sans CJK JP"
+                                       : language.Code() == "ko"    ? "Noto Sans CJK KR"
+                                       : language.Code() == "zh_TW" ? "Noto Sans CJK TC"
+                                                                    : "Noto Sans CJK SC",
+                                       "Hiragino Sans", "Microsoft YaHei", "PingFang SC"});
     font.setPixelSize(template_.pointSize * 96 / 72);
     setFont(MatchEditorFontMetrics(font));
     // Original 96-DPI Arial / MS PGothic dialog base units, independently
     // measured in a memory DC. Qt logical pixels then scale with the screen.
     const int baseX = 7,
-              baseY = language.Code() == "en"
+              baseY = language.EnglishLayout()
                           ? (QString::fromUtf8(template_.fontFamily) == "Tahoma" ? 14 : 15)
                           : 12;
     const auto x = [&](int v) { return (v * baseX + 2) / 4; };
@@ -727,6 +729,9 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
         }
         widget->setObjectName(QString("numeric.control.%1").arg(i));
         widget->setProperty("mmdControlId", control.id);
+        widget->setProperty("mmdAdaptiveCaption", language.AdaptiveCaptions());
+        if (language.AdaptiveCaptions())
+            widget->setToolTip(language.Text(control.message));
         // A Win32 dropdown resource stores the expanded height. The closed
         // control uses font height + 8 pixels (measured on hidden 813/812).
         widget->setGeometry(x(control.x), y(control.y), x(control.width),
@@ -745,10 +750,10 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
 ModelOrderDialog::ModelOrderDialog(bool calculation, const Language& language,
                                    const std::vector<std::pair<std::uint8_t, QString>>& rows,
                                    QWidget* parent)
-    : TemplateDialog(calculation ? (language.Code() == "en" ? ui::kNumericCalculationOrderEn
-                                                            : ui::kNumericCalculationOrderJa)
-                                 : (language.Code() == "en" ? ui::kNumericDrawOrderEn
-                                                            : ui::kNumericDrawOrderJa),
+    : TemplateDialog(calculation ? (language.EnglishLayout() ? ui::kNumericCalculationOrderEn
+                                                             : ui::kNumericCalculationOrderJa)
+                                 : (language.EnglishLayout() ? ui::kNumericDrawOrderEn
+                                                             : ui::kNumericDrawOrderJa),
                      language, parent) {
     setObjectName(calculation ? "mmd.calculationOrder" : "mmd.drawOrder");
     for (const auto& [slot, label] : rows) {
@@ -811,8 +816,8 @@ bool TemplateDialog::eventFilter(QObject* object, QEvent* event) {
 AccessoryOrderDialog::AccessoryOrderDialog(
     const Language& language, const std::vector<std::pair<std::uint8_t, QString>>& rows, int split,
     QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericAccessoryOrderEn
-                                             : ui::kNumericAccessoryOrderJa,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericAccessoryOrderEn
+                                              : ui::kNumericAccessoryOrderJa,
                      language, parent) {
     setObjectName("mmd.accessoryOrder");
     for (const auto& [slot, label] : rows) {
@@ -897,8 +902,8 @@ bool AccessoryOrderDialog::eventFilter(QObject* object, QEvent* event) {
 NumericDialog::NumericDialog(bool camera, const Language& language,
                              const std::array<float, 7>& values, QWidget* parent)
     : TemplateDialog(camera
-                         ? (language.Code() == "en" ? ui::kNumericCameraEn : ui::kNumericCameraJa)
-                         : (language.Code() == "en" ? ui::kNumericBoneEn : ui::kNumericBoneJa),
+                         ? (language.EnglishLayout() ? ui::kNumericCameraEn : ui::kNumericCameraJa)
+                         : (language.EnglishLayout() ? ui::kNumericBoneEn : ui::kNumericBoneJa),
                      language, parent),
       values_(values) {
     setObjectName(camera ? "mmd.numeric.camera" : "mmd.numeric.bone");
@@ -926,7 +931,7 @@ void NumericDialog::accept() {
 }
 ScreenSizeDialog::ScreenSizeDialog(const Language& language, QSize value, QSize maximum,
                                    QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericScreenEn : ui::kNumericScreenJa,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericScreenEn : ui::kNumericScreenJa,
                      language, parent),
       value_(value), maximum_(maximum) {
     setObjectName("mmd.screenSize");
@@ -963,7 +968,7 @@ void ScreenSizeDialog::accept() {
     QDialog::accept();
 }
 CenterBiasDialog::CenterBiasDialog(const Language& language, QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericCenterBiasEn : ui::kNumericCenterBiasJa,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericCenterBiasEn : ui::kNumericCenterBiasJa,
                      language, parent) {
     setObjectName("mmd.centerBias");
     for (unsigned axis = 0; axis < 3; ++axis)
@@ -983,7 +988,7 @@ void CenterBiasDialog::accept() {
     QDialog::accept();
 }
 EdgeThicknessDialog::EdgeThicknessDialog(const Language& language, float value, QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericEdgeEn : ui::kNumericEdgeJa, language,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericEdgeEn : ui::kNumericEdgeJa, language,
                      parent) {
     setObjectName("mmd.edgeThickness");
     Trackbar()->setRange(0, 200);
@@ -1015,8 +1020,8 @@ void EdgeThicknessDialog::Reset(float value) {
     Trackbar()->setValue(EdgePosition(value));
 }
 GroundShadowDialog::GroundShadowDialog(const Language& language, float value, QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericGroundShadowEn
-                                             : ui::kNumericGroundShadowJa,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericGroundShadowEn
+                                              : ui::kNumericGroundShadowJa,
                      language, parent) {
     setObjectName("mmd.groundShadow");
     Trackbar()->setRange(0, 200);
@@ -1057,7 +1062,7 @@ int GravityPosition(float value) {
 }
 }
 FrameShiftDialog::FrameShiftDialog(const Language& language, QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericFrameShiftEn : ui::kNumericFrameShiftJa,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericFrameShiftEn : ui::kNumericFrameShiftJa,
                      language, parent) {
     setObjectName("mmd.frameShift");
     Prefill(616, "0");
@@ -1093,7 +1098,7 @@ void FrameShiftDialog::accept() {
     QDialog::accept();
 }
 BlinkDialog::BlinkDialog(const Language& language, QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericBlinkEn : ui::kNumericBlinkJa, language,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericBlinkEn : ui::kNumericBlinkJa, language,
                      parent) {
     setObjectName("mmd.blink");
     Field(0)->setFocus(Qt::OtherFocusReason);
@@ -1104,7 +1109,7 @@ void BlinkDialog::accept() {
     QDialog::accept();
 }
 MorphScaleDialog::MorphScaleDialog(const Language& language, QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericMorphScaleEn : ui::kNumericMorphScaleJa,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericMorphScaleEn : ui::kNumericMorphScaleJa,
                      language, parent) {
     setObjectName("mmd.morphScale");
     Prefill(686, "1.0");
@@ -1124,8 +1129,8 @@ void MorphScaleDialog::accept() {
     QDialog::accept();
 }
 CameraScaleDialog::CameraScaleDialog(const Language& language, QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericCameraScaleEn
-                                             : ui::kNumericCameraScaleJa,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericCameraScaleEn
+                                              : ui::kNumericCameraScaleJa,
                      language, parent) {
     setObjectName("mmd.cameraScale");
     for (unsigned i = 0; i < 16; ++i)
@@ -1145,7 +1150,7 @@ void CameraScaleDialog::accept() {
     QDialog::accept();
 }
 BoneScaleDialog::BoneScaleDialog(const Language& language, QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericBoneScaleEn : ui::kNumericBoneScaleJa,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericBoneScaleEn : ui::kNumericBoneScaleJa,
                      language, parent) {
     setObjectName("mmd.boneScale");
     for (unsigned i = 0; i < 12; ++i)
@@ -1165,8 +1170,8 @@ void BoneScaleDialog::accept() {
     QDialog::accept();
 }
 PhysicsKeysDialog::PhysicsKeysDialog(const Language& language, QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericPhysicsKeysEn
-                                             : ui::kNumericPhysicsKeysJa,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericPhysicsKeysEn
+                                              : ui::kNumericPhysicsKeysJa,
                      language, parent) {
     setObjectName("mmd.physicsKeys");
     Choice()->addItem(language.Text("dialog.numeric.physics_keys.on"));
@@ -1175,7 +1180,7 @@ PhysicsKeysDialog::PhysicsKeysDialog(const Language& language, QWidget* parent)
 }
 GravityDialog::GravityDialog(const Language& language, const format::PmmEvaluatedGravity& value,
                              QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericGravityEn : ui::kNumericGravityJa,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericGravityEn : ui::kNumericGravityJa,
                      language, parent) {
     setObjectName("mmd.gravity");
     for (unsigned axis = 0; axis < 3; ++axis) {

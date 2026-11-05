@@ -41,6 +41,12 @@ install(FILES "${MDS_EDITOR_FONT_FILE}" DESTINATION "${mds_fonts_dir}" RENAME No
 install(FILES "${root}/res/fonts/NotoSansCJK-OFL.txt" "${root}/res/fonts/README.md"
     DESTINATION licenses/NotoSansCJK COMPONENT Runtime)
 install(FILES "${root}/LICENSE" DESTINATION licenses COMPONENT Runtime)
+if(APPLE)
+    set(mds_translations_dir "MikuDanceStudioNG.app/Contents/Resources/translations")
+else()
+    set(mds_translations_dir "${CMAKE_INSTALL_BINDIR}/translations")
+endif()
+install(FILES ${mds_qm_files} DESTINATION "${mds_translations_dir}" COMPONENT Runtime)
 install(FILES "${root}/recipes/bullet275/LICENSE.txt" DESTINATION licenses/Bullet COMPONENT Runtime)
 install(FILES "${root}/docs/DISTRIBUTION.md" DESTINATION . COMPONENT Runtime)
 set(deploy_args)

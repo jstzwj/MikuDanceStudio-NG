@@ -18,6 +18,7 @@
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QLocale>
 #include <QPushButton>
@@ -1596,11 +1597,13 @@ int main(int argc, char** argv) {
     for (const char* code : {"en", "ja", "zh_CN"}) {
         CHECK(language.Set(code));
         qt::FrameShiftDialog form(language);
-        const auto expected = reference[QString("frame_shift.") + (language.Code() == "en" ? "en" : "ja")].toObject();
+        const auto expected =
+            reference[QString("frame_shift.") + (language.Code() == "en" ? "en" : "ja")].toObject();
         CHECK(form.Template().id == expected["id"].toInt());
         const auto rect = expected["rect"].toArray();
         const int unitY = language.Code() == "en" ? 15 : 12;
-        CHECK(form.size() == QSize((rect[2].toInt() * 7 + 2) / 4, (rect[3].toInt() * unitY + 4) / 8));
+        CHECK(form.size() ==
+              QSize((rect[2].toInt() * 7 + 2) / 4, (rect[3].toInt() * unitY + 4) / 8));
         if (language.Code() != "zh_CN")
             CHECK(form.windowTitle() == expected["title"].toString());
         const auto controls = expected["controls"].toArray();
@@ -1609,8 +1612,9 @@ int main(int argc, char** argv) {
             CHECK(widget);
             const auto control = controls[i].toObject();
             const auto r = control["rect"].toArray();
-            CHECK(widget->geometry() == QRect((r[0].toInt() * 7 + 2) / 4, (r[1].toInt() * unitY + 4) / 8,
-                                              (r[2].toInt() * 7 + 2) / 4, (r[3].toInt() * unitY + 4) / 8));
+            CHECK(widget->geometry() ==
+                  QRect((r[0].toInt() * 7 + 2) / 4, (r[1].toInt() * unitY + 4) / 8,
+                        (r[2].toInt() * 7 + 2) / 4, (r[3].toInt() * unitY + 4) / 8));
             CHECK(widget->property("mmdControlId").toInt() == control["id"].toInt());
             if (auto* button = qobject_cast<QPushButton*>(widget)) {
                 CHECK(button->isDefault() == (control["id"].toInt() == 1));
@@ -1620,10 +1624,14 @@ int main(int argc, char** argv) {
                 CHECK(widget == form.Field());
         }
         CHECK(form.Field()->text() == "0" && form.Field()->selectedText() == "0");
-        for (const auto& [text, value] : std::vector<std::pair<QString, std::int32_t>>{
-                 {" -15tail", -15}, {"+7.5", 7}, {"nonsense", 0}, {"--1", 0},
-                 {"2147483648", INT_MAX}, {"-2147483649", INT_MIN},
-                 {"00000000000000000009", 0}}) {
+        for (const auto& [text, value] :
+             std::vector<std::pair<QString, std::int32_t>>{{" -15tail", -15},
+                                                           {"+7.5", 7},
+                                                           {"nonsense", 0},
+                                                           {"--1", 0},
+                                                           {"2147483648", INT_MAX},
+                                                           {"-2147483649", INT_MIN},
+                                                           {"00000000000000000009", 0}}) {
             form.Field()->setText(text);
             form.accept();
             CHECK(form.Value() == value && form.result() == QDialog::Accepted);
@@ -1640,7 +1648,8 @@ int main(int argc, char** argv) {
         for (bool accept : {false, true}) {
             bool interacted = false;
             QTimer::singleShot(0, &owner, [&] {
-                auto* dialog = dynamic_cast<qt::FrameShiftDialog*>(QApplication::activeModalWidget());
+                auto* dialog =
+                    dynamic_cast<qt::FrameShiftDialog*>(QApplication::activeModalWidget());
                 if (!dialog) {
                     QApplication::closeAllWindows();
                     return;
@@ -1653,7 +1662,8 @@ int main(int argc, char** argv) {
                     dialog->reject();
             });
             action->trigger();
-            CHECK(interacted && owner.LastError().isEmpty() && (owner.Session().Revision() != revision) == accept);
+            CHECK(interacted && owner.LastError().isEmpty() &&
+                  (owner.Session().Revision() != revision) == accept);
         }
         CHECK(owner.Session().Play(reason));
         owner.Refresh();

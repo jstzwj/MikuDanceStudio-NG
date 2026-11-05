@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QKeyEvent>
 #include <QInputMethodEvent>
 #include <QPaintEvent>
@@ -97,6 +98,8 @@ int main(int argc, char** argv) {
     const auto tree = [&] {
         QJsonArray entries;
         const auto visit = [&](auto&& self, QAction* action, int depth) -> void {
+            if (action->property("ngExtension").toBool())
+                return;
             const char* kind = action->menu()          ? "Popup"
                                : action->isSeparator() ? "Separator"
                                                        : "Action";

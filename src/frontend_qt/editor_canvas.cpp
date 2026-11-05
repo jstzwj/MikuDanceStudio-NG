@@ -23,7 +23,7 @@ void Canvas::SetFullScreen(bool value) {
     update();
 }
 QString Canvas::ViewportTitle() const {
-    const bool english = language_.Code() == "en";
+    const bool english = language_.EnglishLayout();
     QString title = language_.Text("viewport.camera_light_accessory");
     if (session_.Playing())
         title = language_.Text("viewport.playing");
@@ -107,7 +107,7 @@ void Canvas::paintEvent(QPaintEvent*) {
         p.drawImage(QPoint(width() - 58, viewport.y - 24), viewTools_);
         fill({inset, viewport.y + viewport.height, width(), viewport.y + viewport.height + 32,
               0x787878, 0xc8c8c8, true});
-        const bool english = language_.Code() == "en";
+        const bool english = language_.EnglishLayout();
         const QString title = ViewportTitle();
         p.setPen(Qt::white);
         p.setFont(GlyphFont(language_.Code(), english ? 20 : 16));
@@ -117,18 +117,26 @@ void Canvas::paintEvent(QPaintEvent*) {
         p.setPen(Qt::black);
         p.setFont(GlyphFont(language_.Code(), 14));
         const int stripY = viewport.y + viewport.height;
-        p.drawText(QRect(inset + (options.cameraMode ? (english ? 90 : 72) : (english ? 66 : 68)),
-                         stripY + (english ? 10 : 11), 100, 18),
-                   Qt::AlignLeft | Qt::AlignTop,
-                   language_.Text(options.cameraMode ? "viewport.camera_position"
-                                                     : "viewport.bone_position"));
-        p.drawText(QRect(inset + (english ? 365 : 369), stripY + (english ? 10 : 11), 65, 18),
-                   Qt::AlignLeft | Qt::AlignTop, language_.Text("viewport.angle"));
+        const int positionX = options.cameraMode ? (english ? 90 : 72) : (english ? 66 : 68);
+        const auto position = language_.Text(options.cameraMode ? "viewport.camera_position"
+                                                                : "viewport.bone_position");
+        if (language_.AdaptiveCaptions())
+            p.setFont(FitCaptionFont(p.font(), position, 138 - positionX));
+        p.drawText(QRect(inset + positionX, stripY + (english ? 10 : 11),
+                         language_.AdaptiveCaptions() ? 138 - positionX : 100, 18),
+                   Qt::AlignLeft | Qt::AlignTop, position);
+        const auto angle = language_.Text("viewport.angle");
+        p.setFont(language_.AdaptiveCaptions()
+                      ? FitCaptionFont(GlyphFont(language_.Code(), 14), angle, english ? 33 : 29)
+                      : GlyphFont(language_.Code(), 14));
+        p.drawText(QRect(inset + (english ? 365 : 369), stripY + (english ? 10 : 11),
+                         language_.AdaptiveCaptions() ? (english ? 33 : 29) : 65, 18),
+                   Qt::AlignLeft | Qt::AlignTop, angle);
     }
     if (viewportOnly_)
         return;
     p.setPen(Qt::white);
-    for (const auto& label : ui::MmdPanelLabels(side, bottom, options, language_.Code() == "en")) {
+    for (const auto& label : ui::MmdPanelLabels(side, bottom, options, language_.EnglishLayout())) {
         p.setFont(GlyphFont(language_.Code(), label.size));
         p.drawText(QRect(label.x, label.y, 250, label.size + 3), Qt::AlignTop | Qt::AlignLeft,
                    language_.Text(label.id));

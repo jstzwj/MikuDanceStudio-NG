@@ -3,6 +3,7 @@
 #include "model_physics_dialog.hpp"
 #include "mikudancestudio/sidebar_navigation.hpp"
 #include <QComboBox>
+#include <QAbstractButton>
 #include <QMenuBar>
 #include <QResizeEvent>
 #include <QScopedValueRollback>
@@ -244,6 +245,9 @@ void EditorWindow::Layout() {
             return;
         w->setGeometry(rect.x, rect.y, std::max(1, rect.width),
                        qobject_cast<QComboBox*>(w) ? 20 : std::max(1, rect.height));
+        if (language_.AdaptiveCaptions())
+            if (auto* button = qobject_cast<QAbstractButton*>(w))
+                button->setToolTip(button->text());
         w->raise();
     };
     for (const auto& rect : ui::MmdEditorControls(side_, canvas_->height(), layout_))

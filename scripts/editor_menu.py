@@ -5,6 +5,7 @@ it runs without rc.exe, Qt, a display server or the original executable.
 """
 import argparse
 import json
+from translation_catalog import load_catalog, path_for, updated_catalog
 from pathlib import Path
 import re
 import struct
@@ -123,13 +124,13 @@ def run(check):
         assert [{k: v for k, v in e.items() if k != 'id'} for e in entries] == references[code], code
     files = {HEADER: generated_header(menus['en'])}
     for code in ['en', 'ja', 'zh_CN']:
-        path = ROOT / 'res/i18n' / (code + '.json')
-        catalog = json.loads(path.read_text(encoding='utf-8'))
+        path = path_for(code)
+        catalog = load_catalog(code)
         if code != 'zh_CN':
             catalog.update({e['id']: e['text'] for e in menus[code] if e['id']})
         assert all(e['id'] in catalog and isinstance(catalog[e['id']], str)
                    for e in menus['en'] if e['id']), f'Incomplete {code} menu translation'
-        files[path] = json.dumps(catalog, ensure_ascii=False, indent=2) + '\n'
+        files[path] = updated_catalog(code, catalog)
     for path, text in files.items():
         if check:
             assert path.read_text(encoding='utf-8') == text, f'Stale generated file: {path}'

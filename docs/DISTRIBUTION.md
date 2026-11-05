@@ -6,6 +6,10 @@ progress; a successful package build does not imply complete MMD parity.
 The deployment follows Muffin's separate `dist` target and relocated smoke-test
 pattern, using Qt's deployment API for this project's Qt 6.8.3 baseline.
 Windows includes Qt DLLs, MSVC runtime and platform/multimedia/image plugins.
+Qt Linguist application catalogs are compiled automatically; application and
+Qt base translations are embedded, and application `.qm` files are also placed
+in the distribution's `translations` directory. The SDK must include Linguist
+tools and the matching Qt base translations. See [translation maintenance](../translations/README.md).
 macOS uses an `.app` with Qt frameworks and plugins; native Metal is its default
 renderer. A build that also enables Vulkan includes MoltenVK. Linux includes Qt
 and non-system dependencies; the host supplies glibc, display/audio services and

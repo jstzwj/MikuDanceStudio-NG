@@ -416,7 +416,7 @@ void EditorWindow::LoadLipSync(const QString& path) {
                           : vowel == 'u' ? 0x3046
                                          : 0x304a;
         message = language_.Text("dialog.vsq.missing")
-                      .arg(language_.Code() == "en" ? QChar(vowel) : QChar(ushort(kana)));
+                      .arg(language_.EnglishLayout() ? QChar(vowel) : QChar(ushort(kana)));
     } else
         message = language_.Text(reason == "vsq-sysex-unsupported" ? "dialog.vsq.sysex"
                                  : reason == "vsq-open-error"      ? "dialog.vsq.open"

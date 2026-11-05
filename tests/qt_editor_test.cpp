@@ -13,8 +13,6 @@
 #include <QComboBox>
 #include <QTemporaryDir>
 #include <QStyleFactory>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QFile>
 #include <QPainter>
 #include <QFontDatabase>
@@ -1141,7 +1139,6 @@ int main(int argc, char** argv) {
     CHECK(window.Save(root / "qt-groups.pmm") && window.Open(root / "qt-groups.pmm"));
     CHECK(window.Session().Document().models[0].selection.groupFlags[3] == 1);
     CHECK(window.Session().Selected().keys == timelineKeys);
-    QStringList catalogKeys;
     CHECK(window.SetLanguage("en"));
     auto* scope = static_cast<QComboBox*>(window.Control(panel::kRegisterScopeCombo));
     CHECK(scope->itemText(0) == "All frame");
@@ -1169,17 +1166,11 @@ int main(int argc, char** argv) {
     CHECK(scope->currentIndex() == 5);
     CHECK(window.SetLanguage("ja"));
     CHECK(scope->currentIndex() == 5);
-    for (const char* language : {"en", "ja", "zh_CN"}) {
-        QFile catalog(QString(":/i18n/%1.json").arg(language));
-        CHECK(catalog.open(QIODevice::ReadOnly));
-        const auto data = QJsonDocument::fromJson(catalog.readAll()).object();
-        if (catalogKeys.isEmpty())
-            catalogKeys = data.keys();
-        CHECK(catalogKeys == data.keys());
-        for (const auto& key : catalogKeys) {
-            CHECK(data[key].isString());
-            CHECK(!data[key].toString().contains("??"));
-        }
+    for (const auto& language : qt::Language::Available()) {
+        QTranslator catalog;
+        CHECK(catalog.load(QString(":/i18n/mikudancestudio_%1.qm").arg(language.code)));
+        CHECK(!catalog.translate(nullptr, "preferences.title").isEmpty());
+        CHECK(!catalog.translate(nullptr, "menu.file").isEmpty());
     }
     const auto artifact = qEnvironmentVariable("MDS_QT_ARTIFACT");
     if (!artifact.isEmpty()) {

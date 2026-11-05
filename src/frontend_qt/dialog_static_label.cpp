@@ -33,8 +33,10 @@ void DialogStaticLabel::resizeEvent(QResizeEvent* event) {
     FitPortableFont();
 }
 void DialogStaticLabel::FitPortableFont() {
-    if (fitting_ || QGuiApplication::platformName() == "windows" || !wordWrap() ||
-        contentsRect().isEmpty() || text().isEmpty())
+    if (fitting_ ||
+        (QGuiApplication::platformName() == "windows" &&
+         !property("mmdAdaptiveCaption").toBool()) ||
+        !wordWrap() || contentsRect().isEmpty() || text().isEmpty())
         return;
     // Some original STATIC rectangles extend beyond their parent dialog. A
     // narrower open font can put another word on that first line, where the
@@ -84,7 +86,7 @@ void DialogStaticLabel::paintEvent(QPaintEvent* event) {
     if (fittedText_ != text())
         FitPortableFont(); // Production physics labels can change their caption.
 #ifdef _WIN32
-    if (QGuiApplication::platformName() == "windows") {
+    if (QGuiApplication::platformName() == "windows" && !property("mmdAdaptiveCaption").toBool()) {
         QPainter painter(this);
         if (DrawWindowsStaticText(painter, *this, nativeStyle_))
             return;

@@ -237,17 +237,15 @@ void EditorWindow::BuildMenus() {
             Refresh();
         });
     }
-    auto* language = extensions->addMenu(language_.Text("menu.language"));
-    language->setObjectName("menu.language");
-    language->setProperty("mmdTextId", "menu.language");
-    for (const char* code : {"en", "ja", "zh_CN"}) {
-        auto* a = language->addAction(language_.Text(QString("language.") + code));
-        a->setProperty("mmdTextId", QString("language.") + code);
-        a->setProperty("mmdLanguage", code);
-        a->setCheckable(true);
-        a->setChecked(language_.Code() == code);
-        connect(a, &QAction::triggered, this, [this, code] { SetLanguage(code); });
-    }
+    auto* file = findChild<QMenu*>("menu.file");
+    auto* preferences = new QAction(language_.Text("preferences.menu"), file);
+    preferences->setObjectName("file.preferences");
+    preferences->setProperty("mmdTextId", "preferences.menu");
+    preferences->setProperty("ngExtension", true);
+    preferences->setMenuRole(QAction::NoRole);
+    preferences->setShortcut(QKeySequence::Preferences);
+    file->insertAction(actions_.at("file.exit"), preferences);
+    connect(preferences, &QAction::triggered, this, &EditorWindow::Preferences);
 }
 
 void EditorWindow::RetranslateMenus() {

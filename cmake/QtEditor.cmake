@@ -1,4 +1,4 @@
-find_package(Qt6 6.8 REQUIRED COMPONENTS Widgets Multimedia Test)
+find_package(Qt6 6.8 REQUIRED COMPONENTS Widgets Multimedia Test LinguistTools)
 if(WIN32)
     enable_language(RC)
 elseif(APPLE)
@@ -26,6 +26,7 @@ function(mds_add_qt_editor)
     get_filename_component(root "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/.." ABSOLUTE)
     qt_add_library(mikudancestudio_frontend_qt STATIC
         "${root}/src/frontend_qt/language.cpp"
+        "${root}/src/frontend_qt/preferences_dialog.cpp"
         "${root}/src/frontend_qt/audio_output.cpp"
         "${root}/src/frontend_qt/timeline.cpp"
         "${root}/src/frontend_qt/interpolation.cpp"
@@ -95,9 +96,7 @@ function(mds_add_qt_editor)
             "${MDS_WAYLAND_PROTOCOLS}/unstable/relative-pointer/relative-pointer-unstable-v1.xml"
             "${MDS_WAYLAND_PROTOCOLS}/unstable/pointer-constraints/pointer-constraints-unstable-v1.xml")
     endif()
-    qt_add_resources(mikudancestudio_frontend_qt editor_translations
-        PREFIX "/i18n" BASE "${root}/res/i18n"
-        FILES "${root}/res/i18n/en.json" "${root}/res/i18n/ja.json" "${root}/res/i18n/zh_CN.json")
+    include("${root}/cmake/QtTranslations.cmake")
     qt_add_executable(MikuDanceStudioNG "${root}/src/frontend_qt/main.cpp")
     qt_add_resources(MikuDanceStudioNG application_icon
         PREFIX "/icons" BASE "${root}/res/assets"
@@ -114,6 +113,13 @@ function(mds_add_qt_editor)
         COMMAND ${CMAKE_COMMAND} -E copy_directory "${root}/res/assets" "$<TARGET_FILE_DIR:MikuDanceStudioNG>/assets")
     include("${root}/cmake/QtDistribution.cmake")
     if(BUILD_TESTING)
+        qt_add_executable(qt_translation_catalog_test "${root}/tests/qt_translation_catalog_test.cpp")
+        target_link_libraries(qt_translation_catalog_test PRIVATE mikudancestudio_frontend_qt)
+        add_test(NAME qt_translation_runtime COMMAND qt_translation_catalog_test "${root}/translations")
+        add_test(NAME qt_translation_catalogs COMMAND "${Python3_EXECUTABLE}"
+            "${root}/tests/test_qt_translation_catalogs.py" --lupdate $<TARGET_FILE:Qt6::lupdate>)
+        set_tests_properties(qt_translation_runtime qt_translation_catalogs PROPERTIES
+            LABELS "p4;offscreen;qt;language" TIMEOUT 60)
         qt_add_executable(qt_language_switch_test "${root}/tests/qt_language_switch_test.cpp")
         target_link_libraries(qt_language_switch_test PRIVATE mikudancestudio_frontend_qt)
         if(WIN32)

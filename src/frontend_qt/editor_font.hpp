@@ -13,13 +13,20 @@ bool InstallEditorFonts();
 QFont MatchEditorFontMetrics(QFont font);
 // The OS menu font is independent of every language-specific panel property.
 QFont SystemMenuFont();
+QFont FitCaptionFont(QFont font, const QString& text, int width);
 inline QFont EditorFont(const QString& language) {
     QFont font;
-    if (language == "en") {
+    if (language != "ja" && !language.startsWith("zh") && language != "ko") {
         font.setFamilies({"Tahoma", "Liberation Sans", "Helvetica", "DejaVu Sans"});
         // Native CreateFont has positive cell height 13, with two pixels of
         // internal leading. Qt's pixel size describes the 11-pixel em height.
         font.setPixelSize(11);
+    } else if (language == "ko") {
+        font.setFamilies({"Malgun Gothic", "Noto Sans CJK KR", "Apple SD Gothic Neo"});
+        font.setPixelSize(12);
+    } else if (language == "zh_TW") {
+        font.setFamilies({"Microsoft JhengHei", "Noto Sans CJK TC", "PingFang TC"});
+        font.setPixelSize(12);
     } else {
         font.setFamilies(language == "ja"
                              ? QStringList{"MS PGothic", "MS P\u30b4\u30b7\u30c3\u30af",

@@ -12,8 +12,8 @@ QString Display(const std::string& bytes) {
 }
 EnglishNameDialog::EnglishNameDialog(editor::EditorSession& session, const Language& language,
                                      QWidget* parent)
-    : TemplateDialog(language.Code() == "en" ? ui::kNumericEnglishNameEn
-                                             : ui::kNumericEnglishNameJa,
+    : TemplateDialog(language.EnglishLayout() ? ui::kNumericEnglishNameEn
+                                              : ui::kNumericEnglishNameJa,
                      language, parent),
       session_(session), slot_(session.Selected().model),
       resource_(session.Runtime().Resource(slot_)) {
