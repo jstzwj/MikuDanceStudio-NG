@@ -147,23 +147,41 @@ float4 pixel(Output o):SV_TARGET { double value=double(o.uv.x);return float(valu
         CHECK(pixel(9, 28, 2) == 255 && pixel(9, 28, 3) == 96);
         CHECK(pixel(40, 28, 0) == 255 && pixel(40, 28, 3) == 127);
     }
-    if (native.device->ShaderFeatures().maxFrameConstantBytes) {
+    const auto shaderCaps = native.device->ShaderFeatures();
+    if (shaderCaps.maxFrameConstantBytes) {
         auto wide = desc;
         for (auto* module : {&wide.vertex, &wide.pixel}) {
             const auto at = module->hlsl.find("float4 tint;");
             module->hlsl.insert(at + std::strlen("float4 tint;"), " float4 reserved[4091];");
         }
         wide.bindings[0].bytes = 65536;
-        auto tooLarge = frame;
+        auto boundary = frame;
         auto largeDraw = draw;
         largeDraw.shader->pipeline.program = std::make_shared<const ShaderProgram>(wide);
         largeDraw.shader->constants[0].bytes.resize(65536);
         largeDraw.shader->constants[0].bytes.Seal();
-        tooLarge.passes[0].draws.assign(40, largeDraw);
+        // The arena can grow beyond its initial capacity. Exercise the advertised
+        // hard limit, including native alignment and the unused-slot constant.
+        const auto bytesPerDraw = ShaderConstantBytes(largeDraw.shader->pipeline, shaderCaps);
+        CHECK(bytesPerDraw > 0);
+        const auto fittingDraws = shaderCaps.maxFrameConstantBytes / bytesPerDraw;
+        CHECK(fittingDraws > 0 && fittingDraws < native.device->ModelFeatures().maxDraws);
+        boundary.passes[0].draws.assign(std::size_t(fittingDraws), largeDraw);
+        PreparedModelFrame boundaryPrepared;
+        const auto accepted = renderer.Prepare(2, boundary, boundaryPrepared);
+        if (!accepted)
+            throw std::runtime_error(accepted.reason);
+        boundary.passes[0].draws.push_back(largeDraw);
         const auto uploads = renderer.Stats().uploads;
-        const auto rejected = renderer.Prepare(1, tooLarge, prepared);
+        const auto rejected = renderer.Prepare(2, boundary, boundaryPrepared);
         CHECK(!rejected && rejected.reason == "shader_frame_constant_budget_exceeded");
         CHECK(renderer.Stats().uploads == uploads);
+        CHECK(renderer.Unload(2));
+        CHECK(renderer.Submit(prepared, token));
+        std::printf(
+            "constant arena: %llu bytes, %llu draws fit; next draw rejected before upload\n",
+            static_cast<unsigned long long>(shaderCaps.maxFrameConstantBytes),
+            static_cast<unsigned long long>(fittingDraws));
     }
     // Exercise all sixteen live descriptors together with distinct contents.
     auto all = desc;
