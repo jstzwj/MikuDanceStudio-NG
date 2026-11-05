@@ -1,7 +1,9 @@
 #include "language.hpp"
+#include "../translations/messages.hpp"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QSet>
 #include <QXmlStreamReader>
 #include <iostream>
 #include <stdexcept>
@@ -11,6 +13,9 @@ int main(int argc, char** argv) try {
     QCoreApplication app(argc, argv);
     if (argc != 2)
         throw std::runtime_error("expected translations directory");
+    QSet<QString> required;
+    for (const auto& entry : kTranslationMessages)
+        required.insert(QString::fromUtf8(entry.id));
     int count = 0;
     Language language;
     for (const auto& info : Language::Available()) {
@@ -21,6 +26,7 @@ int main(int argc, char** argv) try {
         if (!source.open(QIODevice::ReadOnly))
             throw std::runtime_error("cannot open TS");
         QXmlStreamReader xml(&source);
+        QSet<QString> seen;
         QString id, expected;
         while (!xml.atEnd()) {
             xml.readNext();
@@ -29,6 +35,10 @@ int main(int argc, char** argv) try {
             else if (xml.isStartElement() && xml.name() == u"translation")
                 expected = xml.readElementText();
             else if (xml.isEndElement() && xml.name() == u"message") {
+                if (!required.contains(id) || seen.contains(id))
+                    throw std::runtime_error("unexpected or duplicate translation ID: " +
+                                             info.code.toStdString() + "/" + id.toStdString());
+                seen.insert(id);
                 if (language.Text(id) != expected)
                     throw std::runtime_error("TS/QM mismatch: " + info.code.toStdString() + "/" +
                                              id.toStdString());
@@ -37,6 +47,8 @@ int main(int argc, char** argv) try {
         }
         if (xml.hasError())
             throw std::runtime_error("invalid TS XML");
+        if (seen != required)
+            throw std::runtime_error("incomplete catalog coverage: " + info.code.toStdString());
         language.Activate();
         if (qtTrId("preferences.title") != language.Text("preferences.title"))
             throw std::runtime_error("application translator not installed");
@@ -44,8 +56,6 @@ int main(int argc, char** argv) try {
         if (cancel.isEmpty() || (info.code != "en" && cancel == "Cancel"))
             throw std::runtime_error("missing Qt standard-dialog translation");
     }
-    if (count != Language::Available().size() * 773)
-        throw std::runtime_error("incomplete catalog coverage");
     // The SDK does not ship Vietnamese. Check every entry of our independently
     // compiled context-based Qt widget supplement, including file/edit menus.
     QTranslator vietnamese;

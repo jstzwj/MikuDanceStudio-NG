@@ -393,12 +393,33 @@ def main():
     try:
         if args.ime:
             adb('install', '-r', str(args.ime))
+            # Fresh API 35 images can deny sideloaded accessibility services
+            # even when the secure enabled-service list is set. Authorize only
+            # this read-only helper on the owned emulator, never the product.
+            for operation in ('ACCESS_RESTRICTED_SETTINGS', 'BIND_ACCESSIBILITY_SERVICE'):
+                adb('shell', 'cmd', 'appops', 'set', 'io.github.jstzwj.mds.testime', operation, 'allow')
             adb('shell', 'ime', 'enable', 'io.github.jstzwj.mds.testime/.TestKeyboard')
             adb('shell', 'ime', 'set', 'io.github.jstzwj.mds.testime/.TestKeyboard')
             observer = 'io.github.jstzwj.mds.testime/.UiObserver'
+            # Android caches the installed accessibility-service list, including
+            # an AppOps rejection from package installation. A component change
+            # asks the framework to discover this helper after authorization.
+            adb('shell', 'pm', 'disable', '--user', '0', observer, capture_output=True)
+            adb('shell', 'pm', 'enable', '--user', '0', observer, capture_output=True)
             combined = observer if services in ('null', '') else services + ':' + observer
             adb('shell', 'settings', 'put', 'secure', 'enabled_accessibility_services', combined)
             adb('shell', 'settings', 'put', 'secure', 'accessibility_enabled', '1')
+            # Package-added policy evaluation is asynchronous and may clear
+            # the enabled list after install. Wait for the actual framework
+            # binding, reapplying only if that list was cleared in the race.
+            deadline = time.monotonic() + 30
+            while not any('Bound services:' in line and 'label=NG emulator test keyboard,' in line
+                          for line in text('shell', 'dumpsys', 'accessibility').splitlines()):
+                assert time.monotonic() < deadline, 'Android did not bind the read-only observer'
+                if text('shell', 'settings', 'get', 'secure', 'enabled_accessibility_services').strip() != combined:
+                    adb('shell', 'settings', 'put', 'secure', 'enabled_accessibility_services', combined)
+                    adb('shell', 'settings', 'put', 'secure', 'accessibility_enabled', '1')
+                time.sleep(.5)
             os.environ['MDS_ANDROID_UI_OBSERVER'] = '1'
             hierarchy(args.output, 'observer-ready', ime_only=True)
         result = {}
@@ -424,6 +445,11 @@ def main():
             result['phone'] = phone_controls(args.output, args.project, args.model, args.ime)
         (args.output / 'ui.json').write_text(json.dumps(result, indent=2) + '\n')
     except Exception:
+        if args.ime:
+            (args.output / 'observer-accessibility.txt').write_text(
+                text('shell', 'dumpsys', 'accessibility'), encoding='utf-8')
+            (args.output / 'observer-appops.txt').write_text(
+                text('shell', 'cmd', 'appops', 'get', 'io.github.jstzwj.mds.testime'), encoding='utf-8')
         capture(args.output, 'failure')
         try:
             (args.output / 'failure-state.json').write_text(text('shell', 'cat', REPORT), encoding='utf-8')
@@ -437,6 +463,8 @@ def main():
             adb('shell', 'ime', 'disable', 'io.github.jstzwj.mds.testime/.TestKeyboard')
             adb('shell', 'settings', 'put', 'secure', 'enabled_accessibility_services', services)
             adb('shell', 'settings', 'put', 'secure', 'accessibility_enabled', enabled)
+            for operation in ('ACCESS_RESTRICTED_SETTINGS', 'BIND_ACCESSIBILITY_SERVICE'):
+                adb('shell', 'cmd', 'appops', 'set', 'io.github.jstzwj.mds.testime', operation, 'default')
             os.environ.pop('MDS_ANDROID_UI_OBSERVER', None)
         for command, value in [('size', original_size), ('density', original_density)]:
             override = re.search(r'Override (?:size|density):\s*(\S+)', value)

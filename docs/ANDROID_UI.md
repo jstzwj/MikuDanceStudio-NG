@@ -156,5 +156,8 @@ a stale root across native confirmation dialogs and IME transitions.
 It avoids UIAutomator's idle waits and checks for cycles;
 it never performs accessibility actions. The runner restores keyboard,
 accessibility, display density and geometry settings in `finally` blocks.
+Fresh emulator images may deny sideloaded accessibility helpers through AppOps.
+The runner explicitly authorizes only the test helper and waits for its actual
+framework binding; it resets those AppOps after the test.
 These settings may be changed only in an owned isolated emulator. The helper
 APK is not a product dependency and is never packaged or published.
