@@ -45,7 +45,12 @@ def hierarchy(output, name, ime_only=False):
         # Qt services each node property on its GUI thread. A complex private
         # scene on a CPU Vulkan driver can take several seconds per subtree;
         # keep the same real-node/nonce checks while allowing that traversal.
-        deadline = time.monotonic() + 60
+        # SwiftShader on a two-core runner can take over a minute to
+        # enumerate the expanded panel. Require continuing node traversal,
+        # with a separate absolute cap, rather than accepting a partial tree.
+        deadline = time.monotonic() + 180
+        idle_deadline = time.monotonic() + 60
+        visited = -1
         next_request = 0
         while True:
             if time.monotonic() >= next_request:
@@ -57,7 +62,15 @@ def hierarchy(output, name, ime_only=False):
                     break
             except (subprocess.CalledProcessError, ET.ParseError):
                 pass
-            assert time.monotonic() < deadline, 'Android accessibility observer timed out'
+            try:
+                progress = text('shell', 'cat', '/data/user/0/' + observer + '/files/hierarchy.progress').splitlines()
+                if progress[0] == request and int(progress[1]) != visited:
+                    visited = int(progress[1])
+                    idle_deadline = time.monotonic() + 60
+            except (subprocess.CalledProcessError, IndexError, ValueError):
+                pass
+            assert time.monotonic() < min(deadline, idle_deadline), (
+                'Android accessibility observer timed out; visited nodes: ' + str(visited))
             time.sleep(.2)
     else:
         adb('shell', 'uiautomator', 'dump', '/sdcard/mds-ui.xml', capture_output=True)
@@ -448,6 +461,12 @@ def main():
         if args.ime:
             (args.output / 'observer-accessibility.txt').write_text(
                 text('shell', 'dumpsys', 'accessibility'), encoding='utf-8')
+            for filename in ('hierarchy.progress', 'hierarchy.tmp'):
+                try:
+                    value = text('shell', 'cat', '/data/user/0/io.github.jstzwj.mds.testime/files/' + filename)
+                    (args.output / ('observer-' + filename)).write_text(value, encoding='utf-8')
+                except subprocess.CalledProcessError:
+                    pass
             (args.output / 'observer-appops.txt').write_text(
                 text('shell', 'cmd', 'appops', 'get', 'io.github.jstzwj.mds.testime'), encoding='utf-8')
         capture(args.output, 'failure')

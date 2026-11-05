@@ -154,7 +154,10 @@ The read-only service disables accessibility node caching and asynchronous
 descendant prefetch, which can overlap Qt's serialized JNI queries or retain
 a stale root across native confirmation dialogs and IME transitions.
 It avoids UIAutomator's idle waits and checks for cycles;
-it never performs accessibility actions. The runner restores keyboard,
+it never performs accessibility actions. On slow software Vulkan runners, the
+observer reports node-traversal progress: the runner allows up to three minutes
+for a complete tree but fails after one minute without progress. Partial trees
+never satisfy the gate. The runner restores keyboard,
 accessibility, display density and geometry settings in `finally` blocks.
 Fresh emulator images may deny sideloaded accessibility helpers through AppOps.
 The runner explicitly authorizes only the test helper and waits for its actual

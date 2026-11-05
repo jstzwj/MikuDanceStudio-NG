@@ -6,6 +6,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Rect;
+import android.os.SystemClock;
+import java.nio.charset.StandardCharsets;
 import android.util.Xml;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -24,6 +26,17 @@ public class UiObserver extends AccessibilityService {
     private final ExecutorService snapshots = Executors.newSingleThreadExecutor();
     private final AtomicBoolean busy = new AtomicBoolean();
     private volatile boolean connected;
+    private int visitedNodes;
+    private long lastProgress;
+    private String request;
+    private void progress(boolean force) throws java.io.IOException {
+        long now = SystemClock.uptimeMillis();
+        if (!force && now - lastProgress < 1000) return;
+        try (FileOutputStream stream = new FileOutputStream(new File(getFilesDir(), "hierarchy.progress"))) {
+            stream.write((request + "\n" + visitedNodes + "\n").getBytes(StandardCharsets.UTF_8));
+        }
+        lastProgress = now;
+    }
     private final BroadcastReceiver dump = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             if (!connected || !busy.compareAndSet(false, true)) return;
@@ -34,6 +47,9 @@ public class UiObserver extends AccessibilityService {
     };
     private void snapshot(Intent intent) {
         try {
+            request = intent.getStringExtra("request");
+            visitedNodes = 0;
+            progress(true);
             File temporary = new File(getFilesDir(), "hierarchy.tmp");
             try (FileOutputStream stream = new FileOutputStream(temporary)) {
                 XmlSerializer xml = Xml.newSerializer();
@@ -94,6 +110,8 @@ public class UiObserver extends AccessibilityService {
     @Override public void onInterrupt() { }
     private static String value(CharSequence text) { return text == null ? "" : text.toString(); }
     private void node(XmlSerializer xml, AccessibilityNodeInfo info, int depth, Set<AccessibilityNodeInfo> visited) throws Exception {
+        ++visitedNodes;
+        progress(false);
         if (!info.isVisibleToUser()) return;
         if (depth > 64 || !visited.add(info)) throw new IllegalStateException("Cyclic accessibility tree");
         Rect bounds = new Rect();
