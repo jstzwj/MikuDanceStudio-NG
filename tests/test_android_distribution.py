@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from release_contract import inspect_archive
 
 PACKAGE = 'io.github.jstzwj.mikudancestudiong'
-ACTIVITY = PACKAGE + '/org.qtproject.qt.android.bindings.QtActivity'
+ACTIVITY = PACKAGE + '/' + PACKAGE + '.EditorActivity'
 FILES = '/data/user/0/' + PACKAGE + '/files'
 
 

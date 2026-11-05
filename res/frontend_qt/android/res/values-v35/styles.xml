@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="MdsEditorTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <!-- Qt 6.8.3 uses the system's available geometry. Keep that contract
+             on Android 15 too, rather than drawing beneath system controls. -->
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+</resources>

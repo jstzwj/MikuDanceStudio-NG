@@ -1,11 +1,27 @@
 # Android uses Qt's APK deployment, never the desktop install/deploy API.
+if(NOT Qt6_VERSION VERSION_EQUAL "6.8.3")
+    message(FATAL_ERROR "Review the Android Java/QPA input adapter before upgrading Qt 6.8.3")
+endif()
 target_compile_definitions(MikuDanceStudioNG PRIVATE MDS_PRODUCT_VERSION="${MDS_VERSION}")
 target_compile_definitions(mikudancestudio_frontend_qt PUBLIC MDS_PRODUCT_VERSION="${MDS_VERSION}")
 target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/surface_android.cpp"
-    "${root}/src/frontend_qt/android_files.cpp" "${root}/src/frontend_qt/android_acceptance.cpp")
+    "${root}/src/frontend_qt/android_files.cpp" "${root}/src/frontend_qt/android_acceptance.cpp"
+    "${root}/src/frontend_qt/android_input.cpp")
+target_link_libraries(mikudancestudio_frontend_qt PRIVATE Qt6::GuiPrivate)
 set(mds_android_package "${CMAKE_CURRENT_BINARY_DIR}/android-package")
 file(MAKE_DIRECTORY "${mds_android_package}")
 file(MAKE_DIRECTORY "${mds_android_package}/res/drawable")
+file(GLOB_RECURSE mds_android_platform_files CONFIGURE_DEPENDS RELATIVE
+    "${root}/res/frontend_qt/android"
+    "${root}/res/frontend_qt/android/src/*" "${root}/res/frontend_qt/android/res/*")
+foreach(platform_file IN LISTS mds_android_platform_files)
+    configure_file("${root}/res/frontend_qt/android/${platform_file}"
+        "${mds_android_package}/${platform_file}" COPYONLY)
+    # Qt's APK custom command depends on the native library. Relink it when a
+    # Java/theme input changes so incremental apk builds package current code.
+    set_property(TARGET MikuDanceStudioNG APPEND PROPERTY LINK_DEPENDS
+        "${root}/res/frontend_qt/android/${platform_file}")
+endforeach()
 configure_file("${root}/res/frontend_qt/android/icon.png" "${mds_android_package}/res/drawable/icon.png" COPYONLY)
 set(MDS_RELEASE_TAG "" CACHE STRING "Exact version tag for release APKs; empty for development")
 execute_process(COMMAND "${Python3_EXECUTABLE}" "${root}/tools/android_build_info.py"

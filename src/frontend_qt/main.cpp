@@ -20,6 +20,7 @@
 #include <iostream>
 #ifdef __ANDROID__
 #include "android_files.hpp"
+#include "android_input.hpp"
 #include "android_acceptance.hpp"
 #include <QMenuBar>
 #include <QMenu>
@@ -142,6 +143,9 @@ int main(int argc, char** argv) {
     qInstallMessageHandler(AppleMessageHandler);
 #endif
     QApplication app(argc, argv);
+#ifdef __ANDROID__
+    mikudancestudio::qt::InstallAndroidInput();
+#endif
     QCoreApplication::setOrganizationName("MikuDanceStudio");
     QCoreApplication::setApplicationName("MikuDanceStudio-NG");
     QCoreApplication::setApplicationVersion(MDS_PRODUCT_VERSION);
