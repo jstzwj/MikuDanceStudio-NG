@@ -7,7 +7,7 @@ import sys
 
 VERSION = '6.8.3'
 HOSTS = {'Windows': ('windows', 'win64_msvc2022_64'),
-         'Linux': ('linux', 'gcc_64'), 'Darwin': ('mac', 'clang_64')}
+         'Linux': ('linux', 'linux_gcc_64'), 'Darwin': ('mac', 'clang_64')}
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -22,7 +22,7 @@ def main():
     if args.target == 'android':
         if host != 'linux':
             parser.error('The reproducible Android build profile currently uses a Linux x64 host')
-        for target, sdk_arch in (('desktop', 'gcc_64'), ('android', 'android_arm64_v8a'),
+        for target, sdk_arch in (('desktop', 'linux_gcc_64'), ('android', 'android_arm64_v8a'),
                                  ('android', 'android_x86_64')):
             subprocess.run([sys.executable, '-m', 'aqt', 'install-qt', host, target, VERSION,
                             sdk_arch, '--outputdir', str(args.output.resolve()), '-m', 'qtmultimedia'], check=True)
