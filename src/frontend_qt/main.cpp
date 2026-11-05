@@ -11,6 +11,8 @@
 #include <QJsonObject>
 #include <QLibraryInfo>
 #include <QFile>
+#include <QFileInfo>
+#include <QDebug>
 #include <QMediaDevices>
 #include <QAudioDevice>
 #include "mikudancestudio/shader_compiler.hpp"
@@ -40,15 +42,30 @@ void AppleMessageHandler(QtMsgType, const QMessageLogContext& context, const QSt
 int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& report,
                     const std::filesystem::path& assets, const QString& project) {
     using namespace mikudancestudio;
+    const auto fail = [&](int code, const QString& message) {
+        // Android does not forward ordinary stderr to logcat. Keep failure
+        // diagnostics available even when the native process exits early.
+        qCritical().noquote() << message;
+        QFile file(report);
+        if (file.open(QIODevice::WriteOnly))
+            file.write(
+                QJsonDocument(QJsonObject{{"state", "failed"},
+                                          {"version", QCoreApplication::applicationVersion()},
+                                          {"reason", message},
+                                          {"exitCode", code}})
+                    .toJson());
+        return code;
+    };
     if (project.isEmpty() || !window.Open(qt::Path(project))) {
-        std::cerr << "deployment PMM: " << window.LastError().toStdString() << '\n';
-        return 2;
+        return fail(2, QString("deployment PMM: %1 (project: %2, exists: %3)")
+                           .arg(window.LastError(), project)
+                           .arg(QFileInfo::exists(project)));
     }
     QJsonArray languages;
     QJsonArray cancelLabels;
     for (const auto& language : qt::Language::Available()) {
         if (!window.SetLanguage(language.code))
-            return 3;
+            return fail(3, "deployment language: " + language.code);
         languages.append(language.code);
         cancelLabels.append(QCoreApplication::translate("QPlatformTheme", "Cancel"));
     }
@@ -67,8 +84,7 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
     std::string reason;
     if (!qt::RenderImage(window.Session().Runtime(), window.Session().Assets(), assets, options, 96,
                          64, image, reason)) {
-        std::cerr << "deployment render: " << reason << '\n';
-        return 4;
+        return fail(4, "deployment render: " + QString::fromStdString(reason));
     }
     const bool runtimeCompiler = rhi::DefaultSpirvCompiler()->Available();
 #ifndef __ANDROID__
@@ -79,18 +95,17 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
         shader.hlsl = "float4 main():SV_Target0{return float4(1,0,0,1);}";
         rhi::SnapshotBytes spirv;
         if (!rhi::DefaultSpirvCompiler()->Compile(shader, spirv, reason)) {
-            std::cerr << "deployment compiler: " << reason << '\n';
-            return 5;
+            return fail(5, "deployment compiler: " + QString::fromStdString(reason));
         }
     }
 #endif
     if (window.isVisible() || image.isNull() || !image.save(report + ".png"))
-        return 6;
+        return fail(6, "deployment image capture failed");
     QJsonArray iconSizes;
     for (const auto& size : QApplication::windowIcon().availableSizes()) {
         if (QApplication::windowIcon().pixmap(size).isNull() ||
             window.windowIcon().pixmap(size).isNull())
-            return 8;
+            return fail(8, "deployment application icon failed");
         iconSizes.append(QJsonArray{size.width(), size.height()});
     }
     const auto proxy = qobject_cast<QProxyStyle*>(qApp->style());
@@ -117,7 +132,7 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
                        {"nativeMetal", options.backend == rhi::Backend::Metal}};
     QFile output(report);
     if (!output.open(QIODevice::WriteOnly) || output.write(QJsonDocument(result).toJson()) < 0)
-        return 7;
+        return fail(7, "deployment report write failed: " + output.errorString());
     std::cout << "Relocated editor: PMM, languages, multimedia and offscreen render passed\n";
     return 0;
 }

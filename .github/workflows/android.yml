@@ -83,7 +83,8 @@ jobs:
           path: .cache/ccache
           key: android-objects-qt683-ndk261-v1-${{ github.sha }}
           restore-keys: android-objects-qt683-ndk261-v1-
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
+        id: fonts
         with:
           path: out/editor-fonts
           key: android-fonts-noto2004-b76b0433
@@ -107,6 +108,12 @@ jobs:
             '-DQT_ANDROID_MULTI_ABI_FORWARD_VARS=BUILD_TESTING;MDS_DXC;MDS_SPIRV_VAL;MDS_VULKAN_INCLUDE;MDS_RELEASE_TAG;MDS_EDITOR_FONT_FILE;CMAKE_SHARED_LINKER_FLAGS' \
             -DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384
           cmake --build out/android --target apk --parallel 3
+          ccache --show-stats
+      - uses: actions/cache/save@v4
+        if: steps.fonts.outputs.cache-hit != 'true'
+        with:
+          path: out/editor-fonts
+          key: android-fonts-noto2004-b76b0433
       - uses: actions/cache/save@v4
         if: steps.objects.outputs.cache-hit != 'true'
         with:
@@ -177,5 +184,14 @@ jobs:
             out/android-tests/
             out/android/android-package/assets/build-info.json
             out/android/CMakeFiles/CMakeConfigureLog.yaml
-            out/android/android-build/build/outputs/apk/**/*.apk
           if-no-files-found: warn
+      # Keep failure logs small enough to inspect without downloading the APK.
+      # This candidate artifact is never matched by the Release publisher.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-candidate
+          path: |
+            out/releases/*-android-universal.apk
+            out/releases/*-android-universal.apk.sha256
+          if-no-files-found: ignore

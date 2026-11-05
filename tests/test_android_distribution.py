@@ -27,12 +27,17 @@ def read_report(name):
 
 def wait_report(name, expected):
     deadline = time.monotonic() + 150
+    stopped = 0
     while time.monotonic() < deadline:
         report = read_report(name)
-        if report and (not expected or report.get('state') in expected):
-            return report
         if report and report.get('state') == 'failed':
             raise RuntimeError(f'Android gate failed: {report}')
+        if report and (not expected or report.get('state') in expected):
+            return report
+        process = subprocess.run(['adb', 'shell', 'pidof', PACKAGE], capture_output=True, text=True)
+        stopped = 0 if process.stdout.strip() else stopped + 1
+        if stopped >= 10:
+            raise RuntimeError(f'Android process exited before writing {name}; see logcat.txt')
         time.sleep(1)
     raise RuntimeError(f'Android gate timed out waiting for {name}: {read_report(name)}')
 
@@ -83,8 +88,11 @@ def main():
             adb('exec-out', 'screencap', '-p', stdout=image)
     finally:
         adb('shell', 'am', 'force-stop', PACKAGE)
-        with (args.output / 'logcat.txt').open('w', encoding='utf-8') as log:
-            adb('logcat', '-d', stdout=log)
+        log = adb('logcat', '-d', capture_output=True, text=True, encoding='utf-8', errors='replace').stdout
+        (args.output / 'logcat.txt').write_text(log, encoding='utf-8')
+        markers = ('Qt', 'default', 'AndroidRuntime', 'MikuDance', 'mikudancestudio',
+                   'vulkan', 'FATAL', 'Fatal', 'Abort message', 'SIGSEGV', 'SIGABRT')
+        print('\n'.join([line for line in log.splitlines() if any(marker in line for marker in markers)][-100:]))
 
 
 if __name__ == '__main__':
