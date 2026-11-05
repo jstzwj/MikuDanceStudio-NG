@@ -51,12 +51,16 @@ on:
         type: boolean
         description: Windows hidden control observers only (no shown input or package rebuild)
         default: false
+      mme_only:
+        type: boolean
+        description: Windows headless MME frontend and native oracle only (no Qt, GPU or packaging)
+        default: false
       system_ime:
         type: boolean
         description: Qualify real platform IMEs on isolated Windows, Linux and macOS runners
         default: false
 concurrency:
-  group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}-${{ inputs.windows_runner || 'windows-2022' }}-${{ inputs.ui_only && 'ui' || inputs.observers_only && 'observers' || inputs.system_ime && 'ime' || inputs.native_controls && 'controls' || inputs.native_reference && 'reference' || 'regular' }}
+  group: editor-${{ github.workflow }}-${{ github.ref }}-${{ inputs.platform || 'all' }}-${{ inputs.macos_runner || 'macos-15' }}-${{ inputs.windows_runner || 'windows-2022' }}-${{ inputs.mme_only && 'mme' || inputs.ui_only && 'ui' || inputs.observers_only && 'observers' || inputs.system_ime && 'ime' || inputs.native_controls && 'controls' || inputs.native_reference && 'reference' || 'regular' }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 permissions:
   contents: read
@@ -80,8 +84,39 @@ jobs:
             BASE_REVISION=$(git rev-parse HEAD^)
           fi
           python scripts/format_sources.py --check --changed "$BASE_REVISION"
+  mme:
+    if: github.event_name == 'workflow_dispatch' && inputs.mme_only
+    runs-on: ${{ inputs.windows_runner || 'windows-2022' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch pinned source tools and independent oracle
+        run: |
+          python tools/fetch_dxc.py --output out/dxc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/fetch_d3dx_oracle.py --output out/d3dx-oracle
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build and qualify without Qt or GPU SDKs
+        run: |
+          cmake -S cmake/portable-mme -B out/p5 -A x64 -DMDS_DXC="$PWD/out/dxc/dxc.exe" -DMDS_D3DX_ORACLE="$PWD/out/d3dx-oracle/D3DX9_43.dll"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build out/p5 --config Release --target mds_effect_cli mme_source_test mme_definition_test mme_legacy_source_test mme_standard_parameters_test mme_scene_plan_test mme_frontend_native_test --parallel 3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir out/p5 -C Release -L p5 --no-tests=error --output-on-failure --output-junit p5.xml
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: p5-windows
+          path: |
+            out/p5/p5.xml
+            out/p5/production/mme-cli/report.json
+            out/p5/production/mme-dependencies.json
+            out/p5/Testing/Temporary/
   windows:
-    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'windows'
+    if: ${{ !inputs.mme_only && (github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'windows') }}
     runs-on: ${{ inputs.windows_runner || 'windows-2022' }}
     env:
       SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
@@ -349,7 +384,7 @@ jobs:
             out/p4/native-audio*.json
             out/p4/Testing/Temporary/
   linux:
-    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'linux' || inputs.platform == 'linux-macos'
+    if: ${{ !inputs.mme_only && (github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'linux' || inputs.platform == 'linux-macos') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -497,7 +532,7 @@ jobs:
             out/p4/native-audio*.json
             out/p4/Testing/Temporary/
   macos:
-    if: github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'macos' || inputs.platform == 'linux-macos'
+    if: ${{ !inputs.mme_only && (github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'macos' || inputs.platform == 'linux-macos') }}
     runs-on: ${{ inputs.macos_runner || 'macos-15' }}
     env:
       MDS_MACOS_CACHE: ${{ inputs.macos_runner == 'macos-26' && 'macos26' || 'macos15' }}

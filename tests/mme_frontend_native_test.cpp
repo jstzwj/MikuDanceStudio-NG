@@ -145,13 +145,27 @@ int main(int argc, char** argv) try {
               "FX9/DXC preprocessor token mismatch at " + std::to_string(at) +
                   ": native=" + nativeTokens.substr(at, 120) +
                   " modern=" + modernTokens.substr(std::min(at, modernTokens.size()), 120));
-        const auto runtime =
-            LoadLibraryW(argc == 4 && argv[3][0] ? fs::u8path(argv[3]).c_str() : L"d3dx9_43.dll");
-        Check(runtime != nullptr, "D3DX oracle runtime missing");
         struct Unload {
             HMODULE handle;
-            ~Unload() { FreeLibrary(handle); }
-        } unload{runtime};
+            ~Unload() {
+                if (handle)
+                    FreeLibrary(handle);
+            }
+        } compilerModule{nullptr}, runtimeModule{nullptr};
+        const auto runtimePath = fs::u8path(argv[3]);
+        // D3DX loads this compiler dynamically. An explicit oracle path must
+        // work without an SDK installed elsewhere on the machine.
+        const auto compilerPath = runtimePath.empty()
+                                      ? fs::path(L"D3DCompiler_43.dll")
+                                      : runtimePath.parent_path() / L"D3DCompiler_43.dll";
+        Check(runtimePath.empty() || fs::is_regular_file(compilerPath),
+              "D3DX oracle compiler missing: " + compilerPath.u8string());
+        compilerModule.handle = LoadLibraryW(compilerPath.c_str());
+        Check(compilerModule.handle != nullptr, "D3DX oracle compiler load failed");
+        runtimeModule.handle =
+            LoadLibraryW(runtimePath.empty() ? L"d3dx9_43.dll" : runtimePath.c_str());
+        const auto runtime = runtimeModule.handle;
+        Check(runtime != nullptr, "D3DX oracle runtime missing");
         // The constructor returns ID3DXEffectCompiler, derived from the same SDK
         // base interface as ID3DXEffect. Only base methods are called here.
         using Create = HRESULT(WINAPI*)(LPCSTR, UINT, const D3DXMACRO*, ID3DXInclude*, DWORD,
@@ -163,9 +177,12 @@ int main(int argc, char** argv) try {
         Com<ID3DXBuffer> compilerErrors;
         const auto compiled = create(native.data(), UINT(native.size()), nullptr, nullptr, 0,
                                      &effect.p, &compilerErrors.p);
-        Check(SUCCEEDED(compiled),
-              compilerErrors.p ? static_cast<const char*>(compilerErrors.p->GetBufferPointer())
-                               : "native effect compile failed");
+        std::ostringstream failure;
+        failure << fixture.generic_u8string() << ": native effect compiler HRESULT=0x" << std::hex
+                << static_cast<unsigned long>(compiled);
+        if (compilerErrors.p)
+            failure << ": " << static_cast<const char*>(compilerErrors.p->GetBufferPointer());
+        Check(SUCCEEDED(compiled), failure.str());
         const auto& p = definition->metadata;
         D3DXEFFECT_DESC desc{};
         Check(SUCCEEDED(effect.p->GetDesc(&desc)) &&

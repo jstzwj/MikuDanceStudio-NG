@@ -23,7 +23,10 @@ Linux／macOS 使用相同 CMake 入口，指定本机 DXC；单配置生成器�
 原生测试默认从系统读取 `d3dx9_43.dll`。干净 CI 用
 `python tools/fetch_d3dx_oracle.py --output out/d3dx-oracle` 获取 SHA256 固定的
 Microsoft NuGet 包，通过 `-DMDS_D3DX_ORACLE=.../D3DX9_43.dll` 明确指定。
-该 DLL 仅用于独立参考，未链接／打包进 Qt 编辑器或前端 CLI。
+必须一起提供 `D3DX9_43.dll` 和同包的 `D3DCompiler_43.dll`：D3DX 在创建编译器时
+动态加载后者，单独加载 D3DX 成功并不能证明编译器依赖完整。显式路径会验证并
+预加载同目录编译器，避免被本机安装的旧 SDK 掩盖缺项。这两个 DLL 仅用于独立
+参考，未链接／打包进 Qt 编辑器或前端 CLI。
 
 `inspect` 支持重复 `-I DIRECTORY`、`-D NAME=VALUE`，以及 `--output report.json`。
 成功报告使用 `status: described`、`executionValidated: false`；导入描述不表示
@@ -61,6 +64,9 @@ RHI 构建另注册原有运行时着色器编译器回归，验证共用子进�
 
 现有 Portable editor 的三个平台作业运行 `p4|p5`，不新增完整构建矩阵或反复
 dispatch。三平台 CI 证据取得前，P5.1 的跨平台验收仍待确认。
+
+Windows 纯前端补验可用 Portable editor 的 `mme_only=true`，只构建专用入口并
+运行 8 项无设备测试；不安装 Qt、不创建 GPU 设备，也不重复其他平台和发布包。
 
 本地 Ray 根效果的原始文件已通过预处理，随后在 `Shader/math.fxsub:97` 的
 `EncodeRGBM` 函数参数默认值处明确报告解析缺口。该结果只证明真实 include 链

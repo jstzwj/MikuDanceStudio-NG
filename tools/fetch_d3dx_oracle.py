@@ -22,7 +22,8 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     # Deliberately do not install, register or distribute the legacy runtime
     # with the Qt editor. It is an independent test dependency only.
-    (args.output / 'D3DX9_43.dll').write_bytes(archive.read('build/native/release/bin/x64/D3DX9_43.dll'))
+    for name in ('D3DX9_43.dll', 'D3DCompiler_43.dll'):
+        (args.output / name).write_bytes(archive.read(f'build/native/release/bin/x64/{name}'))
     for item in archive.namelist():
         if 'license' in item.lower() and item.lower().endswith(('.txt', '.rtf')):
             (args.output / Path(item).name).write_bytes(archive.read(item))
