@@ -6,7 +6,7 @@
 
 MikuDanceStudio NG 希望把我们熟悉的 MMD 动画工作流，带到现代渲染技术，以及 Windows、macOS 和 Linux 的原生编辑器上。项目从 MikuMikuDance v9.32 的源码级重建出发，以原版程序的行为为对照，一点点向前。
 
-发行方式：**桌面只提供便携包，不做安装版**；Android 提供 APK。首个 `v0.0.1` 预览版面向 Windows x64／ARM64、Apple Silicon macOS、Linux x64 和 Android，等待五种目标全部通过后发布。构建、测试、打包和签名职责统一见[发布指南](docs/RELEASES.md)。
+发行方式：**桌面只提供便携包，不做安装版**；Android 提供 APK。首个 `v0.0.1` 预览版面向 Windows x64／ARM64、Apple Silicon macOS、Linux x64 和 Android。每次发布均要求五种目标全部通过，合格包见 [Releases](https://github.com/jstzwj/MikuDanceStudio-NG/releases)。构建、测试、打包和签名职责统一见[发布指南](docs/RELEASES.md)。
 
 ## 我们的故事
 
