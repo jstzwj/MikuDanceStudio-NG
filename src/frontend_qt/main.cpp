@@ -155,6 +155,7 @@ int main(int argc, char** argv) {
     for (const auto& language : mikudancestudio::qt::Language::Available())
         languageCodes.append(language.code);
     parser.addOption({"language", "UI language: " + languageCodes.join(", "), "language"});
+    parser.addOption({"gpu-driver", "GPU driver: hardware or software", "driver"});
     parser.addOption({"assets", "Builtin asset directory", "directory",
                       QDir(QCoreApplication::applicationDirPath() + "/../Resources/assets").exists()
                           ? QCoreApplication::applicationDirPath() + "/../Resources/assets"
@@ -166,6 +167,12 @@ int main(int argc, char** argv) {
         {"android-acceptance", "Isolated emulator presentation and lifecycle check", "report"});
 #endif
     parser.process(app);
+    if (parser.isSet("gpu-driver")) {
+        const auto driver = parser.value("gpu-driver");
+        if (driver != "hardware" && driver != "software")
+            parser.showHelp(2);
+        qputenv("MDS_GPU_DRIVER", driver.toLatin1());
+    }
     QString assetsPath = parser.value("assets");
 #ifdef __ANDROID__
     QString reason;

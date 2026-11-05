@@ -97,3 +97,8 @@ that exact APK, checks PMM/15 languages/offscreen GPU output, then native
 presentation, window/device rebuilding and background/resume. Desktop tests
 stay offscreen/hidden; emulator interaction is restricted to its isolated CI
 device and never touches the developer's desktop.
+
+`--gpu-driver hardware|software` explicitly selects the RHI device class without
+changing the default hardware path. The emulator gate records Android's guest
+Vulkan capabilities and selects software only when its devices are CPU devices;
+it does not infer device type from the host or waive required Vulkan features.

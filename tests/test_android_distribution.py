@@ -43,9 +43,10 @@ def wait_report(name, expected):
     raise RuntimeError(f'Android gate timed out waiting for {name}: {read_report(name)}')
 
 
-def start(arguments):
+def start(arguments, driver):
     # QtActivity's loader accepts this documented development extra. No shell
     # interpolation or real-device input is used; this runner owns the emulator.
+    arguments = '--gpu-driver ' + driver + ' ' + arguments
     adb('shell', 'am', 'start', '-W', '-n', ACTIVITY, '--es', 'applicationArguments', shlex.quote(arguments))
 
 
@@ -80,8 +81,16 @@ def main():
         adb('shell', 'chown', '-R', uid + ':' + uid, FILES)
         adb('shell', 'restorecon', '-RF', FILES)
         adb('shell', 'test', '-r', FILES + '/fixtures/v2.pmm')
+        # Query the guest device, not the runner host. SwiftShader is a CPU
+        # device and must use the same explicit software selection as desktops.
+        gpu = adb('shell', 'cmd', 'gpu', 'vkjson', capture_output=True, text=True).stdout
+        (args.output / 'vulkan-device.json').write_text(gpu, encoding='utf-8')
+        devices = json.loads(gpu)['devices']
+        driver = 'software' if devices and all(d['properties']['deviceType'] == 4 for d in devices) else 'hardware'
+        print('Android guest Vulkan:', [(d['properties']['deviceName'], d['properties']['apiVersion'],
+                                         d['properties']['deviceType']) for d in devices], 'driver:', driver)
         adb('logcat', '-c')
-        start('--deployment-check ' + FILES + '/deployment.json ' + FILES + '/fixtures/v2.pmm')
+        start('--deployment-check ' + FILES + '/deployment.json ' + FILES + '/fixtures/v2.pmm', driver)
         deployment = wait_report('deployment.json', None)
         version = (Path(__file__).resolve().parents[1] / 'VERSION').read_text().strip()
         if deployment.get('version') != version or len(deployment.get('languages', [])) != 15:
@@ -92,11 +101,11 @@ def main():
         adb('pull', FILES + '/deployment.json.png', str(args.output / 'offscreen.png'))
         adb('shell', 'am', 'force-stop', PACKAGE)
         arguments = '--android-acceptance ' + FILES + '/native.json ' + FILES + '/fixtures/v2.pmm'
-        start(arguments)
+        start(arguments, driver)
         wait_report('native.json', ('await-lifecycle',))
         adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
         time.sleep(2)
-        start(arguments)
+        start(arguments, driver)
         native = wait_report('native.json', ('passed',))
         if not native.get('suspended') or not native.get('resumed') or native.get('submissions', 0) < 3:
             raise RuntimeError(f'Android native lifecycle was not exercised: {native}')

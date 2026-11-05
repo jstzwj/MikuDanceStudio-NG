@@ -1957,12 +1957,18 @@ bool VulkanDevice::Initialize(unsigned w, unsigned h, VulkanDriver driver, Vulka
     if (!Check(vkEnumeratePhysicalDevices(instance, &count, candidates.data())))
         return false;
     unsigned best = 0;
+    std::ostringstream candidatesRejected;
     for (auto candidate : candidates) {
         VkPhysicalDeviceProperties p;
         vkGetPhysicalDeviceProperties(candidate, &p);
         const bool cpu = p.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU;
-        if (cpu != (driver == VulkanDriver::Software) || p.apiVersion < VK_API_VERSION_1_3)
+        candidatesRejected << '[' << p.deviceName << " Vulkan "
+                           << VK_API_VERSION_MAJOR(p.apiVersion) << '.'
+                           << VK_API_VERSION_MINOR(p.apiVersion) << " type=" << p.deviceType;
+        if (cpu != (driver == VulkanDriver::Software) || p.apiVersion < VK_API_VERSION_1_3) {
+            candidatesRejected << " driver-or-api-mismatch] ";
             continue;
+        }
         VkPhysicalDeviceVulkan13Features f13{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
         VkPhysicalDeviceLineRasterizationFeaturesEXT lines{
             VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT};
@@ -1979,8 +1985,17 @@ bool VulkanDevice::Initialize(unsigned w, unsigned h, VulkanDriver driver, Vulka
         vkGetPhysicalDeviceProperties2(candidate, &p2);
         if (!f13.dynamicRendering || !f13.synchronization2 || !f13.shaderDemoteToHelperInvocation ||
             !floats.shaderSignedZeroInfNanPreserveFloat32 || !f12.timelineSemaphore ||
-            !f.features.samplerAnisotropy)
+            !f.features.samplerAnisotropy) {
+            candidatesRejected << " dynamicRendering=" << f13.dynamicRendering
+                               << " synchronization2=" << f13.synchronization2
+                               << " demote=" << f13.shaderDemoteToHelperInvocation
+                               << " float32Preserve="
+                               << floats.shaderSignedZeroInfNanPreserveFloat32
+                               << " timeline=" << f12.timelineSemaphore
+                               << " anisotropy=" << f.features.samplerAnisotropy << "] ";
             continue;
+        }
+        candidatesRejected << " graphics/present queue required] ";
         unsigned families = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(candidate, &families, nullptr);
         std::vector<VkQueueFamilyProperties> queues(families);
@@ -2011,8 +2026,10 @@ bool VulkanDevice::Initialize(unsigned w, unsigned h, VulkanDriver driver, Vulka
     }
     reason = driver == VulkanDriver::Software ? "software_device_unavailable"
                                               : "vulkan_1_3_features_unavailable";
-    if (!physical)
+    if (!physical) {
+        reason += ": " + candidatesRejected.str();
         return false;
+    }
     // D24S8 is optional (notably on Apple GPUs). Negotiate only the portable
     // attachment contract; exact Depth24Stencil8 queries still use D24S8.
     for (auto format : {VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D32_SFLOAT_S8_UINT}) {
