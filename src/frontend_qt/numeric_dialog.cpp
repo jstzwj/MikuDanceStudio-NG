@@ -26,6 +26,7 @@
 #include <QValidator>
 #include <QTextDocument>
 #include <QTextBlock>
+#include <QTextLayout>
 #include <QScrollBar>
 #include <QTimer>
 #include <charconv>
@@ -35,7 +36,8 @@ namespace mikudancestudio::qt {
 namespace {
 class DialogMultilineEdit final : public QPlainTextEdit {
 public:
-    DialogMultilineEdit(bool english, bool border, QWidget* parent) : QPlainTextEdit(parent) {
+    DialogMultilineEdit(bool english, bool border, int scrollColumn, QWidget* parent)
+        : QPlainTextEdit(parent), scrollColumn_(scrollColumn) {
         // Original EM_GETRECT/EM_POSFROMCHAR: four client pixels on the
         // left, one above; the default 32-DLU tabs are 56 logical pixels.
         // Apply them to Qt's actual viewport/document, so drawing, hit testing,
@@ -96,7 +98,78 @@ protected:
         const bool outside = !bounds.contains(event->position().toPoint());
         const int horizontal = horizontalScrollBar()->value();
         const int vertical = verticalScrollBar()->value();
-        // Qt owns IME delivery, capture and the autoscroll timer. Legacy ASCII
+        bool ascii = !property("_mmdImePreedit").toBool();
+        for (const auto character : cursor.block().text())
+            ascii &= character.unicode() < 128;
+        bool legacy = ascii && !(event->modifiers() &
+                                 (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier));
+        const bool dragging = mouseAnchor_ >= 0 &&
+                              ((type == QEvent::MouseMove && event->buttons() & Qt::LeftButton) ||
+                               type == QEvent::MouseButtonRelease);
+        QTextBlock outsideBlock;
+        if (legacy && dragging && outside && lineWrapMode() == QPlainTextEdit::NoWrap) {
+            const auto first = firstVisibleBlock();
+            const auto client =
+                rect().adjusted(frameWidth(), frameWidth(), -frameWidth(), -frameWidth());
+            const auto offset = viewport()->pos() - client.topLeft();
+            const auto y = std::clamp(event->position().y() + offset.y(), qreal(0),
+                                      qreal(client.height() - 1)) -
+                           offset.y();
+            const auto row = int(
+                std::floor((y - cursorRect(QTextCursor(first)).top()) / fontMetrics().height()));
+            outsideBlock = document()->findBlockByNumber(
+                std::clamp(first.blockNumber() + row, 0, document()->blockCount() - 1));
+            for (const auto character : outsideBlock.text())
+                legacy &= character.unicode() < 128;
+        }
+        if (legacy && outsideBlock.isValid()) {
+            // Actual EDIT updates only on mouse movement, retaining the column
+            // and confining the row to the client edge. Qt's timer selects all the way
+            // to the document boundary while the pointer remains stationary.
+            // Keep Qt's real OS capture, but do not start that timer for ASCII.
+            if (type == QEvent::MouseMove) {
+                const auto client =
+                    rect().adjusted(frameWidth(), frameWidth(), -frameWidth(), -frameWidth());
+                const auto offset = viewport()->pos() - client.topLeft();
+                const auto block = outsideBlock;
+                const auto origin = cursorRect(QTextCursor(block)).topLeft();
+                const auto line = block.layout()->lineAt(0);
+                const int target =
+                    block.position() + line.xToCursor(event->position().x() - origin.x() +
+                                                      line.cursorToX(0) + qreal(1.0 / 64));
+                cursor.setPosition(mouseAnchor_);
+                cursor.setPosition(target, QTextCursor::KeepAnchor);
+                setTextCursor(cursor);
+                const int visible = verticalScrollBar()->pageStep();
+                verticalScrollBar()->setValue(std::clamp(block.blockNumber() - visible + 1,
+                                                         std::min(vertical, block.blockNumber()),
+                                                         std::max(vertical, block.blockNumber())));
+                horizontalScrollBar()->setValue(horizontal);
+                const int x = cursorRect().left() + offset.x();
+                const int width = client.width();
+                // EDIT advances by a third-client page in whole native scroll
+                // columns. Its range retains the final caret pixel too.
+                const int step = (width / 3 / scrollColumn_ + 1) * scrollColumn_;
+                horizontalScrollBar()->setMaximum(std::max(
+                    0, int(std::ceil(document()->size().width())) - viewport()->width() + 1));
+                if (x < offset.x() + 1)
+                    horizontalScrollBar()->setValue(horizontal - step);
+                else if (x > offset.x() + viewport()->width() - 1)
+                    horizontalScrollBar()->setValue(horizontal + step);
+            } else {
+                // EDIT's button-up releases capture without a second hit or
+                // scroll. Let Qt release its internal pressed state too.
+                const auto selected = textCursor();
+                QPlainTextEdit::mouseReleaseEvent(event);
+                setTextCursor(selected);
+                horizontalScrollBar()->setValue(horizontal);
+                verticalScrollBar()->setValue(vertical);
+                mouseAnchor_ = -1;
+            }
+            event->accept();
+            return;
+        }
+        // Qt owns Unicode shaping, IME delivery and capture. Legacy ASCII
         // selection retains its native hit point and directional anchor.
         auto position = event->position();
         if (viewport()->rect().contains(position.toPoint()) &&
@@ -113,26 +186,7 @@ protected:
             QPlainTextEdit::mouseReleaseEvent(&adjusted);
         else
             QPlainTextEdit::mouseDoubleClickEvent(&adjusted);
-        bool ascii = !property("_mmdImePreedit").toBool();
-        for (const auto character : cursor.block().text())
-            ascii &= character.unicode() < 128;
-        if (ascii &&
-            !(event->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))) {
-            const bool dragging =
-                mouseAnchor_ >= 0 &&
-                ((type == QEvent::MouseMove && event->buttons() & Qt::LeftButton) ||
-                 type == QEvent::MouseButtonRelease);
-            if (outside && dragging) {
-                // QTextControl extends a pointer beyond the document to its
-                // absolute start/end, which also resets the other scroll axis.
-                // EDIT hits the visible edge at the current horizontal column.
-                // Keep Qt's timer-driven scroll step; replace only that hit.
-                horizontalScrollBar()->setValue(horizontal);
-                verticalScrollBar()->setValue(vertical);
-                auto point = event->position();
-                point.setY(std::clamp(point.y(), qreal(bounds.top()), qreal(bounds.bottom())));
-                cursor = MultilineCursorForPosition(*this, point);
-            }
+        if (legacy) {
             if (type == QEvent::MouseButtonPress && event->button() == Qt::LeftButton) {
                 mouseAnchor_ =
                     event->modifiers() & Qt::ShiftModifier ? previous.anchor() : cursor.position();
@@ -221,6 +275,7 @@ protected:
 
 private:
     int mouseAnchor_ = -1;
+    int scrollColumn_;
 #ifdef _WIN32
     QTimer caretTimer_;
     bool caretVisible_ = false;
@@ -549,7 +604,7 @@ TemplateDialog::TemplateDialog(const ui::NumericTemplate& description, const Lan
             widget = field;
         } else if (control.kind == ui::NumericControlKind::Multiline) {
             auto* field =
-                new DialogMultilineEdit(english_, (control.style & 0x00800000u) != 0, this);
+                new DialogMultilineEdit(english_, (control.style & 0x00800000u) != 0, baseX, this);
             field->setReadOnly((control.style & 0x800u) != 0);
             field->setLineWrapMode(control.style & 0x80u ? QPlainTextEdit::NoWrap
                                                          : QPlainTextEdit::WidgetWidth);

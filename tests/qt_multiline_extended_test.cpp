@@ -1,5 +1,6 @@
 #include "multiline_native.hpp"
 #include "multiline_text_cases.hpp"
+#include <QTextBoundaryFinder>
 
 namespace {
 QJsonObject NativeState(HWND control, const QString& text) {
@@ -55,6 +56,46 @@ QImage QtClient(QPlainTextEdit& field, QSize size) {
     field.render(&image);
     return image.copy(2, 2, size.width(), size.height());
 }
+unsigned UnicodeEditing(QPlainTextEdit& field, const QString& text) {
+    Check(field.hasFocus(), "Unicode editing retains real focus");
+    Check(GetAncestor(GetForegroundWindow(), GA_ROOT) ==
+              reinterpret_cast<HWND>(field.window()->winId()),
+          "Unicode keyboard input owns foreground");
+    const auto chord = [](WORD key) {
+        Key(VK_CONTROL, true);
+        Key(key, true);
+        Key(key, false);
+        Key(VK_CONTROL, false);
+    };
+    unsigned failures = 0;
+    chord('A');
+    failures += field.textCursor().selectionStart() != 0 ||
+                field.textCursor().selectionEnd() != text.size();
+    Key(VK_BACK, true);
+    Key(VK_BACK, false);
+    failures += !field.toPlainText().isEmpty();
+    chord('Z');
+    failures += field.toPlainText() != text;
+    chord('Y');
+    failures += !field.toPlainText().isEmpty();
+    chord('Z');
+    failures += field.toPlainText() != text;
+    field.moveCursor(QTextCursor::Start);
+    QTextBoundaryFinder graphemes(QTextBoundaryFinder::Grapheme, text);
+    // Exercise the shared legacy Ctrl-word handler with actual OS keys.
+    // No movement may split a surrogate, combining sequence or emoji cluster.
+    for (unsigned step = 0; step < 32 && field.textCursor().position() < text.size(); ++step) {
+        const auto before = field.textCursor().position();
+        chord(VK_RIGHT);
+        const auto after = field.textCursor().position();
+        graphemes.setPosition(after);
+        failures += after <= before || !graphemes.isAtBoundary();
+        if (after <= before)
+            break;
+    }
+    failures += field.textCursor().position() != text.size();
+    return failures;
+}
 }
 int main(int argc, char** argv) try {
     Check(qEnvironmentVariable("GITHUB_ACTIONS") == "true" &&
@@ -67,17 +108,23 @@ int main(int argc, char** argv) try {
     const QString output = QString::fromLocal8Bit(argv[1]);
     QDir().mkpath(output);
     QJsonArray dragRecords, textRecords;
-    unsigned dragFailures = 0, textFailures = 0;
+    unsigned dragFailures = 0, textFailures = 0, unicodeRasterDifferences = 0;
     const auto checkpoint = [&] {
         QFile report(output + "/report.json");
         Check(report.open(QIODevice::WriteOnly), "write extended multiline report");
-        report.write(QJsonDocument(QJsonObject{{"windowsShown", true},
-                                               {"actualOsMouseCapture", true},
-                                               {"dragFailures", int(dragFailures)},
-                                               {"unicodeFailures", int(textFailures)},
-                                               {"drags", dragRecords},
-                                               {"unicode", textRecords}})
-                         .toJson());
+        report.write(
+            QJsonDocument(
+                QJsonObject{
+                    {"windowsShown", true},
+                    {"actualOsMouseCapture", true},
+                    {"dragFailures", int(dragFailures)},
+                    {"unicodeFailures", int(textFailures)},
+                    {"unicodeRasterDifferences", int(unicodeRasterDifferences)},
+                    {"unicodePolicy",
+                     "preserve complete readable Unicode and editing; original raster differences retained as diagnostics"},
+                    {"drags", dragRecords},
+                    {"unicode", textRecords}})
+                .toJson());
     };
     for (const auto* code : {"en", "ja", "zh_CN"}) {
         qt::Language language;
@@ -178,13 +225,17 @@ int main(int argc, char** argv) try {
                     QString("%1-unicode%2-selected%3").arg(code).arg(variant).arg(selected);
                 expected.save(output + '/' + stem + "-native.png");
                 actual.save(output + '/' + stem + "-qt.png");
+                const bool preserved = field->toPlainText() == text;
+                const auto editingFailures = UnicodeEditing(*field, text);
                 textRecords.append(QJsonObject{{"case", stem},
                                                {"different", int(different)},
                                                {"nativeTextPreserved", nativePreserved},
                                                {"nativeText", QString::fromStdWString(contents)},
                                                {"inputText", nativeText},
-                                               {"textPreserved", field->toPlainText() == text}});
-                textFailures += different != 0 || !nativePreserved || field->toPlainText() != text;
+                                               {"textPreserved", preserved},
+                                               {"editingFailures", int(editingFailures)}});
+                unicodeRasterDifferences += different != 0;
+                textFailures += !preserved || editingFailures != 0;
                 checkpoint();
             }
         DestroyWindow(native);
@@ -193,8 +244,9 @@ int main(int argc, char** argv) try {
     }
     checkpoint();
     std::cout << dragRecords.size() << " actual outside-client drags; " << dragFailures
-              << " differences; " << textRecords.size() << " Unicode paints; " << textFailures
-              << " differences\n";
+              << " differences; " << textRecords.size() << " Unicode preservation/editing cases; "
+              << textFailures << " failures; " << unicodeRasterDifferences
+              << " raster diagnostics\n";
     return dragFailures || textFailures ? 1 : 0;
 } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';

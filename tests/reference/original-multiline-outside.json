@@ -1,0 +1,440 @@
+{
+  "run": "41964669418",
+  "revision": "1dec2a2",
+  "reportSha256": "8b226093bd24e89207e31df9f6fa564bb048a19ad91de52f1f6c2b11530280e0",
+  "actualOsInput": true,
+  "records": [
+    {
+      "language": "en",
+      "direction": 0,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 3,
+        "horizontal": 28,
+        "selection": [
+          232,
+          504
+        ]
+      },
+      "clientSize": [
+        276,
+        99
+      ]
+    },
+    {
+      "language": "en",
+      "direction": 1,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 5,
+        "horizontal": 28,
+        "selection": [
+          504,
+          708
+        ]
+      },
+      "clientSize": [
+        276,
+        99
+      ]
+    },
+    {
+      "language": "en",
+      "direction": 2,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 4,
+        "horizontal": 0,
+        "selection": [
+          479,
+          504
+        ]
+      },
+      "clientSize": [
+        276,
+        99
+      ]
+    },
+    {
+      "language": "en",
+      "direction": 3,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 4,
+        "horizontal": 126,
+        "selection": [
+          504,
+          528
+        ]
+      },
+      "clientSize": [
+        276,
+        99
+      ]
+    },
+    {
+      "language": "en",
+      "direction": 4,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 3,
+        "horizontal": 0,
+        "selection": [
+          207,
+          504
+        ]
+      },
+      "clientSize": [
+        276,
+        99
+      ]
+    },
+    {
+      "language": "en",
+      "direction": 5,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 5,
+        "horizontal": 126,
+        "selection": [
+          504,
+          732
+        ]
+      },
+      "clientSize": [
+        276,
+        99
+      ]
+    },
+    {
+      "language": "ja",
+      "direction": 0,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 3,
+        "horizontal": 28,
+        "selection": [
+          232,
+          504
+        ]
+      },
+      "clientSize": [
+        276,
+        85
+      ]
+    },
+    {
+      "language": "ja",
+      "direction": 1,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 5,
+        "horizontal": 28,
+        "selection": [
+          504,
+          708
+        ]
+      },
+      "clientSize": [
+        276,
+        85
+      ]
+    },
+    {
+      "language": "ja",
+      "direction": 2,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 4,
+        "horizontal": 0,
+        "selection": [
+          479,
+          504
+        ]
+      },
+      "clientSize": [
+        276,
+        85
+      ]
+    },
+    {
+      "language": "ja",
+      "direction": 3,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 4,
+        "horizontal": 125,
+        "selection": [
+          504,
+          529
+        ]
+      },
+      "clientSize": [
+        276,
+        85
+      ]
+    },
+    {
+      "language": "ja",
+      "direction": 4,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 3,
+        "horizontal": 0,
+        "selection": [
+          207,
+          504
+        ]
+      },
+      "clientSize": [
+        276,
+        85
+      ]
+    },
+    {
+      "language": "ja",
+      "direction": 5,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 5,
+        "horizontal": 125,
+        "selection": [
+          504,
+          733
+        ]
+      },
+      "clientSize": [
+        276,
+        85
+      ]
+    },
+    {
+      "language": "zh_CN",
+      "direction": 0,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 3,
+        "horizontal": 28,
+        "selection": [
+          232,
+          504
+        ]
+      },
+      "clientSize": [
+        276,
+        85
+      ]
+    },
+    {
+      "language": "zh_CN",
+      "direction": 1,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 5,
+        "horizontal": 28,
+        "selection": [
+          504,
+          708
+        ]
+      },
+      "clientSize": [
+        276,
+        85
+      ]
+    },
+    {
+      "language": "zh_CN",
+      "direction": 2,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 4,
+        "horizontal": 0,
+        "selection": [
+          479,
+          504
+        ]
+      },
+      "clientSize": [
+        276,
+        85
+      ]
+    },
+    {
+      "language": "zh_CN",
+      "direction": 3,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 4,
+        "horizontal": 125,
+        "selection": [
+          504,
+          529
+        ]
+      },
+      "clientSize": [
+        276,
+        85
+      ]
+    },
+    {
+      "language": "zh_CN",
+      "direction": 4,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 3,
+        "horizontal": 0,
+        "selection": [
+          207,
+          504
+        ]
+      },
+      "clientSize": [
+        276,
+        85
+      ]
+    },
+    {
+      "language": "zh_CN",
+      "direction": 5,
+      "initial": {
+        "firstVisible": 4,
+        "horizontal": 28,
+        "selection": [
+          0,
+          0
+        ]
+      },
+      "expected": {
+        "firstVisible": 5,
+        "horizontal": 125,
+        "selection": [
+          504,
+          733
+        ]
+      },
+      "clientSize": [
+        276,
+        85
+      ]
+    }
+  ]
+}

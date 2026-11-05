@@ -145,6 +145,10 @@ function(mds_add_qt_editor)
         target_link_libraries(qt_editor_chrome_test PRIVATE mikudancestudio_frontend_qt)
         qt_add_executable(qt_shown_ui_test EXCLUDE_FROM_ALL "${root}/tests/qt_shown_ui_test.cpp")
         target_link_libraries(qt_shown_ui_test PRIVATE mikudancestudio_frontend_qt Qt6::Test)
+        if(APPLE)
+            target_sources(qt_shown_ui_test PRIVATE "${root}/tests/shown_ui_macos.mm")
+            target_link_libraries(qt_shown_ui_test PRIVATE "-framework ApplicationServices")
+        endif()
         if(WIN32)
             qt_add_executable(qt_multiline_paint_test "${root}/tests/qt_multiline_paint_test.cpp"
                 "${root}/res/frontend_qt/windows.manifest" "${root}/res/templates/dialog/dialogs.rc")
@@ -168,6 +172,12 @@ function(mds_add_qt_editor)
             add_test(NAME qt_multiline_hit COMMAND qt_multiline_hit_test
                 "${root}/tests/reference/original-multiline-hit.json")
             set_tests_properties(qt_multiline_hit PROPERTIES LABELS "p4;hidden;qt;input;oracle"
+                TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=windows")
+            qt_add_executable(qt_multiline_drag_test "${root}/tests/qt_multiline_drag_test.cpp")
+            target_link_libraries(qt_multiline_drag_test PRIVATE mikudancestudio_frontend_qt)
+            add_test(NAME qt_multiline_drag COMMAND qt_multiline_drag_test
+                "${root}/tests/reference/original-multiline-outside.json")
+            set_tests_properties(qt_multiline_drag PROPERTIES LABELS "p4;hidden;qt;input;oracle"
                 TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=windows")
             qt_add_executable(qt_multiline_navigation_test "${root}/tests/qt_multiline_navigation_test.cpp")
             target_link_libraries(qt_multiline_navigation_test PRIVATE mikudancestudio_frontend_qt)

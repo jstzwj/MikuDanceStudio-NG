@@ -1,5 +1,6 @@
 #include "numeric_dialog.hpp"
 #include "edit_navigation.hpp"
+#include "multiline_text_cases.hpp"
 #include <QApplication>
 #include <QFile>
 #include <QJsonArray>
@@ -7,6 +8,7 @@
 #include <QJsonObject>
 #include <QTest>
 #include <QTextCursor>
+#include <QTextBoundaryFinder>
 #include <iostream>
 
 using namespace mikudancestudio;
@@ -227,6 +229,41 @@ int main(int argc, char** argv) {
         }
         if (dialog.isVisible())
             return 1;
+        // Complete Unicode is an intentional extension over ES_OEMCONVERT.
+        // Keep the shared word policy safe for UTF-16/grapheme boundaries and
+        // verify actual document undo, without inheriting native data loss.
+        auto* multiline = qobject_cast<QPlainTextEdit*>(dialog.Field(668));
+        for (const auto& text : MultilineUnicodeCases()) {
+            multiline->setPlainText(text);
+            QTest::keyClick(multiline, Qt::Key_A, Qt::ControlModifier);
+            if (multiline->textCursor().selectionStart() != 0 ||
+                multiline->textCursor().selectionEnd() != text.size())
+                return 1;
+            QTest::keyClick(multiline, Qt::Key_Backspace);
+            if (!multiline->toPlainText().isEmpty())
+                return 1;
+            multiline->undo();
+            if (multiline->toPlainText() != text)
+                return 1;
+            multiline->redo();
+            if (!multiline->toPlainText().isEmpty())
+                return 1;
+            multiline->undo();
+            multiline->moveCursor(QTextCursor::Start);
+            QTextBoundaryFinder graphemes(QTextBoundaryFinder::Grapheme, text);
+            for (unsigned step = 0; step < 32 && multiline->textCursor().position() < text.size();
+                 ++step) {
+                const auto before = multiline->textCursor().position();
+                QTest::keyClick(multiline, Qt::Key_Right, Qt::ControlModifier);
+                const auto after = multiline->textCursor().position();
+                graphemes.setPosition(after);
+                if (after <= before || !graphemes.isAtBoundary())
+                    return 1;
+            }
+            if (multiline->textCursor().position() != text.size() ||
+                multiline->toPlainText() != text)
+                return 1;
+        }
         // IME owns every editing chord during preedit. The portable MMD key
         // filter must not turn composition navigation/deletion into an edit.
         for (const int control : {667, 668}) {

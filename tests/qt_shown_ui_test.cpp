@@ -20,10 +20,22 @@
 #include <iostream>
 
 using namespace mikudancestudio;
+#ifdef Q_OS_MACOS
+bool MoveShownPointer(int x, int y);
+#endif
 namespace {
 void Check(bool value, const char* message) {
     if (!value)
         throw std::runtime_error(message);
+}
+void MovePointer(QPoint point) {
+#ifdef Q_OS_MACOS
+    // Warping the Cocoa cursor does not reliably dispatch a mouse-moved event.
+    // This executable is guarded before QApplication and runs only in CI.
+    Check(MoveShownPointer(point.x(), point.y()), "post native Cocoa mouse movement");
+#else
+    QCursor::setPos(point);
+#endif
 }
 class Dialog final : public qt::TemplateDialog {
 public:
@@ -209,11 +221,13 @@ int main(int argc, char** argv) try {
                 ++focused;
             }
             if (firstButton) {
-                QCursor::setPos(firstButton->mapToGlobal(firstButton->rect().center()));
-                QTest::qWait(80);
-                Check(firstButton->underMouse(), "native pointer delivered to shown button");
+                MovePointer(dialog.mapToGlobal(QPoint(-10, -10)));
+                QTest::qWait(20);
+                MovePointer(firstButton->mapToGlobal(firstButton->rect().center()));
+                Check(QTest::qWaitFor([&] { return firstButton->underMouse(); }, 1500),
+                      "native pointer delivered to shown button");
                 Capture(dialog, output, stem + "-button-hover");
-                QCursor::setPos(dialog.mapToGlobal(QPoint(-10, -10)));
+                MovePointer(dialog.mapToGlobal(QPoint(-10, -10)));
                 ++hovered;
             }
             record["controls"] = controls;
@@ -241,8 +255,7 @@ int main(int argc, char** argv) try {
                 Check(QTest::qWaitForWindowActive(&editor), "editor active before each menu");
                 // Park away from menu bars before dispatching queued enter/move
                 // events, which can otherwise switch the newly opened menu.
-                QCursor::setPos(
-                    editor.mapToGlobal(QPoint(editor.width() / 2, editor.height() / 2)));
+                MovePointer(editor.mapToGlobal(QPoint(editor.width() / 2, editor.height() / 2)));
                 QTest::qWait(30);
                 menu->popup(editor.menuBar()->mapToGlobal(
                     editor.menuBar()->actionGeometry(action).bottomLeft()));
