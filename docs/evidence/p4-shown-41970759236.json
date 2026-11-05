@@ -1,0 +1,185 @@
+{
+  "schema": 1,
+  "run": "41970759236",
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/41970759236",
+  "revision": "695d21c5d7c2ae32b55f7a9ea107ca1882834f52",
+  "conclusion": "failure",
+  "p4_c1_accepted": false,
+  "scope": "One targeted three-platform shown UI/hidden observer batch; no repeated IME, audio or composite rendering qualification",
+  "platforms": {
+    "windows": {
+      "ordinary_gates": {
+        "tests": 5,
+        "failures": 0,
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41970759236/windows/p4/p4.xml",
+          "sha256": "06a193114854a7c993c9387bd54c2ceb3b43ba90eb75ea37eb2bf1ab471bd6a0"
+        }
+      },
+      "multiline-active": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41970759236/windows/p4/multiline-active/report.json",
+          "sha256": "f35f5fbad5ed5eebb0cc1758f86a36f050f33f98156a488075a71e52954634ad"
+        },
+        "png_count": 144,
+        "image_manifest_sha256": "c48278c80161b4f38d11944e2a0ca7e6b9f6f0bf8bcd0615001193cbd521cf2e",
+        "actualOsMouseCapture": true,
+        "caretFailures": 0,
+        "mouseFailures": 0,
+        "paintFailures": 0,
+        "windowsShown": true,
+        "paint": 72,
+        "mouse": 90
+      },
+      "multiline-extended": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41970759236/windows/p4/multiline-extended/report.json",
+          "sha256": "5f04bc5fb8cace5fd2121de2616d50645835ac4e3be060ecc5929a76a2b3e7fb"
+        },
+        "png_count": 96,
+        "image_manifest_sha256": "cfc6e503616a0e041d3bf924ca94f9aac4930fbbe289b6a2342970b2c59d1802",
+        "actualOsMouseCapture": true,
+        "captureCaretPhase": "restart test-owned USER32 caret; Qt test flash time zero",
+        "dragFailures": 18,
+        "nativeCaretBlinkMs": 530,
+        "traditionalRasterFailures": 0,
+        "unicodeFailures": 0,
+        "unicodePolicy": "native-supported traditional CJK remains raster exact; preserve complete readable complex/lossy Unicode and editing, retaining raster diagnostics",
+        "unicodeRasterDifferences": 22,
+        "windowsShown": true,
+        "drags": 18,
+        "unicode": 30
+      },
+      "multiline-unicode": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41970759236/windows/p4/multiline-unicode/report.json",
+          "sha256": "fd8aab5e77b7af62f558edc40fdb116c3af17669e4bfeb18248d7567ba45097e"
+        },
+        "png_count": 532,
+        "image_manifest_sha256": "2499b72c806201a1c5c68e5bb7aada944c060c35f709cbb451d2eab1443d49c8",
+        "activationProtection": "thread-local WH_CBT veto; foreground/focus assertions",
+        "cases": 360,
+        "failures": 0,
+        "outerDialogAdaptation": "WS_EX_NOACTIVATE before creation",
+        "rasterDifferences": 264,
+        "strictRasterCases": 96,
+        "textFailures": 0,
+        "unicodePolicy": "preserve complex/lossy Unicode; native-supported traditional text remains exact",
+        "windowsShown": false
+      },
+      "hidden_drag_unicode_layout": {
+        "tests": 3,
+        "failures": 0,
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41970759236/windows/p4/multiline-drag.xml",
+          "sha256": "586d37407d3d923529fff9004a632da079de3c2ddc746dbcf588ae115d9ee410"
+        }
+      }
+    },
+    "linux": {
+      "ordinary_gates": {
+        "tests": 4,
+        "failures": 0,
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41970759236/linux/p4/p4.xml",
+          "sha256": "5f715c42b5c3135ac38706330b7473995b5e7cba76b29b121bdc52782bead8a0"
+        }
+      },
+      "shown-ui": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41970759236/linux/p4/shown-ui/report.json",
+          "sha256": "8858db91c0574d25ae40c081130d44e8b1629ba8db45f2540fa5ebd526e8c6d5"
+        },
+        "png_count": 207,
+        "image_manifest_sha256": "161a4802bc7e32c65cc3aa2179373cedbb366835930bc699f5963a5b84ed382b",
+        "actualShownWindows": true,
+        "comboPopups": 12,
+        "focusedEdits": 45,
+        "hoveredButtons": 51,
+        "platform": "xcb",
+        "screenDpr": 1,
+        "scrolledLists": 9,
+        "scrolledMultiline": 3,
+        "syntheticScale": false,
+        "dialogs": 57,
+        "menus": 27,
+        "font": [
+          "Liberation Sans",
+          "Noto Sans CJK JP",
+          "Noto Sans CJK SC"
+        ],
+        "fontPixelSize": [
+          "12"
+        ],
+        "windowColor": [
+          "#f0f0f0"
+        ],
+        "buttonColor": [
+          "#f0f0f0"
+        ],
+        "highlightColor": [
+          "#0078d4"
+        ],
+        "dpr": [
+          "1"
+        ]
+      }
+    },
+    "macos": {
+      "ordinary_gates": {
+        "tests": 4,
+        "failures": 0,
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41970759236/macos/p4/p4.xml",
+          "sha256": "ed1999d7136adf2fa4e8b8920a9a27a0b4622cb42dc3601c0f71c9e7aed60917"
+        }
+      },
+      "shown-ui": {
+        "report": {
+          "path": "out/evidence/p4/p4-shown-41970759236/macos/p4/shown-ui/report.json",
+          "sha256": "e1fa556f99290aad367c16deb66e1ec0da32f68c01cd80b83eeccbc022ed648a"
+        },
+        "png_count": 207,
+        "image_manifest_sha256": "b9e1429c89fd85fd1b3a398795e86321b0784be46d4f09d4ebbaeb0699a279f7",
+        "actualShownWindows": true,
+        "comboPopups": 12,
+        "focusedEdits": 45,
+        "hoveredButtons": 51,
+        "platform": "cocoa",
+        "screenDpr": 1,
+        "scrolledLists": 9,
+        "scrolledMultiline": 3,
+        "syntheticScale": false,
+        "dialogs": 57,
+        "menus": 27,
+        "font": [
+          "Arial",
+          "Noto Sans CJK JP",
+          "Noto Sans CJK SC",
+          "Tahoma"
+        ],
+        "fontPixelSize": [
+          "12"
+        ],
+        "windowColor": [
+          "#f0f0f0"
+        ],
+        "buttonColor": [
+          "#f0f0f0"
+        ],
+        "highlightColor": [
+          "#0078d4"
+        ],
+        "dpr": [
+          "1"
+        ]
+      }
+    }
+  },
+  "limitations": [
+    "Shown native X11/Cocoa DPR 1 clients only; no OS window-decoration or physical mixed-DPI qualification",
+    "Complex or originally corrupted Unicode uses the user-approved complete readable editable text policy; raw raster diagnostics retained",
+    "Traditional CJK and ASCII remain exact under their separately recorded native control profiles",
+    "P4/C1 remains unaccepted until remaining recorded requirements are measured"
+  ]
+}

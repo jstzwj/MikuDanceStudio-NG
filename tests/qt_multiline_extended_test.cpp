@@ -1,6 +1,7 @@
 #include "multiline_native.hpp"
 #include "multiline_text_cases.hpp"
 #include <QTextBoundaryFinder>
+#include <vector>
 
 namespace {
 QJsonObject NativeState(HWND control, const QString& text) {
@@ -56,16 +57,34 @@ QImage QtClient(QPlainTextEdit& field, QSize size) {
     field.render(&image);
     return image.copy(2, 2, size.width(), size.height());
 }
-QImage NativeCaretClient(HWND control) {
-    GUITHREADINFO gui{sizeof gui};
-    Check(GetGUIThreadInfo(0, &gui) && gui.hwndCaret == control,
-          "snapshot caret belongs to the original test control");
-    // Qt's test flash time is zero, but the original EDIT still uses USER32's
-    // blink interval. A stationary 700-ms drag can leave it in the off phase.
-    // Restart only this test-owned real caret before capturing every pixel;
-    // without changing system blink settings, omitting the caret or masking pixels.
-    Check(HideCaret(control) && ShowCaret(control), "restart owned caret visible phase");
-    return Client(control);
+struct CaretCycle {
+    std::vector<QImage> images;
+    QJsonArray samples;
+};
+template <class Capture, class State>
+CaretCycle CaptureCaretCycle(Capture capture, State state, const QJsonObject& expected) {
+    // Observe an entire blink cycle without changing native focus, position,
+    // hide count or system settings. Compare the complete sets of actual RGB
+    // frames, including both caret phases, rather than masking a caret column
+    // or searching for a conveniently matching image. Extra states fail too.
+    const auto limit = quint64(GetCaretBlinkTime()) * 2 + 100;
+    CaretCycle cycle;
+    QElapsedTimer elapsed;
+    elapsed.start();
+    do {
+        Check(state() == expected, "caret cycle preserves completed drag state");
+        auto image = capture();
+        auto found =
+            std::find_if(cycle.images.begin(), cycle.images.end(),
+                         [&](const QImage& frame) { return Different(frame, image) == 0; });
+        const auto index = int(found - cycle.images.begin());
+        if (found == cycle.images.end())
+            cycle.images.push_back(std::move(image));
+        cycle.samples.append(QJsonArray{int(elapsed.elapsed()), index});
+        QTest::qWait(40);
+    } while (quint64(elapsed.elapsed()) < limit);
+    Check(state() == expected, "caret cycle retains final drag state");
+    return cycle;
 }
 unsigned UnicodeEditing(QPlainTextEdit& field, const QString& text) {
     Check(field.hasFocus(), "Unicode editing retains real focus");
@@ -114,7 +133,8 @@ int main(int argc, char** argv) try {
           "extended actual multiline input requires an isolated GitHub runner");
     QApplication app(argc, argv);
     Check(argc == 2 && QGuiApplication::platformName() == "windows", "Windows QPA and output");
-    app.setCursorFlashTime(0);
+    Check(GetCaretBlinkTime() > 0 && GetCaretBlinkTime() <= 2000,
+          "isolated native caret has a bounded blink interval");
     MouseDelivery delivery;
     const QString output = QString::fromLocal8Bit(argv[1]);
     QDir().mkpath(output);
@@ -131,7 +151,7 @@ int main(int argc, char** argv) try {
                     {"actualOsMouseCapture", true},
                     {"nativeCaretBlinkMs", int(GetCaretBlinkTime())},
                     {"captureCaretPhase",
-                     "restart test-owned USER32 caret; Qt test flash time zero"},
+                     "full native/Qt blink cycles; both complete RGB frame sets must match exactly"},
                     {"dragFailures", int(dragFailures)},
                     {"unicodeFailures", int(textFailures)},
                     {"unicodeRasterDifferences", int(unicodeRasterDifferences)},
@@ -143,6 +163,7 @@ int main(int argc, char** argv) try {
                 .toJson());
     };
     for (const auto* code : {"en", "ja", "zh_CN"}) {
+        app.setCursorFlashTime(int(GetCaretBlinkTime()) * 2);
         qt::Language language;
         Check(language.Set(code), "UI language");
         Dialog dialog(language);
@@ -183,8 +204,15 @@ int main(int argc, char** argv) try {
                 native, start + QPoint(origin.x, origin.y),
                 endpoints[direction] + QPoint(origin.x, origin.y),
                 [&] { return NativeState(control, text); }, nativeSamples);
-            const auto nativeImage = NativeCaretClient(control);
-            Check(NativeState(control, text) == expected, "caret phase preserves drag state");
+            const auto nativeCycle = CaptureCaretCycle(
+                [&] {
+                    GUITHREADINFO gui{sizeof gui};
+                    Check(GetGUIThreadInfo(0, &gui) && gui.hwndCaret == control &&
+                              GetFocus() == control,
+                          "native cycle owns the actual focused caret");
+                    return Client(control);
+                },
+                [&] { return NativeState(control, text); }, expected);
             dialog.activateWindow();
             SetForegroundWindow(reinterpret_cast<HWND>(dialog.winId()));
             QApplication::setActiveWindow(&dialog);
@@ -198,22 +226,49 @@ int main(int argc, char** argv) try {
             const auto actual = OutsideDrag(
                 reinterpret_cast<HWND>(dialog.winId()), start + qtOrigin,
                 endpoints[direction] + qtOrigin, [&] { return QtState(*field); }, qtSamples);
-            const auto qtImage = QtClient(*field, nativeImage.size());
-            const auto different = Different(nativeImage, qtImage);
+            const auto qtCycle = CaptureCaretCycle(
+                [&] {
+                    Check(field->hasFocus(), "Qt cycle retains actual focus");
+                    return QtClient(*field, nativeCycle.images.front().size());
+                },
+                [&] { return QtState(*field); }, actual);
+            QJsonArray matrix;
+            bool phasesMatch = nativeCycle.images.size() == 2 && qtCycle.images.size() == 2;
+            for (const auto& nativeImage : nativeCycle.images) {
+                QJsonArray differences;
+                bool exact = false;
+                for (const auto& qtImage : qtCycle.images) {
+                    const auto count = Different(nativeImage, qtImage);
+                    differences.append(int(count));
+                    exact |= count == 0;
+                }
+                phasesMatch &= exact;
+                matrix.append(differences);
+            }
             const auto stem = QString("%1-drag%2").arg(code).arg(direction);
-            nativeImage.save(output + '/' + stem + "-native.png");
-            qtImage.save(output + '/' + stem + "-qt.png");
+            for (unsigned phase = 0; phase < nativeCycle.images.size(); ++phase)
+                nativeCycle.images[phase].save(output + '/' + stem +
+                                               QString("-native-phase%1.png").arg(phase));
+            for (unsigned phase = 0; phase < qtCycle.images.size(); ++phase)
+                qtCycle.images[phase].save(output + '/' + stem +
+                                           QString("-qt-phase%1.png").arg(phase));
             dragRecords.append(QJsonObject{{"language", code},
                                            {"direction", int(direction)},
                                            {"initial", initial},
                                            {"native", expected},
                                            {"qt", actual},
-                                           {"different", int(different)},
+                                           {"caretPhaseSetsMatch", phasesMatch},
+                                           {"nativePhases", int(nativeCycle.images.size())},
+                                           {"qtPhases", int(qtCycle.images.size())},
+                                           {"fullClientDifferenceMatrix", matrix},
+                                           {"nativeCaretSamples", nativeCycle.samples},
+                                           {"qtCaretSamples", qtCycle.samples},
                                            {"nativeSamples", nativeSamples},
                                            {"qtSamples", qtSamples}});
-            dragFailures += expected != actual || different != 0;
+            dragFailures += expected != actual || !phasesMatch;
             checkpoint();
         }
+        app.setCursorFlashTime(0);
         const auto texts = MultilineUnicodeCases();
         for (unsigned variant = 0; variant < std::size(texts); ++variant)
             for (unsigned selected = 0; selected < 2; ++selected) {
@@ -226,7 +281,7 @@ int main(int argc, char** argv) try {
                 const bool nativePreserved = QString::fromStdWString(contents) == nativeText;
                 NativeFocus(native, control);
                 SendMessageW(control, EM_SETSEL, 0, selected ? -1 : 0);
-                const auto expected = NativeCaretClient(control);
+                const auto expected = Client(control);
                 dialog.activateWindow();
                 SetForegroundWindow(reinterpret_cast<HWND>(dialog.winId()));
                 QApplication::setActiveWindow(&dialog);

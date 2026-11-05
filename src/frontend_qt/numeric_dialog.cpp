@@ -69,7 +69,14 @@ public:
     DialogMultilineEdit(bool english, bool border, int scrollColumn, QWidget* parent)
         : QPlainTextEdit(parent), scrollColumn_(scrollColumn) {
 #ifdef _WIN32
-        document()->setDocumentLayout(new DialogMultilineLayout(document()));
+        // Install through setDocument: QPlainTextEdit retains the layout pointer
+        // for its destructor. Replacing an attached layout directly leaves that
+        // pointer dangling, even though cursor/paint checks can still succeed.
+        auto* textDocument = new QTextDocument(this);
+        textDocument->setDefaultFont(document()->defaultFont());
+        textDocument->setDocumentLayout(new DialogMultilineLayout(textDocument));
+        textDocument->documentLayout()->setPaintDevice(viewport());
+        setDocument(textDocument);
 #endif
         // Original EM_GETRECT/EM_POSFROMCHAR: four client pixels on the
         // left, one above; the default 32-DLU tabs are 56 logical pixels.

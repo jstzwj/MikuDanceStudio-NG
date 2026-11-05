@@ -153,7 +153,7 @@ jobs:
             cmake --build out/p4 --config Release --target qt_control_style_test qt_multiline_paint_test qt_multiline_active_test --parallel 3
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             if ('${{ inputs.ui_shown }}' -eq 'true') {
-              cmake --build out/p4 --config Release --target qt_multiline_extended_test qt_multiline_drag_test qt_multiline_layout_test --parallel 3
+              cmake --build out/p4 --config Release --target qt_multiline_extended_test qt_multiline_drag_test qt_multiline_layout_test qt_numeric_test --parallel 3
             }
             exit $LASTEXITCODE
           }
@@ -202,7 +202,7 @@ jobs:
           QT_QPA_PLATFORM: windows
           MDS_QT_ISOLATED_DISPLAY: '1'
         run: |
-          ctest --test-dir out/p4 -C Release -R '^(qt_multiline_drag|qt_multiline_unicode|qt_multiline_layout)$' --output-on-failure --output-junit multiline-drag.xml
+          ctest --test-dir out/p4 -C Release -R '^(qt_multiline_drag|qt_multiline_unicode|qt_multiline_layout|qt_numeric(_dpi_.*)?)$' --output-on-failure --output-junit multiline-drag.xml
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           out/p4/qt_multiline_extended_test.exe out/p4/multiline-extended
       - name: Qualify native EDIT nonclient paint
