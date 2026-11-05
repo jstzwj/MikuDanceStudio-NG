@@ -148,7 +148,7 @@ jobs:
             out/p5/production/mme-dependencies.json
             out/p5/Testing/Temporary/
   windows:
-    if: ${{ !inputs.mme_only && (github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'windows' || startsWith(inputs.platform, 'windows-')) }}
+    if: ${{ !inputs.mme_only && (inputs.release_tag || github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'windows' || startsWith(inputs.platform, 'windows-')) }}
     strategy:
       fail-fast: false
       matrix:
@@ -435,7 +435,7 @@ jobs:
             out/build/native-audio*.json
             out/build/Testing/Temporary/
   linux:
-    if: ${{ !inputs.mme_only && (github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'linux' || inputs.platform == 'linux-macos') }}
+    if: ${{ !inputs.mme_only && (inputs.release_tag || github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'linux' || inputs.platform == 'linux-macos') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -589,7 +589,7 @@ jobs:
             out/build/native-audio*.json
             out/build/Testing/Temporary/
   macos:
-    if: ${{ !inputs.mme_only && (github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'macos' || inputs.platform == 'linux-macos') }}
+    if: ${{ !inputs.mme_only && (inputs.release_tag || github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'macos' || inputs.platform == 'linux-macos') }}
     runs-on: ${{ inputs.macos_runner || 'macos-15' }}
     env:
       MDS_MACOS_CACHE: ${{ inputs.macos_runner == 'macos-26' && 'macos26' || 'macos15' }}
