@@ -15,6 +15,9 @@
 #include <QSaveFile>
 #include <cmath>
 #include <fstream>
+#ifdef __ANDROID__
+#include "android_files.hpp"
+#endif
 
 namespace mikudancestudio::qt {
 using namespace editor;
@@ -104,8 +107,7 @@ QString EditorWindow::ChooseFile(FileKind kind, bool save, const QString& title,
     // SAF folders are imported once with all dependencies. File operations then
     // use that local workspace, preserving the core's filesystem/path contract.
     dialog.setOption(QFileDialog::DontUseNativeDialog, true);
-    dialog.setDirectory(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) +
-                        "/workspaces");
+    dialog.setDirectory(AndroidWorkspaceRoot());
 #endif
     if (save && filter.startsWith("Polygon Model files"))
         dialog.setDefaultSuffix("pmd");

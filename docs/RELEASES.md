@@ -28,6 +28,13 @@ UI targets landscape tablets. Native Android ARM64 compilation is checked;
 emulator execution does not claim physical ARM GPU/driver coverage. macOS Intel,
 Linux ARM64, iOS and 32-bit Windows are not current NG release targets.
 
+Android imports a selected document-provider folder into its private workspace,
+preserving project-relative paths without requesting broad storage permissions.
+Qualification uses a rootable, non-Play emulator only to transport generated
+fixtures and collect reports inside that sandbox. The shipping APK remains
+non-debuggable and executes as an ordinary application UID; users do not need
+root access.
+
 ## One publishing entry point
 
 `.github/workflows/release.yml` is the **only** publisher. Push an immutable

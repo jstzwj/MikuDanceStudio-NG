@@ -64,8 +64,7 @@ bool ImportAndroidWorkspace(QWidget* parent, QString& reason) {
         reason.clear();
         return true;
     }
-    const auto root =
-        QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/workspaces";
+    const auto root = AndroidWorkspaceRoot();
     if (!QDir().mkpath(root)) {
         reason = QStringLiteral("Cannot create workspace storage");
         return false;
@@ -83,5 +82,10 @@ bool ImportAndroidWorkspace(QWidget* parent, QString& reason) {
     temporary.setAutoRemove(false);
     QDir::setCurrent(temporary.path());
     return true;
+}
+QString AndroidWorkspaceRoot() {
+    // Keep CPU-core paths inside the app's ordinary filesystem sandbox. Public
+    // documents and external FUSE views remain provider inputs, never workspaces.
+    return QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + "/workspaces";
 }
 }

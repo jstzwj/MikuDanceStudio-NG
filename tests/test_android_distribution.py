@@ -6,11 +6,12 @@ import subprocess
 import tempfile
 import time
 import shlex
+import re
 import cpu_import_fixture
 
 PACKAGE = 'io.github.jstzwj.mikudancestudiong'
 ACTIVITY = PACKAGE + '/org.qtproject.qt.android.bindings.QtActivity'
-FILES = '/sdcard/Android/data/' + PACKAGE + '/files'
+FILES = '/data/user/0/' + PACKAGE + '/files'
 
 
 def adb(*args, **kwargs):
@@ -57,12 +58,28 @@ def main():
     emulator = adb('shell', 'getprop', 'ro.kernel.qemu', capture_output=True, text=True)
     if emulator.stdout.strip() != '1':
         raise RuntimeError('Android qualification requires an isolated emulator, not a physical device')
+    # A release APK stays non-debuggable and runs as its normal application UID.
+    # Root is only an emulator-side fixture/report transport into that sandbox;
+    # no external-storage permission or production-device root is required.
+    adb('root')
+    adb('wait-for-device')
+    if adb('shell', 'id', '-u', capture_output=True, text=True).stdout.strip() != '0':
+        raise RuntimeError('Use an isolated, rootable non-Play emulator image for qualification')
     try:
         adb('install', '-r', str(args.apk))
+        packages = adb('shell', 'cmd', 'package', 'list', 'packages', '-U', PACKAGE,
+                       capture_output=True, text=True).stdout
+        application_uid = re.search(r'package:' + re.escape(PACKAGE) + r'\s+uid:(\d+)', packages)
+        if not application_uid:
+            raise RuntimeError('Cannot determine installed application UID')
+        uid = application_uid.group(1)
         adb('shell', 'mkdir', '-p', FILES + '/fixtures')
         with tempfile.TemporaryDirectory() as temporary:
             cpu_import_fixture.write(Path(temporary))
-            adb('push', temporary + '/.', FILES + '/fixtures/')
+            adb('push', *(str(path) for path in sorted(Path(temporary).iterdir())), FILES + '/fixtures/')
+        adb('shell', 'chown', '-R', uid + ':' + uid, FILES)
+        adb('shell', 'restorecon', '-RF', FILES)
+        adb('shell', 'test', '-r', FILES + '/fixtures/v2.pmm')
         adb('logcat', '-c')
         start('--deployment-check ' + FILES + '/deployment.json ' + FILES + '/fixtures/v2.pmm')
         deployment = wait_report('deployment.json', None)
@@ -90,7 +107,7 @@ def main():
         adb('shell', 'am', 'force-stop', PACKAGE)
         log = adb('logcat', '-d', capture_output=True, text=True, encoding='utf-8', errors='replace').stdout
         (args.output / 'logcat.txt').write_text(log, encoding='utf-8')
-        markers = ('Qt', 'default', 'AndroidRuntime', 'MikuDance', 'mikudancestudio',
+        markers = ('Qt', ' default :', 'AndroidRuntime', 'MikuDance', 'mikudancestudio',
                    'vulkan', 'FATAL', 'Fatal', 'Abort message', 'SIGSEGV', 'SIGABRT')
         print('\n'.join([line for line in log.splitlines() if any(marker in line for marker in markers)][-100:]))
 
