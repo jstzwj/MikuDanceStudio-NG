@@ -16,7 +16,7 @@ function(mds_add_mme_tests)
     add_test(NAME mme_definition COMMAND mme_definition_test)
     set_tests_properties(mme_legacy_source mme_standard_parameters mme_scene_plan mme_definition
         PROPERTIES LABELS "p5;headless;portable")
-    foreach(kind IN ITEMS defaults)
+    foreach(kind IN ITEMS defaults pool)
         add_executable(mme_parameter_${kind}_test tests/mme_parameter_${kind}_test.cpp)
         target_link_libraries(mme_parameter_${kind}_test PRIVATE mikudancestudio_mme_runtime)
         add_test(NAME mme_parameter_${kind} COMMAND mme_parameter_${kind}_test "${CMAKE_CURRENT_BINARY_DIR}/mme-${kind}.json")

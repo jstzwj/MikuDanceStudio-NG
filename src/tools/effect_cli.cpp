@@ -1,4 +1,4 @@
-#include "mikudancestudio/mme_frontend.hpp"
+#include "mikudancestudio/mme_runtime.hpp"
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -43,7 +43,8 @@ void Describe(std::ostream& out, const EffectDefinition& definition) {
         out << "{\"name\":" << Json(v.name) << ",\"type\":" << Json(v.type)
             << ",\"semantic\":" << Json(v.semantic) << ",\"rows\":" << v.rows
             << ",\"columns\":" << v.columns << ",\"elements\":" << v.elements
-            << ",\"shared\":" << v.shared << ",\"immutable\":" << v.immutable
+            << ",\"array\":" << v.array << ",\"shared\":" << v.shared
+            << ",\"constant\":" << v.constant << ",\"immutable\":" << v.immutable
             << ",\"defaultExpression\":" << Json(v.initializer)
             << ",\"annotations\":" << Map(v.annotations) << '}';
     }
@@ -94,17 +95,21 @@ void Describe(std::ostream& out, const EffectDefinition& definition) {
 int Run(const std::vector<std::string>& args) {
     if (args.size() == 2 && (args[1] == "--help" || args[1] == "help")) {
         std::cout
-            << "mds_effect_cli inspect FILE --dxc EXECUTABLE [-I DIRECTORY] [-D NAME=VALUE] [--output JSON]\n";
+            << "mds_effect_cli inspect|initialize FILE --dxc EXECUTABLE [-I DIRECTORY] [-D NAME=VALUE] [--output JSON]\n";
         return 0;
     }
+    const bool initialize = args.size() > 1 && args[1] == "initialize";
+    EffectPool pool;
+    std::shared_ptr<EffectInstance> instance;
     SourceOptions options;
     fs::path input, output;
     std::string reason;
     MmeLegacyDiagnostic diagnostic;
     std::shared_ptr<const EffectDefinition> definition;
     try {
-        if (args.size() < 3 || args[1] != "inspect")
-            throw std::runtime_error("usage: mds_effect_cli inspect FILE --dxc EXECUTABLE");
+        if (args.size() < 3 || (args[1] != "inspect" && !initialize))
+            throw std::runtime_error(
+                "usage: mds_effect_cli inspect|initialize FILE --dxc EXECUTABLE");
         input = fs::u8path(args[2]);
         for (std::size_t n = 3; n < args.size(); ++n) {
             if (n + 1 == args.size())
@@ -124,7 +129,12 @@ int Run(const std::vector<std::string>& args) {
             } else
                 throw std::runtime_error("unknown_option: " + option);
         }
-        LoadEffectDefinition(input, options, definition, reason, &diagnostic);
+        if (LoadEffectDefinition(input, options, definition, reason, &diagnostic) && initialize &&
+            !EffectInstance::Create(definition, pool, instance, reason)) {
+            diagnostic.stage = "initialization";
+            diagnostic.message = reason;
+            definition.reset();
+        }
     } catch (const std::exception& e) {
         reason = e.what();
         diagnostic.stage = "arguments";
@@ -132,8 +142,9 @@ int Run(const std::vector<std::string>& args) {
     }
     std::ostringstream report;
     report << std::boolalpha
-           << "{\"schema\":1,\"operation\":\"inspect\",\"executionValidated\":false,\"status\":"
-           << Json(definition ? "described" : "failed");
+           << "{\"schema\":1,\"operation\":" << Json(initialize ? "initialize" : "inspect")
+           << ",\"executionValidated\":false,\"status\":"
+           << Json(definition ? (initialize ? "initialized" : "described") : "failed");
     if (definition) {
         const auto& source = definition->source;
         report << ",\"preprocessorIdentity\":" << Json(source.preprocessorIdentity)
@@ -158,6 +169,28 @@ int Run(const std::vector<std::string>& args) {
         }
         report << ']';
         Describe(report, *definition);
+        if (instance) {
+            report << ",\"values\":[";
+            bool comma = false;
+            for (const auto& v : definition->metadata.variables) {
+                if (v.immutable)
+                    continue;
+                ParameterValue value;
+                if (!instance->Read(v.name, value, reason))
+                    throw std::runtime_error(reason);
+                if (comma)
+                    report << ',';
+                comma = true;
+                report << "{\"name\":" << Json(v.name) << ",\"words\":[";
+                for (std::size_t n = 0; n < value.words.size(); ++n) {
+                    if (n)
+                        report << ',';
+                    report << value.words[n];
+                }
+                report << "],\"text\":" << Json(value.text) << '}';
+            }
+            report << ']';
+        }
     } else {
         report << ",\"reason\":" << Json(reason)
                << ",\"diagnostic\":{\"stage\":" << Json(diagnostic.stage)

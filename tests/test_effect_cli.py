@@ -17,8 +17,8 @@ def main():
     program, dxc = str(args.program.resolve()), str(args.dxc.resolve())
     fixture = args.source / 'assets/effects/frontend/Inspect.fx'
 
-    def inspect(path, *extra, status=0):
-        result = subprocess.run([program, 'inspect', str(path.resolve()), '--dxc', dxc,
+    def inspect(path, *extra, status=0, operation="inspect"):
+        result = subprocess.run([program, operation, str(path.resolve()), '--dxc', dxc,
                                  *extra], capture_output=True, encoding='utf-8', timeout=45)
         assert result.returncode == status, (result.stdout, result.stderr)
         assert not result.stderr, result.stderr
@@ -67,6 +67,20 @@ def main():
                             capture_output=True, timeout=45)
     assert result.returncode == 0 and not result.stdout and not result.stderr
     assert json.loads(destination.read_text(encoding='utf-8')) == report
+    runtime = inspect(args.source / 'assets/effects/frontend/Runtime.fx', operation='initialize')
+    assert runtime['status'] == 'initialized' and not runtime['executionValidated']
+    initialized = {v['name']: v for v in runtime['values']}
+    assert initialized['Tint']['words'] == [1073741824, 1082130432, 1086324736]
+    assert initialized['One']['words'] == [1091567616]
+    assert initialized['Truncated']['words'] == [4294967293]
+    assert initialized['Mixed']['words'] == [1266679809]
+    assert initialized['Caption']['text'] == 'line\n"quoted"'
+    assert next(v for v in runtime['parameters'] if v['name'] == 'One')['array']
+    (args.output / 'runtime.json').write_text(json.dumps(runtime, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    invalid.write_text('float Bad=unknown(1);technique T{}', encoding='utf-8')
+    failed = inspect(invalid, status=1, operation='initialize')
+    assert failed['status'] == 'failed' and failed['diagnostic']['stage'] == 'initialization'
+    assert 'Bad/' in failed['reason'] and 'values' not in failed
     print('FX CLI: stable metadata, native defaults/scripts, Unicode relocation, diagnostics and file output passed')
 
 

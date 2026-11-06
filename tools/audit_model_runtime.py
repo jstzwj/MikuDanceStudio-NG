@@ -84,7 +84,7 @@ def audit(program, manifest, stage='P1'):
             expected.add('mikudancestudio_math')
     elif stage == 'P5':
         root = 'mds_effect_cli'
-        expected = {root, 'mikudancestudio_mme_frontend',
+        expected = {root, 'mikudancestudio_mme_runtime', 'mikudancestudio_cpu_math', 'mikudancestudio_mme_frontend',
                     'mikudancestudio_tool_process', 'mikudancestudio_formats'}
     if set(graph) != expected:
         raise RuntimeError(f'{stage} target manifest changed: {set(graph) ^ expected}')
