@@ -17,9 +17,10 @@ function(mds_add_mme)
     target_link_libraries(mikudancestudio_mme_frontend PRIVATE
         mikudancestudio_tool_process mikudancestudio_formats)
     add_library(mikudancestudio_mme_runtime STATIC
+        "${root}/src/render/mme/parameter_defaults.cpp"
         "${root}/third_party/mmeffect/src/mme_standard_parameters.cpp"
         "${root}/third_party/mmeffect/src/mme_scene_plan.cpp")
-    target_link_libraries(mikudancestudio_mme_runtime PUBLIC mikudancestudio_mme_frontend)
+    target_link_libraries(mikudancestudio_mme_runtime PUBLIC mikudancestudio_mme_frontend mikudancestudio_cpu_math)
     target_compile_features(mikudancestudio_mme_runtime PUBLIC cxx_std_17)
     add_executable(mds_effect_cli "${root}/src/tools/effect_cli.cpp")
     target_link_libraries(mds_effect_cli PRIVATE mikudancestudio_mme_frontend)

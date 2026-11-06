@@ -384,7 +384,8 @@ public:
         }
         Unique(name);
         unsigned elements = 1;
-        if (Eat("[")) {
+        const bool array = Eat("[");
+        if (array) {
             const auto n = Take();
             if (n.empty() || n.size() > 3 ||
                 !std::all_of(n.begin(), n.end(), [](unsigned char c) { return std::isdigit(c); }))
@@ -523,8 +524,10 @@ public:
         v.type = type;
         v.semantic = semantic;
         v.elements = elements;
+        v.array = array;
         v.shared = shared;
-        v.immutable = isStatic || isConst;
+        v.immutable = isStatic;
+        v.constant = isConst;
         v.annotations = annotations;
         if (type == "float4x4") {
             v.rows = v.columns = 4;
@@ -563,7 +566,7 @@ public:
         v.initializer = Initializer();
         constants +=
             (v.rows == 4 ? "row_major " : "") + (type == "bool" ? "uint" : type) + " " + name;
-        if (elements > 1)
+        if (array)
             constants += "[" + std::to_string(elements) + "]";
         constants += ";\n";
         result.variables.push_back(v);

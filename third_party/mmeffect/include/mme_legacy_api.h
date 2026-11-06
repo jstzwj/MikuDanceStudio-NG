@@ -16,7 +16,10 @@ struct MmeLegacyDiagnostic {
 struct MmeLegacyVariable {
     std::string name, type, semantic, object;
     unsigned rows = 1, columns = 1, elements = 1;
-    bool shared = false, immutable = false;
+    // Static declarations are shader-private; const alone remains host-writable in FX9.
+    bool shared = false, immutable = false, constant = false;
+    // FX distinguishes a scalar from a one-element array in shared pools.
+    bool array = false;
     std::string initializer;
     std::map<std::string, std::string> annotations;
 };
