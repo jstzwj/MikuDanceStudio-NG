@@ -117,7 +117,7 @@ bool MmeStandardClassify(const MmeLegacyVariable& v, MmeStandardBinding& out, st
                               ? "float4"
                           : b.kind == K::Viewport ? "float2"
                                                   : "float";
-        if (v.type != type || v.elements != 1)
+        if (v.type != type || v.elements != 1 || v.array)
             return fail("MME_legacy_semantic_shape");
     }
     out = b;

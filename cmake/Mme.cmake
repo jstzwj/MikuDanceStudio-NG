@@ -19,6 +19,8 @@ function(mds_add_mme)
     add_library(mikudancestudio_mme_runtime STATIC
         "${root}/src/render/mme/parameter_defaults.cpp"
         "${root}/src/render/mme/parameter_runtime.cpp"
+        "${root}/src/render/mme/parameter_frame.cpp"
+        "${root}/src/render/mme/parameter_semantics.cpp"
         "${root}/third_party/mmeffect/src/mme_standard_parameters.cpp"
         "${root}/third_party/mmeffect/src/mme_scene_plan.cpp")
     target_link_libraries(mikudancestudio_mme_runtime PUBLIC mikudancestudio_mme_frontend mikudancestudio_cpu_math)

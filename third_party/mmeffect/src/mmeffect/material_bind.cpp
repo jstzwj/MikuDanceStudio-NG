@@ -1,5 +1,6 @@
 // material_bind.cpp - see material_bind.h
 #include "material_bind.h"
+#include "mikudancestudio/mme_runtime.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -210,7 +211,7 @@ static const GUID kToonIidD3DTexture9 = {
 // On a miss, sample the texture contents:
 //   QueryInterface(IID_IDirect3DTexture9) -> GetSurfaceLevel(0) (highest-resolution
 //   level, vtable+0x90) -> GetDesc (vtable+0x60); Format accepts only D3DFMT_R8G8B8
-//   (20) / D3DFMT_A8R8G8B8 (21) / D3DFMT_X8R8G8B8 (22) [0x180056e53]；
+//   (20) / D3DFMT_A8R8G8B8 (21) / D3DFMT_X8R8G8B8 (22) [0x180056e53]ï¼›
 //   LockRect(RECT{0, Height-1, 1, Height}, D3DLOCK_READONLY=0x10) [vtable+0x68]
 //   locks only the bottom-row pixel in column 0 (the brightest end of the toon ramp), then
 //   UnlockRect [vtable+0x70]. Memory byte order is B,G,R(,A): r=pBits[2], g=pBits[1],
@@ -250,7 +251,7 @@ void MmeComputeFixedFunctionToonColor(float out[4], IDirect3DBaseTexture9* textu
                     desc.Format == D3DFMT_A8R8G8B8 ||   // 21
                     desc.Format == D3DFMT_X8R8G8B8) {   // 22
                     // Lock only pixel (0, Height-1): left=0, top=H-1, right=1,
-                    // bottom=H [0x180056e59-0x180056e6c]。
+                    // bottom=H [0x180056e59-0x180056e6c]ã€‚
                     RECT rc;
                     rc.left = 0;
                     rc.top = static_cast<LONG>(desc.Height) - 1;
@@ -1653,9 +1654,9 @@ bool SemanticEquals(const std::string& sem, const char* name)
 // [Allocation-free hot path] The per-semantic dispatch classification, resolved ONCE per
 // binding (the resolve pass of MmeBindSemanticParameters) and consumed by the
 // per-pass switch. The kind/base/flags/light encoding mirrors the original's
-// string dispatch order exactly: suffix decode (INVERSETRANSPOSE → TRANSPOSE
-// → INVERSE) → matrix family → POSITION/DIRECTION → the Light-family color
-// composition → material ids → times → texture slots → mouse → modulation →
+// string dispatch order exactly: suffix decode (INVERSETRANSPOSE â†’ TRANSPOSE
+// â†’ INVERSE) â†’ matrix family â†’ POSITION/DIRECTION â†’ the Light-family color
+// composition â†’ material ids â†’ times â†’ texture slots â†’ mouse â†’ modulation â†’
 // viewport/mouse-position.
 // ---------------------------------------------------------------------------
 enum {
@@ -2117,58 +2118,36 @@ ModelData* FindModelById(unsigned long long objectId)
 // [0x180058042 arg_30] the parameter-shape code the original registered per
 // control parameter: 0 = bool scalar, 1 = float scalar, 3 = float3 vector,
 // 4 = float4 vector, 16 = matrix.
-int ControlParameterTypeCode(const D3DXPARAMETER_DESC& pd)
+// Shape conversion is shared with the portable runtime. Object/host reads
+// remain here; the pure conversion never holds a native object or handle.
+void SetControlSample(ID3DXEffect* effect, D3DXHANDLE param,
+                      const D3DXPARAMETER_DESC& pd,
+                      const mikudancestudio::mme::ControlSample& sample)
 {
-    if (pd.Class == D3DXPC_MATRIX_ROWS || pd.Class == D3DXPC_MATRIX_COLUMNS) {
-        return 16;
-    }
-    if (pd.Class == D3DXPC_VECTOR) {
-        if (pd.Type == D3DXPT_BOOL) {
-            return 0;
-        }
-        return (pd.Columns >= 4) ? 4 : 3;
-    }
-    return (pd.Type == D3DXPT_BOOL) ? 0 : 1;
-}
-
-// [0x180058189-0x18005830d] the object-not-found writes, by parameter shape.
-// The float default depends on the item presence: whole-object references
-// read the "default object" scale (10.0f accessories [DAT_1800b5c20] / 1.0f
-// models [DAT_1800b5b28]); item-named references read 0.0f. The matrix
-// default is the identity for models and D3DXMatrixScaling(10,10,10) for
-// accessories.
-void SetControlDefaults(ID3DXEffect* effect, D3DXHANDLE param, int typeCode,
-                        bool hasItem, int kindGuess)
-{
-    switch (typeCode) {
-    case 0:
-        effect->SetBool(param, FALSE);                                 // [0x1800582fb]
-        break;
-    case 1:
-        effect->SetFloat(param, hasItem
-                                ? 0.0f
-                                : ((kindGuess == 0) ? 10.0f : 1.0f));  // [0x1800582b2]
-        break;
-    case 3: {
-        float v[4] = { 0.0f, 0.0f, 0.0f, 0.0f };                       // [0x180058285]
-        effect->SetVector(param, reinterpret_cast<const D3DXVECTOR4*>(v));
-        break;
-    }
-    case 4: {
-        float v[4] = { 0.0f, 0.0f, 0.0f, 1.0f };                       // [0x180058243]
-        effect->SetVector(param, reinterpret_cast<const D3DXVECTOR4*>(v));
-        break;
-    }
-    default: {
-        D3DXMATRIX m;
-        if (kindGuess == 0) {
-            D3DXMatrixScaling(&m, 10.0f, 10.0f, 10.0f);                // [0x1800581b6]
-        } else {
-            D3DXMatrixIdentity(&m);                                   // [0x1800581d0]
-        }
-        effect->SetMatrix(param, &m);                                  // [0x18005822b]
-        break;
-    }
+    using namespace mikudancestudio::mme;
+    MmeLegacyVariable variable;
+    variable.name = pd.Name ? pd.Name : "";
+    variable.rows = pd.Rows;
+    variable.columns = pd.Columns;
+    variable.elements = pd.Elements ? pd.Elements : 1;
+    variable.array = pd.Elements != 0;
+    variable.type = pd.Type == D3DXPT_BOOL ? "bool" :
+        (pd.Rows == 4 && pd.Columns == 4 ? "float4x4" :
+         (pd.Columns == 1 ? "float" : "float" + std::to_string(pd.Columns)));
+    ParameterValue value;
+    std::string reason;
+    if (!EvaluateControl(variable, sample, value, reason)) return;
+    if (pd.Type == D3DXPT_BOOL) {
+        effect->SetBool(param, value.words[0] != 0);
+    } else if (pd.Rows == 4) {
+        D3DXMATRIX matrix;
+        memcpy(&matrix, value.words.data(), sizeof(matrix));
+        effect->SetMatrix(param, &matrix);
+    } else {
+        float components[4]{};
+        memcpy(components, value.words.data(), value.words.size() * sizeof(float));
+        if (pd.Columns == 1) effect->SetFloat(param, components[0]);
+        else effect->SetVector(param, reinterpret_cast<const D3DXVECTOR4*>(components));
     }
 }
 
@@ -2222,13 +2201,13 @@ void ResolveOneControl(SasEffect* sas, const SasControlObject& control,
     if (effect->GetParameterDesc(control.param, &pd) != S_OK) {
         return;
     }
-    const int typeCode = ControlParameterTypeCode(pd);
+    mikudancestudio::mme::ControlSample sample;
+    sample.hasItem = !control.itemName.empty();
 
     if (target == nullptr) {
         // [0x180058133-0x18005830d] object not found: write the defaults.
-        SetControlDefaults(effect, control.param, typeCode,
-                           !control.itemName.empty(),
-                           KindGuessForName(control.objectName));
+        sample.accessory = KindGuessForName(control.objectName) == 0;
+        SetControlSample(effect, control.param, pd, sample);
         return;
     }
 
@@ -2312,52 +2291,12 @@ void ResolveOneControl(SasEffect* sas, const SasControlObject& control,
     // else: unknown item name - sub_180059690 returns 0 leaving its identity
     // buffer, which yields the 0 / zero-vector / identity defaults below.
 
-    // --- push by parameter shape [0x180058042] ---
-    switch (typeCode) {
-    case 0:
-        // [0x180058125] bool = the OBJECT's display flag (+0xf4), read with
-        // or without an item name (the item is ignored for bools).
-        effect->SetBool(control.param,
-                        (hostIndex >= 0)
-                            ? ((target->kind() == 1)
-                                   ? (ExpGetPmdDisp(hostIndex) ? TRUE : FALSE)
-                                   : (ExpGetAcsDisp(hostIndex) ? TRUE : FALSE))
-                            : FALSE);
-        break;
-    case 1:
-        // [0x1800580cd] scalar: sqrt of the buffer's FIRST ROW floats for a
-        // matrix result, else the value slot (float 12).
-        effect->SetFloat(control.param, matrixResult
-            ? sqrtf(buffer[0] * buffer[0] + buffer[1] * buffer[1] +
-                    buffer[2] * buffer[2])
-            : buffer[12]);
-        break;
-    case 3:
-        // [0x1800580b4] float3: the buffer floats 12-14.
-        {
-            float v[4] = { buffer[12], buffer[13], buffer[14], 0.0f };
-            effect->SetVector(control.param,
-                              reinterpret_cast<const D3DXVECTOR4*>(v));
-        }
-        break;
-    case 4:
-        // [0x18005806e] float4: the buffer floats 12-15 (w = the buffer's
-        // float 15 - 1.0 unless a bone/object matrix overwrote it).
-        {
-            float v[4] = { buffer[12], buffer[13], buffer[14], buffer[15] };
-            effect->SetVector(control.param,
-                              reinterpret_cast<const D3DXVECTOR4*>(v));
-        }
-        break;
-    default:
-        // [0x18005822b] matrix: the buffer as-is.
-        {
-            D3DXMATRIX m;
-            memcpy(&m, buffer, sizeof(m));
-            effect->SetMatrix(control.param, &m);
-        }
-        break;
-    }
+    sample.found = true;
+    sample.matrix = matrixResult;
+    memcpy(sample.transform.data(), buffer, sizeof(buffer));
+    sample.visible = hostIndex >= 0 && (target->kind() == 1
+        ? ExpGetPmdDisp(hostIndex) != 0 : ExpGetAcsDisp(hostIndex) != 0);
+    SetControlSample(effect, control.param, pd, sample);
 }
 
 }  // namespace
