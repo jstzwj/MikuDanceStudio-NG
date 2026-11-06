@@ -76,4 +76,7 @@ CLI 报告 `status=initialized`、逻辑组件 `words` 和字符串，始终
 `executionValidated=false`。`inspect` 继续只报告定义。默认值、池、控制对象与事务各有
 可移植 CPU 门禁；Windows 独立参考使用动态加载的 D3DX9_43、NULLREF 和自有隐藏窗口，
 不显示／激活窗口，也不提交绘制或 Present，不依赖工作桌面上的 GPU 显示设备。
-三平台资格以定向 CI 及下载产物复核为准，不把本地 Windows 通过写成三平台通过。
+三平台定向 CI [42168010475](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42168010475)
+通过 Windows 12、Linux 10、macOS 10 项门禁。下载产物中完整声明／默认组件值与逐绘制
+帧快照一致；[版本化验收证据](evidence/p5-runtime-42168010475.json)保存组件值、哈希、
+测试集合及产物身份。本次只使用一轮聚焦的 MME 工作流，没有重跑发行包。

@@ -1,0 +1,317 @@
+{
+  "schema": 1,
+  "stage": "P5.2",
+  "date": "2026-11-06",
+  "code_commit": "cf5595c0f40087ea1b1672b90f975ef75e3005e6",
+  "status": "passed for the documented parameter runtime subset",
+  "c2_complete": false,
+  "scope": "CPU FX default initialization, parameter instances/shared pools, standard/control semantics and transactional per-draw snapshots; no GPU effect execution or Qt MME integration",
+  "qualification": {
+    "run_id": 42168010475,
+    "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42168010475",
+    "all_jobs_successful": true,
+    "total_tests": 32,
+    "platforms": {
+      "windows": {
+        "status": "passed",
+        "test_count": 12,
+        "tests": [
+          "mme_definition",
+          "mme_frontend_cli",
+          "mme_frontend_dependencies",
+          "mme_frontend_native",
+          "mme_legacy_source",
+          "mme_parameter_defaults",
+          "mme_parameter_frame",
+          "mme_parameter_native",
+          "mme_parameter_pool",
+          "mme_scene_plan",
+          "mme_source",
+          "mme_standard_parameters"
+        ],
+        "production_targets": [
+          "mds_effect_cli",
+          "mikudancestudio_cpu_math",
+          "mikudancestudio_formats",
+          "mikudancestudio_mme_frontend",
+          "mikudancestudio_mme_runtime",
+          "mikudancestudio_tool_process"
+        ],
+        "preprocessor_identity": "dxcompiler.dll: 1.9 - 1.8.2505.32 (b106a961d); dxil.dll: 1.9(1.8.2505.32)\r\n",
+        "artifact_id": 13479129887,
+        "artifact_digest": "sha256:7c80d92e94f93b1c1c628431092492f690c69e487223e38ecbd0ecbe375bbc30",
+        "frame_snapshot_sha256": "a4b0f38844eca210424e8c154352a843384d6e87d4402f9d043c20202bf324d0"
+      },
+      "linux": {
+        "status": "passed",
+        "test_count": 10,
+        "tests": [
+          "mme_definition",
+          "mme_frontend_cli",
+          "mme_frontend_dependencies",
+          "mme_legacy_source",
+          "mme_parameter_defaults",
+          "mme_parameter_frame",
+          "mme_parameter_pool",
+          "mme_scene_plan",
+          "mme_source",
+          "mme_standard_parameters"
+        ],
+        "production_targets": [
+          "mds_effect_cli",
+          "mikudancestudio_cpu_math",
+          "mikudancestudio_formats",
+          "mikudancestudio_mme_frontend",
+          "mikudancestudio_mme_runtime",
+          "mikudancestudio_tool_process"
+        ],
+        "preprocessor_identity": "libdxcompiler.so: 1.9(dev;4950-b106a961); libdxil.so: 1.9\n",
+        "artifact_id": 13479743056,
+        "artifact_digest": "sha256:e765569941c49c8a6484cec761dcbc37437457a45db2f53d25043aa872eebc10",
+        "frame_snapshot_sha256": "a4b0f38844eca210424e8c154352a843384d6e87d4402f9d043c20202bf324d0"
+      },
+      "macos": {
+        "status": "passed",
+        "test_count": 10,
+        "tests": [
+          "mme_definition",
+          "mme_frontend_cli",
+          "mme_frontend_dependencies",
+          "mme_legacy_source",
+          "mme_parameter_defaults",
+          "mme_parameter_frame",
+          "mme_parameter_pool",
+          "mme_scene_plan",
+          "mme_source",
+          "mme_standard_parameters"
+        ],
+        "production_targets": [
+          "mds_effect_cli",
+          "mikudancestudio_cpu_math",
+          "mikudancestudio_formats",
+          "mikudancestudio_mme_frontend",
+          "mikudancestudio_mme_runtime",
+          "mikudancestudio_tool_process"
+        ],
+        "preprocessor_identity": "libdxcompiler.dylib: 1.9(dev;1-b106a961)\n",
+        "artifact_id": 13479851589,
+        "artifact_digest": "sha256:fd29c5412c891967f12d784e9c0138b239b4bfedf173f657576fc9954bac1d8e",
+        "frame_snapshot_sha256": "a4b0f38844eca210424e8c154352a843384d6e87d4402f9d043c20202bf324d0"
+      }
+    }
+  },
+  "cross_platform_parameters": {
+    "fixture": "assets/effects/frontend/Runtime.fx",
+    "equal": true,
+    "excluded_fields": [
+      "preprocessorIdentity",
+      "files[*].utf8Bytes"
+    ],
+    "exclusion_reason": "Compiler identity and checkout newline byte count only; full declaration metadata, source paths/include edges, logical numeric words and strings remain equal.",
+    "canonical_json_sha256": "6a16cdee9c5e2436736ee254d967e03ea3c09d2aaa6375a7dd58114406dc2b66",
+    "values": [
+      {
+        "name": "Tint",
+        "words": [
+          1073741824,
+          1082130432,
+          1086324736
+        ],
+        "text": ""
+      },
+      {
+        "name": "Matrix",
+        "words": [
+          1065353216,
+          1073741824,
+          1077936128,
+          1082130432,
+          1084227584,
+          1086324736,
+          1088421888,
+          1090519040,
+          1091567616,
+          1092616192,
+          1093664768,
+          1094713344,
+          1095761920,
+          1096810496,
+          1097859072,
+          1098907648
+        ],
+        "text": ""
+      },
+      {
+        "name": "Values",
+        "words": [
+          1048576000,
+          1008981770
+        ],
+        "text": ""
+      },
+      {
+        "name": "One",
+        "words": [
+          1091567616
+        ],
+        "text": ""
+      },
+      {
+        "name": "Enabled",
+        "words": [
+          1
+        ],
+        "text": ""
+      },
+      {
+        "name": "Truncated",
+        "words": [
+          4294967293
+        ],
+        "text": ""
+      },
+      {
+        "name": "Referenced",
+        "words": [
+          1266679809
+        ],
+        "text": ""
+      },
+      {
+        "name": "Folded",
+        "words": [
+          1266679809
+        ],
+        "text": ""
+      },
+      {
+        "name": "Writable",
+        "words": [
+          1084227584
+        ],
+        "text": ""
+      },
+      {
+        "name": "Mixed",
+        "words": [
+          1266679809
+        ],
+        "text": ""
+      },
+      {
+        "name": "Zero",
+        "words": [
+          0
+        ],
+        "text": ""
+      },
+      {
+        "name": "Caption",
+        "words": [],
+        "text": "line\n\"quoted\""
+      },
+      {
+        "name": "SharedValue",
+        "words": [
+          1073741824
+        ],
+        "text": ""
+      },
+      {
+        "name": "Local",
+        "words": [
+          1090519040
+        ],
+        "text": ""
+      }
+    ]
+  },
+  "cross_platform_frame_snapshot": {
+    "equal": true,
+    "excluded_fields": [],
+    "canonical_json_sha256": "a4b0f38844eca210424e8c154352a843384d6e87d4402f9d043c20202bf324d0",
+    "snapshot": {
+      "frame": 2,
+      "values": {
+        "Bone": [
+          0
+        ],
+        "Control": [
+          1117782016,
+          0,
+          0,
+          1065353216
+        ],
+        "Dt": [
+          1022739087
+        ],
+        "Missing": [
+          1092616192
+        ],
+        "Size": [
+          1145569280,
+          1142292480
+        ],
+        "T": [
+          1022739087
+        ],
+        "W": [
+          1065353216,
+          0,
+          0,
+          0,
+          0,
+          1065353216,
+          0,
+          0,
+          0,
+          0,
+          1065353216,
+          0,
+          0,
+          0,
+          0,
+          1065353216
+        ],
+        "Weight": [
+          1061158912
+        ],
+        "X": [
+          1091567616
+        ]
+      }
+    }
+  },
+  "source_frontend_regression": {
+    "equal": true,
+    "canonical_json_sha256": "2d3a3251b7b55e238745f2fb66f8b4fac6e75be06f8322588b37c0025c424cde"
+  },
+  "local_checks": {
+    "p5_tests": 12,
+    "all_passed": true,
+    "windows_legacy_control_adapter_compile": "passed",
+    "first_party_clang_format": "21.1.8 passed",
+    "workflow_actionlint": "passed"
+  },
+  "native_reference": {
+    "device": "D3DDEVTYPE_NULLREF",
+    "window": "owned, hidden, nonactivating; no drawing or Present",
+    "checks": [
+      "logical default bytes and one-element array identity",
+      "first-live initializer and immediate shared writes",
+      "name/semantic/type/shape isolation and semantic case folding",
+      "clone private/shared behavior and last consumer unload/reload",
+      "matrix/standard semantic storage and original control per-shape setters"
+    ],
+    "observed_corrections": [
+      "const alone is host-writable; static declarations are shader-private",
+      "compile-time default folding preserves precision until float32 storage",
+      "pending frame storage cannot resurrect unloaded shared cells"
+    ]
+  },
+  "remaining": [
+    "P5.3 scripts, assignments and shared resource scheduling",
+    "P5.4 shader layout and backend execution",
+    "P5.5 Qt effect editing, persistence and export integration"
+  ]
+}
