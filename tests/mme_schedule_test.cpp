@@ -76,6 +76,12 @@ int main(int argc, char** argv) try {
               Read(*input.effects[2].binding.instance, "Index").words[0] == 9,
           "script snapshots without early writeback");
     NullReplay(frame->Dependencies());
+    Check(std::any_of(frame->Dependencies().passes.begin(), frame->Dependencies().passes.end(),
+                      [](const auto& p) {
+                          return p.colors.empty() && p.depthStencil &&
+                                 p.depthStencil->load == AttachmentLoad::Clear;
+                      }),
+          "depth-only clear declares no false color dependency");
     Check(registry.Reconcile(input.effects, 128, 96, 1, reason) && frame->Ready(reason),
           "identical inventory keeps prepared frame valid");
     if (argc >= 2) {
@@ -116,13 +122,15 @@ int main(int argc, char** argv) try {
           "cycle failure preserves old output");
     bad = input;
     bad.assignments.effects[{TargetScope(11, 0), 3, -1}] = {Assignment::Kind::Effect, 14};
-    Check(!ScheduledFrame::Prepare(bad, registry, pool, clock, 2, 130, 0, true, frame, reason),
+    Check(!ScheduledFrame::Prepare(bad, registry, pool, clock, 2, 130, 0, true, frame, reason) &&
+              reason.find("sample_before_write") != reason.npos,
           "read before parent production rejected");
     Check(Read(*input.effects[2].binding.instance, "Index").words[0] == 1,
           "failed graph publishes no parameter writes");
     bad = input;
     bad.assignments.effects[{TargetScope(12, 0), 3, -1}] = {Assignment::Kind::Effect, 14};
-    Check(!ScheduledFrame::Prepare(bad, registry, pool, clock, 2, 130, 0, true, frame, reason),
+    Check(!ScheduledFrame::Prepare(bad, registry, pool, clock, 2, 130, 0, true, frame, reason) &&
+              reason.find("feedback") != reason.npos,
           "feedback read/write rejected before submission");
     auto lost = input.effects;
     lost.erase(lost.begin() + 2);

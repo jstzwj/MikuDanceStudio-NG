@@ -150,6 +150,16 @@ int main() try {
     Check(!ParseEmm(emm + "[Effect]\n", mapping, reason), "duplicate sections rejected");
     Check(!ParseEmm("\xef\xbb\xbf" + emm, mapping, reason),
           "BOM explicitly rejected before legacy parser");
+    auto stencil =
+        std::make_shared<EffectDefinition>(input.effects[3].binding.instance->Definition());
+    stencil->metadata.techniques[0].annotations["SCRIPT"] = "Clear=Stencil;";
+    auto binding = input.effects[3].binding;
+    binding.instance.reset();
+    Check(EffectInstance::Create(stencil, pool, binding.instance, reason), reason);
+    ScheduleDescription unsupported;
+    Check(!DescribeSchedule(binding, unsupported, reason) &&
+              reason.find("stencil_clear_not_supported") != reason.npos,
+          "unsupported stencil clear is not converted into depth clear");
     std::cout
         << "Technique selection, assignment precedence, EMM mapping/owners and atomic errors passed\n";
     return 0;

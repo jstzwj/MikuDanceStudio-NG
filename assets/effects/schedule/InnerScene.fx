@@ -7,7 +7,7 @@ sampler Capture=sampler_state {AddressU=CLAMP;AddressV=CLAMP;Texture=<Captured>;
 float4 copy(float2 uv:TEXCOORD0):COLOR0{return tex2D(Capture,uv);}
 technique Scene <string Script=
     "RenderColorTarget0=Captured;RenderDepthStencilTarget=Depth;"
-    "Clear=Color;Clear=Depth;ScriptExternal=Color;RenderColorTarget0=;"
+    "Clear=Depth;Clear=Color;ScriptExternal=Color;RenderColorTarget0=;"
     "RenderDepthStencilTarget=;Clear=Color;Pass=Finish;";> {
     pass Finish <string Script="Draw=Buffer;";> {PixelShader=compile ps_3_0 copy();}
 }

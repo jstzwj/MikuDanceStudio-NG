@@ -57,7 +57,7 @@ std::vector<MmePortableCommand> Commands(const std::string& text, const MmeLegac
             else if (Upper(value) == "DEPTH")
                 c.value = 2;
             else if (Upper(value) == "STENCIL")
-                c.value = 4;
+                ScheduleError("stencil_clear_not_supported");
             else
                 ScheduleError("clear_type");
         } else if (name == "SCRIPTEXTERNAL" && Upper(value) == "COLOR") {

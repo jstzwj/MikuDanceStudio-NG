@@ -30,7 +30,7 @@ Subset 的空串保留原版“隐藏全部子集”的哨兵；数值限定为�
 
 普通材质支持有序 Pass 和 RenderColorTarget0..3／RenderColorTarget；场景支持一个
 postprocess 技术、Draw=Buffer、目标／清除设置、一次 ScriptExternal=Color、有限循环及
-私有 int LoopGetIndex。共享循环索引、全局技术表达式、preprocess、多次捕获、顶点纹理和
+私有 int LoopGetIndex。共享循环索引、Stencil 清除、全局技术表达式、preprocess、多次捕获、顶点纹理和
 任意 Pass 脚本继续明确失败。捕获目前要求单个、与当前轮次同尺寸的颜色目标。
 
 ## 分配和可见性

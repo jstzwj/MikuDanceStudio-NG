@@ -200,6 +200,8 @@ struct Builder {
                      std::uint64_t color, std::uint64_t depth) {
         FramePass pass;
         for (const auto& name : step.colors) {
+            if (step.kind == MmePortableStep::Kind::Clear && !step.clearColor)
+                continue;
             const auto id =
                 name == "FinalColor" || name == "DrawColor" ? color : Target(effect, name);
             FrameAttachment a{id, step.kind == MmePortableStep::Kind::Clear && step.clearColor
