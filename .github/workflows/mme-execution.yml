@@ -1,6 +1,12 @@
 name: MME shader execution
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        options: [all, windows-2022, ubuntu-22.04, macos-15]
+        default: all
+        description: Qualify all platforms or rerun only the affected platform
 concurrency:
   group: mme-execution-${{ github.ref }}
   cancel-in-progress: false
@@ -11,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-2022, ubuntu-22.04, macos-15]
+        os: ${{ fromJSON(inputs.platform == 'macos-15' && '["macos-15"]' || inputs.platform == 'windows-2022' && '["windows-2022"]' || inputs.platform == 'ubuntu-22.04' && '["ubuntu-22.04"]' || '["windows-2022","ubuntu-22.04","macos-15"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

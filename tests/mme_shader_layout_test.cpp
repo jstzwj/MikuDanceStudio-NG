@@ -43,6 +43,9 @@ int main(int argc, char** argv) try {
           reason);
     RenderFrame frame;
     Check(AssembleRenderFrame(*scheduled, compiled, targets, Geometry(), frame, reason), reason);
+    Check(std::none_of(frame.targets.begin(), frame.targets.end(),
+                       [](const auto& t) { return IsDepthStencil(t.description.format); }),
+          "clear-only depth resources are not allocated without a consumer");
     const auto& portableSampler = frame.passes.back().draws[0].shader->samplers[0].sampler;
     Check(portableSampler.min == SamplerFilter::Linear &&
               portableSampler.mag == SamplerFilter::Linear &&
@@ -130,6 +133,35 @@ int main(int argc, char** argv) try {
     const auto effects = compiler.Stats().effects;
     Check(compiler.Compile(effect, again, reason) && compiler.Stats().effects == effects + 1,
           "cache clear/reload");
+    // Dead-store removal must never substitute a requested format or discard a
+    // surface that an enabled depth test/write can observe.
+    auto depthDefinition =
+        std::make_shared<EffectDefinition>(*effect.binding.instance->DefinitionSnapshot());
+    auto& depthSource = depthDefinition->source.expanded;
+    for (const auto& state : std::vector<std::string>{"ZEnable", "ZWriteEnable"}) {
+        auto pos = depthSource.find(state + "=false");
+        // DXC preprocessing may insert spaces around tokens.
+        if (pos == std::string::npos)
+            pos = depthSource.find(state + " = false");
+        Check(pos != std::string::npos, "fixture depth state");
+        pos = depthSource.find("false", pos);
+        depthSource.replace(pos, 5, "true");
+    }
+    Check(MmeLegacyDescribe(depthSource, depthDefinition->metadata, reason), reason);
+    std::shared_ptr<EffectInstance> depthInstance;
+    Check(EffectInstance::Create(depthDefinition, pool, depthInstance, reason), reason);
+    ScheduleDescription depthDescription;
+    Check(DescribeSchedule({10, 2, "depth.fx", depthInstance}, depthDescription, reason), reason);
+    input.effects = {depthDescription};
+    compiled = CompileEffects(input, compiler);
+    Check(targets.Reconcile(input.effects, 64, 48, 2, reason), reason);
+    Check(ScheduledFrame::Prepare(input, targets, pool, clock, 2, 1, 0, true, scheduled, reason),
+          reason);
+    Check(AssembleRenderFrame(*scheduled, compiled, targets, Geometry(), frame, reason), reason);
+    Check(std::any_of(
+              frame.targets.begin(), frame.targets.end(),
+              [](const auto& t) { return t.description.format == TextureFormat::Depth24Stencil8; }),
+          "live depth retains its exact declared format");
     Check(device->Destroy(target) && device->Destroy(image) && device->Destroy(vertices), "unload");
     std::cout
         << "P5.4 layout, SPIR-V reflection, 16 slots, Null assembly, failure cache and atomicity passed\n";

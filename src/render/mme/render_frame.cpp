@@ -2,11 +2,39 @@
 #include "shader_state.hpp"
 #include <algorithm>
 #include <cstring>
+#include <set>
 #include <stdexcept>
 
 namespace mikudancestudio::mme {
 namespace {
 using namespace rhi;
+void RemoveDeadDepth(RenderFrame& frame) {
+    // A clear-only, unsampled depth surface has no observable GPU consumer.
+    // Do not allocate an unsupported native format merely to perform a dead
+    // store. Preserve explicit readback and every actual depth/stencil use.
+    std::set<std::uint64_t> live, dead;
+    for (const auto& pass : frame.passes) {
+        live.insert(pass.sampled.begin(), pass.sampled.end());
+        if (pass.depthStencil && !pass.draws.empty())
+            live.insert(pass.depthStencil->target);
+    }
+    for (const auto& target : frame.targets)
+        if (IsDepthStencil(target.description.format) && !live.count(target.id) &&
+            !(target.description.access & unsigned(TextureAccess::CopySource)))
+            dead.insert(target.id);
+    for (auto& pass : frame.passes)
+        if (pass.depthStencil && dead.count(pass.depthStencil->target))
+            pass.depthStencil.reset();
+    frame.passes.erase(std::remove_if(frame.passes.begin(), frame.passes.end(),
+                                      [](const auto& p) {
+                                          return !p.color && p.colors.empty() && !p.depthStencil &&
+                                                 p.draws.empty() && !p.generateMips;
+                                      }),
+                       frame.passes.end());
+    frame.targets.erase(std::remove_if(frame.targets.begin(), frame.targets.end(),
+                                       [&](const auto& t) { return dead.count(t.id) != 0; }),
+                        frame.targets.end());
+}
 [[noreturn]] void Fail(const std::string& reason) {
     throw std::runtime_error(reason);
 }
@@ -205,6 +233,7 @@ bool AssembleRenderFrame(const ScheduledFrame& schedule, const CompiledEffects& 
         pass.draws.push_back(std::move(draw));
         next.passes.push_back(std::move(pass));
     }
+    RemoveDeadDepth(next);
     const auto valid = rhi::ValidateRenderFrame(next);
     if (!valid) {
         reason = valid.reason;
