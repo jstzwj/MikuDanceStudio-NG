@@ -57,7 +57,7 @@ on:
         default: false
       mme_only:
         type: boolean
-        description: Headless MME frontend and parameter runtime (no Qt, GPU or packaging; platform selects runners)
+        description: Headless MME frontend, runtime and CPU/Null schedule (no Qt, GPU or packaging)
         default: false
       system_ime:
         type: boolean
@@ -127,7 +127,7 @@ jobs:
         run: |
           $dxcPath = if ($IsWindows) { "$PWD/out/dxc/dxc.exe" } else { "$PWD/out/dxc/bin/dxc" }
           $configureArgs = @('-S', 'cmake/portable-mme', '-B', 'out/p5', '-DCMAKE_BUILD_TYPE=Release', "-DMDS_DXC=$dxcPath")
-          $mmeTargets = @('mds_effect_cli', 'mme_source_test', 'mme_definition_test', 'mme_legacy_source_test', 'mme_standard_parameters_test', 'mme_scene_plan_test', 'mme_parameter_defaults_test', 'mme_parameter_pool_test', 'mme_parameter_frame_test')
+          $mmeTargets = @('mds_effect_cli', 'mme_source_test', 'mme_definition_test', 'mme_legacy_source_test', 'mme_standard_parameters_test', 'mme_scene_plan_test', 'mme_parameter_defaults_test', 'mme_parameter_pool_test', 'mme_parameter_frame_test', 'mme_schedule_test', 'mme_assignment_test', 'mme_targets_test')
           if ($IsWindows) {
             $configureArgs += @('-A', 'x64', "-DMDS_D3DX_ORACLE=$PWD/out/d3dx-oracle/D3DX9_43.dll")
             $mmeTargets += @('mme_frontend_native_test', 'mme_parameter_native_test')
@@ -147,6 +147,7 @@ jobs:
             out/p5/production/mme-cli/report.json
             out/p5/production/mme-cli/runtime.json
             out/p5/production/mme-frame.json
+              out/p5/production/mme-schedule.json
             out/p5/production/mme-dependencies.json
             out/p5/Testing/Temporary/
   windows:

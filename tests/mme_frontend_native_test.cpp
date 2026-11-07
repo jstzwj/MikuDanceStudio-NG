@@ -119,7 +119,9 @@ int main(int argc, char** argv) try {
     options.preprocessor = fs::absolute(argv[1]);
     options.macros["MME_MIPMAP"] = "";
     for (const auto* relative :
-         {"frontend/Inspect.fx", "portable/LegacyMaterial.fx", "portable/LegacyScene.fx"}) {
+         {"frontend/Inspect.fx", "portable/LegacyMaterial.fx", "portable/LegacyScene.fx",
+          "schedule/Material.fx", "schedule/Child.fx", "schedule/OuterScene.fx",
+          "schedule/InnerScene.fx", "schedule/ReaderMaterial.fx"}) {
         const auto fixture = fs::path(argv[2]) / "assets/effects" / relative;
         std::shared_ptr<const EffectDefinition> definition;
         std::string reason;
@@ -212,6 +214,8 @@ int main(int argc, char** argv) try {
             Check(parameter && SUCCEEDED(effect.p->GetParameterDesc(parameter, &d)),
                   "native texture");
             Check(t.semantic == (d.Semantic ? Upper(d.Semantic) : ""), "native target semantic");
+            Check(d.Type == (t.type == "texture2D" ? D3DXPT_TEXTURE2D : D3DXPT_TEXTURE),
+                  "native texture type identity");
             Annotations(effect.p, parameter, d.Annotations, t.annotations);
         }
         for (unsigned i = 0; i < p.techniques.size(); ++i) {

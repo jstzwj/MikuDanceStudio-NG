@@ -170,6 +170,22 @@ int main(int argc, char** argv) try {
     pa = Instance(pool, "shared float X=12;");
     Compare(a.p, *pa);
     // Independent native matrix storage/transpose and translation reference.
+    Com<ID3DXEffect> tp, tr, typed, differentSemantic;
+    load("shared texture Target:OFFSCREENRENDERTARGET;technique T{}", tp);
+    load("shared texture Target:offscreenrendertarget;technique T{}", tr);
+    load("shared texture2D Target:OFFSCREENRENDERTARGET;technique T{}", typed);
+    load("shared texture Target:RENDERCOLORTARGET;technique T{}", differentSemantic);
+    Com<IDirect3DTexture9> texture;
+    Check(SUCCEEDED(device.p->CreateTexture(4, 4, 1, 0, D3DFMT_A8R8G8B8, D3DPOOL_MANAGED,
+                                            &texture.p, nullptr)),
+          "NULLREF texture identity");
+    Check(SUCCEEDED(tp.p->SetTexture("Target", texture.p)), "native texture publication");
+    for (auto* e : {tr.p, typed.p, differentSemantic.p}) {
+        Com<IDirect3DBaseTexture9> value;
+        Check(SUCCEEDED(e->GetTexture("Target", &value.p)), "native texture binding read");
+        Check(value.p == (e == tr.p ? texture.p : nullptr),
+              "native shared texture identity includes type/name/semantic");
+    }
     const std::string semanticSource =
         "float4x4 W:WORLDTRANSPOSE;float4 Position:POSITION <string Object=\"Camera\";>;float4 L:DIFFUSE <string Object=\"Light\";>;float P:SPECULARPOWER <string Object=\"Geometry\";>;technique T{}";
     auto sd = std::make_shared<EffectDefinition>();
