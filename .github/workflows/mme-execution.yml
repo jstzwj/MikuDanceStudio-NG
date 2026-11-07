@@ -79,3 +79,23 @@ jobs:
             out/p54/p54.xml
             out/p54/production/mme-execution/
             out/p54/Testing/Temporary/
+  compare:
+    needs: execution
+    if: inputs.platform == 'all'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mme-execution-*
+          path: out/mme-evidence
+      - name: Compare full RGBA8 and native HDR readbacks across all four backends
+        run: python tools/check_mme_execution.py --input out/mme-evidence --output out/mme-comparison.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mme-execution-comparison
+          path: out/mme-comparison.json

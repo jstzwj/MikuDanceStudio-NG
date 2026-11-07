@@ -1,0 +1,214 @@
+{
+  "schema": 1,
+  "stage": "P5.4",
+  "reference": "dx11-software",
+  "tolerances": {
+    "cross_api_rgba_byte": 1,
+    "float_absolute": 0.002,
+    "within_backend_copy_and_repeat": "byte-identical"
+  },
+  "executions": [
+    {
+      "backend": "dx11-software",
+      "draws": 36,
+      "submissions": 27,
+      "mipOperations": 6,
+      "floatAbsoluteTolerance": 0.002,
+      "toneByteTolerance": 1,
+      "strictCopy": true,
+      "strictRepeat": true,
+      "passed": true,
+      "max_rgba_byte_error_vs_reference": 0,
+      "max_float_absolute_error_vs_reference": 0.0,
+      "image_sha256": {
+        "0-64.rgba": "fdb850ed88266a0ff315d0c395c4c6d494f19b03b3ce6392dc3b5d75b36ca6ff",
+        "0-80.rgba": "4003136cab43fb55837520b98b5441d8aa554703dd722e05f77e82c818b87da6",
+        "1-64.rgba": "f56af26a05b0fb68c3a1ea5997f9162aeef2a5b804d370c74bf94844da49e229",
+        "1-80.rgba": "29f3c69a2c5fcd0be4cc801c0e22f1247e14b8e6726f23e9dfdb9414392f4ec7",
+        "2-64-CaptureA.bin": "1fe570dbad04b7105d01f2c7bc3670622f890f48950ec036db11df618d0d94e1",
+        "2-64-CaptureB.bin": "914c4b7ac6b01f130b0597d558e9657af5c810895d83d9ef3a509c578cbc73f2",
+        "2-64-QuarterHdr.bin": "e0aa60137c768aa36488198a961858e7d2621cbd4bb432fc7fc1d599780af290",
+        "2-64.rgba": "2e45b703c5a4a7b9439cc253deb4551cb96dadc971a7aa32556cd00fe5e92e70",
+        "2-80-CaptureA.bin": "dd9669dbbbe95bf37396ce9a25b98ecc1be828fe27720edb5c65c7660b3243ad",
+        "2-80-CaptureB.bin": "42b451a946e22400f11f84a12e18ce6aaa84e0b9a304d119d77f15f848b963f7",
+        "2-80-QuarterHdr.bin": "58c4b16e8a1743f013dd6db313c92b091b7db4f7dbb1f62fe03569acc794f9d9",
+        "2-80.rgba": "ab08c2fe9e1b93f88d7cb562086a092715814023e4721f5920f7a61144240a79"
+      }
+    },
+    {
+      "backend": "dx12-software",
+      "draws": 36,
+      "submissions": 27,
+      "mipOperations": 6,
+      "floatAbsoluteTolerance": 0.002,
+      "toneByteTolerance": 1,
+      "strictCopy": true,
+      "strictRepeat": true,
+      "passed": true,
+      "max_rgba_byte_error_vs_reference": 0,
+      "max_float_absolute_error_vs_reference": 0.0,
+      "image_sha256": {
+        "0-64.rgba": "fdb850ed88266a0ff315d0c395c4c6d494f19b03b3ce6392dc3b5d75b36ca6ff",
+        "0-80.rgba": "4003136cab43fb55837520b98b5441d8aa554703dd722e05f77e82c818b87da6",
+        "1-64.rgba": "f56af26a05b0fb68c3a1ea5997f9162aeef2a5b804d370c74bf94844da49e229",
+        "1-80.rgba": "29f3c69a2c5fcd0be4cc801c0e22f1247e14b8e6726f23e9dfdb9414392f4ec7",
+        "2-64-CaptureA.bin": "1fe570dbad04b7105d01f2c7bc3670622f890f48950ec036db11df618d0d94e1",
+        "2-64-CaptureB.bin": "914c4b7ac6b01f130b0597d558e9657af5c810895d83d9ef3a509c578cbc73f2",
+        "2-64-QuarterHdr.bin": "e0aa60137c768aa36488198a961858e7d2621cbd4bb432fc7fc1d599780af290",
+        "2-64.rgba": "2e45b703c5a4a7b9439cc253deb4551cb96dadc971a7aa32556cd00fe5e92e70",
+        "2-80-CaptureA.bin": "dd9669dbbbe95bf37396ce9a25b98ecc1be828fe27720edb5c65c7660b3243ad",
+        "2-80-CaptureB.bin": "42b451a946e22400f11f84a12e18ce6aaa84e0b9a304d119d77f15f848b963f7",
+        "2-80-QuarterHdr.bin": "58c4b16e8a1743f013dd6db313c92b091b7db4f7dbb1f62fe03569acc794f9d9",
+        "2-80.rgba": "ab08c2fe9e1b93f88d7cb562086a092715814023e4721f5920f7a61144240a79"
+      }
+    },
+    {
+      "backend": "metal",
+      "draws": 36,
+      "submissions": 27,
+      "mipOperations": 6,
+      "floatAbsoluteTolerance": 0.002,
+      "toneByteTolerance": 1,
+      "strictCopy": true,
+      "strictRepeat": true,
+      "passed": true,
+      "max_rgba_byte_error_vs_reference": 0,
+      "max_float_absolute_error_vs_reference": 0.001953125,
+      "image_sha256": {
+        "0-64.rgba": "fdb850ed88266a0ff315d0c395c4c6d494f19b03b3ce6392dc3b5d75b36ca6ff",
+        "0-80.rgba": "4003136cab43fb55837520b98b5441d8aa554703dd722e05f77e82c818b87da6",
+        "1-64.rgba": "f56af26a05b0fb68c3a1ea5997f9162aeef2a5b804d370c74bf94844da49e229",
+        "1-80.rgba": "29f3c69a2c5fcd0be4cc801c0e22f1247e14b8e6726f23e9dfdb9414392f4ec7",
+        "2-64-CaptureA.bin": "0fc6639c72d4102df96d5eec39b1c3c7723e096db082ecdcfd5a4d37361aaabb",
+        "2-64-CaptureB.bin": "914c4b7ac6b01f130b0597d558e9657af5c810895d83d9ef3a509c578cbc73f2",
+        "2-64-QuarterHdr.bin": "893c67ff520c8f7a7b05845a3025d1ea8282c4322fe7ddc6ef77295eeadbd7cb",
+        "2-64.rgba": "2e45b703c5a4a7b9439cc253deb4551cb96dadc971a7aa32556cd00fe5e92e70",
+        "2-80-CaptureA.bin": "dd9669dbbbe95bf37396ce9a25b98ecc1be828fe27720edb5c65c7660b3243ad",
+        "2-80-CaptureB.bin": "42b451a946e22400f11f84a12e18ce6aaa84e0b9a304d119d77f15f848b963f7",
+        "2-80-QuarterHdr.bin": "58c4b16e8a1743f013dd6db313c92b091b7db4f7dbb1f62fe03569acc794f9d9",
+        "2-80.rgba": "ab08c2fe9e1b93f88d7cb562086a092715814023e4721f5920f7a61144240a79"
+      }
+    },
+    {
+      "backend": "vulkan",
+      "draws": 36,
+      "submissions": 27,
+      "mipOperations": 6,
+      "floatAbsoluteTolerance": 0.002,
+      "toneByteTolerance": 1,
+      "strictCopy": true,
+      "strictRepeat": true,
+      "passed": true,
+      "max_rgba_byte_error_vs_reference": 1,
+      "max_float_absolute_error_vs_reference": 0.0,
+      "image_sha256": {
+        "0-64.rgba": "3cf4802cff0b85312563a2380ca53ef547f87a77d41218a1b8da0a8a959652a5",
+        "0-80.rgba": "c59ddbd2497221e65270d4f3581e67d8b6e9beb3cef4e93b7059f5fa3d186881",
+        "1-64.rgba": "b710a9b832a6bc52d71ad02e7f6d4b344aed8cac30cfca3b1fe53aa1412b49f4",
+        "1-80.rgba": "757e83a93e24c4d89c197083e2b3f78e2d20a5a2d6374fce2a90ec56c0704b88",
+        "2-64-CaptureA.bin": "1fe570dbad04b7105d01f2c7bc3670622f890f48950ec036db11df618d0d94e1",
+        "2-64-CaptureB.bin": "914c4b7ac6b01f130b0597d558e9657af5c810895d83d9ef3a509c578cbc73f2",
+        "2-64-QuarterHdr.bin": "e0aa60137c768aa36488198a961858e7d2621cbd4bb432fc7fc1d599780af290",
+        "2-64.rgba": "0670f8017f453b5561e1b4708b87476a913defa585e935ecac1c5f9a29595037",
+        "2-80-CaptureA.bin": "dd9669dbbbe95bf37396ce9a25b98ecc1be828fe27720edb5c65c7660b3243ad",
+        "2-80-CaptureB.bin": "42b451a946e22400f11f84a12e18ce6aaa84e0b9a304d119d77f15f848b963f7",
+        "2-80-QuarterHdr.bin": "58c4b16e8a1743f013dd6db313c92b091b7db4f7dbb1f62fe03569acc794f9d9",
+        "2-80.rgba": "ab08c2fe9e1b93f88d7cb562086a092715814023e4721f5920f7a61144240a79"
+      }
+    },
+    {
+      "backend": "vulkan-software",
+      "draws": 36,
+      "submissions": 27,
+      "mipOperations": 6,
+      "floatAbsoluteTolerance": 0.002,
+      "toneByteTolerance": 1,
+      "strictCopy": true,
+      "strictRepeat": true,
+      "passed": true,
+      "max_rgba_byte_error_vs_reference": 0,
+      "max_float_absolute_error_vs_reference": 0.0,
+      "image_sha256": {
+        "0-64.rgba": "fdb850ed88266a0ff315d0c395c4c6d494f19b03b3ce6392dc3b5d75b36ca6ff",
+        "0-80.rgba": "4003136cab43fb55837520b98b5441d8aa554703dd722e05f77e82c818b87da6",
+        "1-64.rgba": "f56af26a05b0fb68c3a1ea5997f9162aeef2a5b804d370c74bf94844da49e229",
+        "1-80.rgba": "29f3c69a2c5fcd0be4cc801c0e22f1247e14b8e6726f23e9dfdb9414392f4ec7",
+        "2-64-CaptureA.bin": "1fe570dbad04b7105d01f2c7bc3670622f890f48950ec036db11df618d0d94e1",
+        "2-64-CaptureB.bin": "914c4b7ac6b01f130b0597d558e9657af5c810895d83d9ef3a509c578cbc73f2",
+        "2-64-QuarterHdr.bin": "e0aa60137c768aa36488198a961858e7d2621cbd4bb432fc7fc1d599780af290",
+        "2-64.rgba": "2e45b703c5a4a7b9439cc253deb4551cb96dadc971a7aa32556cd00fe5e92e70",
+        "2-80-CaptureA.bin": "dd9669dbbbe95bf37396ce9a25b98ecc1be828fe27720edb5c65c7660b3243ad",
+        "2-80-CaptureB.bin": "42b451a946e22400f11f84a12e18ce6aaa84e0b9a304d119d77f15f848b963f7",
+        "2-80-QuarterHdr.bin": "58c4b16e8a1743f013dd6db313c92b091b7db4f7dbb1f62fe03569acc794f9d9",
+        "2-80.rgba": "ab08c2fe9e1b93f88d7cb562086a092715814023e4721f5920f7a61144240a79"
+      }
+    }
+  ],
+  "passed": true,
+  "qt_mme_integrated": false,
+  "date": "2026-11-07",
+  "status": "passed for the documented raw FX shader/CPU assembly/offscreen execution subset",
+  "c2_complete": false,
+  "code_commit": "4bdc62c70e2294e94ef4819abf8c179cfc6c29cc",
+  "qualification": {
+    "initial": {
+      "run_id": 42359748683,
+      "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42359748683",
+      "code_commit": "6d28374f8e06bed4a1e92a0165d8c891e7104839",
+      "overall_conclusion": "failure",
+      "windows_tests": 3,
+      "windows_conclusion": "success",
+      "linux_tests": 2,
+      "linux_conclusion": "success",
+      "macos_conclusion": "failure",
+      "macos_reason": "clear-only unobserved D24S8 resource allocation on Apple Silicon"
+    },
+    "macos_followup": {
+      "run_id": 42360117029,
+      "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42360117029",
+      "code_commit": "4bdc62c70e2294e94ef4819abf8c179cfc6c29cc",
+      "tests": 2,
+      "conclusion": "success"
+    },
+    "local_windows_final": {
+      "shader_layout_and_warp_tests": 3,
+      "conclusion": "success",
+      "cpu_and_native_reference_regressions": 15,
+      "hardware_backends": [
+        "dx11",
+        "dx12",
+        "vulkan"
+      ],
+      "conclusion_hardware": "success"
+    },
+    "comparison_command": "python tools/check_mme_execution.py --input out/evidence/p54-ci/Linux --input out/evidence/p54-ci/Windows --input out/evidence/p54-ci/macOS-fixed --input out/evidence/p54-local/vulkan --output out/evidence/p54-ci/final-comparison.json"
+  },
+  "scope": "Frozen source to modern HLSL, explicit constant ABI, actual SPIR-V reflection, compiled technique validity, transactional frame assembly; layout material, sixteen samplers, nested/default/shared/mips, MRT/HDR/relative-size scenes; resize, device replacement, unload/reload and repeated submissions. No Qt MME integration.",
+  "limitations": [
+    "P5.3 main-color scheduling subset retained; not complete FX9/Ray compatibility.",
+    "Live D24S8 attachments remain unsupported on Apple Silicon; no silent format replacement.",
+    "MIPFILTER=NONE on a multilevel sampled texture is rejected until the generic sampler contract supports it.",
+    "Original texel-boundary MRT fixture remains unchanged; the analytical fixture samples inside texels.",
+    "Windows/Linux CI images precede the platform-independent dead-depth-store removal; Windows and Vulkan were verified locally again after this fix."
+  ],
+  "junit": {
+    "windows": {
+      "junit_sha256": "d39a3b2b6532fde269ebac8fb7fc105d3ae2c34e2804b6a96d6d201393d0127e",
+      "tests": 3,
+      "failures": 0,
+      "skipped": 0
+    },
+    "linux": {
+      "junit_sha256": "57a940b5552644510d5440aa2df177046bf115091fef31157066717c58f5a421",
+      "tests": 2,
+      "failures": 0,
+      "skipped": 0
+    },
+    "macos": {
+      "junit_sha256": "57b1155ae3027e04603f6ca8f8ad3572d0f49fd87200ff47958ee7e9d52e6cab",
+      "tests": 2,
+      "failures": 0,
+      "skipped": 0
+    }
+  }
+}

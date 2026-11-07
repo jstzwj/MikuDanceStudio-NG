@@ -1,7 +1,8 @@
 # P5.4：着色器布局与实际执行
 
 本批把 P5.3 的 CPU／Null 调度接到真正的 RHI 绘制，Qt 编辑器接入仍属于 P5.5。
-本地 Windows DX11、DX12、Vulkan 已完成离屏执行；三平台集中验收结果随后记录在本页。
+Windows DX11／DX12、Linux Vulkan、macOS Metal 已通过所声明范围的离屏验收，
+本地 Windows Vulkan 硬件路径另行通过。[完整证据](evidence/p5-execution-42360117029.json)记录原始附件哈希及数值差异。
 
 ## 生产边界
 
@@ -75,8 +76,18 @@ ctest --test-dir out/p54 -C Release -L mme-execution --output-on-failure
 Windows 的集中门禁使用 DX11／DX12 WARP，Linux 使用软件 Vulkan，macOS 使用原生 Metal。
 本地 Windows Vulkan 另行执行硬件离屏对照。CI 仅手动启动 `MME shader execution`，
 不构建 Qt、发行包或运行桌面交互，也不并入只编译 CPU 目标的 P5 门禁标签。
+三平台全部成功后，工作流用 `tools/check_mme_execution.py` 比较完整 RGBA8／binary16 原始附件并记录 SHA256；
+单平台补跑可显式选择 `platform`，最终证据可以从相应运行的原始 artifact 重新合并核验。
 
 ## 适用范围
+
+2026-11-07 验收：首次集中运行 [42359748683](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42359748683)
+的 Windows 3 项、Linux 2 项通过，Metal 因无消费者的 D24S8 分配失败。修复后仅补跑
+[macOS 42360117029](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42360117029)，2 项全部通过。
+最终合并这两个运行的成功 artifact，并与修复后的本地 Windows Vulkan 输出作整幅比较。
+RGBA8 最大差异 1 字节；binary16 最大绝对差异 0.001953125（Metal），均在预先声明范围内。
+Windows 修复后本地 3 项重新通过；既有 P5 CPU／独立原生对照 15 项全通过。
+不把首次运行的总体失败状态改写为成功。
 
 沿用 P5.3 已声明的主颜色调度范围及有限脚本语义；不表示完整 FX9／Ray 兼容。
 不支持的着色器、顶点纹理、资源类型、状态和技术保留明确诊断，技术选择只能使用真实有效性。
