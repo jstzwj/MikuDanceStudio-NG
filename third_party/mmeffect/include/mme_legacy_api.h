@@ -50,6 +50,7 @@ struct MmeLegacyTexture {
     std::string name, semantic;
     bool shared = false;
     std::map<std::string, std::string> annotations;
+    std::string type="texture";
 };
 struct MmeLegacyProgram {
     bool scene = false;

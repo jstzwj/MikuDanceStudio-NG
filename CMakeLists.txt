@@ -69,6 +69,9 @@ target_include_directories(mikudancestudio_formats PUBLIC ${CMAKE_CURRENT_SOURCE
 add_library(mikudancestudio_cpu_math STATIC src/math/cpu_math.cpp)
 target_include_directories(mikudancestudio_cpu_math PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(mikudancestudio_cpu_math PUBLIC cxx_std_17)
+add_library(mikudancestudio_render_contracts STATIC src/render/rhi_render_pass.cpp)
+target_include_directories(mikudancestudio_render_contracts PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_features(mikudancestudio_render_contracts PUBLIC cxx_std_17)
 include(cmake/Mme.cmake)
 mds_add_mme()
 if(MSVC)
@@ -109,11 +112,10 @@ if(MSVC)
 endif()
 add_library(mikudancestudio_rhi STATIC
     src/render/rhi_null.cpp
-    src/render/rhi_render_pass.cpp
     src/render/rhi_frame_passes.cpp
     src/render/rhi_assets.cpp
     src/render/rhi_material_textures.cpp)
-target_link_libraries(mikudancestudio_rhi PUBLIC mikudancestudio_images)
+target_link_libraries(mikudancestudio_rhi PUBLIC mikudancestudio_images mikudancestudio_render_contracts)
 target_link_libraries(mikudancestudio_rhi PRIVATE mikudancestudio_tool_process)
 target_sources(mikudancestudio_rhi PRIVATE src/render/rhi_shader_inputs.cpp)
 target_sources(mikudancestudio_rhi PRIVATE src/render/rhi_model_replay.cpp)

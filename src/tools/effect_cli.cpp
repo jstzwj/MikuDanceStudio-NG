@@ -55,7 +55,8 @@ void Describe(std::ostream& out, const EffectDefinition& definition) {
             out << ',';
         comma = true;
         out << "{\"name\":" << Json(t.name) << ",\"semantic\":" << Json(t.semantic)
-            << ",\"shared\":" << t.shared << ",\"annotations\":" << Map(t.annotations) << '}';
+            << ",\"type\":" << Json(t.type) << ",\"shared\":" << t.shared
+            << ",\"annotations\":" << Map(t.annotations) << '}';
     }
     out << "],\"samplers\":[";
     comma = false;

@@ -120,4 +120,7 @@ bool EffectFrame::Commit(std::string& reason) {
     reason.clear();
     return true;
 }
+bool EffectFrame::Ready(std::string& reason) const {
+    return Current(*state_, reason);
+}
 }

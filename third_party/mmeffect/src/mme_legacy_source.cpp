@@ -441,6 +441,7 @@ public:
             }
             textures.emplace(name, semantic);
             result.textures.push_back({name, semantic, shared, annotations});
+            result.textures.back().type=type;
             Need(";");
             return;
         }

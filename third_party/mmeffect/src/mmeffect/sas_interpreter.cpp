@@ -13,6 +13,7 @@
 //   FUN_1800169d0 [0x1800169d0]  technique scan (MmdPass/Use*/Subset/Script)
 //   FUN_180017a80 [0x180017a80]  pass scan (shader version mix, PSIZE15)
 #include "sas_exec.h"
+#include "mme_assignment_rules.h"
 
 #include "anime_texture.h"   // MmeAnimeConstruct*/RegisterParsed (0x2D parse)
 #include "mme_globals.h"   // g_skipValidation (DAT_1800d99d9 - the selector's
@@ -2102,72 +2103,8 @@ static bool SasEnsureResourceTexture(SasEffect* sas, SasResource* res) {
 // which the loader [sub_18000BC90 0x18000c423-0x18000c42a] treats as a
 // fatal error - the whole effect is REJECTED.
 static bool SasParseSubsetRanges(SasTechnique* tech, const std::string& value) {
-    tech->subsets.clear();
     tech->allSubsets = false;
-    const char* p = value.c_str();
-    long start = -1;
-    while (*p != '\0' || start >= 0) {
-        if (isspace(static_cast<unsigned char>(*p))) {
-            ++p;
-            continue;
-        }
-        if (*p == '-') {
-            break;  // leading/misplaced '-' -> parse error
-        }
-        char* end = nullptr;
-        long v = strtol(p, &end, 0);
-        if (v < 0) {
-            break;  // negative subset index -> parse error
-        }
-        if (end == p) {
-            // No digits consumed: only valid when it closes an open range
-            // ("N-" directly followed by ',' or the end of the string).
-            if (start < 0 || (*end != ',' && *end != '\0')) {
-                break;
-            }
-            tech->subsets[static_cast<int>(start)] = 0x7fffffff;
-            start = -1;
-            if (*end == '\0') {
-                break;
-            }
-            p = end + 1;  // past ','
-            continue;
-        }
-        for (; isspace(static_cast<unsigned char>(*end)); ++end) {
-        }
-        p = end;
-        if (*end == ',' || *end == '\0') {
-            if (start >= 0) {
-                tech->subsets[static_cast<int>(start)] = static_cast<int>(v);
-                start = -1;
-            } else {
-                tech->subsets[static_cast<int>(v)] = static_cast<int>(v);
-            }
-            if (*end == '\0') {
-                break;
-            }
-            ++p;  // past ','
-            continue;
-        }
-        if (*end != '-' || start >= 0) {
-            break;  // trailing garbage / second '-' -> parse error
-        }
-        start = v;
-        ++p;  // past '-'
-    }
-    if (*p != '\0') {
-        return false;  // stopped on an unparsable character
-    }
-    if (tech->subsets.empty()) {
-        // [sub_1800169D0 0x18001774a-0x18001776b] a fully-consumed spec with
-        // NO ranges (e.g. Subset="") inserts the (0x7fffffff, 0x7fffffff)
-        // sentinel pair. The selector [sub_18001DB50 0x18001dc11-0x18001dc3e]
-        // walks the ranges as a RESTRICTION: the sentinel's min (0x7fffffff)
-        // exceeds every real subset index, so the technique matches NO subset
-        // ("hidden" - not "no restriction"; allSubsets stays false).
-        tech->subsets[0x7fffffff] = 0x7fffffff;
-    }
-    return true;
+    return mme_rules::SubsetRanges(tech->subsets,value);
 }
 
 // FUN_1800169d0: scan one technique (annotations + validation flags).

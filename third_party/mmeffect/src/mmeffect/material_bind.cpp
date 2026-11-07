@@ -1,5 +1,6 @@
 // material_bind.cpp - see material_bind.h
 #include "material_bind.h"
+#include "mme_assignment_rules.h"
 #include "mikudancestudio/mme_runtime.hpp"
 
 #include <algorithm>
@@ -805,87 +806,6 @@ MaterialBinding* MmeResolveSubsetEffectBinding(ModelData* model, int subsetIndex
 //     asterisk); a trailing lone backslash fails the match;
 //   - literal characters compare through tolower() on both sides when
 //     ignoreCase is set (the DefaultEffect caller passes 1).
-static bool MmeWildcardMatch(const char* name, size_t nameLen,
-                             const char* pat, size_t patLen, bool ignoreCase)
-{
-    const char* np = name;
-    const char* const nend = name + nameLen;
-    const char* pp = pat;
-    const char* const pend = pat + patLen;
-    if (pp == pend) {
-        return np == nend;
-    }
-    char pc = *pp;
-    while (true) {
-        pc = *pp;
-        if (np == nend) {
-            break;
-        }
-        if (pc == '*') {
-            goto star;
-        }
-        if (pc == '?') {
-            ++pp;
-            ++np;
-        } else {
-            if (pc == '\\' && ++pp == pend) {
-                return false;
-            }
-            if (ignoreCase) {
-                if (tolower(static_cast<unsigned char>(*np)) !=
-                    tolower(static_cast<unsigned char>(*pp))) {
-                    return false;
-                }
-            } else if (*np != *pp) {
-                return false;
-            }
-            ++np;
-            ++pp;
-        }
-        if (pp == pend) {
-            return np == nend;
-        }
-    }
-    if (pc != '*') {
-        return false;
-    }
-star:
-    do {
-        ++pp;
-    } while (pp != pend && *pp == '*');
-    if (pp == pend) {
-        return true;
-    }
-    char first = *pp;
-    if (ignoreCase) {
-        first = static_cast<char>(
-            tolower(static_cast<unsigned char>(first)));
-    }
-    const size_t tailLen = static_cast<size_t>(pend - pp);
-    while (true) {
-        if (first != '?' && first != '\\') {
-            for (; np < nend; ++np) {
-                if (first == *np) {
-                    break;
-                }
-                if (ignoreCase &&
-                    first ==
-                        static_cast<char>(
-                            tolower(static_cast<unsigned char>(*np)))) {
-                    break;
-                }
-            }
-        }
-        if (MmeWildcardMatch(np, static_cast<size_t>(nend - np), pp, tailLen,
-                             ignoreCase)) {
-            return true;
-        }
-        if (np == nend) {
-            return false;
-        }
-        ++np;
-    }
-}
 
 // [sub_18002ACE0 0x18002b890] the "self" target: the owner of the effect
 // that declares this OFFSCREENRENDERTARGET (the scene carrier whose
@@ -956,7 +876,7 @@ const std::pair<std::string, std::string>* MmeFindDefaultEffectRow(
         // "GroundFog*.*", "*.pmx" ...). An exact key is the degenerate
         // pattern, so precise rows (e.g. "DirectionalLight.pmx") keep
         // matching exactly like the previous stricmp port.
-        if (MmeWildcardMatch(name.c_str(), name.size(), key.c_str(),
+        if (mme_rules::WildcardMatch(name.c_str(), name.size(), key.c_str(),
                              key.size(), true)) {
             return &rows[i];
         }

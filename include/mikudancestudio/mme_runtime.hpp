@@ -115,6 +115,7 @@ public:
     bool Prepare(const EffectInstance&, const SemanticContext&, ParameterSnapshot&,
                  std::string& reason);
     bool Commit(std::string& reason);
+    bool Ready(std::string& reason) const;
     std::array<float, 4> Clock() const;
 
 private:
