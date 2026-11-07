@@ -103,6 +103,13 @@ struct Builder {
     }
     void Samples(const ScheduleDescription& effect, const MmeLegacyPass& pass,
                  FramePass& resources) {
+        // FX9 permits a larger restored depth surface beside a smaller RT.
+        // An explicitly disabled depth test/write has no depth dependency;
+        // omit that inert attachment rather than inventing a resized surface.
+        const auto test = pass.states.find("ZENABLE"), write = pass.states.find("ZWRITEENABLE");
+        if (test != pass.states.end() && write != pass.states.end() && test->second == "FALSE" &&
+            write->second == "FALSE")
+            resources.depthStencil.reset();
         const auto& p = effect.binding.instance->Definition().metadata;
         if (!MmeLegacySamplers(p, pass, true).empty())
             ScheduleError("vertex_texture_not_supported");
@@ -234,13 +241,16 @@ struct Builder {
             s.resources.depthStencil = FrameAttachment{depth, AttachmentLoad::Load};
         Add(std::move(s));
     }
-    void Materials(const Turn& turn, std::uint64_t color, std::uint64_t depth) {
+    void Materials(const Turn& turn, std::uint64_t color, std::uint64_t depth,
+                   const std::vector<FrameAttachment>& outputs) {
         for (const auto* object : objects)
             for (unsigned subset = 0; subset < object->flags.size(); ++subset) {
                 const auto a = Resolve(*object, int(subset), turn);
                 if (a.kind == Assignment::Kind::Hidden)
                     continue;
                 if (a.kind == Assignment::Kind::Host) {
+                    if (outputs.size() > 1)
+                        ScheduleError("host_mrt_not_supported");
                     Host(*object, int(subset), turn, color, depth);
                     continue;
                 }
@@ -249,6 +259,8 @@ struct Builder {
                     continue;
                 const auto selected = Technique(e, int(subset), object->flags[subset]);
                 if (selected < 0) {
+                    if (outputs.size() > 1)
+                        ScheduleError("host_mrt_not_supported");
                     Host(*object, int(subset), turn, color, depth);
                     continue;
                 }
@@ -273,9 +285,9 @@ struct Builder {
                     s.resources = Attach(e, step, color, depth);
                     if (s.resources.colors.empty())
                         ScheduleError("material_output_missing");
-                    if (s.resources.colors.front().target != color)
-                        s.parameters = Snapshot(e, object->id, int(subset), turn.owner,
-                                                s.resources.colors.front().target);
+                    if (s.resources.colors.size() == 1 &&
+                        s.resources.colors.front().target == color)
+                        s.resources.colors = outputs;
                     if (depth && !s.resources.depthStencil)
                         s.resources.depthStencil = FrameAttachment{depth, AttachmentLoad::Load};
                     Samples(e, e.binding.instance->Definition().metadata.passes.at(s.pass),
@@ -287,9 +299,10 @@ struct Builder {
     void
     Scene(const Turn& turn,
           const std::vector<std::pair<const ScheduledObject*, const ScheduleDescription*>>& scenes,
-          std::size_t count, std::uint64_t color, std::uint64_t depth) {
+          std::size_t count, std::uint64_t color, std::uint64_t depth,
+          const std::vector<FrameAttachment>& outputs) {
         if (!count) {
-            Materials(turn, color, depth);
+            Materials(turn, color, depth, outputs);
             return;
         }
         const auto& item = scenes[count - 1];
@@ -303,7 +316,7 @@ struct Builder {
         for (const auto& step : layout.steps) {
             auto attachments = Attach(e, step, color, depth);
             if (step.kind == MmePortableStep::Kind::Capture) {
-                if (attachments.colors.size() != 1 ||
+                if (attachments.colors.empty() ||
                     (attachments.depthStencil &&
                      Description(attachments.colors.front().target).description.width !=
                          Description(attachments.depthStencil->target).description.width))
@@ -313,8 +326,14 @@ struct Builder {
                 const auto& b = Description(color).description;
                 if (a.width != b.width || a.height != b.height)
                     ScheduleError("capture_extent_not_supported");
+                for (const auto& attachment : attachments.colors) {
+                    const auto& d = Description(attachment.target).description;
+                    if (d.width != a.width || d.height != a.height)
+                        ScheduleError("capture_attachment_extent");
+                }
                 Scene(turn, scenes, count - 1, id,
-                      attachments.depthStencil ? attachments.depthStencil->target : 0);
+                      attachments.depthStencil ? attachments.depthStencil->target : 0,
+                      attachments.colors);
                 continue;
             }
             PlannedStep s;
@@ -331,8 +350,11 @@ struct Builder {
                     e.binding.instance->Definition().metadata.techniques.at(selected).passes.at(
                         step.pass);
                 Writes(e, step.parameters, layout.writes);
-                s.parameters =
-                    Snapshot(e, object, -1, turn.owner, s.resources.colors.front().target);
+                // SAS viewport semantics are frozen at BeginScene/offscreen
+                // entry, even while a pass writes a relative-size target.
+                s.parameters = Snapshot(e, object, -1, turn.owner, color);
+                if (s.resources.colors.size() == 1 && s.resources.colors.front().target == color)
+                    s.resources.colors = outputs;
                 Samples(e, e.binding.instance->Definition().metadata.passes.at(s.pass),
                         s.resources);
             }
@@ -359,7 +381,7 @@ struct Builder {
         std::vector<std::pair<const ScheduledObject*, const ScheduleDescription*>> scenes;
         for (const auto& [order, pair] : unique)
             scenes.push_back(pair);
-        Scene(turn, scenes, scenes.size(), color, depth);
+        Scene(turn, scenes, scenes.size(), color, depth, {{color, AttachmentLoad::Load}});
     }
     void Clear(std::uint64_t scope, std::uint64_t color, std::uint64_t depth,
                std::array<float, 4> rgba = {}, float z = 1) {

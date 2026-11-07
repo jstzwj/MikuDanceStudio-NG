@@ -88,5 +88,13 @@ bool MmeLegacyImportScene(const std::string&, MmeLegacyProgram&, std::string& re
 // requiring SAS objects or asserting shader, state or execution support.
 bool MmeLegacyDescribe(const std::string&, MmeLegacyProgram&, std::string& reason,
                        MmeLegacyDiagnostic* diagnostic = nullptr);
+// Deterministic FX constant packing, shared by source generation and binding.
+// Offsets are bytes; arrays start at a register and matrices contain four rows.
+struct MmeLegacyConstant {
+    unsigned variable = 0, offset = 0, stride = 0;
+};
+bool MmeLegacyGenerate(const MmeLegacyProgram& definition, MmeLegacyProgram& modern,
+                       std::vector<MmeLegacyConstant>& layout, unsigned& bytes,
+                       std::string& reason);
 std::vector<unsigned> MmeLegacySamplers(const MmeLegacyProgram&, const MmeLegacyPass&,
                                         bool vertex = false);

@@ -147,7 +147,7 @@ jobs:
             out/p5/production/mme-cli/report.json
             out/p5/production/mme-cli/runtime.json
             out/p5/production/mme-frame.json
-              out/p5/production/mme-schedule.json
+            out/p5/production/mme-schedule.json
             out/p5/production/mme-dependencies.json
             out/p5/Testing/Temporary/
   windows:

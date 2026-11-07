@@ -48,6 +48,7 @@ public:
     // as native SetValue is. GPU-preparation writes use EffectFrame instead.
     bool Write(const std::string&, const ParameterValue&, std::string& reason);
     const EffectDefinition& Definition() const;
+    std::shared_ptr<const EffectDefinition> DefinitionSnapshot() const;
 
 private:
     EffectInstance() = default;

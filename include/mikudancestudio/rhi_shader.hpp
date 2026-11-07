@@ -106,6 +106,8 @@ struct ShaderTextureInfo {
 };
 ShaderCapabilities GraphicsShaderProfile(bool hlsl, bool spirv);
 ShaderResult ValidateShaderPipeline(const ShaderPipeline&, ShaderCapabilities);
+// Validate compiled layout and VS/PS linkage without a device or native API.
+ShaderResult ValidateSpirvProgram(const ShaderProgramDesc&);
 ShaderResult ValidateShaderTargetSupport(const Device&, const ShaderPipeline&);
 ShaderResult ValidateShaderAttachments(const ShaderPipeline&, const std::vector<TextureFormat>&);
 std::uint64_t ShaderConstantBytes(const ShaderPipeline&, ShaderCapabilities);

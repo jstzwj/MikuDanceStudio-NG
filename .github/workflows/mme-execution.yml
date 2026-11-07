@@ -1,0 +1,75 @@
+name: MME shader execution
+on:
+  workflow_dispatch:
+concurrency:
+  group: mme-execution-${{ github.ref }}
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  execution:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-22.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - uses: actions/cache/restore@v4
+        if: runner.os == 'macOS'
+        with:
+          path: out/dxc
+          key: dxc-b106a961-macos15-arm64-v1
+          fail-on-cache-miss: true
+      - name: Fetch pinned DXC
+        if: runner.os != 'macOS'
+        run: python tools/fetch_dxc.py --output out/dxc
+      - name: Install Linux offscreen tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y ninja-build spirv-tools libvulkan1 mesa-vulkan-drivers ccache
+      - uses: actions/checkout@v4
+        if: runner.os == 'Linux'
+        with:
+          repository: KhronosGroup/Vulkan-Headers
+          ref: v1.3.296
+          path: out/vulkan-headers
+      - name: Install Metal compiler validation tools
+        if: runner.os == 'macOS'
+        run: chmod +x out/dxc/bin/dxc && brew install spirv-tools ccache
+      - uses: actions/cache@v4
+        if: runner.os != 'Windows'
+        with:
+          path: |
+            ~/.cache/ccache
+            ~/Library/Caches/ccache
+          key: mme-execution-${{ runner.os }}-${{ hashFiles('cmake/Metal.cmake') }}-${{ github.sha }}
+          restore-keys: mme-execution-${{ runner.os }}-${{ hashFiles('cmake/Metal.cmake') }}-
+      - name: Build isolated production assembler and four-backend gates
+        shell: pwsh
+        run: |
+          $dxcPath = if ($IsWindows) { "$PWD/out/dxc/dxc.exe" } else { "$PWD/out/dxc/bin/dxc" }
+          $configure = @('-S','cmake/portable-mme-render','-B','out/p54','-G','Ninja','-DCMAKE_BUILD_TYPE=Release',"-DMDS_DXC=$dxcPath")
+          if (!$IsWindows) { $configure += '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache' }
+          if ($IsLinux) { $configure += "-DMDS_VULKAN_INCLUDE=$PWD/out/vulkan-headers/include" }
+          if ($IsMacOS) { $configure += @('-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0','-DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache') }
+          cmake @configure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build out/p54 --target mme_shader_layout_test mme_render_gpu_test --parallel 3
+          exit $LASTEXITCODE
+      - name: Execute actual offscreen FX pipelines (no Qt or DX9)
+        env:
+          MTL_DEBUG_LAYER: '1'
+        run: ctest --test-dir out/p54 -L mme-execution --no-tests=error --output-on-failure --output-junit p54.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mme-execution-${{ runner.os }}
+          path: |
+            out/p54/p54.xml
+            out/p54/production/mme-execution/
+            out/p54/Testing/Temporary/

@@ -140,6 +140,7 @@ public:
     std::string constants, code;
     MmeLegacyDiagnostic* diagnostic;
     bool describe = false;
+    bool explicitLayout = false;
     std::string declaration, technique, pass;
     explicit Parser(const std::string& text, bool scene, MmeLegacyDiagnostic* d, bool metadata)
         : source(text), t(Lex(text, &offsets)), diagnostic(d), describe(metadata) {
@@ -579,7 +580,7 @@ public:
             if (!textures.count(s.texture))
                 Fail("sampler_texture");
             s.semantic = textures.at(s.texture);
-            if (s.mipNone && !result.scene && !s.semantic.empty() &&
+            if (s.mipNone && !explicitLayout && !result.scene && !s.semantic.empty() &&
                 s.semantic != "RENDERCOLORTARGET" && s.semantic != "OFFSCREENRENDERTARGET")
                 Fail("sampler_filter");
         }
@@ -705,6 +706,25 @@ bool Import(const std::string& source, MmeLegacyProgram& out, std::string& reaso
 bool MmeLegacyDescribe(const std::string& source, MmeLegacyProgram& out, std::string& reason,
                        MmeLegacyDiagnostic* diagnostic) {
     return Import(source, out, reason, false, diagnostic, true);
+}
+bool MmeLegacyLower(MmeLegacyProgram& program, const std::string& constants,
+                    const std::string& declarations, std::string& reason) try {
+    const std::string empty;
+    Parser parser(empty, program.scene, nullptr, true);
+    parser.result = program;
+    parser.explicitLayout = true;
+    parser.constants = constants;
+    parser.code = declarations;
+    for (const auto& t : program.textures)
+        parser.textures.emplace(t.name, t.semantic);
+    if (!program.passes.empty())
+        parser.Finish();
+    program = std::move(parser.result);
+    reason.clear();
+    return true;
+} catch (const std::exception& e) {
+    reason = e.what();
+    return false;
 }
 bool MmeLegacyImport(const std::string& source, MmeLegacyProgram& out, std::string& reason,
                      MmeLegacyDiagnostic* diagnostic) {

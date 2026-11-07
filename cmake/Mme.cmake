@@ -10,6 +10,7 @@ function(mds_add_mme)
     target_compile_features(mikudancestudio_tool_process PUBLIC cxx_std_17)
     add_library(mikudancestudio_mme_frontend STATIC
         "${root}/third_party/mmeffect/src/mme_legacy_source.cpp"
+        "${root}/third_party/mmeffect/src/mme_legacy_generate.cpp"
         "${root}/src/render/mme/effect_source.cpp")
     target_include_directories(mikudancestudio_mme_frontend PUBLIC
         "${root}/third_party/mmeffect/include" "${root}/include")

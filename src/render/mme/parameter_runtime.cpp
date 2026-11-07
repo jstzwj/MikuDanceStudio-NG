@@ -99,6 +99,9 @@ bool EffectInstance::Create(std::shared_ptr<const EffectDefinition> definition, 
 const EffectDefinition& EffectInstance::Definition() const {
     return *state_->definition;
 }
+std::shared_ptr<const EffectDefinition> EffectInstance::DefinitionSnapshot() const {
+    return state_->definition;
+}
 bool EffectInstance::Clone(std::shared_ptr<EffectInstance>& output, std::string& reason) const {
     auto next = std::shared_ptr<EffectInstance>(new EffectInstance);
     next->state_ = std::make_shared<detail::InstanceState>(*state_);
