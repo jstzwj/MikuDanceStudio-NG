@@ -271,7 +271,7 @@ python recipes/bullet275/verify_sources.py
 
 ## 6. 阶段安排与退出条件
 
-P0、P1、P2、P3 已完成；P4 按用户调整后的范围阶段验收，真实混合 DPI 延后补验；P5.1 源码前端与 P5.2 参数实例／共享池／语义及帧快照已通过各自三平台验收。P5.2 的 32 项门禁与跨平台组件值复核见[验收证据](docs/evidence/p5-runtime-42168010475.json)。P5.3—P5.5 按 [P5 批次](docs/CROSS_PLATFORM_P5.md) 继续实施，参数运行时通过不代表 MME 绘制／Qt 闭环或 C2 完成。
+P0、P1、P2、P3 已完成；P4 按用户调整后的范围阶段验收，真实混合 DPI 延后补验；P5.1 源码前端、P5.2 参数实例／共享池／语义及帧快照、P5.3 脚本／分配／跨效果目标调度已通过各自三平台验收。P5.2 的 32 项门禁见[参数验收证据](docs/evidence/p5-runtime-42168010475.json)；P5.3 的 Windows 15、Linux 13、macOS 13 项门禁与完整计划逐字节复核见[调度验收证据](docs/evidence/p5-schedule-42331157581.json)。P5.4／P5.5 按 [P5 批次](docs/CROSS_PLATFORM_P5.md) 继续实施，CPU／Null 调度通过不代表 MME 实际绘制／Qt 闭环或 C2 完成。
 
 | 阶段 | 依赖 | 主要交付 | 退出条件 |
 |---|---|---|---|
