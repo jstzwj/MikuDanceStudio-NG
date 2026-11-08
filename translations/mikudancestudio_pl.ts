@@ -3161,5 +3161,57 @@ Najpierw dodaj bryłę.</translation>
             <source>Viewport</source>
             <translation>Widok</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>Efekty MME…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>Przypisz…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>Usuń</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>Wczytaj ponownie</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>Cofnij efekty</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>Ponów efekty</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>Włączone</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>Użyj podstawowych materiałów</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>Cały obiekt</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>Parametr</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>Typ</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>Wartość</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>Jawnie wyłącza wszystkie efekty. Nieobsługiwane efekty nie są zastępowane bez powiadomienia.</translation>
+        </message>
     </context>
 </TS>

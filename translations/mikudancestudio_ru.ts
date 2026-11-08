@@ -3161,5 +3161,57 @@ Please add body first.</source>
             <source>Viewport</source>
             <translation>Область просмотра</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>Эффекты MME…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>Назначить…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>Удалить</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>Перезагрузить</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>Отменить эффекты</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>Повторить эффекты</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>Включено</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>Базовые материалы</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>Весь объект</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>Параметр</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>Тип</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>Значение</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>Явно отключает все эффекты. Неподдерживаемые эффекты не заменяются без уведомления.</translation>
+        </message>
     </context>
 </TS>

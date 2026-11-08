@@ -5,6 +5,8 @@
 #include "english_name_dialog.hpp"
 #include "model_physics_dialog.hpp"
 #include "preferences_dialog.hpp"
+#include "effect_dialog.hpp"
+#include <QStatusBar>
 #include "model_labels.hpp"
 #include "editor_font.hpp"
 #include "editor_style.hpp"
@@ -242,6 +244,7 @@ EditorWindow::~EditorWindow() {
     if (physicsDialog_)
         disconnect(physicsDialog_, nullptr, this, nullptr);
     delete physicsDialog_.data();
+    delete effectDialog_.data();
     if (!testing_) {
         QSettings settings;
         settings.setValue("editor/lowPower", lowPower_);
@@ -301,7 +304,19 @@ bool EditorWindow::SetLanguage(const QString& language) {
         preferencesDialog_->Retranslate();
         preferencesDialog_->Reset();
     }
+    if (effectDialog_)
+        effectDialog_->Retranslate();
     return true;
+}
+void EditorWindow::Effects() {
+    if (!effectDialog_)
+        effectDialog_ = new EffectDialog(
+            session_, language_,
+            [this](auto address) { return viewport_->EffectDefinition(address); },
+            [this] { return viewport_->EffectReport(); }, [this] { Refresh(); }, this);
+    effectDialog_->Refresh();
+    effectDialog_->show();
+    effectDialog_->raise();
 }
 void EditorWindow::TranslateStandardDialogs() {
     language_.Activate();
@@ -526,8 +541,14 @@ void EditorWindow::Refresh() {
 void EditorWindow::UpdateFrame() {
     if (!testing_ && !windowTransition_) {
         std::string reason;
-        if (!viewport_->Render(reason))
+        if (!viewport_->Render(reason)) {
             lastError_ = QString::fromStdString(reason);
+            statusBar()->showMessage(lastError_);
+            statusBar()->show();
+        } else if (auto* bar = findChild<QStatusBar*>()) {
+            bar->clearMessage();
+            bar->hide();
+        }
         RefreshMenus();
     }
 }

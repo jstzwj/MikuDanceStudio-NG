@@ -3161,5 +3161,57 @@ Adicione um corpo primeiro.</translation>
             <source>Viewport</source>
             <translation>Visualização</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>Efeitos MME…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>Atribuir…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>Remover</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>Recarregar</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>Desfazer efeitos</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>Refazer efeitos</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>Ativado</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>Usar materiais básicos</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>Objeto inteiro</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>Parâmetro</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>Tipo</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>Valor</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>Desativa explicitamente todos os efeitos. Efeitos não compatíveis nunca são substituídos sem aviso.</translation>
+        </message>
     </context>
 </TS>

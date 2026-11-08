@@ -3161,5 +3161,57 @@ Please add body first.</source>
             <source>Viewport</source>
             <translation>视口</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>MME 效果…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>分配…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>移除</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>重载</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>撤销效果</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>重做效果</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>启用</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>使用基础材质</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>整个对象</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>参数</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>类型</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>值</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>明确禁用全部效果。不支持的效果不会静默降级。</translation>
+        </message>
     </context>
 </TS>

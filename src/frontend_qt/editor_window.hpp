@@ -21,6 +21,7 @@ class GravityDialog;
 class EnglishNameDialog;
 class ModelPhysicsDialog;
 class PreferencesDialog;
+class EffectDialog;
 class MobileEditor;
 class EditorWindow final : public QMainWindow {
 public:
@@ -56,6 +57,7 @@ private:
     Language language_;
     void TranslateStandardDialogs();
     void Preferences();
+    void Effects();
     std::filesystem::path assets_;
     QWidget* canvas_ = nullptr;
     Timeline* timeline_ = nullptr;
@@ -70,6 +72,7 @@ private:
     QPointer<EnglishNameDialog> englishDialog_;
     QPointer<ModelPhysicsDialog> physicsDialog_;
     QPointer<PreferencesDialog> preferencesDialog_;
+    QPointer<EffectDialog> effectDialog_;
     int presentationPauses_ = 0;
     std::uint64_t gravityEpoch_ = 0;
     std::uint8_t edgeModel_ = 255;

@@ -3,6 +3,7 @@
 #include "mikudancestudio/rhi_scene_preview.hpp"
 #include "mikudancestudio/scene_frame_producer.hpp"
 #include "mikudancestudio/scene_editor_overlay.hpp"
+#include "mikudancestudio/scene_effects.hpp"
 #include "relative_pointer.hpp"
 #include <QWindow>
 #include <QImage>
@@ -43,6 +44,12 @@ public:
     std::uint64_t Submissions() const;
     std::uint64_t FrameBuilds() const { return frameBuilds_; }
     rhi::PreviewState PresentationState() const { return controller_.State(); }
+    const std::string& EffectReport() const {
+        return deviceError_.empty() ? effects_.Report() : deviceError_;
+    }
+    std::shared_ptr<const mme::EffectDefinition> EffectDefinition(editor::EffectAddress a) {
+        return effects_.Inspect(a, session_.Effects(), session_.EffectRevision());
+    }
     const std::string& PresentationReason() const { return controller_.Reason(); }
     std::uint64_t SurfaceRebuilds() const;
     bool BeginHeaderDrag(unsigned operation, QPoint position, QPoint restore,
@@ -65,6 +72,12 @@ private:
     rhi::BackendOptions options_;
     rhi::ScenePreviewController controller_;
     render::SceneFrameProducer producer_;
+    render::SceneEffects effects_;
+    std::uint64_t cachedEffects_ = 0;
+    std::string deviceError_;
+    std::uint64_t failedRevision_ = 0, failedEffects_ = 0, failedUpdates_ = 0;
+    unsigned failedWidth_ = 0, failedHeight_ = 0;
+    void PresentError(unsigned width, unsigned height);
     render::SceneEditorOverlay overlay_;
     rhi::FileAssetSource builtins_;
     editor::EditorAssets loaded_;
@@ -119,5 +132,6 @@ private:
 // Export uses its own scene/renderer. It never reads the editor swapchain.
 bool RenderImage(const runtime::SceneRuntime&, const editor::EditorAssets&,
                  const std::filesystem::path& builtins, const rhi::BackendOptions&, unsigned width,
-                 unsigned height, QImage&, std::string&, const SceneDisplayOptions& = {});
+                 unsigned height, QImage&, std::string&, const SceneDisplayOptions& = {},
+                 const editor::EffectDocument& = {});
 }

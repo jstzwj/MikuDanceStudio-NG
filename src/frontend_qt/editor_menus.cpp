@@ -215,6 +215,7 @@ void EditorWindow::BuildMenus() {
     connect(add("redo", "control.401", QKeySequence::Redo), &QAction::triggered, this,
             [this] { Dispatch(panel::kRedoButton); });
     extensions->addSeparator();
+    connect(add("mme.effects", "mme.title", {}), &QAction::triggered, this, &EditorWindow::Effects);
     connect(add("file.sequence", "file.sequence", {}), &QAction::triggered, this,
             [this] { FileAction("file.sequence"); });
     extensions->addSeparator();

@@ -3161,5 +3161,57 @@ Aggiungi prima un corpo.</translation>
             <source>Viewport</source>
             <translation>Vista</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>Effetti MME…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>Assegna…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>Rimuovi</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>Ricarica</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>Annulla effetti</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>Ripeti effetti</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>Attivo</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>Usa materiali di base</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>Intero oggetto</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>Parametro</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>Tipo</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>Valore</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>Disattiva esplicitamente tutti gli effetti. Gli effetti non supportati non vengono sostituiti in modo silenzioso.</translation>
+        </message>
     </context>
 </TS>

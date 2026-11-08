@@ -302,7 +302,7 @@ void EditorWindow::FileAction(const QString& id, const QString& inputPath) {
         const auto& settings = session_.Document().envelope.settings;
         if (Result(RenderImage(session_.Runtime(), session_.Assets(), assets_, viewport_->Options(),
                                settings.renderWidth, settings.renderHeight, image, r,
-                               session_.DisplayOptions()),
+                               session_.DisplayOptions(), session_.Effects()),
                    r)) {
             QSaveFile file(path);
             if (!file.open(QIODevice::WriteOnly) || !image.save(&file, "PNG") || !file.commit())

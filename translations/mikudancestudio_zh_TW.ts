@@ -3161,5 +3161,57 @@ Please add body first.</source>
             <source>Viewport</source>
             <translation>視口</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>MME 效果…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>指派…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>移除</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>重新載入</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>復原效果</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>重做效果</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>啟用</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>使用基本材質</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>整個物件</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>參數</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>類型</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>值</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>明確停用所有效果。不支援的效果不會自動降級。</translation>
+        </message>
     </context>
 </TS>

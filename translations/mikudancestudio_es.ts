@@ -3161,5 +3161,57 @@ Añade uno primero.</translation>
             <source>Viewport</source>
             <translation>Vista</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>Efectos MME…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>Asignar…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>Quitar</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>Recargar</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>Deshacer efectos</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>Rehacer efectos</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>Activado</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>Usar materiales básicos</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>Objeto completo</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>Parámetro</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>Tipo</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>Valor</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>Desactiva explícitamente todos los efectos. Los efectos no compatibles nunca se sustituyen sin avisar.</translation>
+        </message>
     </context>
 </TS>

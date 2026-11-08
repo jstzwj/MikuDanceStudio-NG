@@ -3161,5 +3161,57 @@ Bitte zuerst einen Körper hinzufügen.</translation>
             <source>Viewport</source>
             <translation>Ansicht</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>MME-Effekte…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>Zuweisen…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>Entfernen</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>Neu laden</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>Effekte rückgängig</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>Effekte wiederholen</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>Aktiviert</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>Basismaterialien verwenden</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>Ganzes Objekt</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>Parameter</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>Typ</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>Wert</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>Deaktiviert alle Effekte ausdrücklich. Nicht unterstützte Effekte werden nie stillschweigend ersetzt.</translation>
+        </message>
     </context>
 </TS>

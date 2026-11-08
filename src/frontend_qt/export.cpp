@@ -29,6 +29,8 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
         return false;
     }
     const auto total = last - first + 1;
+    const auto effectDocument = editor.Effects();
+    const auto effectRevision = editor.EffectRevision();
     if (progress && !progress(0, total)) {
         reason = "export-cancelled";
         return false;
@@ -53,6 +55,7 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
     }
     rhi::FileAssetSource files(builtins);
     render::SceneFrameProducer producer;
+    render::SceneEffects effects;
     const auto sources = EditorRenderSources(editor.Assets());
     if (!producer.Load(scene, sources, files, reason))
         return false;
@@ -72,11 +75,16 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
         if (index && !scene.Advance(float(double(index) / 30), 1.f / 30, reason, application))
             return false;
         if (index < first && !scene.Session()->Document().view.captureMode &&
-            !producer.HasMaterialHistory())
+            !producer.HasMaterialHistory() && effectDocument.assignments.empty())
             continue;
         rhi::RenderFrame frame;
         if (!producer.Build(scene, settings, frame, reason))
             return false;
+        rhi::RenderFrame effected;
+        if (!effects.Build(effectDocument, effectRevision, scene, sources, settings, options, frame,
+                           effected, reason))
+            return false;
+        frame = std::move(effected);
         auto result = rhi::ApplyFrameMultisampling(frame, samples);
         if (result)
             result = renderer.Prepare(1, frame, prepared);
@@ -87,6 +95,8 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
             return false;
         }
         producer.Commit();
+        if (!effects.Commit(reason))
+            return false;
         if (index < first) {
             if (!renderer.Collect()) {
                 reason = "export-resource-collection-failed";

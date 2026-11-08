@@ -3161,5 +3161,57 @@ Hãy thêm vật rắn trước.</translation>
             <source>Viewport</source>
             <translation>Khung nhìn</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>Hiệu ứng MME…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>Gán…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>Xóa</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>Tải lại</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>Hoàn tác hiệu ứng</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>Làm lại hiệu ứng</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>Bật</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>Dùng vật liệu cơ bản</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>Toàn bộ đối tượng</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>Tham số</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>Kiểu</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>Giá trị</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>Tắt rõ ràng mọi hiệu ứng. Hiệu ứng không hỗ trợ không bao giờ bị âm thầm thay thế.</translation>
+        </message>
     </context>
 </TS>

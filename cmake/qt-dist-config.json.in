@@ -1,4 +1,5 @@
 {
+  "mme": true,
   "source": "@root@",
   "dist": "@MDS_DIST_DIR@",
   "archives": "@MDS_DIST_ARCHIVE_DIR@",

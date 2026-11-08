@@ -3169,5 +3169,57 @@ Please add body first.</source>
             <source>Viewport</source>
             <translation>ビューポート</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>MME エフェクト…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>割り当て…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>解除</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>再読み込み</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>効果を元に戻す</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>効果をやり直す</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>有効</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>基本材質を使用</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>オブジェクト全体</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>パラメーター</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>型</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>値</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>すべての効果を明示的に無効にします。未対応の効果を自動的に置き換えることはありません。</translation>
+        </message>
     </context>
 </TS>

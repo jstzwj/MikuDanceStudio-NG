@@ -1,0 +1,130 @@
+name: MME editor closure
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        options: [all, windows-2022, ubuntu-22.04, macos-15]
+        default: all
+        description: Qualify Qt MME and relocated packages; rerun only affected platforms
+concurrency:
+  group: mme-editor-${{ github.ref }}
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  editor:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.platform == 'macos-15' && '["macos-15"]' || inputs.platform == 'windows-2022' && '["windows-2022"]' || inputs.platform == 'ubuntu-22.04' && '["ubuntu-22.04"]' || '["windows-2022","ubuntu-22.04","macos-15"]') }}
+    runs-on: ${{ matrix.os }}
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
+      CCACHE_MAXSIZE: 700M
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - uses: actions/cache@v4
+        with:
+          path: out/build/editor-fonts
+          key: editor-fonts-${{ runner.os }}-noto2004-b76b0433
+      - name: Linux Qt and offscreen dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y ninja-build ccache patchelf spirv-tools libvulkan1 mesa-vulkan-drivers libxcb1-dev libwayland-dev wayland-protocols libxkbcommon-x11-0 libxcb-cursor0 libegl1 libgl1 libpulse-dev xvfb
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          aqtversion: '==3.3.0'
+          arch: ${{ runner.os == 'Windows' && 'win64_msvc2022_64' || '' }}
+          modules: ${{ runner.os == 'Linux' && 'qtmultimedia qtwaylandcompositor' || 'qtmultimedia' }}
+          cache: true
+      - uses: actions/cache/restore@v4
+        if: runner.os == 'macOS'
+        with:
+          path: out/dxc
+          key: dxc-b106a961-macos15-arm64-v1
+          fail-on-cache-miss: true
+      - name: Fetch pinned DXC
+        if: runner.os != 'macOS'
+        run: python tools/fetch_dxc.py --output out/dxc
+      - uses: actions/checkout@v4
+        if: runner.os != 'macOS'
+        with:
+          repository: KhronosGroup/Vulkan-Headers
+          ref: v1.3.296
+          path: out/vulkan-headers
+      - name: Metal validation tools
+        if: runner.os == 'macOS'
+        run: chmod +x out/dxc/bin/dxc && brew install spirv-tools ccache
+      - uses: actions/cache@v4
+        if: runner.os != 'Windows'
+        with:
+          path: .cache/ccache
+          key: mme-editor-${{ runner.os }}-qt683-${{ github.sha }}
+          restore-keys: |
+            mme-editor-${{ runner.os }}-qt683-
+            editor-objects-${{ runner.os == 'Linux' && 'ubuntu2204' || 'macos15' }}-${{ runner.arch }}-qt683-v1-
+      - name: Build the production editor and focused closure gates
+        shell: pwsh
+        run: |
+          $dxcPath = if ($IsWindows) { "$PWD/out/dxc/dxc.exe" } else { "$PWD/out/dxc/bin/dxc" }
+          $configure = @('-S','cmake/portable-editor','-B','out/build','-G','Ninja','-DCMAKE_BUILD_TYPE=Release',"-DMDS_DXC=$dxcPath")
+          if (!$IsWindows) { $configure += '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache' }
+          if ($IsMacOS) { $configure += @('-DMIKUDANCESTUDIO_RHI_VULKAN=OFF','-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0','-DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache') }
+          else { $configure += "-DMDS_VULKAN_INCLUDE=$PWD/out/vulkan-headers/include" }
+          cmake @configure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build out/build --target editor_effects_test qt_mme_test qt_mme_present_test qt_editor_render_test MikuDanceStudioNG --parallel 3
+          exit $LASTEXITCODE
+      - name: Execute Qt MME without visible windows
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+          MTL_DEBUG_LAYER: '1'
+        run: |
+          $env:MDS_GPU_DRIVER = if ($IsMacOS) { 'hardware' } else { 'software' }
+          $apis = if ($IsWindows) { @('d3d11','d3d12') } elseif ($IsMacOS) { @('metal') } else { @('vulkan') }
+          foreach ($api in $apis) {
+            $env:MDS_GPU_BACKEND = $api
+            ctest --test-dir out/build -R '^(editor_effects|qt_mme|qt_editor_render)$' --no-tests=error --output-on-failure --output-junit "mme-$api.xml"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Qualify real MME presentation on hidden or isolated native surfaces
+        shell: pwsh
+        env:
+          MDS_QT_ISOLATED_DISPLAY: '1'
+          MTL_DEBUG_LAYER: '1'
+        run: |
+          $env:MDS_GPU_DRIVER = if ($IsMacOS) { 'hardware' } else { 'software' }
+          $apis = if ($IsWindows) { @('d3d11','d3d12') } elseif ($IsMacOS) { @('metal') } else { @('vulkan') }
+          foreach ($api in $apis) {
+            $env:MDS_GPU_BACKEND = $api
+            if ($IsLinux) {
+              xvfb-run -a env QT_QPA_PLATFORM=xcb python tests/test_runtime_cpu_scene.py --passes out/build/qt_mme_present_test --assets res/assets
+            } else {
+              $env:QT_QPA_PLATFORM = if ($IsWindows) { 'windows' } else { 'cocoa' }
+              $program = if ($IsWindows) { 'out/build/qt_mme_present_test.exe' } else { 'out/build/qt_mme_present_test' }
+              python tests/test_runtime_cpu_scene.py --passes $program --assets res/assets
+            }
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Build portable package and check raw FX in a clean relocated process
+        shell: pwsh
+        run: |
+          cmake --build out/build --target dist --parallel 3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/test_editor_distribution.py --dist out/dist --mme --report out/mme-distribution.json
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mme-editor-${{ runner.os }}
+          path: |
+            out/build/mme-*.xml
+            out/build/Testing/Temporary/
+            out/mme-distribution.*

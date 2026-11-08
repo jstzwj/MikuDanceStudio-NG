@@ -74,7 +74,9 @@ def runtime(stage, config):
         for name in ('msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll'):
             if not (bindir / name).is_file():
                 raise RuntimeError(f'The configured MSVC redistributables are missing {name}')
-    if config['vulkan'] or config.get('metal', False):
+    # Raw FX preprocessing and reflected layouts use DXC on every desktop API,
+    # including builds that enable only D3D11/D3D12.
+    if config.get('mme', False) or config['vulkan'] or config.get('metal', False):
         compiler = Path(config['dxc'])
         runtime_dir = Path(config['dxc_runtime']) if config['dxc_runtime'] else compiler.parent
         copy_file(compiler, bindir / compiler.name)
@@ -176,6 +178,7 @@ def main():
         # stb carries its public-domain/MIT notice in the source distribution.
         copy_file(source / 'third_party/stb/stb_image.h', stage / 'licenses/stb_image.h')
         metadata = {key: config[key] for key in ('system', 'qt', 'version', 'vulkan', 'metal')}
+        metadata['mme'] = config.get('mme', False)
         architecture = binary_arch((stage / EXECUTABLES[config['system']]).read_bytes())
         metadata.update(schema=1, product=PRODUCT, format='portable', commit=commit, tag=tag or None,
                         arch=architecture, development=not bool(tag), modified=dirty)

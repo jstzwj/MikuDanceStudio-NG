@@ -65,6 +65,7 @@ Viewport::Viewport(editor::EditorSession& session, const std::filesystem::path& 
             [this](Qt::ApplicationState state) {
                 if (state != Qt::ApplicationActive) {
                     controller_.Close();
+                    effects_.InvalidateTargets();
                     options_.surface.reset();
                     androidSurfaceSize_ = {};
                     frameCached_ = false;
@@ -103,9 +104,12 @@ void Viewport::SetOptions(const rhi::BackendOptions& options) {
     controller_.Close();
     producer_.ResetHistory();
     options_ = options;
+    effects_.Reset();
+    deviceError_.clear();
     supportedSamples_ = 0;
 }
 bool Viewport::Reset(std::string& reason) {
+    deviceError_.clear();
     FinishToolDrag();
     FinishBoxSelection();
     frameCached_ = false;
@@ -114,6 +118,7 @@ bool Viewport::Reset(std::string& reason) {
         reason = controller_.Reason();
         return false;
     }
+    effects_.InvalidateTargets();
     return true;
 }
 bool Viewport::OutputLimits(QSize& output, std::string& reason) const {
@@ -144,6 +149,7 @@ bool Viewport::OutputLimits(QSize& output, std::string& reason) const {
     return true;
 }
 bool Viewport::ReloadTextures(std::string& reason) {
+    deviceError_.clear();
     const auto& assets = session_.Assets();
     if (loadedAssets_ && assets.models == loaded_.models &&
         assets.accessories == loaded_.accessories && assets.modelPaths == loaded_.modelPaths &&
@@ -197,6 +203,7 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         options_.surface.reset();
         androidSurfaceSize_ = {};
         frameCached_ = false;
+        effects_.InvalidateTargets();
         producer_.ResetHistory();
     }
 #endif
@@ -244,10 +251,17 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         reason.clear();
         return true;
     }
-    if (!PrepareFrame(w, h, reason))
+    if (!PrepareFrame(w, h, reason)) {
+        // Present an unmistakable error surface, never the previous successful
+        // scene. No scene history or staged effect state is committed here.
+        effects_.Abandon();
+        frameCached_ = false;
+        PresentError(w, h);
         return false;
+    }
     const auto submissions = Submissions();
     if (!controller_.Draw(cachedFrame_)) {
+        effects_.Abandon();
         frameCached_ = false;
 #ifdef __ANDROID__
         if (options_.surface->health() == rhi::SurfaceHealth::Removed) {
@@ -256,17 +270,62 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         }
 #endif
         reason = controller_.Reason();
+        deviceError_ = reason;
+        failedRevision_ = session_.Revision();
+        failedEffects_ = session_.EffectRevision();
+        failedUpdates_ = session_.Runtime().Counters().frames;
+        failedWidth_ = w;
+        failedHeight_ = h;
+        PresentError(w, h);
         return false;
     }
     if (Submissions() > submissions) {
+        if (!effects_.Commit(reason)) {
+            frameCached_ = false;
+            effects_.Abandon();
+            PresentError(w, h);
+            return false;
+        }
         const bool material = producer_.Commit(), overlay = overlay_.Commit();
-        if (material || overlay)
+        if (material || overlay || !session_.Effects().assignments.empty())
             frameCached_ = false;
     }
     reason.clear();
     return true;
 }
+void Viewport::PresentError(unsigned w, unsigned h) {
+    if (controller_.State() == rhi::PreviewState::Failed && !controller_.ReplaceDevice())
+        return;
+    // The clear-only frame drops scene resources. Start a new scene lifetime,
+    // so recovery can upload the same immutable CPU versions again rather than
+    // attempting to revive versions retired by this diagnostic frame.
+    if (!controller_.Unload())
+        return;
+    effects_.InvalidateTargets();
+    producer_.ResetHistory();
+    controller_.Resume();
+    rhi::RenderFrame error;
+    error.targets.push_back({1,
+                             {w, h, rhi::TextureFormat::Rgba8,
+                              rhi::TextureAccess::ColorAttachment | rhi::TextureAccess::Sampled |
+                                  rhi::TextureAccess::CopySource}});
+    rhi::FramePass pass;
+    pass.name = "effect_error";
+    pass.color = rhi::FrameAttachment{1, rhi::AttachmentLoad::Clear};
+    pass.color->clear = {.16f, .025f, .025f, 1};
+    error.passes.push_back(std::move(pass));
+    error.finalColor = 1;
+    controller_.Draw(error);
+}
 bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
+    if (!deviceError_.empty() && failedRevision_ == session_.Revision() &&
+        failedEffects_ == session_.EffectRevision() &&
+        failedUpdates_ == session_.Runtime().Counters().frames && failedWidth_ == w &&
+        failedHeight_ == h) {
+        reason = deviceError_;
+        return false;
+    }
+    deviceError_.clear();
     using Clock = std::chrono::steady_clock;
     const auto now = [&] { return profileFrame_ ? Clock::now() : Clock::time_point{}; };
     auto start = now();
@@ -314,11 +373,11 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
     const auto revision = session_.Revision(), updates = session_.Runtime().Counters().frames;
     const bool history = session_.Document().view.captureMode != 0;
     const auto physics = physicsEdit ? physicsEdit() : render::PhysicsEditView{};
-    if (!frameCached_ || history || physics.edit || cachedRevision_ != revision ||
-        cachedUpdates_ != updates || cachedWidth_ != w || cachedHeight_ != h ||
-        cachedSamples_ != samples || cachedModel_ != session_.Selected().model ||
-        cachedBone_ != ActiveBone() || cachedPlaying_ != session_.Playing() ||
-        cachedSelectedBones_ != session_.Selected().bones ||
+    if (!frameCached_ || history || physics.edit || cachedEffects_ != session_.EffectRevision() ||
+        cachedRevision_ != revision || cachedUpdates_ != updates || cachedWidth_ != w ||
+        cachedHeight_ != h || cachedSamples_ != samples ||
+        cachedModel_ != session_.Selected().model || cachedBone_ != ActiveBone() ||
+        cachedPlaying_ != session_.Playing() || cachedSelectedBones_ != session_.Selected().bones ||
         cachedEditMode_ != session_.Document().timeline.editMode ||
         cachedCoordinateSystem_ != session_.CoordinateSystem() ||
         cachedToolOperation_ != toolOperation_ ||
@@ -326,6 +385,12 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
         frameCached_ = false;
         if (!producer_.Build(session_.Runtime(), settings, cachedFrame_, reason))
             return false;
+        rhi::RenderFrame effected;
+        if (!effects_.Build(session_.Effects(), session_.EffectRevision(), session_.Runtime(),
+                            EditorRenderSources(assets), settings, options_, cachedFrame_, effected,
+                            reason))
+            return false;
+        cachedFrame_ = std::move(effected);
         cpuTimings_.scene = elapsed();
         render::ViewportTools tools;
         tools.physicsEdit = physics;
@@ -346,6 +411,7 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
         cpuTimings_.overlay = elapsed();
         ++frameBuilds_;
         cachedRevision_ = revision;
+        cachedEffects_ = session_.EffectRevision();
         cachedAppearanceRevision_ = session_.AppearanceRevision();
         cachedUpdates_ = updates;
         cachedSamples_ = samples;
@@ -586,6 +652,7 @@ bool Viewport::event(QEvent* event) {
         FinishBoxSelection();
         frameCached_ = false;
         controller_.Close();
+        effects_.InvalidateTargets();
         producer_.ResetHistory();
         options_.surface.reset();
 #ifdef __ANDROID__
@@ -860,7 +927,7 @@ void Viewport::wheelEvent(QWheelEvent* e) {
 bool RenderImage(const runtime::SceneRuntime& scene, const editor::EditorAssets& assets,
                  const std::filesystem::path& builtins, const rhi::BackendOptions& options,
                  unsigned width, unsigned height, QImage& image, std::string& reason,
-                 const SceneDisplayOptions& display) {
+                 const SceneDisplayOptions& display, const editor::EffectDocument& effectDocument) {
     auto backend = rhi::CreateOffscreenBackendDevice(width, height, options);
     if (!backend) {
         reason = backend.reason;
@@ -877,6 +944,12 @@ bool RenderImage(const runtime::SceneRuntime& scene, const editor::EditorAssets&
     rhi::RenderFrame frame;
     if (!producer.Build(scene, settings, frame, reason))
         return false;
+    render::SceneEffects effects;
+    rhi::RenderFrame effected;
+    if (!effects.Build(effectDocument, 1, scene, EditorRenderSources(assets), settings, options,
+                       frame, effected, reason))
+        return false;
+    frame = std::move(effected);
     const auto multisampled = rhi::ApplyFrameMultisampling(
         frame, display.antialiasing ? SceneAntialiasSamples(*backend.device) : 1);
     if (!multisampled) {
@@ -893,6 +966,8 @@ bool RenderImage(const runtime::SceneRuntime& scene, const editor::EditorAssets&
         reason = result.reason;
         return false;
     }
+    if (!effects.Commit(reason))
+        return false;
     rhi::AttachmentReadback pixels;
     if (!renderer.ReadTarget(1, frame.finalColor, pixels)) {
         reason = "export-readback-failed";

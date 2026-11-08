@@ -28,6 +28,7 @@ function(mds_add_qt_editor)
     qt_add_library(mikudancestudio_frontend_qt STATIC
         "${root}/src/frontend_qt/language.cpp"
         "${root}/src/frontend_qt/preferences_dialog.cpp"
+        "${root}/src/frontend_qt/effect_dialog.cpp"
         "${root}/src/frontend_qt/audio_output.cpp"
         "${root}/src/frontend_qt/timeline.cpp"
         "${root}/src/frontend_qt/interpolation.cpp"
@@ -394,6 +395,17 @@ function(mds_add_qt_editor)
             --report "${CMAKE_BINARY_DIR}/editor-frame-performance-gpu.json")
         set_tests_properties(qt_editor_gpu_performance PROPERTIES LABELS "p4;offscreen;qt;gpu;performance" TIMEOUT 240 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_editor_render_test "${root}/tests/qt_editor_render_test.cpp")
+        qt_add_executable(qt_mme_test "${root}/tests/qt_mme_test.cpp")
+        target_link_libraries(qt_mme_test PRIVATE mikudancestudio_frontend_qt)
+        target_compile_definitions(qt_mme_test PRIVATE MDS_EDITOR_EFFECTS_DIR="${root}/assets/effects/editor")
+        add_test(NAME qt_mme COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"
+            --passes $<TARGET_FILE:qt_mme_test> --assets "${root}/res/assets")
+        set_tests_properties(qt_mme PROPERTIES LABELS "p55;qt;gpu;offscreen" TIMEOUT 180 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+        # Explicit invocation only: Windows keeps its owned window hidden;
+        # Cocoa/X11 require the isolated runner display, never a work desktop.
+        qt_add_executable(qt_mme_present_test "${root}/tests/qt_mme_present_test.cpp")
+        target_link_libraries(qt_mme_present_test PRIVATE mikudancestudio_frontend_qt)
+        target_compile_definitions(qt_mme_present_test PRIVATE MDS_EDITOR_EFFECTS_DIR="${root}/assets/effects/editor")
         target_link_libraries(qt_editor_render_test PRIVATE mikudancestudio_frontend_qt)
         add_test(NAME qt_editor_render COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_runtime_cpu_scene.py"
             --passes $<TARGET_FILE:qt_editor_render_test> --assets "${root}/res/assets")

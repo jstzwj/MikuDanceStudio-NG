@@ -3161,5 +3161,57 @@ Please add body first.</source>
             <source>Viewport</source>
             <translation>뷰포트</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>MME 효과…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>할당…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>제거</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>다시 불러오기</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>효과 실행 취소</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>효과 다시 실행</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>사용</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>기본 재질 사용</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>전체 개체</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>매개변수</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>유형</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>값</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>모든 효과를 명시적으로 끕니다. 지원하지 않는 효과는 자동으로 대체되지 않습니다.</translation>
+        </message>
     </context>
 </TS>

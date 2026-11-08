@@ -3161,5 +3161,57 @@ Please add body first.</source>
             <source>Viewport</source>
             <translation>Görünüm</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>MME efektleri…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>Ata…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>Kaldır</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>Yeniden yükle</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>Efektleri geri al</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>Efektleri yinele</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>Etkin</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>Temel malzemeleri kullan</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>Tüm nesne</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>Parametre</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>Tür</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>Değer</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>Tüm efektleri açıkça kapatır. Desteklenmeyen efektler sessizce değiştirilmez.</translation>
+        </message>
     </context>
 </TS>

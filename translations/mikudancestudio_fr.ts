@@ -3161,5 +3161,57 @@ Ajoutez d’abord un corps.</translation>
             <source>Viewport</source>
             <translation>Vue</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>Effets MME…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>Affecter…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>Retirer</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>Recharger</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>Annuler les effets</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>Rétablir les effets</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>Activé</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>Matériaux de base</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>Objet entier</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>Paramètre</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>Type</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>Valeur</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>Désactive explicitement tous les effets. Aucun remplacement silencieux des effets non pris en charge.</translation>
+        </message>
     </context>
 </TS>

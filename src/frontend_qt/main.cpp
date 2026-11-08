@@ -1,4 +1,5 @@
 #include "editor_window.hpp"
+#include "export.hpp"
 #include "editor_style.hpp"
 #include "editor_font.hpp"
 #include <QApplication>
@@ -41,7 +42,8 @@ void AppleMessageHandler(QtMsgType, const QMessageLogContext& context, const QSt
 }
 #endif
 int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& report,
-                    const std::filesystem::path& assets, const QString& project) {
+                    const std::filesystem::path& assets, const QString& project,
+                    bool mmeCheck = false) {
     using namespace mikudancestudio;
     const auto fail = [&](int code, const QString& message) {
         // Android does not forward ordinary stderr to logcat. Keep failure
@@ -83,9 +85,40 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
         options.driver = rhi::BackendDriver::Software;
     QImage image;
     std::string reason;
+    if (mmeCheck) {
+        auto& session = window.Session();
+        if (session.Document().models.empty() ||
+            !session.ImportAccessory(qt::Path(project).parent_path() / "bound.x", reason) ||
+            !session.AssignEffect({false, session.Document().models.front().slot, -1},
+                                  assets / "effects/Material.fx", reason) ||
+            !session.AssignEffect({true, session.Document().accessories.back().slot, -1},
+                                  assets / "effects/Scene.fx", reason))
+            return fail(10, "deployment MME assignment: " + QString::fromStdString(reason));
+    }
     if (!qt::RenderImage(window.Session().Runtime(), window.Session().Assets(), assets, options, 96,
-                         64, image, reason)) {
+                         64, image, reason, window.Session().DisplayOptions(),
+                         window.Session().Effects())) {
         return fail(4, "deployment render: " + QString::fromStdString(reason));
+    }
+    if (mmeCheck) {
+        auto& session = window.Session();
+        QImage basic;
+        if (!qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 96, 64, basic,
+                             reason) ||
+            basic == image)
+            return fail(11, "deployment MME did not change the image: " +
+                                QString::fromStdString(reason));
+        const auto saved = qt::Path(report + ".pmm");
+        if (!window.Save(saved) || !window.Open(saved) || session.Effects().assignments.size() != 2)
+            return fail(12, "deployment MME save/reopen: " + window.LastError());
+        const auto frames = session.Runtime().Counters().frames;
+        if (!qt::ExportSequence(session, assets, options, qt::Path(report + ".sequence"), 0, 1, 96,
+                                64, {}, reason))
+            return fail(13, "deployment MME export: " + QString::fromStdString(reason));
+        if (QImage(report + ".sequence/frame_00000000.png")
+                    .convertToFormat(QImage::Format_RGBA8888) != image ||
+            session.Runtime().Counters().frames != frames)
+            return fail(14, "deployment MME export/CPU snapshot mismatch");
     }
     const bool runtimeCompiler = rhi::DefaultSpirvCompiler()->Available();
 #ifndef __ANDROID__
@@ -112,6 +145,8 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
     const auto proxy = qobject_cast<QProxyStyle*>(qApp->style());
     const auto styleBase = proxy ? proxy->baseStyle()->objectName() : qApp->style()->objectName();
     QJsonObject result{{"qt", qVersion()},
+                       {"mme", mmeCheck},
+                       {"shaderCompiler", qt::Path(rhi::DefaultSpirvCompiler()->Executable())},
                        {"version", QCoreApplication::applicationVersion()},
                        {"runtimeShaderCompiler", runtimeCompiler},
                        {"applicationIconSizes", iconSizes},
@@ -166,6 +201,9 @@ int main(int argc, char** argv) {
                           : QCoreApplication::applicationDirPath() + "/assets"});
     parser.addOption(
         {"deployment-check", "Check the installed editor without showing windows", "report"});
+    parser.addOption({"mme-deployment-check",
+                      "Check installed FX, save/reopen and export without showing windows",
+                      "report"});
 #ifdef __ANDROID__
     parser.addOption(
         {"android-acceptance", "Isolated emulator presentation and lifecycle check", "report"});
@@ -189,7 +227,7 @@ int main(int argc, char** argv) {
     }
 #endif
     const auto assets = mikudancestudio::qt::Path(assetsPath);
-    bool testing = parser.isSet("deployment-check");
+    bool testing = parser.isSet("deployment-check") || parser.isSet("mme-deployment-check");
 #ifdef __ANDROID__
     testing = testing || parser.isSet("android-acceptance");
 #endif
@@ -197,6 +235,9 @@ int main(int argc, char** argv) {
     if (parser.isSet("deployment-check"))
         return DeploymentCheck(window, parser.value("deployment-check"), assets,
                                parser.positionalArguments().value(0));
+    if (parser.isSet("mme-deployment-check"))
+        return DeploymentCheck(window, parser.value("mme-deployment-check"), assets,
+                               parser.positionalArguments().value(0), true);
     if (parser.isSet("language"))
         window.SetLanguage(parser.value("language"));
     if (!parser.positionalArguments().empty())

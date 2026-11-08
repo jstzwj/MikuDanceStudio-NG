@@ -3163,5 +3163,57 @@ Please add body first.</translation>
             <source>Viewport</source>
             <translation>Viewport</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>MME effects…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>Assign…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>Remove</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>Reload</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>Undo effects</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>Redo effects</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>Enabled</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>Use basic materials</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>Whole object</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>Parameter</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>Type</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>Value</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>Explicitly disable all effects. Unsupported effects never fall back silently.</translation>
+        </message>
     </context>
 </TS>

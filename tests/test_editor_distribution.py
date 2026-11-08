@@ -22,6 +22,7 @@ def main():
     source.add_argument('--dist', type=Path)
     source.add_argument('--archive', type=Path, help='Verify checksum, extract, then test the actual shipping archive')
     parser.add_argument('--report', type=Path)
+    parser.add_argument('--mme', action='store_true', help='Also qualify raw FX, save/reopen and export')
     args = parser.parse_args()
     if args.archive:
         record = inspect_archive(args.archive)
@@ -36,7 +37,7 @@ def main():
             package, = root.iterdir()
             report = args.report or args.archive.parent / 'distribution-check.json'
             subprocess.run([sys.executable, str(Path(__file__).resolve()), '--dist', str(package),
-                            '--report', str(report.resolve())], check=True)
+                            '--report', str(report.resolve())] + (['--mme'] if args.mme else []), check=True)
         print(f'Shipping archive passed: {record["archive"]} ({record["arch"]})')
         return
     dist = args.dist.resolve(strict=True)
@@ -74,13 +75,13 @@ def main():
             env['MDS_GPU_DRIVER'] = 'software'
         report = root / 'deployment.json'
         output = []
-        profiles = ['offscreen'] * 3 if system == 'Darwin' else (['offscreen', 'windows'] if system == 'Windows' else ['offscreen'])
+        profiles = ['offscreen'] if args.mme else (['offscreen'] * 3 if system == 'Darwin' else (['offscreen', 'windows'] if system == 'Windows' else ['offscreen']))
         profile_checks = []
         # Exercise actual process teardown repeatedly: Qt's Apple logging sink
         # previously failed intermittently while unloading plugins at exit.
         for attempt, qpa in enumerate(profiles):
             env['QT_QPA_PLATFORM'] = qpa
-            result = subprocess.run([str(exe), '--deployment-check', str(report), str(fixtures / 'v2.pmm')],
+            result = subprocess.run([str(exe), '--mme-deployment-check' if args.mme else '--deployment-check', str(report), str(fixtures / 'v2.pmm')],
                                     cwd=root, env=env, text=True, encoding='utf-8', errors='replace',
                                     capture_output=True, timeout=120,
                                     creationflags=subprocess.CREATE_NO_WINDOW if system == 'Windows' else 0)
@@ -126,6 +127,12 @@ def main():
                                          f'{diagnostic.stem}.{crash.name}')
             raise RuntimeError(f'Relocated distribution failed ({result.returncode}); see {diagnostic.with_suffix(".log")}')
         evidence = json.loads(report.read_text(encoding='utf-8'))
+        if args.mme:
+            if not evidence.get('mme') or not Path(evidence['shaderCompiler']).resolve().is_relative_to(package):
+                raise RuntimeError('MME did not use the packaged shader compiler')
+            for name in ('Material.fx', 'Scene.fx', 'Common.fxh'):
+                if not (Path(evidence['assets']) / 'effects' / name).is_file():
+                    raise RuntimeError(f'Missing bundled raw FX/include: {name}')
         evidence['profiles'] = profile_checks
         if not evidence.get('bundledFonts') or not (package / 'licenses/NotoSansCJK/NotoSansCJK-OFL.txt').is_file():
             raise RuntimeError('Package is missing its redistributable CJK fonts or license')

@@ -3161,5 +3161,57 @@ Voeg eerst een lichaam toe.</translation>
             <source>Viewport</source>
             <translation>Weergave</translation>
         </message>
+        <message id="mme.title">
+            <source>MME effects…</source>
+            <translation>MME-effecten…</translation>
+        </message>
+        <message id="mme.assign">
+            <source>Assign…</source>
+            <translation>Toewijzen…</translation>
+        </message>
+        <message id="mme.remove">
+            <source>Remove</source>
+            <translation>Verwijderen</translation>
+        </message>
+        <message id="mme.reload">
+            <source>Reload</source>
+            <translation>Herladen</translation>
+        </message>
+        <message id="mme.undo">
+            <source>Undo effects</source>
+            <translation>Effecten ongedaan</translation>
+        </message>
+        <message id="mme.redo">
+            <source>Redo effects</source>
+            <translation>Effecten opnieuw</translation>
+        </message>
+        <message id="mme.enabled">
+            <source>Enabled</source>
+            <translation>Ingeschakeld</translation>
+        </message>
+        <message id="mme.basic">
+            <source>Use basic materials</source>
+            <translation>Basismaterialen gebruiken</translation>
+        </message>
+        <message id="mme.whole">
+            <source>Whole object</source>
+            <translation>Geheel object</translation>
+        </message>
+        <message id="mme.parameter">
+            <source>Parameter</source>
+            <translation>Parameter</translation>
+        </message>
+        <message id="mme.type">
+            <source>Type</source>
+            <translation>Type</translation>
+        </message>
+        <message id="mme.value">
+            <source>Value</source>
+            <translation>Waarde</translation>
+        </message>
+        <message id="mme.basic.help">
+            <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
+            <translation>Schakelt alle effecten expliciet uit. Niet-ondersteunde effecten worden nooit stilzwijgend vervangen.</translation>
+        </message>
     </context>
 </TS>
