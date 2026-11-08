@@ -7,6 +7,8 @@ function(mds_add_scene_render)
         "${mds_root}/src/render/scene_editor_overlay.cpp"
         "${mds_root}/src/render/physics_debug_geometry.cpp")
     target_link_libraries(mikudancestudio_scene_render PUBLIC mikudancestudio_scene_runtime mikudancestudio_rhi)
+    target_sources(mikudancestudio_scene_render PRIVATE "${mds_root}/src/render/mme/scene_effects.cpp")
+    target_link_libraries(mikudancestudio_scene_render PUBLIC mikudancestudio_mme_render)
     if(MSVC)
         target_compile_options(mikudancestudio_scene_render PRIVATE /fp:precise /utf-8)
     else()

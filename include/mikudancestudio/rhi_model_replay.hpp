@@ -42,6 +42,10 @@ struct ReplayShader {
     std::vector<ReplayShaderTextureBinding> textures;
 };
 struct ModelReplayDraw {
+    // Optional host scene identity, consumed before generic frame assembly.
+    // Never used as a native resource key or persisted in GPU caches.
+    std::uint64_t sceneObject = 0;
+    int sceneSubset = -1;
     ModelPipeline pipeline;
     // Generic program replaces the legacy material pipeline and its bindings.
     std::optional<ReplayShader> shader;

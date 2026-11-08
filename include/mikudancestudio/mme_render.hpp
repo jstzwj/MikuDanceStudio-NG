@@ -44,6 +44,11 @@ using CompiledEffects = std::map<std::uint64_t, std::shared_ptr<const CompiledEf
 struct RenderGeometry {
     std::vector<rhi::ModelReplayResource> resources;
     std::map<std::pair<std::uint64_t, int>, rhi::ModelReplayDraw> draws;
+    std::vector<rhi::ModelReplayDraw> prefix, suffix;
+    std::map<std::pair<std::uint64_t, int>, std::vector<rhi::ModelReplayDraw>> hostDraws;
+    std::vector<std::uint64_t> hostSampled;
+    std::vector<rhi::FrameTarget> externalTargets;
+    std::vector<rhi::FramePass> prepasses;
 };
 // Pure assembly; no GPU allocation, submission, clock resampling or parameter
 // writes. The host commits the schedule only after successful submission.

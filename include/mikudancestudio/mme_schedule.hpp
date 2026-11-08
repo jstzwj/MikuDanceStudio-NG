@@ -146,6 +146,10 @@ struct ScheduleInput {
         context;
     int mode = 0;
     std::map<std::uint64_t, std::vector<bool>> techniqueValidity;
+    bool hostSceneDraws = false;
+    rhi::ClearColor clearColor{};
+    // Host default depth surface. Explicit FX formats retain their own format.
+    rhi::TextureFormat hostDepthFormat = rhi::TextureFormat::Depth24Stencil8;
 };
 class ScheduledFrame {
 public:

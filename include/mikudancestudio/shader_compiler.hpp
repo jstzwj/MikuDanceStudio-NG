@@ -17,6 +17,7 @@ public:
     virtual ~SpirvCompiler() = default;
     virtual bool Available() const = 0;
     virtual const std::string& Identity() const = 0;
+    virtual std::filesystem::path Executable() const { return {}; }
     // Expanded modern HLSL, frozen per module. Includes must be resolved by
     // the source owner before this boundary. Failure preserves output.
     virtual bool Compile(const ShaderModule&, SnapshotBytes&, std::string& diagnostic) = 0;

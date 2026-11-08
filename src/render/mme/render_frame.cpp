@@ -173,7 +173,9 @@ bool AssembleRenderFrame(const ScheduledFrame& schedule, const CompiledEffects& 
         return false;
     auto next = schedule.Dependencies();
     next.resources = geometry.resources;
-    next.passes.clear();
+    next.targets.insert(next.targets.end(), geometry.externalTargets.begin(),
+                        geometry.externalTargets.end());
+    next.passes = geometry.prepasses;
     for (const auto& step : schedule.Steps()) {
         auto pass = step.resources;
         if (step.kind == PlannedStep::Kind::Clear || step.kind == PlannedStep::Kind::GenerateMips) {
@@ -181,6 +183,14 @@ bool AssembleRenderFrame(const ScheduledFrame& schedule, const CompiledEffects& 
             continue;
         }
         const auto& target = Target(next, pass.colors.at(0).target).description;
+        if (step.kind == PlannedStep::Kind::Host && step.object == 0) {
+            pass.draws = step.subset == -1 ? geometry.prefix : geometry.suffix;
+            for (auto& draw : pass.draws)
+                draw.pipeline.viewport = ModelViewport{0, 0, target.width, target.height, 0, 1};
+            pass.sampled = geometry.hostSampled;
+            next.passes.push_back(std::move(pass));
+            continue;
+        }
         ModelReplayDraw draw;
         const bool material = step.kind != PlannedStep::Kind::Buffer;
         if (material) {
@@ -192,6 +202,9 @@ bool AssembleRenderFrame(const ScheduledFrame& schedule, const CompiledEffects& 
                 Fail("MME_render_host_shader_ambiguous");
         } else
             draw = Quad(next, target.width, target.height);
+        if (step.kind == PlannedStep::Kind::Host)
+            pass.sampled.insert(pass.sampled.end(), geometry.hostSampled.begin(),
+                                geometry.hostSampled.end());
         if (step.kind != PlannedStep::Kind::Host) {
             const auto e = effects.find(step.effect);
             if (e == effects.end() || !e->second)
@@ -230,7 +243,13 @@ bool AssembleRenderFrame(const ScheduledFrame& schedule, const CompiledEffects& 
             draw.shadowTarget = 0;
         }
         draw.pipeline.viewport = ModelViewport{0, 0, target.width, target.height, 0, 1};
-        pass.draws.push_back(std::move(draw));
+        const auto hosts = geometry.hostDraws.find({step.object, step.subset});
+        if (step.kind == PlannedStep::Kind::Host && hosts != geometry.hostDraws.end()) {
+            pass.draws = hosts->second;
+            for (auto& host : pass.draws)
+                host.pipeline.viewport = draw.pipeline.viewport;
+        } else
+            pass.draws.push_back(std::move(draw));
         next.passes.push_back(std::move(pass));
     }
     RemoveDeadDepth(next);

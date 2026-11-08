@@ -971,6 +971,10 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
             return Fail(reason, built.reason);
         const auto materialStart = main.draws.size();
         append(stream);
+        for (std::size_t n = 0; n < packets.size(); ++n) {
+            main.draws[materialStart + n].sceneObject = 1 + unsigned(slot);
+            main.draws[materialStart + n].sceneSubset = int(packets[n].material);
+        }
         if (mode && modelShadow)
             for (std::size_t n = main.draws.size() - packets.size(); n < main.draws.size(); ++n) {
                 const auto& material =
@@ -1184,6 +1188,10 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
                 return Fail(reason, built.reason);
             const auto start = main.draws.size();
             append(stream);
+            for (std::size_t n = 0; n < packets.size(); ++n) {
+                main.draws[start + n].sceneObject = 257 + unsigned(pose.slot);
+                main.draws[start + n].sceneSubset = int(n);
+            }
             for (std::size_t n = 0; n < packets.size(); ++n) {
                 const auto& subset = accessory.resource->Subsets()[n];
                 const auto& material = accessory.resource->Materials()[subset.material];

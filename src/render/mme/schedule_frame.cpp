@@ -243,6 +243,20 @@ struct Builder {
     }
     void Materials(const Turn& turn, std::uint64_t color, std::uint64_t depth,
                    const std::vector<FrameAttachment>& outputs) {
+        const auto hostExtra = [&](int subset) {
+            if (!input.hostSceneDraws || turn.scope)
+                return;
+            if (outputs.size() != 1)
+                ScheduleError("host_mrt_not_supported");
+            PlannedStep step;
+            step.kind = PlannedStep::Kind::Host;
+            step.subset = subset;
+            step.resources.colors = outputs;
+            if (depth)
+                step.resources.depthStencil = FrameAttachment{depth, AttachmentLoad::Load};
+            Add(std::move(step));
+        };
+        hostExtra(-1);
         for (const auto* object : objects)
             for (unsigned subset = 0; subset < object->flags.size(); ++subset) {
                 const auto a = Resolve(*object, int(subset), turn);
@@ -295,6 +309,7 @@ struct Builder {
                     Add(std::move(s));
                 }
             }
+        hostExtra(-2);
     }
     void
     Scene(const Turn& turn,
@@ -418,7 +433,7 @@ struct Builder {
                                 TextureAccess::ColorAttachment | TextureAccess::Sampled |
                                     TextureAccess::CopySource};
         auto depth = color;
-        depth.format = TextureFormat::Depth24Stencil8;
+        depth.format = input.hostDepthFormat;
         depth.access = unsigned(TextureAccess::DepthStencilAttachment);
         state.dependencies.targets.push_back({1, color});
         state.dependencies.targets.push_back({2, depth});
@@ -428,7 +443,7 @@ struct Builder {
             const auto& t = i->effect->targets.at(i->target);
             const auto id = Target(*i->effect, t.name);
             auto d = Description(id).description;
-            d.format = TextureFormat::Depth24Stencil8;
+            d.format = input.hostDepthFormat;
             d.mips = 1;
             d.access = unsigned(TextureAccess::DepthStencilAttachment);
             const auto did = (std::uint64_t(1) << 60) | i->scope;
@@ -444,7 +459,9 @@ struct Builder {
                 Add(std::move(m));
             }
         }
-        Clear(0, 1, 2);
+        Clear(0, 1, 2,
+              {input.clearColor.red, input.clearColor.green, input.clearColor.blue,
+               input.clearColor.alpha});
         Scope({}, 1, 2);
     }
 };

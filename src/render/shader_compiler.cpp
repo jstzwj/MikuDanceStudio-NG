@@ -67,6 +67,7 @@ public:
         }
     }
     bool Available() const override { return available; }
+    std::filesystem::path Executable() const override { return options.executable; }
     const std::string& Identity() const override { return identity; }
     ShaderCompilerStats Stats() const override {
         std::lock_guard<std::mutex> lock(mutex);
