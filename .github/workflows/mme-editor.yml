@@ -70,7 +70,7 @@ jobs:
           python tools/fetch_dxc.py --output out/dxc
           exit $LASTEXITCODE
       - uses: actions/checkout@v4
-        if: runner.os != 'macOS'
+        if: runner.os == 'Linux'
         with:
           repository: KhronosGroup/Vulkan-Headers
           ref: v1.3.296
@@ -92,9 +92,11 @@ jobs:
           $dxcPath = if ($IsWindows) { "$PWD/out/dxc/dxc.exe" } else { "$PWD/out/dxc/bin/dxc" }
           $configure = @('-S','cmake/portable-editor','-B','out/build','-G','Ninja','-DCMAKE_BUILD_TYPE=Release',"-DMDS_DXC=$dxcPath")
           if (!$IsWindows) { $configure += '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache' }
-          if ($IsWindows -and (Test-Path out/spirv-tools/spirv-val.exe)) { $configure += "-DMDS_SPIRV_VAL=$PWD/out/spirv-tools/spirv-val.exe" }
+          # This Windows slice executes D3D11/D3D12. Linux executes Vulkan;
+          # the developer hardware gate additionally covers Windows Vulkan.
+          if ($IsWindows) { $configure += '-DMIKUDANCESTUDIO_RHI_VULKAN=OFF' }
           if ($IsMacOS) { $configure += @('-DMIKUDANCESTUDIO_RHI_VULKAN=OFF','-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0','-DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache') }
-          else { $configure += "-DMDS_VULKAN_INCLUDE=$PWD/out/vulkan-headers/include" }
+          if ($IsLinux) { $configure += "-DMDS_VULKAN_INCLUDE=$PWD/out/vulkan-headers/include" }
           cmake @configure
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build out/build --target editor_effects_test qt_mme_test qt_mme_present_test qt_editor_render_test MikuDanceStudioNG --parallel 3

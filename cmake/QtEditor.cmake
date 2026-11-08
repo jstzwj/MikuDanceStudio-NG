@@ -24,6 +24,12 @@ elseif(UNIX)
 endif()
 function(mds_add_qt_editor)
     get_filename_component(root "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/.." ABSOLUTE)
+    if(NOT ANDROID)
+        # MME preprocessing/layouts also need DXC in D3D-only editor builds.
+        # Do not depend on Vulkan's shader-embedding setup to configure it.
+        find_program(MDS_DXC dxc HINTS "$ENV{VULKAN_SDK}/Bin" REQUIRED)
+        target_compile_definitions(mikudancestudio_rhi PRIVATE MDS_DXC_EXECUTABLE="${MDS_DXC}")
+    endif()
     include("${root}/cmake/Version.cmake")
     qt_add_library(mikudancestudio_frontend_qt STATIC
         "${root}/src/frontend_qt/language.cpp"
