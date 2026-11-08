@@ -1,5 +1,11 @@
 # Qt MME editor closure (P5.5)
 
+Qualified on 2026-11-08 for the declared desktop subset: Windows x64
+DX11/DX12 plus locally tested Vulkan, Linux x64 Vulkan, and macOS ARM64 Metal.
+See the [P5.5 acceptance](CROSS_PLATFORM_P5.md#p55-验收2026-11-08) and
+[versioned evidence](evidence/p55-editor-42465441542.json) for actual builds,
+strict within-backend checks, visual cross-platform review and remaining limits.
+
 The Qt editor exposes **MikuDanceStudio-NG → MME effects…**. Select a model or
 accessory, then the whole object or a material/subset. Assign an ordinary `.fx`,
 enable/disable it, reload it, or edit its numeric parameters. Semantic parameters
@@ -84,7 +90,7 @@ The manually dispatched **MME editor closure** workflow selects all desktop
 platforms or just an affected platform. It builds only the production editor and
 the focused persistence/MME/existing-render gates, then validates the portable
 package. Evidence and exact qualified platforms are recorded in the P5 plan;
-implementation alone does not close cross-platform acceptance.
+the desktop subset passed these gates, independently of broader FX9/Ray support.
 
 ## Declared boundary
 

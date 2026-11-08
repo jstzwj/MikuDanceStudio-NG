@@ -2,7 +2,15 @@
 
 当前独立维护仓库：[MikuDanceStudio-NG](https://github.com/jstzwj/MikuDanceStudio-NG)，默认分支 `main`，由原仓库 `next@9afd91a` 保留完整历史迁入。下文初始 `main`／`next` 基线和历史验收链接均指迁移前的 MikuDanceStudio 仓库。
 
-更新时间：2026-11-05。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
+更新时间：2026-11-08。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
+
+**P5 最新状态（2026-11-08）：P5.1～P5.5 已在明确的桌面效果子集范围验收，C2 按此范围完成。**
+Qt 已接入效果分配／数值参数／多语言、保存重开及同一装配服务的视口和导出；原始 PMM
+不变，效果引用与覆盖保存至 `.pmm.ng-effects`。Windows x64 的 DX11／DX12、Linux x64
+Vulkan、macOS ARM64 Metal 的定向闭环、隐藏或隔离呈现、干净便携包检查通过，本机
+Windows Vulkan 另行通过。见 [P5 当前记录](docs/CROSS_PLATFORM_P5.md) 与
+[P5.5 证据](docs/evidence/p55-editor-42465441542.json)。这不包含 Windows ARM64／Android
+原始 FX 工具链、任意 FX9、旧 EMM 自动导入或完整 Ray／C3，也不替代 P7 发行资格。
 
 最新阶段决定（2026-11-05）：**P4 按用户调整后的范围阶段验收，允许进入 P5；真实混合 DPI 跨屏实测延后补验**。该项目仍未执行，不记为实测通过，也不扩大为 P7 正式发行资格。[当前验收表](docs/P4_ACCEPTANCE_STATUS.md) 是当前结论，[P5 实施计划](docs/CROSS_PLATFORM_P5.md) 记录代码核查与下一批工作。旧运行的失败及分项范围保留在各自证据中。Windows 原生 IME 三语言及自然退出、七组单行／列表／下拉框专项通过。[41975627370](docs/evidence/p4-shown-41975627370.json) 再次通过 72 组聚焦多行绘制、72 组光标矩形、90 次真实 OS 手势，并通过 8 个聚焦传统 CJK 客户区、96 个隐藏 CJK 精确比较及 30 个实际 Unicode 编辑案例。复杂／原版损坏的 Unicode 按用户确认保留完整可读可编辑能力，不复制原版缺字或数据丢失。
 
@@ -271,7 +279,7 @@ python recipes/bullet275/verify_sources.py
 
 ## 6. 阶段安排与退出条件
 
-P0、P1、P2、P3 已完成；P4 按用户调整后的范围阶段验收，真实混合 DPI 延后补验；P5.1 源码前端、P5.2 参数实例／共享池／语义及帧快照、P5.3 脚本／分配／跨效果目标调度已通过各自三平台验收。P5.2 的 32 项门禁见[参数验收证据](docs/evidence/p5-runtime-42168010475.json)；P5.3 的 Windows 15、Linux 13、macOS 13 项门禁与完整计划逐字节复核见[调度验收证据](docs/evidence/p5-schedule-42331157581.json)。P5.4 着色器布局与四后端实际执行已通过声明范围验收，见[执行证据](docs/evidence/p5-execution-42360117029.json)。P5.5 按 [P5 批次](docs/CROSS_PLATFORM_P5.md) 继续实施；实际离屏绘制通过不代表 Qt MME 闭环或 C2 完成。
+P0、P1、P2、P3 已完成；P4 按用户调整后的范围阶段验收，真实混合 DPI 延后补验；P5.1 源码前端、P5.2 参数实例／共享池／语义及帧快照、P5.3 脚本／分配／跨效果目标调度已通过各自三平台验收。P5.2 的 32 项门禁见[参数验收证据](docs/evidence/p5-runtime-42168010475.json)；P5.3 的 Windows 15、Linux 13、macOS 13 项门禁与完整计划逐字节复核见[调度验收证据](docs/evidence/p5-schedule-42331157581.json)。P5.4 着色器布局与四后端实际执行已通过声明范围验收，见[执行证据](docs/evidence/p5-execution-42360117029.json)。P5.5 的 Qt 分配／编辑／持久化／导出和三平台便携包闭环已通过，见[闭环证据](docs/evidence/p55-editor-42465441542.json)；C2 只承诺 [P5 批次](docs/CROSS_PLATFORM_P5.md) 中明确的桌面子集。
 
 | 阶段 | 依赖 | 主要交付 | 退出条件 |
 |---|---|---|---|
@@ -334,7 +342,8 @@ P5.1 首批进度（2026-11-05）：无设备效果定义、字面 include／宏
 `mds_effect_cli inspect` 和 Windows 原生编译器对照已实现；Windows 8/8、Linux 7/7、
 macOS 7/7 无设备门禁通过，三平台完整语义报告严格一致，共用着色器工具回归通过。
 见 [P5.1 验收证据](docs/evidence/p5-frontend-42020565345.json)。默认值仍保留为表达式，P5.2 的实例／
-共享池、P5.3 脚本调度及后续 RHI／Qt 接入尚未完成，不代表 C2 通过。
+共享池、P5.3 脚本调度及后续 RHI／Qt 接入在当批尚未完成，当批结果不代表 C2 通过；
+当前完成范围以上方 P5 最新状态为准。
 支持边界与复现命令见 [无设备 FX 前端](docs/MME_FRONTEND.md)。
 
 ## 7. 验收矩阵与比较规则

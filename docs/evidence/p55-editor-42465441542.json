@@ -1,0 +1,193 @@
+{
+  "schema": 1,
+  "stage": "P5.5",
+  "accepted": true,
+  "scope": "Declared desktop FX9/SAS subset, numeric parameter editing and Qt project/export closure; not arbitrary FX9/Ray",
+  "imagePolicy": {
+    "withinBackend": "All committed copy/repeat/first export gates retain exact RGBA8 equality",
+    "crossPlatformPackageScreenshot": "Full 96x64 screenshots reviewed visually per previously user-approved policy; all raw pixels counted and hashed; no new RGB gate relaxed",
+    "observedWindowsDifference": "101 of 6144 pixels on antialiased contour, max RGBA byte difference 64; no differing both-opaque or both-transparent pixels; Linux/Metal byte-identical",
+    "reviewComposite": "p55-editor-images/comparison-white.png; left Linux, center macOS, right Windows"
+  },
+  "featureCommits": [
+    "8a923e0",
+    "bd91889",
+    "4022e24"
+  ],
+  "ciOnlyFollowups": [
+    "9493d16",
+    "1abd10a"
+  ],
+  "buildConfigurationFollowup": "e58c0ef: desktop DXC discovery independent of Vulkan; Windows CI deliberately qualifies D3D11/D3D12",
+  "platforms": [
+    {
+      "platform": "linux",
+      "architecture": "x64",
+      "run": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42464263228",
+      "job": 128680012075,
+      "head": "4022e24bc26a1e90a2f6fae2734a2a545a51dac3",
+      "gates": [
+        {
+          "backend": "vulkan",
+          "tests": [
+            "qt_mme",
+            "qt_editor_render",
+            "editor_effects"
+          ],
+          "failures": 0,
+          "skips": 0
+        }
+      ],
+      "nativePresentation": "passed; Windows windows never shown, other platforms isolated",
+      "relocatedPortablePackage": "passed; SDK/Qt search paths removed, raw FX/include/DXC inside package",
+      "languages": 15,
+      "imageExtent": [
+        96,
+        64
+      ],
+      "imageRgbaSha256": "82785771eea960e043bf1b55c2768a72436170a0c7bff68ed7229f7e7478c9b1",
+      "maxRgbaByteErrorVsLinux": 0,
+      "differingPixelsVsLinux": 0,
+      "totalPixels": 6144,
+      "differingBothOpaquePixelsVsLinux": 0,
+      "differingBothTransparentPixelsVsLinux": 0,
+      "visualReview": "passed under user-approved cross-GPU visual policy; Windows differences only on antialiased contour; all interior colors identical",
+      "screenshot": "p55-editor-images/linux.png",
+      "distributionReportSha256": "5eebe4151e4a5b47e3b9748fdef41a2143ccaf548ec7b62ddefe91921ee66bbb"
+    },
+    {
+      "platform": "macos",
+      "architecture": "arm64",
+      "run": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42464263228",
+      "job": 128680012238,
+      "head": "4022e24bc26a1e90a2f6fae2734a2a545a51dac3",
+      "gates": [
+        {
+          "backend": "metal",
+          "tests": [
+            "qt_mme",
+            "qt_editor_render",
+            "editor_effects"
+          ],
+          "failures": 0,
+          "skips": 0
+        }
+      ],
+      "nativePresentation": "passed; Windows windows never shown, other platforms isolated",
+      "relocatedPortablePackage": "passed; SDK/Qt search paths removed, raw FX/include/DXC inside package",
+      "languages": 15,
+      "imageExtent": [
+        96,
+        64
+      ],
+      "imageRgbaSha256": "82785771eea960e043bf1b55c2768a72436170a0c7bff68ed7229f7e7478c9b1",
+      "maxRgbaByteErrorVsLinux": 0,
+      "differingPixelsVsLinux": 0,
+      "totalPixels": 6144,
+      "differingBothOpaquePixelsVsLinux": 0,
+      "differingBothTransparentPixelsVsLinux": 0,
+      "visualReview": "passed under user-approved cross-GPU visual policy; Windows differences only on antialiased contour; all interior colors identical",
+      "screenshot": "p55-editor-images/macos.png",
+      "distributionReportSha256": "81855618284949177fdcb2b100b509908cb535fffb57d201add2ed98e406353a"
+    },
+    {
+      "platform": "windows",
+      "architecture": "x64",
+      "run": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42465441542",
+      "job": 128683764000,
+      "head": "e58c0efb3af3da644a89731538f057d04d410105",
+      "gates": [
+        {
+          "backend": "d3d11",
+          "tests": [
+            "qt_mme",
+            "qt_editor_render",
+            "editor_effects"
+          ],
+          "failures": 0,
+          "skips": 0
+        },
+        {
+          "backend": "d3d12",
+          "tests": [
+            "qt_mme",
+            "qt_editor_render",
+            "editor_effects"
+          ],
+          "failures": 0,
+          "skips": 0
+        }
+      ],
+      "nativePresentation": "passed; Windows windows never shown, other platforms isolated",
+      "relocatedPortablePackage": "passed; SDK/Qt search paths removed, raw FX/include/DXC inside package",
+      "languages": 15,
+      "imageExtent": [
+        96,
+        64
+      ],
+      "imageRgbaSha256": "1752f3e01879cf1a65a356c09857ff02ba48da31c4f37cedb97f14e3517f5727",
+      "maxRgbaByteErrorVsLinux": 64,
+      "differingPixelsVsLinux": 101,
+      "totalPixels": 6144,
+      "differingBothOpaquePixelsVsLinux": 0,
+      "differingBothTransparentPixelsVsLinux": 0,
+      "visualReview": "passed under user-approved cross-GPU visual policy; Windows differences only on antialiased contour; all interior colors identical",
+      "screenshot": "p55-editor-images/windows.png",
+      "distributionReportSha256": "cacbae8701e762abd88f0c65be55d56234658479452cff7b669171166a88ed3f"
+    }
+  ],
+  "coverage": [
+    "Material tint and two-pass scene capture/copy/Exposure from ordinary public raw FX and relative includes",
+    "Within-backend copy/repeat and first exported frame compared exactly in RGBA8",
+    "Logical assignments/parameters, effect undo/redo, enable/disable and explicit basic-material mode",
+    "15-language parameter UI, backend selection and resource/device/window rebuilding",
+    "PMM save/reopen and Save As retain relative FX paths and exact numeric words in .ng-effects",
+    "Failed paired publication recovers previous matching project without committing wrong assignments",
+    "Unloading prunes live/history assignments; reused slots cannot revive old effects",
+    "Playback, seek, independent effect instances, deterministic TIME2 export and bone/accessory CONTROLOBJECT",
+    "Sequence export freezes settings and runtime; warmup, cancellation and failure preserve editor CPU state",
+    "Native viewport submit commits once; failure submits a new error surface; reload restores rendering"
+  ],
+  "localWindows": {
+    "drivers": {
+      "d3d11": "WARP",
+      "d3d12": "WARP",
+      "vulkan": "hardware"
+    },
+    "offscreenClosureAndHiddenPresentation": "passed on all three",
+    "regressions": "10/10 parameters, scheduling, target, shader layout and DX11/DX12 execution gates",
+    "portablePackage": "out/dist; production feature commit 4022e24; clean relocation passed",
+    "independentD3DOnlyConfiguration": "e58c0ef: full production/test build plus qt_mme and never-shown D3D11 presentation passed without Vulkan or spirv-val",
+    "format": "clang-format 21.1.8; 30 changed C/C++ files checked"
+  },
+  "infrastructureFailuresRetained": [
+    {
+      "run": 42464263228,
+      "platform": "windows-2022",
+      "phase": "DXC download before configure",
+      "reason": "GitHub CDN HTTP 504"
+    },
+    {
+      "run": 42464567124,
+      "platform": "windows-2022",
+      "phase": "DXC download before configure",
+      "reason": "old tool caches were tag-scoped; main cache miss, CDN HTTP 504"
+    },
+    {
+      "run": 42464965236,
+      "platform": "windows-2022",
+      "phase": "configure",
+      "reason": "new workflow enabled Vulkan without spirv-val; fixed by explicit D3D-only CI slice, Windows Vulkan remains locally qualified"
+    }
+  ],
+  "dependencyFix": "Pinned public asset API fallback; maximum three transport attempts; same SHA256 verification; four unit contracts and actual Windows archive verified locally",
+  "excluded": [
+    "Arbitrary FX9 and complete Ray/C3",
+    "Automatic import of legacy EMM projects",
+    "Android raw FX compiler/deployment qualification",
+    "Windows ARM64 MME runtime qualification",
+    "Unimplemented host screen.bmp history graphs, unsupported shader/script/state capabilities",
+    "Native explicit D24S8 capability on Metal remains an explicit rejection",
+    "P4 deferred real mixed-DPI cross-monitor test; P7 full release/GPU qualification"
+  ]
+}

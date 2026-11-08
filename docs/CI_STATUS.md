@@ -1,6 +1,30 @@
 # GitHub Actions 失败核查
 
-核查日期：2026-11-05。核查基线：`af2576c`。
+初次核查：2026-11-05，基线 `af2576c`。最新补充：2026-11-08。
+
+## P5.5 定向闭环验证（2026-11-08）
+
+本批新增手动的 `MME editor closure` 工作流，按平台选择，只构建生产编辑器与相关
+文档事务、Qt MME、既有渲染回归，然后检查原生呈现和重定位便携包。所有实现提交
+均使用 `[skip ci]`；本机先验证，不重复触发已通过的平台。
+
+| 运行 | 实际结果 | 原因和处理 |
+|---|---|---|
+| [42464263228](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42464263228) | Linux Vulkan、macOS Metal 的 3/3 离屏门禁、原生呈现和便携包检查通过；Windows 在配置前失败 | 官方 DXC 下载返回 HTTP 504，没有执行 Windows 测试 |
+| [42464567124](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42464567124) | 只补跑 Windows，仍在下载阶段失败 | 旧缓存属于 tag 作用域，main 不可见，未命中后再次遇到 CDN 504；不能把其他平台成功或缓存命中设想当作 Windows 通过 |
+| [42464965236](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42464965236) | Windows 已完成 DXC 下载与 SHA256 校验，配置失败 | 新任务启用了 Vulkan，却漏装 `spirv-val`。修正为任务实际要验证的 DX11／DX12 切片，并让桌面 Qt 的 DXC 配置独立于 Vulkan；本地另有 Windows Vulkan 实测 |
+| [42465441542](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/42465441542) | Windows 全部通过 | DX11／DX12 WARP 各 3/3；从不显示的原生窗口提交／缩放／设备和 Surface 重建／错误画面／重载恢复；随包原始 FX、include、DXC、15 语言、保存重开和导出全部通过 |
+
+下载修复保留同一固定版本及 SHA256：官方发行 URL 失败后最多再尝试两次固定公开
+asset API，校验不匹配立即失败，不无限重试、不下载未固定版本。四个下载契约测试
+和实际 Windows 归档校验通过。Windows 使用独立缓存键，避免污染其他工具包。
+
+`e58c0ef` 的本机独立纯 D3D 配置也完成生产编辑器构建及离屏／隐藏呈现，不依赖
+Vulkan 校验工具。Linux／macOS 沿用首次通过的生产构建，不因 Windows 基础设施修复
+重复运行。各平台实际提交及完整通过范围见
+[P5.5 证据](evidence/p55-editor-42465441542.json)。三平台发布截图按既有视觉政策复看，
+Windows 的抗锯齿边缘差异有完整像素统计和截图，不写成逐像素一致；严格复制、重复
+和首个导出帧的门禁不变。本次不运行其他无关全量工作流，也不发布 Release。
 
 ## 近期反复失败的原因
 
