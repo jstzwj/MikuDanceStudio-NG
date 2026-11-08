@@ -49,14 +49,12 @@ jobs:
           path: out/dxc
           key: dxc-b106a961-macos15-arm64-v1
           fail-on-cache-miss: true
-      - uses: actions/cache/restore@v4
+      - uses: actions/cache@v4
         id: windows-compiler
         if: runner.os == 'Windows'
         with:
-          path: |
-            out/dxc
-            out/spirv-tools
-          key: editor-tools-windows-x64-dxc1825051-spirv20252-v1
+          path: out/dxc
+          key: dxc-v1825051-windows-x64-v1
       - uses: actions/cache@v4
         id: linux-compiler
         if: runner.os == 'Linux'
@@ -65,7 +63,12 @@ jobs:
           key: dxc-v1825051-linux-x64-v1
       - name: Fetch pinned DXC
         if: (runner.os == 'Windows' && steps.windows-compiler.outputs.cache-hit != 'true') || (runner.os == 'Linux' && steps.linux-compiler.outputs.cache-hit != 'true')
-        run: python tools/fetch_dxc.py --output out/dxc
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p test_fetch_dxc.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/fetch_dxc.py --output out/dxc
+          exit $LASTEXITCODE
       - uses: actions/checkout@v4
         if: runner.os != 'macOS'
         with:

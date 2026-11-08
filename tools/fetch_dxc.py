@@ -2,9 +2,12 @@
 import argparse
 import hashlib
 import io
+import http.client
 from pathlib import Path
 import platform
 import tarfile
+import time
+import urllib.error
 import urllib.request
 import zipfile
 from release_contract import binary_arch
@@ -14,6 +17,31 @@ RELEASES = {
     "Windows": ("dxc_2025_07_14.zip", "9ad895a6b039e3a8f8c22a1009f866800b840a74b50db9218d13319e215ea8a4"),
     "Linux": ("linux_dxc_2025_07_14.x86_64.tar.gz", "f2213da1fc99dc8778c8823078e16ba97c7f80f86a1d4520ab1adf4b462bc48c"),
 }
+ASSETS = {"Windows": 272848549, "Linux": 272848547}
+
+
+def download(name, checksum, asset_id):
+    # The release page's CDN can return a cached 504 while the pinned public
+    # asset API still works. Keep retries bounded and verify either transport.
+    urls = [f"https://github.com/microsoft/DirectXShaderCompiler/releases/download/{VERSION}/{name}"]
+    urls += [f"https://api.github.com/repos/microsoft/DirectXShaderCompiler/releases/assets/{asset_id}"] * 2
+    last_error = None
+    for attempt, url in enumerate(urls):
+        if attempt:
+            time.sleep(attempt * 2)
+        request = urllib.request.Request(url, headers={
+            "User-Agent": "MikuDanceStudio-NG", "Accept": "application/octet-stream"})
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                data = response.read()
+        except (urllib.error.URLError, TimeoutError, ConnectionError, http.client.IncompleteRead) as error:
+            last_error = error
+            print(f"DXC download attempt {attempt + 1}/{len(urls)} failed: {type(error).__name__}", flush=True)
+            continue
+        if hashlib.sha256(data).hexdigest() != checksum:
+            raise RuntimeError("DXC archive checksum mismatch")
+        return data
+    raise RuntimeError("DXC download failed after three transport attempts") from last_error
 
 def main():
     parser = argparse.ArgumentParser()
@@ -23,9 +51,7 @@ def main():
     args = parser.parse_args()
     system = platform.system()
     name, checksum = RELEASES[system]
-    data = urllib.request.urlopen(f"https://github.com/microsoft/DirectXShaderCompiler/releases/download/{VERSION}/{name}", timeout=120).read()
-    if hashlib.sha256(data).hexdigest() != checksum:
-        raise RuntimeError("DXC archive checksum mismatch")
+    data = download(name, checksum, ASSETS[system])
     args.output.mkdir(parents=True, exist_ok=True)
     # Extract an explicit allowlist, preserving the compiler's bin/../lib rpath.
     if system == "Windows":
