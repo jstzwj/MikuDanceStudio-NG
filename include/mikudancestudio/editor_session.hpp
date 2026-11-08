@@ -6,6 +6,7 @@
 #include "pmm_edit.hpp"
 #include "rhi_image.hpp"
 #include "bone_selection.hpp"
+#include "editor_effects.hpp"
 #include <filesystem>
 #include <variant>
 #include <optional>
@@ -83,6 +84,18 @@ public:
     bool SaveEnhancedModel(std::uint8_t, const std::filesystem::path&, const AtomicWrite&,
                            std::string&);
     bool ImportModel(const std::filesystem::path&, std::string&);
+    const EffectDocument& Effects() const { return effects_; }
+    std::uint64_t EffectRevision() const { return effectRevision_; }
+    bool AssignEffect(EffectAddress, const std::filesystem::path&, std::string&);
+    bool EnableEffect(EffectAddress, bool, std::string&);
+    bool ReloadEffect(EffectAddress, std::string&);
+    bool SetEffectParameter(EffectAddress, const std::string&, const mme::ParameterValue&,
+                            std::string&);
+    void SetBasicMaterials(bool);
+    bool UndoEffects(std::string&);
+    bool RedoEffects(std::string&);
+    bool CanUndoEffects() const { return !effectUndo_.empty(); }
+    bool CanRedoEffects() const { return !effectRedo_.empty(); }
     bool ImportAccessory(const std::filesystem::path&, std::string&);
     bool ImportWave(const std::filesystem::path&, std::string&);
     bool ImportVsq(const std::filesystem::path&, std::string&, unsigned* failedKeys = nullptr);
@@ -263,6 +276,12 @@ private:
         std::uint64_t revision = 0;
     };
     State state_;
+    EffectDocument effects_;
+    std::vector<EffectDocument> effectUndo_, effectRedo_;
+    std::uint64_t effectRevision_ = 1;
+    bool EffectAddressValid(EffectAddress) const;
+    void ChangeEffects(EffectDocument);
+    void PruneEffects();
     bool EditMorphKeys(unsigned panel, const std::optional<std::int32_t>& shift, std::string&);
     bool DeleteKeys(State next, const std::set<KeyAddress>&, std::string&, bool markedModelRecords);
     std::uint64_t gravityEpoch_ = 0;

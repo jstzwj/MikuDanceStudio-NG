@@ -579,6 +579,10 @@ bool EditorSession::New(std::string& reason) {
     state_ = std::move(next);
     runtime_ = std::move(runtime);
     path_.clear();
+    effects_ = {};
+    effectUndo_.clear();
+    effectRedo_.clear();
+    ++effectRevision_;
     toonImages_.clear();
     histories_.clear();
     for (auto& clipboard : clipboards_)
@@ -654,6 +658,7 @@ bool EditorSession::Commit(State next, std::string& reason, const HistoryBatch& 
     runtime_->Pause();
     state_ = std::move(next);
     selection_ = state_.selection;
+    PruneEffects();
     if (selection_.model != 255 && coordinateSystem_ == 2)
         coordinateSystem_ = 0;
     revision_ = nextRevision_++;
@@ -791,8 +796,16 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
     std::unique_ptr<runtime::SceneRuntime> runtime;
     if (!Prepare(next, runtime, reason))
         return false;
+    EffectDocument effects;
+    if (!LoadProjectEffects(absolute, effects, reason))
+        return false;
     runtime_ = std::move(runtime);
     state_ = std::move(next);
+    effects_ = std::move(effects);
+    effectUndo_.clear();
+    effectRedo_.clear();
+    ++effectRevision_;
+    PruneEffects();
     path_ = absolute;
     toonImages_.clear();
     InitializeModelToons(state_.assets);
@@ -846,7 +859,7 @@ bool EditorSession::Save(const std::filesystem::path& path, const AtomicWrite& w
     std::vector<std::uint8_t> bytes;
     if (!SceneSession::Create(next.document, session, reason) || !session.Save(Bytes, &bytes))
         return false;
-    if (!write(absolute, bytes, reason))
+    if (!SaveProjectEffects(effects_, absolute, bytes, write, reason))
         return false;
     // Paths are rewritten again on every Save As, using the retained absolute
     // references. Saving never needs to re-evaluate the scene or reset physics.
