@@ -86,7 +86,7 @@ fallback glyph differences follow the accepted P4 policy.
 The complete runtime includes Qt Multimedia's FFmpeg plugin and shared codec
 libraries. The editor never invokes a system `ffmpeg` executable. Keep the whole
 portable directory and its notices together. File → the original video-export
-command opens MP4/Matroska/PNG settings; the legacy AVI label does not imply a
+command opens MP4/MOV/PNG settings; the legacy AVI label does not imply a
 VFW encoder. Export runs on a frozen scene in a background worker.
 
 For the P6.1 desktop gate, run:

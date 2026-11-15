@@ -4,7 +4,7 @@
 namespace mikudancestudio::qt {
 enum class VideoProfile {
     Mp4,
-    Matroska
+    Mov
 };
 // Qt's FFmpeg backend; no camera, audio device, screen capture or external exe.
 // Ready-to-send backpressure bounds pending input, plus one caller-owned frame.

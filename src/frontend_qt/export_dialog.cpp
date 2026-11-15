@@ -25,12 +25,11 @@ void ExportTask::run() {
         return !cancel.load();
     };
     try {
-        success =
-            format == 0
-                ? ExportImages(snapshot, builtins, backend, destination, settings, progress, reason)
-                : ExportMovie(snapshot, builtins, backend, destination, settings,
-                              format == 1 ? VideoProfile::Mp4 : VideoProfile::Matroska, audio,
-                              progress, reason);
+        success = format == 0 ? ExportImages(snapshot, builtins, backend, destination, settings,
+                                             progress, reason)
+                              : ExportMovie(snapshot, builtins, backend, destination, settings,
+                                            format == 1 ? VideoProfile::Mp4 : VideoProfile::Mov,
+                                            audio, progress, reason);
     } catch (const std::exception& error) {
         reason = std::string("export-exception:") + error.what();
     } catch (...) {
@@ -55,7 +54,7 @@ ExportDialog::ExportDialog(editor::EditorSession& session, Language& language,
     };
     format_ = new QComboBox(settings_);
     format_->setObjectName("export.format");
-    format_->addItems({"PNG", "MP4 · MPEG-4 / AAC", "Matroska · Motion JPEG / PCM"});
+    format_->addItems({"PNG", "MP4 · MPEG-4 / AAC", "MOV · Motion JPEG / PCM"});
     form->addRow(label("export.format"), format_);
     rate_ = new QComboBox(settings_);
     rate_->setObjectName("export.rate");
@@ -133,7 +132,7 @@ ExportDialog::ExportDialog(editor::EditorSession& session, Language& language,
     audio_->setEnabled(false);
     connect(browse_, &QPushButton::clicked, this, [this] {
         const auto filter = format_->currentIndex() == 1   ? "MP4 (*.mp4)"
-                            : format_->currentIndex() == 2 ? "Matroska (*.mkv)"
+                            : format_->currentIndex() == 2 ? "MOV (*.mov)"
                                                            : QString();
         QFileDialog dialog(this, language_.Text("export.destination"));
         dialog.setAcceptMode(QFileDialog::AcceptSave);
@@ -142,7 +141,7 @@ ExportDialog::ExportDialog(editor::EditorSession& session, Language& language,
         dialog.setNameFilter(filter);
         dialog.selectFile(format_->currentIndex() == 0   ? "frames"
                           : format_->currentIndex() == 1 ? "video.mp4"
-                                                         : "video.mkv");
+                                                         : "video.mov");
         if (dialog.exec() == QDialog::Accepted && !dialog.selectedFiles().isEmpty())
             destination_->setText(dialog.selectedFiles().front());
     });

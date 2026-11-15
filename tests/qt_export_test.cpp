@@ -70,8 +70,8 @@ int main(int argc, char** argv) {
     settings.first = 30;
     settings.last = 59;
     CHECK(render::MakeExportTimeline(settings, timeline, reason));
-    for (unsigned clip = 0; clip < 3; ++clip) {
-        const auto profile = clip == 1 ? qt::VideoProfile::Matroska : qt::VideoProfile::Mp4;
+    for (unsigned clip = 0; clip < 4; ++clip) {
+        const auto profile = (clip & 1) ? qt::VideoProfile::Mov : qt::VideoProfile::Mp4;
         if (clip == 2) {
             settings.last = 3629;
             settings.rateNumerator = 30000;
@@ -85,8 +85,9 @@ int main(int argc, char** argv) {
         }
         qt::VideoEncoder encoder;
         const auto target = directory / (clip == 2                          ? "clock-ntsc.mp4"
+                                         : clip == 3                        ? "clock-ntsc.mov"
                                          : profile == qt::VideoProfile::Mp4 ? "clock.mp4"
-                                                                            : "clock.mkv");
+                                                                            : "clock.mov");
         CHECK(encoder.Open(target, timeline, profile, &wave, [] { return true; }, reason));
         for (unsigned n = 0; n < timeline.frames; ++n) {
             render::ExportFrame frame{n, timeline.TimestampUs(n), timeline.TimestampUs(n + 1), {}};
@@ -155,7 +156,7 @@ int main(int argc, char** argv) {
         reason));
     CHECK(reason == "export-cancelled" && !std::filesystem::exists(directory / "cancel.mp4"));
     CHECK(callbacks > 1);
-    CHECK(!qt::ExportMovie(snapshot, argv[2], options, directory / "wrong.avi", settings,
+    CHECK(!qt::ExportMovie(snapshot, argv[2], options, directory / "wrong.mov", settings,
                            qt::VideoProfile::Mp4, false, {}, reason));
     CHECK(reason == "export-video-extension-mismatch");
     auto broken = snapshot;

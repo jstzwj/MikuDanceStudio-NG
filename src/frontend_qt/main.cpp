@@ -132,8 +132,8 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
         if (!window.Session().ImportWave(qt::Path(project).parent_path() / "export.wav", reason))
             return fail(15, "deployment audio: " + QString::fromStdString(reason));
         snapshot.assets.wave = window.Session().Assets().wave;
-        for (auto profile : {qt::VideoProfile::Mp4, qt::VideoProfile::Matroska}) {
-            const auto output = report + (profile == qt::VideoProfile::Mp4 ? ".mp4" : ".mkv");
+        for (auto profile : {qt::VideoProfile::Mp4, qt::VideoProfile::Mov}) {
+            const auto output = report + (profile == qt::VideoProfile::Mp4 ? ".mp4" : ".mov");
             if (!qt::ExportMovie(snapshot, assets, options, qt::Path(output), settings, profile,
                                  true, {}, reason) ||
                 QFileInfo(output).size() < 1024)

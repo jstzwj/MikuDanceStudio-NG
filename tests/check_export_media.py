@@ -32,18 +32,20 @@ def check_audio_length(stream, expected, decoded):
 
 
 def inspect(path):
-    info = json.loads(run('ffprobe', '-v', 'error', '-count_frames', '-show_streams', '-show_frames', '-of', 'json', path))
+    info = json.loads(run('ffprobe', '-v', 'error', '-count_frames', '-show_format', '-show_streams', '-show_frames', '-of', 'json', path))
     stream = next(s for s in info['streams'] if s['codec_type'] == 'video')
     long = 'ntsc' in path.name
     rate = Fraction(30000, 1001) if long else Fraction(60, 1)
     count = 3597 if long else 60
+    duration = float(info['format']['duration'])
+    assert abs(duration - float(count / rate)) <= .0011, ('container duration', duration, str(count / rate))
     frames = [f for f in info['frames'] if f['media_type'] == 'video']
     assert int(stream['nb_read_frames']) == count
     assert Fraction(stream['r_frame_rate']) == rate
     assert abs(float(Fraction(stream['avg_frame_rate']) - rate)) < .001
     times = [float(f['best_effort_timestamp_time']) for f in frames]
     timing_error = max(abs(t - float(n / rate)) for n, t in enumerate(times))
-    assert timing_error <= .0011, timing_error  # Matroska uses a 1 ms container timebase.
+    assert timing_error <= .0011, timing_error
     video = run('ffmpeg', '-v', 'error', '-i', path, '-map', '0:v:0', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-')
     assert len(video) == count * 160 * 96 * 3
     color_errors = []
@@ -60,7 +62,7 @@ def inspect(path):
     mse = sum(e*e for e in color_errors) / len(color_errors)
     psnr = 10 * math.log10(255**2 / mse) if mse else 100
     assert psnr >= 30, psnr
-    if path.suffix == '.mkv':
+    if path.suffix == '.mov':
         assert max(color_errors) <= 10, max(color_errors)
     samples = array.array('f')
     samples.frombytes(run('ffmpeg', '-v', 'error', '-i', path, '-map', '0:a:0', '-f', 'f32le', '-'))
@@ -73,11 +75,11 @@ def inspect(path):
     assert abs(min(active) - 12000) <= 48 and abs(max(active) - (pulse+479)) <= 48
     assert max(abs(x) for x in left[(pulse+24000 if long else 30000):]) < .001
     assert min(right[12048:12432]) < -.4 and max(left[12048:12432]) > .6
-    if path.suffix == '.mkv':
-        assert len(left) == 48000
+    if path.suffix == '.mov':
+        assert len(left) == audio_count
         assert all(abs(left[n] - .75) < 1/32768 and abs(right[n] + .5) < 1/32768 for n in range(12000, 12480))
     return dict(file=path.name, sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
-                videoCodec=stream['codec_name'], decodedFrames=len(frames),
+                videoCodec=stream['codec_name'], decodedFrames=len(frames), containerDurationSeconds=duration,
                 maxTimestampErrorSeconds=timing_error, maxRgbByteError=max(color_errors),
                 colorPatchPsnrDb=psnr, frameNumbersVerified=True, frameCounterBits=12,
                 decodedAudioFrames=len(left), declaredAudioSampleFrames=declared,
@@ -97,12 +99,14 @@ def main():
             raise RuntimeError(f'{tool} is required for independent export qualification (test-only)')
     if args.deployed_prefix:
         result = []
-        for suffix in ('.mp4', '.mkv'):
+        for suffix in ('.mp4', '.mov'):
             movie = args.deployed_prefix.with_suffix(suffix)
-            info = json.loads(run('ffprobe', '-v', 'error', '-count_frames', '-show_streams', '-of', 'json', movie))
+            info = json.loads(run('ffprobe', '-v', 'error', '-count_frames', '-show_format', '-show_streams', '-of', 'json', movie))
             video = next(s for s in info['streams'] if s['codec_type'] == 'video')
             audio = next(s for s in info['streams'] if s['codec_type'] == 'audio')
             assert (video['width'], video['height'], int(video['nb_read_frames'])) == (96, 64, 2)
+            assert Fraction(video['r_frame_rate']) == 30
+            assert abs(float(info['format']['duration']) - 2/30) <= .0011
             assert int(audio['sample_rate']) == 48000 and int(audio['channels']) == 2
             samples = array.array('f')
             samples.frombytes(run('ffmpeg', '-v', 'error', '-i', movie, '-map', '0:a:0', '-f', 'f32le', '-'))
@@ -128,7 +132,7 @@ def main():
         env = os.environ.copy()
         env.update(QT_QPA_PLATFORM='offscreen', QT_MEDIA_BACKEND='ffmpeg', MDS_EXPORT_EVIDENCE=str(output))
         subprocess.run([args.program, str(root), args.assets], check=True, env=env, timeout=120)
-        results = [inspect(output / name) for name in ('clock.mp4', 'clock.mkv', 'clock-ntsc.mp4')]
+        results = [inspect(output / name) for name in ('clock.mp4', 'clock.mov', 'clock-ntsc.mp4', 'clock-ntsc.mov')]
         original = run('ffmpeg', '-v', 'error', '-framerate', '30', '-i',
                        output/'sequence/frame_%08d.png', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-')
         assert len(original) == 3*160*96*3

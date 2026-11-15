@@ -139,7 +139,7 @@ def main():
         if args.media:
             if not evidence.get('mediaExport'):
                 raise RuntimeError('Packaged video/audio export was not executed')
-            for suffix in ('.mp4', '.mkv'):
+            for suffix in ('.mp4', '.mov'):
                 if Path(str(report) + suffix).stat().st_size < 1024:
                     raise RuntimeError('Packaged encoder did not publish a complete movie')
                 shutil.copy2(str(report) + suffix, diagnostic.with_suffix(suffix))
