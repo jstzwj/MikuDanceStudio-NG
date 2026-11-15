@@ -1,19 +1,19 @@
 #include "export.hpp"
 #include "editor_window.hpp"
+#include <QCoreApplication>
 #include <QTemporaryDir>
 #include <QDir>
 #include <QSaveFile>
 #include <QJsonDocument>
 #include <QJsonObject>
 namespace mikudancestudio::qt {
-bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::path& builtins,
-                    const rhi::BackendOptions& options, const std::filesystem::path& destination,
-                    unsigned first, unsigned last, unsigned width, unsigned height,
-                    const ExportProgress& progress, std::string& reason) {
-    if (first > last || last > 10000000 || !width || !height || width > 4096 || height > 4096) {
-        reason = "invalid-export-range-or-size";
+bool ExportImages(const render::ExportSnapshot& snapshot, const std::filesystem::path& builtins,
+                  const rhi::BackendOptions& options, const std::filesystem::path& destination,
+                  const render::ExportSettings& settings, const ExportProgress& progress,
+                  std::string& reason) {
+    render::ExportTimeline timeline;
+    if (!render::MakeExportTimeline(settings, timeline, reason))
         return false;
-    }
     const auto target = std::filesystem::absolute(destination).lexically_normal();
     if (std::filesystem::exists(target)) {
         reason = "export-destination-exists";
@@ -28,103 +28,36 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
         reason = "export-staging-unavailable";
         return false;
     }
-    const auto total = last - first + 1;
-    const auto effectDocument = editor.Effects();
-    const auto effectRevision = editor.EffectRevision();
-    if (progress && !progress(0, total)) {
-        reason = "export-cancelled";
+    if (!render::RunExport(
+            snapshot, builtins, options, settings,
+            [&](const render::ExportFrame& frame, std::string& error) {
+                QImage image(frame.rgba.data(), int(settings.width), int(settings.height),
+                             int(settings.width * 4), QImage::Format_RGBA8888);
+                const auto name =
+                    QString("frame_%1.png").arg(settings.first + frame.index, 8, 10, QChar('0'));
+                QSaveFile file(staging.path() + "/" + name);
+                if (!file.open(QIODevice::WriteOnly) || !image.save(&file, "PNG") ||
+                    !file.commit()) {
+                    error = "export-image-write-failed";
+                    return false;
+                }
+                return true;
+            },
+            progress, reason))
         return false;
-    }
-    format::SceneSession session;
-    if (!format::SceneSession::Create(editor.Document(), session, reason))
-        return false;
-    runtime::SceneRuntime scene;
-    if (!scene.LoadResources(std::move(session), editor.Assets().models, reason))
-        return false;
-    for (const auto& a : editor.Assets().accessories)
-        if (!scene.AttachAccessory(a.first, a.second, reason))
-            return false;
-    const format::PmmSceneApplication application{true, true,
-                                                  format::PmmPlaybackArithmetic::NativeFloat};
-    if (!scene.Seek(0, reason) || !scene.StartPlayback(reason, application))
-        return false;
-    auto backend = rhi::CreateOffscreenBackendDevice(width, height, options);
-    if (!backend) {
-        reason = backend.reason;
-        return false;
-    }
-    rhi::FileAssetSource files(builtins);
-    render::SceneFrameProducer producer;
-    render::SceneEffects effects;
-    const auto sources = EditorRenderSources(editor.Assets());
-    if (!producer.Load(scene, sources, files, reason))
-        return false;
-    render::SceneRenderSettings settings;
-    settings.width = width;
-    settings.height = height;
-    settings.display = editor.DisplayOptions();
-    const auto samples = settings.display.antialiasing ? SceneAntialiasSamples(*backend.device) : 1;
-    rhi::SceneRenderer renderer(*backend.device);
-    rhi::PreparedModelFrame prepared;
-    rhi::CompletionToken token;
-    for (unsigned index = 0; index <= last; ++index) {
-        if (progress && !progress(index < first ? 0 : index - first, total)) {
-            reason = "export-cancelled";
-            return false;
-        }
-        if (index && !scene.Advance(float(double(index) / 30), 1.f / 30, reason, application))
-            return false;
-        if (index < first && !scene.Session()->Document().view.captureMode &&
-            !producer.HasMaterialHistory() && effectDocument.assignments.empty())
-            continue;
-        rhi::RenderFrame frame;
-        if (!producer.Build(scene, settings, frame, reason))
-            return false;
-        rhi::RenderFrame effected;
-        if (!effects.Build(effectDocument, effectRevision, scene, sources, settings, options, frame,
-                           effected, reason))
-            return false;
-        frame = std::move(effected);
-        auto result = rhi::ApplyFrameMultisampling(frame, samples);
-        if (result)
-            result = renderer.Prepare(1, frame, prepared);
-        if (result)
-            result = renderer.Submit(prepared, token);
-        if (!result) {
-            reason = result.reason;
-            return false;
-        }
-        producer.Commit();
-        if (!effects.Commit(reason))
-            return false;
-        if (index < first) {
-            if (!renderer.Collect()) {
-                reason = "export-resource-collection-failed";
-                return false;
-            }
-            continue;
-        }
-        rhi::AttachmentReadback pixels;
-        if (!renderer.ReadTarget(1, frame.finalColor, pixels)) {
-            reason = "export-readback-failed";
-            return false;
-        }
-        QImage image(pixels.bytes.data(), int(width), int(height), int(width * 4),
-                     QImage::Format_RGBA8888);
-        const auto name = QString("frame_%1.png").arg(index, 8, 10, QChar('0'));
-        QSaveFile file(staging.path() + "/" + name);
-        if (!file.open(QIODevice::WriteOnly) || !image.save(&file, "PNG") || !file.commit()) {
-            reason = "export-image-write-failed";
-            return false;
-        }
-        if (!renderer.Collect()) {
-            reason = "export-resource-collection-failed";
-            return false;
-        }
-    }
-    QJsonObject manifest{{"version", 1},       {"fps", 30},           {"first", int(first)},
-                         {"last", int(last)},  {"width", int(width)}, {"height", int(height)},
-                         {"alpha", "straight"}};
+    QJsonObject manifest{
+        {"version", 2},
+        {"fps", double(settings.rateNumerator) / settings.rateDenominator},
+        {"rateNumerator", int(timeline.settings.rateNumerator)},
+        {"rateDenominator", int(timeline.settings.rateDenominator)},
+        {"first", int(settings.first)},
+        {"last", int(settings.last)},
+        {"frames", int(timeline.frames)},
+        {"width", int(settings.width)},
+        {"height", int(settings.height)},
+        {"startUs", double(std::uint64_t(settings.first) * 1000000 / 30)},
+        {"durationUs", double(timeline.TimestampUs(timeline.frames))},
+        {"alpha", settings.alpha == render::ExportAlpha::Straight ? "straight" : "opaque"}};
     QSaveFile metadata(staging.path() + "/sequence.json");
     const auto bytes = QJsonDocument(manifest).toJson();
     if (!metadata.open(QIODevice::WriteOnly) || metadata.write(bytes) != bytes.size() ||
@@ -132,7 +65,7 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
         reason = "export-manifest-write-failed";
         return false;
     }
-    if (progress && !progress(total, total)) {
+    if (progress && !progress(timeline.frames, timeline.frames)) {
         reason = "export-cancelled";
         return false;
     }
@@ -143,5 +76,18 @@ bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::
     staging.setAutoRemove(false);
     reason.clear();
     return true;
+}
+bool ExportSequence(const editor::EditorSession& editor, const std::filesystem::path& builtins,
+                    const rhi::BackendOptions& options, const std::filesystem::path& destination,
+                    unsigned first, unsigned last, unsigned width, unsigned height,
+                    const ExportProgress& progress, std::string& reason) {
+    auto snapshot = render::CaptureExport(editor);
+    snapshot.sharedToons = Path(QCoreApplication::applicationDirPath()) / "data";
+    render::ExportSettings settings;
+    settings.first = first;
+    settings.last = last;
+    settings.width = width;
+    settings.height = height;
+    return ExportImages(snapshot, builtins, options, destination, settings, progress, reason);
 }
 }

@@ -6,6 +6,7 @@ function(mds_add_scene_render)
     add_library(mikudancestudio_scene_render STATIC "${mds_root}/src/render/scene_frame_producer.cpp"
         "${mds_root}/src/render/scene_editor_overlay.cpp"
         "${mds_root}/src/render/physics_debug_geometry.cpp")
+    target_sources(mikudancestudio_scene_render PRIVATE "${mds_root}/src/render/export_job.cpp")
     target_link_libraries(mikudancestudio_scene_render PUBLIC mikudancestudio_scene_runtime mikudancestudio_rhi)
     target_sources(mikudancestudio_scene_render PRIVATE "${mds_root}/src/render/mme/scene_effects.cpp")
     target_link_libraries(mikudancestudio_scene_render PUBLIC mikudancestudio_mme_render)

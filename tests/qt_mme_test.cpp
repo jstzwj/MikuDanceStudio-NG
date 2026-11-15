@@ -34,6 +34,18 @@ mikudancestudio::mme::ParameterValue Value(std::initializer_list<float> words) {
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
     CHECK(argc == 3 && QGuiApplication::platformName() == "offscreen");
+    render::ExportSettings clockSettings;
+    render::ExportTimeline clock;
+    clockSettings.first = 30;
+    clockSettings.last = 59;
+    clockSettings.rateNumerator = 30000;
+    clockSettings.rateDenominator = 1001;
+    CHECK(render::MakeExportTimeline(clockSettings, clock, reason));
+    CHECK(clock.frames == 30 && clock.TimestampUs(30) == 1001000);
+    CHECK(clock.SourceSeconds(0) == 1 && clock.SourceAudioSample(48000) == 48000);
+    CHECK(clock.AudioSample(30, 48000) == 48048);
+    clockSettings.rateDenominator = 0;
+    CHECK(!render::MakeExportTimeline(clockSettings, clock, reason) && clock.frames == 30);
     const auto root = std::filesystem::absolute(argv[1]),
                assets = std::filesystem::absolute(argv[2]);
     std::filesystem::copy(MDS_EDITOR_EFFECTS_DIR, root / "effects",

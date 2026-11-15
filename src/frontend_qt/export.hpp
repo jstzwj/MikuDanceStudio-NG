@@ -1,7 +1,11 @@
 #pragma once
 #include "viewport.hpp"
+#include "mikudancestudio/export_job.hpp"
 namespace mikudancestudio::qt {
 using ExportProgress = std::function<bool(unsigned completed, unsigned total)>;
+bool ExportImages(const render::ExportSnapshot&, const std::filesystem::path& builtins,
+                  const rhi::BackendOptions&, const std::filesystem::path& destination,
+                  const render::ExportSettings&, const ExportProgress&, std::string&);
 // Deterministic 30fps sequence, including physics warm-up from frame zero.
 // The destination must not exist. A sibling staging directory is published by
 // rename after success; cancellation/failure removes only that private staging.
