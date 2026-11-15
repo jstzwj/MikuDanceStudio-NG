@@ -98,9 +98,9 @@ int main(int argc, char** argv) {
                     frame.rgba[offset + 1] = std::uint8_t(y * 2);
                     frame.rgba[offset + 2] = x < 80 ? 32 : 224;
                     frame.rgba[offset + 3] = 255;
-                    if (y >= 80 && x < 96)
+                    if (y >= 80 && x < 144)
                         for (unsigned c = 0; c < 3; ++c)
-                            frame.rgba[offset + c] = (n & (1u << (x / 16))) ? 240 : 16;
+                            frame.rgba[offset + c] = (n & (1u << (x / 12))) ? 240 : 16;
                 }
             CHECK(encoder.Write(frame, reason));
         }
@@ -217,6 +217,11 @@ int main(int argc, char** argv) {
     dialog.findChild<QSpinBox*>("export.range.last")->setValue(2);
     dialog.findChild<QSpinBox*>("export.size.first")->setValue(160);
     dialog.findChild<QSpinBox*>("export.size.last")->setValue(96);
+    auto* rate = dialog.findChild<QComboBox*>("export.rate");
+    rate->setEditText("30/1/2");
+    dialog.findChild<QPushButton*>("export.start")->click();
+    CHECK(!dialog.Running());
+    rate->setEditText("30");
     dialog.findChild<QPushButton*>("export.start")->click();
     CHECK(dialog.Running());
     deadline.restart();

@@ -52,8 +52,8 @@ def inspect(path):
             offset = ((n * 96 + y) * 160 + x) * 3
             expected = ((n * 3) % 256, y * 2, 32 if x < 80 else 224)
             color_errors.extend(abs(video[offset+c] - expected[c]) for c in range(3))
-        for bit in range(6):
-            offset = ((n*96+88)*160+bit*16+8)*3
+        for bit in range(12):
+            offset = ((n*96+88)*160+bit*12+6)*3
             assert (video[offset] > 128) == bool(n & (1 << bit)), ('wrong decoded frame number', n, bit)
     # Lossy video is evaluated by decoded frame identity and image quality,
     # never compared as compressed bytes. Raw export stays byte-exact.
@@ -79,7 +79,7 @@ def inspect(path):
     return dict(file=path.name, sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
                 videoCodec=stream['codec_name'], decodedFrames=len(frames),
                 maxTimestampErrorSeconds=timing_error, maxRgbByteError=max(color_errors),
-                colorPatchPsnrDb=psnr, frameNumbersVerified=True,
+                colorPatchPsnrDb=psnr, frameNumbersVerified=True, frameCounterBits=12,
                 decodedAudioFrames=len(left), declaredAudioSampleFrames=declared,
                 audioPulseFirst=min(active), audioPulseLast=max(active),
                 trailingSilence=True)

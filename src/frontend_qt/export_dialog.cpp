@@ -192,8 +192,13 @@ void ExportDialog::Start() {
     task->settings.width = unsigned(width_->value());
     task->settings.height = unsigned(height_->value());
     auto rate = rate_->currentText().split('/');
-    task->settings.rateNumerator = rate[0].toUInt();
-    task->settings.rateDenominator = rate.size() == 2 ? rate[1].toUInt() : 1;
+    bool numeratorValid = false, denominatorValid = true;
+    task->settings.rateNumerator = rate[0].toUInt(&numeratorValid);
+    task->settings.rateDenominator = rate.size() == 2 ? rate[1].toUInt(&denominatorValid) : 1;
+    if (rate.size() > 2 || !numeratorValid || !denominatorValid) {
+        status_->setText("invalid-export-rate");
+        return;
+    }
     task->format = format_->currentIndex();
     task->audio = audio_->isChecked();
     task->settings.alpha = task->format == 0 && alpha_->isChecked() ? render::ExportAlpha::Straight
