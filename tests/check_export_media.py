@@ -17,6 +17,20 @@ def run(*command):
     return subprocess.run([str(x) for x in command], check=True, capture_output=True, timeout=120).stdout
 
 
+def check_audio_length(stream, expected, decoded):
+    if stream['codec_name'].startswith('pcm_'):
+        assert decoded == expected, ('PCM sample count', decoded, expected)
+        return expected
+    # MP4 edit lists use the movie clock (Qt's muxer uses 1 ms), separate
+    # from the 48 kHz audio clock. New decoders honor the truncated final
+    # edit; older decoders emit the remaining AAC packet padding instead.
+    declared = Fraction(int(stream['duration_ts'])) * Fraction(stream['time_base']) * int(stream['sample_rate'])
+    quantum = int(stream['sample_rate']) / 1000
+    assert abs(declared - expected) <= quantum + 1, ('AAC edit duration', declared, expected)
+    assert min(expected, math.floor(declared)) <= decoded <= max(expected, math.ceil(declared)) + 1024, ('AAC decoded tail', decoded, str(declared))
+    return float(declared)
+
+
 def inspect(path):
     info = json.loads(run('ffprobe', '-v', 'error', '-count_frames', '-show_streams', '-show_frames', '-of', 'json', path))
     stream = next(s for s in info['streams'] if s['codec_type'] == 'video')
@@ -52,7 +66,8 @@ def inspect(path):
     samples.frombytes(run('ffmpeg', '-v', 'error', '-i', path, '-map', '0:a:0', '-f', 'f32le', '-'))
     left, right = samples[::2], samples[1::2]
     audio_count = int(count / rate * 48000)
-    assert audio_count <= len(left) <= audio_count + 1024  # AAC final packet padding.
+    audio_stream = next(s for s in info['streams'] if s['codec_type'] == 'audio')
+    declared = check_audio_length(audio_stream, audio_count, len(left))
     active = [n for n, value in enumerate(left) if abs(value) > .2]
     pulse = 5724000 if long else 12000
     assert abs(min(active) - 12000) <= 48 and abs(max(active) - (pulse+479)) <= 48
@@ -65,7 +80,8 @@ def inspect(path):
                 videoCodec=stream['codec_name'], decodedFrames=len(frames),
                 maxTimestampErrorSeconds=timing_error, maxRgbByteError=max(color_errors),
                 colorPatchPsnrDb=psnr, frameNumbersVerified=True,
-                decodedAudioFrames=len(left), audioPulseFirst=min(active), audioPulseLast=max(active),
+                decodedAudioFrames=len(left), declaredAudioSampleFrames=declared,
+                audioPulseFirst=min(active), audioPulseLast=max(active),
                 trailingSilence=True)
 
 
@@ -90,10 +106,11 @@ def main():
             assert int(audio['sample_rate']) == 48000 and int(audio['channels']) == 2
             samples = array.array('f')
             samples.frombytes(run('ffmpeg', '-v', 'error', '-i', movie, '-map', '0:a:0', '-f', 'f32le', '-'))
-            assert 3200 <= len(samples)//2 <= 4224
+            declared = check_audio_length(audio, 3200, len(samples)//2)
             assert max(samples[::2]) > .2 and min(samples[::2]) < -.2
             assert max(abs(x) for x in samples[1::2]) < .001
             result.append(dict(file=movie.name, decodedFrames=2, audioFrames=len(samples)//2,
+                               declaredAudioSampleFrames=declared,
                                videoCodec=video['codec_name'], audioCodec=audio['codec_name']))
         report = dict(schema=1, passed=True, packagedMedia=result)
         args.deployed_prefix.with_suffix('.decoded.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
