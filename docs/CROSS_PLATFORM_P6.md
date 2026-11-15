@@ -29,3 +29,33 @@ PNG 支持直通 Alpha；不支持 Alpha 的视频采用明确的不透明背景
 
 取消在预热、生产、编码及发布前检查；私有同级临时目录仅在全部成功后发布。
 目标已存在则拒绝，不覆盖用户文件。失败或取消不得改变编辑器文档、播放游标或物理。
+
+### 编码与音频
+
+首批显式提供 MP4（MPEG-4 Part 2／AAC）及 Matroska（Motion JPEG／PCM16）。不冒充
+H.264，不在缺编解码器时静默换格式。两者均是有损视频；PNG 保持原始 RGBA，视频
+按不透明背景合成并要求偶数尺寸。Qt 6.8 的软件 MPEG-4 编码器不能完整映射质量／
+码率选项，因此该兼容格式不承诺可调码率或无损质量；高保真原始输出使用 PNG。
+
+通过 Qt 的 `QVideoFrameInput`／`QAudioBufferInput` 就绪信号反压，不预生成整段帧。
+应用一次只交接一个图像和最多 1024 个音频采样帧；输入队列由固定 Qt 后端限制。
+等待使用事件通知和 10 ms 取消检查，不使用轮询休眠限制编码速度。首个视频输入先于
+多块音频，避免首次双流初始化等待。最终 EOS／取消后的 stop 都等待异步封装结束，
+文件关闭后才清理或发布。每次输入／结束等待超过 30 秒给出停滞错误。
+
+WAV 解析沿用现有 PCM／float 单双声道读取器。按导出起点裁掉前段，按每个输出区间
+的整数采样边界传输，源结束后填零；无 WAV 或未勾选时只写视频。首次限定 WAV 文件
+256 MiB、采样率不超过 192 kHz；分块编码不额外复制完整音轨。AAC 解码后的末包可能
+含填充，PCM 的样本数精确等于有理数时长取整；参考检查分别验证内容与时间。
+
+独立检查 `tests/check_export_media.py` 使用测试机的 ffprobe／ffmpeg 解码，二者不随
+产品部署、也不参与生产编码。验证 60fps 和 120 秒 30000/1001 片段的每帧二进制序号、
+PTS、首尾音频脉冲、双声道符号、裁剪和尾静音。解码有损颜色块采用 PSNR ≥30 dB，
+MJPEG 另要求最多 10 个 RGB 码值；原始复制／30fps 回归仍要求精确相等。容器时间戳
+允许其声明的刻度量化（Matroska 为 1 ms），不能拿压缩字节一致性代替内容验证。
+
+接口依据：
+[Qt 6.8 视频输入](https://doc.qt.io/qt-6.8/qvideoframeinput.html)、
+[音频输入](https://doc.qt.io/qt-6.8/qaudiobufferinput.html)、
+[Recorder EOS](https://doc.qt.io/qt-6.8/qmediarecorder.html#autoStop-prop)、
+[Qt 6.8.3 编码选项](https://github.com/qt/qtmultimedia/blob/v6.8.3/src/plugins/multimedia/ffmpeg/recordingengine/qffmpegencoderoptions.cpp)。
