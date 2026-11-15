@@ -2,7 +2,16 @@
 
 当前独立维护仓库：[MikuDanceStudio-NG](https://github.com/jstzwj/MikuDanceStudio-NG)，默认分支 `main`，由原仓库 `next@9afd91a` 保留完整历史迁入。下文初始 `main`／`next` 基线和历史验收链接均指迁移前的 MikuDanceStudio 仓库。
 
-更新时间：2026-11-08。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
+更新时间：2026-11-15。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
+
+**P6 最新状态（2026-11-15）：P6.1 统一导出与带音频视频已在声明的桌面范围完成。**
+PNG 与 MP4 共享独立场景／MME 帧生产，支持有理数帧率、区间、Alpha 契约、WAV
+裁剪／静音补齐、后台进度、取消及成功后发布。Windows x64 DX11／DX12、Linux x64
+Vulkan、macOS ARM64 Metal 的定向门禁和便携包检查通过，本机硬件 Vulkan 另行通过。
+30fps 原有精确导出回归保留；两种编码档位通过 120 秒分数帧率、完整帧号、时间戳与
+音频脉冲检查。能力、限制和实际构建提交见 [P6.1 验收](docs/CROSS_PLATFORM_P6.md) 与
+[证据](docs/evidence/p61-export-43698441877.json)。P6.2 背景视频解码／定位／RHI 合成
+尚未实施，完整 P6／P7 及 Windows ARM64／Android 媒体／MME 组合均未据此验收。
 
 **P5 最新状态（2026-11-08）：P5.1～P5.5 已在明确的桌面效果子集范围验收，C2 按此范围完成。**
 Qt 已接入效果分配／数值参数／多语言、保存重开及同一装配服务的视口和导出；原始 PMM

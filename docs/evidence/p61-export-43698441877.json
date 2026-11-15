@@ -1,0 +1,1042 @@
+{
+  "schema": 1,
+  "stage": "P6.1",
+  "accepted": true,
+  "date": "2026-11-15",
+  "scope": "Desktop frozen-scene PNG and audio/video export with the declared C2 MME subset; not arbitrary FX9/Ray or mobile media qualification",
+  "latestSource": "ff6fd2328fcc507dbf46df39687bef63f8b04858",
+  "featureCommits": [
+    "34c979a",
+    "8633a6a",
+    "7813582"
+  ],
+  "followups": [
+    "7ea8301",
+    "4bc7d41",
+    "30a773d",
+    "7cccd30",
+    "ff6fd23"
+  ],
+  "platforms": [
+    {
+      "platform": "Windows",
+      "architecture": "x64",
+      "driver": "WARP",
+      "source": "30a773d8b2d9d300a49a430ce3ffd28099f0b495",
+      "job": 132759576412,
+      "gates": [
+        {
+          "backend": "d3d11",
+          "passed": 4,
+          "skipped": 0,
+          "tests": [
+            "qt_menu",
+            "qt_export",
+            "qt_mme",
+            "qt_editor_render"
+          ],
+          "evidence": {
+            "file": "out\\evidence\\p61-ci-final-Windows\\build\\export-d3d11.xml",
+            "sha256": "cc8a29793f121c90831a001fe34bde7998bdb72d1d2a3a38fbc29e30aa5f3b8b"
+          }
+        },
+        {
+          "backend": "d3d12",
+          "passed": 4,
+          "skipped": 0,
+          "tests": [
+            "qt_menu",
+            "qt_export",
+            "qt_mme",
+            "qt_editor_render"
+          ],
+          "evidence": {
+            "file": "out\\evidence\\p61-ci-final-Windows\\build\\export-d3d12.xml",
+            "sha256": "7d85f1479bba85fd4e71aed304c33de39b888ca0d2d7c4f6695740e60b67eedf"
+          }
+        }
+      ],
+      "media": [
+        {
+          "schema": 1,
+          "backend": "d3d11",
+          "passed": true,
+          "media": [
+            {
+              "file": "clock.mp4",
+              "sha256": "6ebd4cb36a86ae36b8d69db33f42acb56dc4ec7813a6f67f7b2a5ea960c5f9be",
+              "videoCodec": "mpeg4",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "maxRgbByteError": 23,
+              "colorPatchPsnrDb": 32.620880771287645,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 48000,
+              "declaredAudioSampleFrames": 48000.0,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock.mov",
+              "sha256": "0caf2feaacec5db6a51330b906173b59f4587dfe5672c249fca469c2760b4f6b",
+              "videoCodec": "mjpeg",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "maxRgbByteError": 8,
+              "colorPatchPsnrDb": 36.13431820631065,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 48000,
+              "declaredAudioSampleFrames": 48000,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mp4",
+              "sha256": "7de1685de538393a2b617019fa02c22bd82e3c707d05f02f4676719911f53864",
+              "videoCodec": "mpeg4",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.02,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "maxRgbByteError": 23,
+              "colorPatchPsnrDb": 32.58419585907872,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 5760955,
+              "declaredAudioSampleFrames": 5760960.0,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mov",
+              "sha256": "fd92447cafe165e0f2fe1e35f5286d5f3695808d568c33181bc066407e1a5bf2",
+              "videoCodec": "mjpeg",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.019896,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "maxRgbByteError": 8,
+              "colorPatchPsnrDb": 35.86400090540292,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 5760955,
+              "declaredAudioSampleFrames": 5760955,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            }
+          ],
+          "sceneFrames": 3,
+          "materialAndTwoPassMme": true,
+          "scenePsnrDb": {
+            "scene.mp4": 31.766305571516536,
+            "worker.mp4": 31.766305571516536
+          },
+          "rawMmd30HzRegression": "separate qt_mme strict gate",
+          "ffmpegOracle": "ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers"
+        },
+        {
+          "schema": 1,
+          "backend": "d3d12",
+          "passed": true,
+          "media": [
+            {
+              "file": "clock.mp4",
+              "sha256": "6ebd4cb36a86ae36b8d69db33f42acb56dc4ec7813a6f67f7b2a5ea960c5f9be",
+              "videoCodec": "mpeg4",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "maxRgbByteError": 23,
+              "colorPatchPsnrDb": 32.620880771287645,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 48000,
+              "declaredAudioSampleFrames": 48000.0,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock.mov",
+              "sha256": "0caf2feaacec5db6a51330b906173b59f4587dfe5672c249fca469c2760b4f6b",
+              "videoCodec": "mjpeg",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "maxRgbByteError": 8,
+              "colorPatchPsnrDb": 36.13431820631065,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 48000,
+              "declaredAudioSampleFrames": 48000,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mp4",
+              "sha256": "7de1685de538393a2b617019fa02c22bd82e3c707d05f02f4676719911f53864",
+              "videoCodec": "mpeg4",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.02,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "maxRgbByteError": 23,
+              "colorPatchPsnrDb": 32.58419585907872,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 5760955,
+              "declaredAudioSampleFrames": 5760960.0,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mov",
+              "sha256": "fd92447cafe165e0f2fe1e35f5286d5f3695808d568c33181bc066407e1a5bf2",
+              "videoCodec": "mjpeg",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.019896,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "maxRgbByteError": 8,
+              "colorPatchPsnrDb": 35.86400090540292,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 5760955,
+              "declaredAudioSampleFrames": 5760955,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            }
+          ],
+          "sceneFrames": 3,
+          "materialAndTwoPassMme": true,
+          "scenePsnrDb": {
+            "scene.mp4": 30.535672742704726,
+            "worker.mp4": 30.535672742704726
+          },
+          "rawMmd30HzRegression": "separate qt_mme strict gate",
+          "ffmpegOracle": "ffmpeg version 9.0.2-essentials_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers"
+        }
+      ],
+      "package": {
+        "build": {
+          "system": "Windows",
+          "qt": "6.8.3",
+          "version": "0.0.2",
+          "vulkan": false,
+          "metal": false,
+          "mme": true,
+          "schema": 1,
+          "product": "MikuDanceStudio-NG",
+          "format": "portable",
+          "commit": "30a773d8b2d9d300a49a430ce3ffd28099f0b495",
+          "tag": null,
+          "arch": "x64",
+          "development": true,
+          "modified": false
+        },
+        "languages": [
+          "en",
+          "ja",
+          "zh_CN",
+          "zh_TW",
+          "ko",
+          "fr",
+          "de",
+          "es",
+          "it",
+          "pt_BR",
+          "ru",
+          "nl",
+          "pl",
+          "tr",
+          "vi"
+        ],
+        "qpa": "offscreen",
+        "visible": false,
+        "codecs": [
+          {
+            "file": "media-distribution.mp4",
+            "decodedFrames": 2,
+            "audioFrames": 3168,
+            "declaredAudioSampleFrames": 3168.0,
+            "videoCodec": "mpeg4",
+            "audioCodec": "aac"
+          },
+          {
+            "file": "media-distribution.mov",
+            "decodedFrames": 2,
+            "audioFrames": 3200,
+            "declaredAudioSampleFrames": 3200,
+            "videoCodec": "mjpeg",
+            "audioCodec": "pcm_s16le"
+          }
+        ],
+        "sdkAndExternalFfmpegPathRemoved": true,
+        "rawFxCompilerBundled": true,
+        "reports": [
+          {
+            "file": "out\\evidence\\p61-ci-final-Windows\\media-distribution.json",
+            "sha256": "46cda7a8a119aa3039eac9fc642bf91b03cb89b0ff953c54f6e2429f6d0e853e"
+          },
+          {
+            "file": "out\\evidence\\p61-ci-final-Windows\\media-distribution.decoded.json",
+            "sha256": "524c2265f1d66ff250a9dfe81cd41e8aa8182117f4ba7d1ff1661cf8f8c595fc"
+          },
+          {
+            "file": "out\\evidence\\p61-ci-final-Windows\\media-distribution.png",
+            "sha256": "21bc72a3e6254c79c73700c19a0feadf1cb69cd24822da0427eb21336c65676e"
+          }
+        ]
+      },
+      "run": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/43696966534",
+      "runOverallConclusion": "failure"
+    },
+    {
+      "platform": "macOS",
+      "architecture": "arm64",
+      "driver": "Metal, API validation enabled",
+      "source": "30a773d8b2d9d300a49a430ce3ffd28099f0b495",
+      "job": 132759576260,
+      "gates": [
+        {
+          "backend": "metal",
+          "passed": 4,
+          "skipped": 0,
+          "tests": [
+            "qt_menu",
+            "qt_export",
+            "qt_mme",
+            "qt_editor_render"
+          ],
+          "evidence": {
+            "file": "out\\evidence\\p61-ci-final-macOS\\build\\export-metal.xml",
+            "sha256": "328c3e20a608c4c52acf1ae35c8fe0638de6344630564891c9599b0f0a1d4783"
+          }
+        }
+      ],
+      "media": [
+        {
+          "schema": 1,
+          "backend": "metal",
+          "passed": true,
+          "media": [
+            {
+              "file": "clock.mp4",
+              "sha256": "3b459dfc9e428f9bc8c3f58b4184d3bc6ba35e2269b9ba76480bcf03d64c4369",
+              "videoCodec": "mpeg4",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "maxRgbByteError": 22,
+              "colorPatchPsnrDb": 32.95554577234089,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 48000,
+              "declaredAudioSampleFrames": 48000.0,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock.mov",
+              "sha256": "d67e55ee6a5aa854a7e2eaa766025f137b9d41549fc305897ccc4a3d57caf67c",
+              "videoCodec": "mjpeg",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "maxRgbByteError": 8,
+              "colorPatchPsnrDb": 36.13431820631065,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 48000,
+              "declaredAudioSampleFrames": 48000,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mp4",
+              "sha256": "b616caedaf7e25a2f4d4b1bf34542875d3e7c62c5edd3dee96ac2d3f972ea9e7",
+              "videoCodec": "mpeg4",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.02,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "maxRgbByteError": 23,
+              "colorPatchPsnrDb": 32.87047348439931,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 5760955,
+              "declaredAudioSampleFrames": 5760960.0,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mov",
+              "sha256": "27bd6810368146a1ec342a8d29f7bd84aaa042a3fb985299b3b7046d5240d856",
+              "videoCodec": "mjpeg",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.019896,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "maxRgbByteError": 8,
+              "colorPatchPsnrDb": 35.86400090540292,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 5760955,
+              "declaredAudioSampleFrames": 5760955,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            }
+          ],
+          "sceneFrames": 3,
+          "materialAndTwoPassMme": true,
+          "scenePsnrDb": {
+            "scene.mp4": 32.16564636270658,
+            "worker.mp4": 32.16564636270658
+          },
+          "rawMmd30HzRegression": "separate qt_mme strict gate",
+          "ffmpegOracle": "ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers"
+        }
+      ],
+      "package": {
+        "build": {
+          "system": "Darwin",
+          "qt": "6.8.3",
+          "version": "0.0.2",
+          "vulkan": false,
+          "metal": true,
+          "mme": true,
+          "schema": 1,
+          "product": "MikuDanceStudio-NG",
+          "format": "portable",
+          "commit": "30a773d8b2d9d300a49a430ce3ffd28099f0b495",
+          "tag": null,
+          "arch": "arm64",
+          "development": true,
+          "modified": false
+        },
+        "languages": [
+          "en",
+          "ja",
+          "zh_CN",
+          "zh_TW",
+          "ko",
+          "fr",
+          "de",
+          "es",
+          "it",
+          "pt_BR",
+          "ru",
+          "nl",
+          "pl",
+          "tr",
+          "vi"
+        ],
+        "qpa": "offscreen",
+        "visible": false,
+        "codecs": [
+          {
+            "file": "media-distribution.mp4",
+            "decodedFrames": 2,
+            "audioFrames": 3168,
+            "declaredAudioSampleFrames": 3168.0,
+            "videoCodec": "mpeg4",
+            "audioCodec": "aac"
+          },
+          {
+            "file": "media-distribution.mov",
+            "decodedFrames": 2,
+            "audioFrames": 3200,
+            "declaredAudioSampleFrames": 3200,
+            "videoCodec": "mjpeg",
+            "audioCodec": "pcm_s16le"
+          }
+        ],
+        "sdkAndExternalFfmpegPathRemoved": true,
+        "rawFxCompilerBundled": true,
+        "reports": [
+          {
+            "file": "out\\evidence\\p61-ci-final-macOS\\media-distribution.json",
+            "sha256": "8e0be5f8c88b3fcde84d90b11783ea0737d0a3b12400fc168ac1051e66d41efc"
+          },
+          {
+            "file": "out\\evidence\\p61-ci-final-macOS\\media-distribution.decoded.json",
+            "sha256": "61486e2e50b9a26117f2ce66cb6594e98c4d9b21ac26f6ffe9302ec39e2b3cfc"
+          },
+          {
+            "file": "out\\evidence\\p61-ci-final-macOS\\media-distribution.png",
+            "sha256": "d41e11cc39645bac31407a60e588df7037dce27a3c5c39e72c52323b39368f4b"
+          }
+        ]
+      },
+      "run": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/43696966534",
+      "runOverallConclusion": "failure"
+    },
+    {
+      "platform": "Linux",
+      "architecture": "x64",
+      "driver": "software Vulkan",
+      "source": "ff6fd2328fcc507dbf46df39687bef63f8b04858",
+      "job": 132764025542,
+      "gates": [
+        {
+          "backend": "vulkan",
+          "passed": 4,
+          "skipped": 0,
+          "tests": [
+            "qt_menu",
+            "qt_export",
+            "qt_mme",
+            "qt_editor_render"
+          ],
+          "evidence": {
+            "file": "out\\evidence\\p61-ci-linux-qualified\\build\\export-vulkan.xml",
+            "sha256": "e094b369998d7e70fab18f0c31255f28fe0ea788b9036a8187690ca0e117a7cd"
+          }
+        }
+      ],
+      "media": [
+        {
+          "schema": 1,
+          "backend": "vulkan",
+          "passed": true,
+          "media": [
+            {
+              "file": "clock.mp4",
+              "sha256": "2c5abbb97d5d209b91fd486d2667a20929934e0965c79881cdd53cdc508303b9",
+              "videoCodec": "mpeg4",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "containerMajorBrand": "isom",
+              "audioCodecTag": "mp4a",
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "maxRgbByteError": 24,
+              "colorPatchPsnrDb": 32.1550704795622,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 48128,
+              "declaredAudioSampleFrames": 48000.0,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm.mp4",
+              "sha256": "3221998d67b58e24f4381a401fe36ffb495c34f714caf3ea454eefb231db0959",
+              "videoCodec": "mjpeg",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "containerMajorBrand": "isom",
+              "audioCodecTag": "ipcm",
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "maxRgbByteError": 8,
+              "colorPatchPsnrDb": 36.13431820631065,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 48000,
+              "declaredAudioSampleFrames": 48000,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mp4",
+              "sha256": "ef44f67f5ac01339c1ba820aa980cd4bfef6796b9b84f5eff9b1905df450bf65",
+              "videoCodec": "mpeg4",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.02,
+              "containerMajorBrand": "isom",
+              "audioCodecTag": "mp4a",
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "maxRgbByteError": 24,
+              "colorPatchPsnrDb": 32.26945903205295,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 5761024,
+              "declaredAudioSampleFrames": 5760960.0,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm-ntsc.mp4",
+              "sha256": "84f312a3f68adf495df499c2ce0ec986df6d55b58f1dff57cf972ed77c68eb8d",
+              "videoCodec": "mjpeg",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.019896,
+              "containerMajorBrand": "isom",
+              "audioCodecTag": "ipcm",
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "maxRgbByteError": 8,
+              "colorPatchPsnrDb": 35.86400090540292,
+              "frameNumbersVerified": true,
+              "frameCounterBits": 12,
+              "decodedAudioFrames": 5760955,
+              "declaredAudioSampleFrames": 5760955,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            }
+          ],
+          "sceneFrames": 3,
+          "materialAndTwoPassMme": true,
+          "scenePsnrDb": {
+            "scene.mp4": 32.612881871128664,
+            "worker.mp4": 32.612881871128664
+          },
+          "rawMmd30HzRegression": "separate qt_mme strict gate",
+          "ffmpegOracle": "ffmpeg version n8.0.1 Copyright (c) 2000-2025 the FFmpeg developers"
+        }
+      ],
+      "package": {
+        "build": {
+          "system": "Linux",
+          "qt": "6.8.3",
+          "version": "0.0.2",
+          "vulkan": true,
+          "metal": false,
+          "mme": true,
+          "schema": 1,
+          "product": "MikuDanceStudio-NG",
+          "format": "portable",
+          "commit": "ff6fd2328fcc507dbf46df39687bef63f8b04858",
+          "tag": null,
+          "arch": "x64",
+          "development": true,
+          "modified": false
+        },
+        "languages": [
+          "en",
+          "ja",
+          "zh_CN",
+          "zh_TW",
+          "ko",
+          "fr",
+          "de",
+          "es",
+          "it",
+          "pt_BR",
+          "ru",
+          "nl",
+          "pl",
+          "tr",
+          "vi"
+        ],
+        "qpa": "offscreen",
+        "visible": false,
+        "codecs": [
+          {
+            "file": "media-distribution.mp4",
+            "decodedFrames": 2,
+            "audioFrames": 4096,
+            "declaredAudioSampleFrames": 3168.0,
+            "videoCodec": "mpeg4",
+            "audioCodec": "aac"
+          },
+          {
+            "file": "media-distribution.pcm.mp4",
+            "decodedFrames": 2,
+            "audioFrames": 3200,
+            "declaredAudioSampleFrames": 3200,
+            "videoCodec": "mjpeg",
+            "audioCodec": "pcm_s16le"
+          }
+        ],
+        "sdkAndExternalFfmpegPathRemoved": true,
+        "rawFxCompilerBundled": true,
+        "reports": [
+          {
+            "file": "out\\evidence\\p61-ci-linux-qualified\\media-distribution.json",
+            "sha256": "1141aa18d0f30a8eb87fcd9c4811ea618003b2b6ae8348ea3d2a668f0313e5e1"
+          },
+          {
+            "file": "out\\evidence\\p61-ci-linux-qualified\\media-distribution.decoded.json",
+            "sha256": "11e194096ad8716c8445278894bc6fb335379ed6ff70dded27d1d85ee08b0248"
+          },
+          {
+            "file": "out\\evidence\\p61-ci-linux-qualified\\media-distribution.png",
+            "sha256": "d41e11cc39645bac31407a60e588df7037dce27a3c5c39e72c52323b39368f4b"
+          }
+        ]
+      },
+      "run": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/43698441877",
+      "runOverallConclusion": "success"
+    }
+  ],
+  "local": [
+    {
+      "backend": "d3d11",
+      "driver": "WARP",
+      "report": {
+        "schema": 1,
+        "backend": "d3d11",
+        "passed": true,
+        "media": [
+          {
+            "file": "clock.mp4",
+            "sha256": "c31f0d834e3efb69ccae7e06dca39c43cd63ec01d8f258dcdf27c39a86eb1bfa",
+            "videoCodec": "mpeg4",
+            "decodedFrames": 60,
+            "containerDurationSeconds": 1.0,
+            "maxTimestampErrorSeconds": 3.33333333379926e-07,
+            "maxRgbByteError": 23,
+            "colorPatchPsnrDb": 32.62461386466506,
+            "frameNumbersVerified": true,
+            "frameCounterBits": 12,
+            "decodedAudioFrames": 48128,
+            "declaredAudioSampleFrames": 48000.0,
+            "audioPulseFirst": 12000,
+            "audioPulseLast": 12479,
+            "trailingSilence": true
+          },
+          {
+            "file": "clock-pcm.mp4",
+            "sha256": "0caf2feaacec5db6a51330b906173b59f4587dfe5672c249fca469c2760b4f6b",
+            "videoCodec": "mjpeg",
+            "decodedFrames": 60,
+            "containerDurationSeconds": 1.0,
+            "maxTimestampErrorSeconds": 3.33333333379926e-07,
+            "maxRgbByteError": 8,
+            "colorPatchPsnrDb": 36.13431820631065,
+            "frameNumbersVerified": true,
+            "frameCounterBits": 12,
+            "decodedAudioFrames": 48000,
+            "declaredAudioSampleFrames": 48000,
+            "audioPulseFirst": 12000,
+            "audioPulseLast": 12479,
+            "trailingSilence": true
+          },
+          {
+            "file": "clock-ntsc.mp4",
+            "sha256": "0bcb62c1fcfa11165f562a268a590478d30014a8ee2b1c12b4bcbbb0767a736a",
+            "videoCodec": "mpeg4",
+            "decodedFrames": 3597,
+            "containerDurationSeconds": 120.02,
+            "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+            "maxRgbByteError": 23,
+            "colorPatchPsnrDb": 32.560732886462226,
+            "frameNumbersVerified": true,
+            "frameCounterBits": 12,
+            "decodedAudioFrames": 5761024,
+            "declaredAudioSampleFrames": 5760960.0,
+            "audioPulseFirst": 12000,
+            "audioPulseLast": 5724479,
+            "trailingSilence": true
+          },
+          {
+            "file": "clock-pcm-ntsc.mp4",
+            "sha256": "fd92447cafe165e0f2fe1e35f5286d5f3695808d568c33181bc066407e1a5bf2",
+            "videoCodec": "mjpeg",
+            "decodedFrames": 3597,
+            "containerDurationSeconds": 120.019896,
+            "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+            "maxRgbByteError": 8,
+            "colorPatchPsnrDb": 35.86400090540292,
+            "frameNumbersVerified": true,
+            "frameCounterBits": 12,
+            "decodedAudioFrames": 5760955,
+            "declaredAudioSampleFrames": 5760955,
+            "audioPulseFirst": 12000,
+            "audioPulseLast": 5724479,
+            "trailingSilence": true
+          }
+        ],
+        "sceneFrames": 3,
+        "materialAndTwoPassMme": true,
+        "scenePsnrDb": {
+          "scene.mp4": 31.76459928176388,
+          "worker.mp4": 31.76459928176388
+        },
+        "rawMmd30HzRegression": "separate qt_mme strict gate",
+        "ffmpegOracle": "ffmpeg version 8.0.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers"
+      },
+      "evidence": {
+        "file": "out\\evidence\\p61-final-profiles\\report.json",
+        "sha256": "3e1a1d0560b762e1679c4f823f2cd2376660f83d44fdabf427fdf5fb5d50e032"
+      }
+    },
+    {
+      "backend": "d3d12",
+      "driver": "WARP",
+      "report": {
+        "schema": 1,
+        "backend": "d3d12",
+        "passed": true,
+        "media": [
+          {
+            "file": "clock.mp4",
+            "sha256": "c31f0d834e3efb69ccae7e06dca39c43cd63ec01d8f258dcdf27c39a86eb1bfa",
+            "videoCodec": "mpeg4",
+            "decodedFrames": 60,
+            "containerDurationSeconds": 1.0,
+            "maxTimestampErrorSeconds": 3.33333333379926e-07,
+            "maxRgbByteError": 23,
+            "colorPatchPsnrDb": 32.62461386466506,
+            "frameNumbersVerified": true,
+            "frameCounterBits": 12,
+            "decodedAudioFrames": 48128,
+            "declaredAudioSampleFrames": 48000.0,
+            "audioPulseFirst": 12000,
+            "audioPulseLast": 12479,
+            "trailingSilence": true
+          },
+          {
+            "file": "clock.mov",
+            "sha256": "0caf2feaacec5db6a51330b906173b59f4587dfe5672c249fca469c2760b4f6b",
+            "videoCodec": "mjpeg",
+            "decodedFrames": 60,
+            "containerDurationSeconds": 1.0,
+            "maxTimestampErrorSeconds": 3.33333333379926e-07,
+            "maxRgbByteError": 8,
+            "colorPatchPsnrDb": 36.13431820631065,
+            "frameNumbersVerified": true,
+            "frameCounterBits": 12,
+            "decodedAudioFrames": 48000,
+            "declaredAudioSampleFrames": 48000,
+            "audioPulseFirst": 12000,
+            "audioPulseLast": 12479,
+            "trailingSilence": true
+          },
+          {
+            "file": "clock-ntsc.mp4",
+            "sha256": "0bcb62c1fcfa11165f562a268a590478d30014a8ee2b1c12b4bcbbb0767a736a",
+            "videoCodec": "mpeg4",
+            "decodedFrames": 3597,
+            "containerDurationSeconds": 120.02,
+            "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+            "maxRgbByteError": 23,
+            "colorPatchPsnrDb": 32.560732886462226,
+            "frameNumbersVerified": true,
+            "frameCounterBits": 12,
+            "decodedAudioFrames": 5761024,
+            "declaredAudioSampleFrames": 5760960.0,
+            "audioPulseFirst": 12000,
+            "audioPulseLast": 5724479,
+            "trailingSilence": true
+          },
+          {
+            "file": "clock-ntsc.mov",
+            "sha256": "fd92447cafe165e0f2fe1e35f5286d5f3695808d568c33181bc066407e1a5bf2",
+            "videoCodec": "mjpeg",
+            "decodedFrames": 3597,
+            "containerDurationSeconds": 120.019896,
+            "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+            "maxRgbByteError": 8,
+            "colorPatchPsnrDb": 35.86400090540292,
+            "frameNumbersVerified": true,
+            "frameCounterBits": 12,
+            "decodedAudioFrames": 5760955,
+            "declaredAudioSampleFrames": 5760955,
+            "audioPulseFirst": 12000,
+            "audioPulseLast": 5724479,
+            "trailingSilence": true
+          }
+        ],
+        "sceneFrames": 3,
+        "materialAndTwoPassMme": true,
+        "scenePsnrDb": {
+          "scene.mp4": 30.5370765345223,
+          "worker.mp4": 30.5370765345223
+        },
+        "rawMmd30HzRegression": "separate qt_mme strict gate",
+        "ffmpegOracle": "ffmpeg version 8.0.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers"
+      },
+      "evidence": {
+        "file": "out\\evidence\\p61-mov-d3d12\\report.json",
+        "sha256": "772a301692f6e56184453184afe40326b6ebbe1c5d97bf2cb5d6c4ee08924d09"
+      }
+    },
+    {
+      "backend": "vulkan",
+      "driver": "hardware",
+      "report": {
+        "schema": 1,
+        "backend": "vulkan",
+        "passed": true,
+        "media": [
+          {
+            "file": "clock.mp4",
+            "sha256": "c31f0d834e3efb69ccae7e06dca39c43cd63ec01d8f258dcdf27c39a86eb1bfa",
+            "videoCodec": "mpeg4",
+            "decodedFrames": 60,
+            "containerDurationSeconds": 1.0,
+            "maxTimestampErrorSeconds": 3.33333333379926e-07,
+            "maxRgbByteError": 23,
+            "colorPatchPsnrDb": 32.62461386466506,
+            "frameNumbersVerified": true,
+            "frameCounterBits": 12,
+            "decodedAudioFrames": 48128,
+            "declaredAudioSampleFrames": 48000.0,
+            "audioPulseFirst": 12000,
+            "audioPulseLast": 12479,
+            "trailingSilence": true
+          },
+          {
+            "file": "clock.mov",
+            "sha256": "0caf2feaacec5db6a51330b906173b59f4587dfe5672c249fca469c2760b4f6b",
+            "videoCodec": "mjpeg",
+            "decodedFrames": 60,
+            "containerDurationSeconds": 1.0,
+            "maxTimestampErrorSeconds": 3.33333333379926e-07,
+            "maxRgbByteError": 8,
+            "colorPatchPsnrDb": 36.13431820631065,
+            "frameNumbersVerified": true,
+            "frameCounterBits": 12,
+            "decodedAudioFrames": 48000,
+            "declaredAudioSampleFrames": 48000,
+            "audioPulseFirst": 12000,
+            "audioPulseLast": 12479,
+            "trailingSilence": true
+          },
+          {
+            "file": "clock-ntsc.mp4",
+            "sha256": "0bcb62c1fcfa11165f562a268a590478d30014a8ee2b1c12b4bcbbb0767a736a",
+            "videoCodec": "mpeg4",
+            "decodedFrames": 3597,
+            "containerDurationSeconds": 120.02,
+            "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+            "maxRgbByteError": 23,
+            "colorPatchPsnrDb": 32.560732886462226,
+            "frameNumbersVerified": true,
+            "frameCounterBits": 12,
+            "decodedAudioFrames": 5761024,
+            "declaredAudioSampleFrames": 5760960.0,
+            "audioPulseFirst": 12000,
+            "audioPulseLast": 5724479,
+            "trailingSilence": true
+          },
+          {
+            "file": "clock-ntsc.mov",
+            "sha256": "fd92447cafe165e0f2fe1e35f5286d5f3695808d568c33181bc066407e1a5bf2",
+            "videoCodec": "mjpeg",
+            "decodedFrames": 3597,
+            "containerDurationSeconds": 120.019896,
+            "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+            "maxRgbByteError": 8,
+            "colorPatchPsnrDb": 35.86400090540292,
+            "frameNumbersVerified": true,
+            "frameCounterBits": 12,
+            "decodedAudioFrames": 5760955,
+            "declaredAudioSampleFrames": 5760955,
+            "audioPulseFirst": 12000,
+            "audioPulseLast": 5724479,
+            "trailingSilence": true
+          }
+        ],
+        "sceneFrames": 3,
+        "materialAndTwoPassMme": true,
+        "scenePsnrDb": {
+          "scene.mp4": 30.394461037763556,
+          "worker.mp4": 30.394461037763556
+        },
+        "rawMmd30HzRegression": "separate qt_mme strict gate",
+        "ffmpegOracle": "ffmpeg version 8.0.1-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers"
+      },
+      "evidence": {
+        "file": "out\\evidence\\p61-mov-vulkan\\report.json",
+        "sha256": "3f470cd25c810023972db0b244ee63ad3368ecccf2d2c0bf745799b7b5ab9b2d"
+      }
+    }
+  ],
+  "latestWindowsPackage": {
+    "build": {
+      "system": "Windows",
+      "qt": "6.8.3",
+      "version": "0.0.2",
+      "vulkan": true,
+      "metal": false,
+      "mme": true,
+      "schema": 1,
+      "product": "MikuDanceStudio-NG",
+      "format": "portable",
+      "commit": "7cccd30f1c9c9574bdab42403b6369ebd3887699",
+      "tag": null,
+      "arch": "x64",
+      "development": true,
+      "modified": false
+    },
+    "decoded": {
+      "schema": 1,
+      "passed": true,
+      "packagedMedia": [
+        {
+          "file": "p61-final-runtime.mp4",
+          "decodedFrames": 2,
+          "audioFrames": 4096,
+          "declaredAudioSampleFrames": 3168.0,
+          "videoCodec": "mpeg4",
+          "audioCodec": "aac"
+        },
+        {
+          "file": "p61-final-runtime.pcm.mp4",
+          "decodedFrames": 2,
+          "audioFrames": 3200,
+          "declaredAudioSampleFrames": 3200,
+          "videoCodec": "mjpeg",
+          "audioCodec": "pcm_s16le"
+        }
+      ]
+    },
+    "evidence": {
+      "file": "out\\evidence\\p61-final-runtime.json",
+      "sha256": "816813f40f3641fedcc2df0b20db7b478e25139cb17b7b164cc7671362d7bada"
+    }
+  },
+  "incrementalQualification": "Windows/macOS 30a773d qualify actual MP4 AAC and ISO BMFF PCM bytes, full clocks and clean packages. Qt QuickTime is an MP4 alias. 7cccd30 corrects public profile names/extensions and selects that same MP4 muxer explicitly; latest Windows package and Linux repeat this correction. ff6fd23 changes only the test oracle workflow.",
+  "limits": {
+    "fps": "positive rational, 1..120",
+    "axisPixels": 8192,
+    "pixels": 16777216,
+    "sourceRangeHours": 6,
+    "wavFileMiB": 64,
+    "alpha": "straight PNG or explicit opaque video composite",
+    "videoCodecs": [
+      "MP4: MPEG-4 Part 2 / AAC",
+      "MP4: Motion JPEG / PCM16 (ISO BMFF ipcm; compatible decoder required)"
+    ],
+    "quality": "lossy video; PNG exact gate unchanged; Qt 6.8 MPEG-4 quality/bitrate controls limited",
+    "clocks": "PTS and container duration <=1 ms; AAC declared edit clock <=1 ms and <=one packet padding; PCM samples exact",
+    "physics": "Merged native 30 Hz and output sample checkpoints; exact existing 30 fps regression retained; no cross-fps bitwise physics promise"
+  },
+  "failureHistory": [
+    {
+      "run": 43695171810,
+      "reason": "AAC oracle incorrectly rejected FFmpeg 9 edit-list tail truncation on Windows/macOS; rendering and encoding passed"
+    },
+    {
+      "run": 43695870954,
+      "reason": "Corrected macOS AAC oracle passed; subsequent metadata audit found Matroska PCM duration incorrect"
+    },
+    {
+      "run": 43696218646,
+      "reason": "Windows retry cancelled after discovering Matroska duration error"
+    },
+    {
+      "run": 43696966534,
+      "reason": "Windows/macOS passed both MP4 codecs. Linux system FFmpeg 4.4 could not decode ipcm"
+    },
+    {
+      "run": 43697990868,
+      "reason": "Minimal Linux oracle omitted pcm_f32le muxer; production editor passed. Workflow fixed with real WAV-to-float preflight"
+    },
+    {
+      "localOnly": true,
+      "reason": "AVI alternative advertised wrong average frame rate; never exposed as final output. QuickTime alias was relabeled MP4 without rewriting encoded bytes"
+    }
+  ],
+  "notQualified": [
+    "P6.2 background video decode/seek/composite",
+    "Windows ARM64 and Android media/MME combinations",
+    "arbitrary FX9, full Ray/C3",
+    "P7 physical GPU/clean-machine release qualification"
+  ],
+  "reviewImage": "p61-export-images/png-and-mp4.png"
+}

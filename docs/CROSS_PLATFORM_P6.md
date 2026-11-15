@@ -2,7 +2,9 @@
 
 ## P6.1：共享导出任务与带音频视频
 
-实施中。桌面采用 Qt 6.8 自定义帧／音频输入和随包的 FFmpeg Multimedia 后端，
+**已按声明的桌面范围完成并验收（2026-11-15）。**
+[版本化证据](evidence/p61-export-43698441877.json) 记录各平台实际源码、门禁、解码结果及失败历史。
+桌面采用 Qt 6.8 自定义帧／音频输入和随包的 FFmpeg Multimedia 后端，
 不调用桌面录制、相机或音频播放设备；也不依赖系统 PATH 中的 ffmpeg 命令。
 背景视频属于 P6.2，不纳入本批。P5 的 FX9／Ray／移动 MME 边界保持不变。
 
@@ -91,3 +93,51 @@ NG 菜单的序列导出默认选择 PNG。设置窗口也可切换为 MP4 的 M
 [Qt 6.8.3 编码选项](https://github.com/qt/qtmultimedia/blob/v6.8.3/src/plugins/multimedia/ffmpeg/recordingengine/qffmpegencoderoptions.cpp)。
 Qt 的 QuickTime／MP4 映射见
 [格式实现](https://github.com/qt/qtmultimedia/blob/v6.8.3/src/plugins/multimedia/ffmpeg/qffmpegmediaformatinfo.cpp)。
+
+### 验收结果
+
+三个主要提交是 `34c979a`（共享任务与时间）、`8633a6a`（编码及音频）和 `7813582`
+（Qt 后台操作与部署）。实施和补验覆盖取消清理、完整帧编号、容器时长／实际身份及
+独立解码工具配置；保留了先前失败，没有移动标签或发布新 Release。
+
+| 平台／执行路径 | 定向门禁 | 便携包 |
+|---|---|---|
+| Windows x64，DX11／DX12 WARP | 各 4/4，无跳过 | 清除 SDK／外部 ffmpeg 路径后执行两种带音频编码并独立解码 |
+| Linux x64，软件 Vulkan | 4/4，无跳过 | 同上；固定上游 FFmpeg 8.0.1 仅用于独立检查，不随产品部署 |
+| macOS ARM64，Metal，API 验证开启 | 4/4，无跳过 | 同上；包含正常进程退出 |
+
+每组包含 `qt_export`、`qt_mme`、`qt_editor_render`、`qt_menu`。Windows／macOS 来自
+[43696966534](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/43696966534) 的成功任务；
+该运行的 Linux 旧解码器失败仍保留。Linux 最终通过
+[43698441877](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/43698441877)。
+`7cccd30` 将同一个 MP4 封装器的公开名称／扩展名改正，并补齐 Linux 独立工具；
+Windows 最新便携包另在本机复验。证据明确区分每个平台实际构建的提交，不把旧任务
+写成新源码的全量资格。`ff6fd23` 仅修正测试工具配置。
+
+两档视频各验证 60fps 的 60 帧，以及 30000/1001 的 3,597 帧；依包含首尾的区间和
+末帧完整周期契约，后者输出时长为 120.0199 秒。逐帧核对完整 12 位编号、PTS、
+容器总时长和颜色；0.25／119.25 秒的音频脉冲没有漂移。PCM 长片精确为 5,760,955
+个双声道采样帧，AAC 按编辑表和末包填充核对。材质＋两级 MME 的视频解码结果与
+同源 PNG 保持 PSNR ≥30 dB；[对照图](evidence/p61-export-images/png-and-mp4.png) 已复看。
+这些有损视频标准不替代 `qt_mme` 原有的 RGBA8 精确导出比较。
+
+本机 DX11／DX12 WARP、硬件 Vulkan 亦通过导出回归；15 语言目录通过原生 lupdate
+往返检查。独立快照期间继续编辑／卸载、后台事件响应、中途取消、关闭窗口、重试、
+错误 FX、缺失 WAV、目标已存在及临时目录清理均通过。最终 `out/dist` 便携包从
+`7cccd30` 的未修改生产源码构建，重定位后实际编码／解码通过。以上不替代 P7 实体
+GPU／干净系统资格，也不扩大 Windows ARM64／Android 或完整 FX9／Ray 的范围。
+
+## P6.2：背景视频解码、定位与共享 RHI 合成（下一批）
+
+1. 对照原版确认背景 AVI 的时间映射、偏移、循环／末帧、音轨处理及屏幕纹理捕获时点。
+   建立与窗口无关的解码帧描述，记录 PTS、持续时间、尺寸、方向和颜色信息；队列、
+   缓存及 seek 代次有明确上限，过期 seek 的结果不能覆盖新位置。
+2. 以场景时间选择视频帧，经共享 RHI 纹理上传／合成进入主场景与 MME。覆盖窗口缩放、
+   设备替换、卸载、解码错误和恢复。播放使用可取消的异步准备，离屏导出必须在同一
+   `SourceSeconds` 等待对应帧，不能录制播放器墙钟或重复采样旧画面。
+3. 将原版背景视频命令接入 Qt，持久化路径与状态；用带帧号、非整数／可变帧率和音频
+   脉冲的生成文件验证拖动、倒退、暂停、播放及含背景／MME 的导出。继续用隐藏或隔离
+   环境验证；P6.1 的精确 PNG、音画同步和取消清理门禁保持独立。
+
+该批尚未实施。完整媒体定位、配置迁移及扩展接口仍按总计划逐批推进，不把 P6.1
+的视频编码闭环当作整个 P6 或 P7 发行资格完成。
