@@ -41,7 +41,7 @@ jobs:
         if: runner.os == 'Linux'
         with:
           path: out/export-oracle
-          key: export-oracle-ffmpeg801-linux-x64-v1
+          key: export-oracle-ffmpeg801-linux-x64-v2
       - uses: actions/checkout@v4
         if: runner.os == 'Linux' && steps.decoder.outputs.cache-hit != 'true'
         with:
@@ -58,13 +58,23 @@ jobs:
             cd out/ffmpeg-source
             ./configure --prefix="$export_oracle_prefix" --disable-everything --disable-autodetect --disable-doc --disable-debug --disable-x86asm --disable-network \
               --enable-ffmpeg --enable-ffprobe --enable-zlib --enable-protocol=file,pipe \
-              --enable-demuxer=mov,image2 --enable-muxer=rawvideo,f32le \
+              --enable-demuxer=mov,image2,wav --enable-muxer=rawvideo,pcm_f32le \
               --enable-decoder=mpeg4,mjpeg,aac,pcm_s16le,png --enable-encoder=rawvideo,pcm_f32le \
               --enable-filter=scale,format,aresample,aformat,anull,null,trim,atrim
             make -j3
             make install
           fi
           echo "$GITHUB_WORKSPACE/out/export-oracle/bin" >> "$GITHUB_PATH"
+          python - <<'PY'
+          import os, wave
+          from pathlib import Path
+          path = Path(os.environ['GITHUB_WORKSPACE'])/'out/decoder-smoke.wav'
+          with wave.open(str(path), 'wb') as audio:
+              audio.setnchannels(2); audio.setsampwidth(2); audio.setframerate(48000)
+              audio.writeframes(bytes(48*2*2))
+          PY
+          "$GITHUB_WORKSPACE/out/export-oracle/bin/ffmpeg" -y -v error -i "$GITHUB_WORKSPACE/out/decoder-smoke.wav" -f f32le "$GITHUB_WORKSPACE/out/decoder-smoke.f32"
+          test "$(wc -c < "$GITHUB_WORKSPACE/out/decoder-smoke.f32")" -eq 384
       - uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.3'
