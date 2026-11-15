@@ -117,7 +117,7 @@ bool VideoEncoder::Open(const std::filesystem::path& path, const render::ExportT
     auto& i = *impl_;
     const auto& s = timeline.settings;
     if (s.alpha != render::ExportAlpha::Opaque || (s.width & 1) || (s.height & 1) ||
-        (profile != VideoProfile::Mp4 && profile != VideoProfile::Mov)) {
+        (profile != VideoProfile::Mp4 && profile != VideoProfile::Mp4Pcm)) {
         reason = "video-requires-opaque-alpha-and-even-size";
         return false;
     }
@@ -129,8 +129,7 @@ bool VideoEncoder::Open(const std::filesystem::path& path, const render::ExportT
     i.timeline = timeline;
     i.wave = wave;
     i.proceed = proceed;
-    QMediaFormat format(profile == VideoProfile::Mp4 ? QMediaFormat::MPEG4
-                                                     : QMediaFormat::QuickTime);
+    QMediaFormat format(QMediaFormat::MPEG4);
     format.setVideoCodec(profile == VideoProfile::Mp4 ? QMediaFormat::VideoCodec::MPEG4
                                                       : QMediaFormat::VideoCodec::MotionJPEG);
     if (wave)
@@ -270,7 +269,7 @@ bool ExportMovie(const render::ExportSnapshot& snapshot, const std::filesystem::
     if (!render::MakeExportTimeline(settings, timeline, reason))
         return false;
     const auto target = std::filesystem::absolute(destination).lexically_normal();
-    if (Path(target.extension()).toLower() != (profile == VideoProfile::Mp4 ? ".mp4" : ".mov")) {
+    if (Path(target.extension()).toLower() != ".mp4") {
         reason = "export-video-extension-mismatch";
         return false;
     }
@@ -301,8 +300,7 @@ bool ExportMovie(const render::ExportSnapshot& snapshot, const std::filesystem::
             !format::ReadWave(bytes, wave, reason))
             return false;
     }
-    const auto temporary =
-        Path(staging.path()) / (profile == VideoProfile::Mp4 ? "video.mp4" : "video.mov");
+    const auto temporary = Path(staging.path()) / "video.mp4";
     unsigned completed = 0;
     {
         VideoEncoder encoder;

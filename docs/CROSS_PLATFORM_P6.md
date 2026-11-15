@@ -32,15 +32,17 @@ PNG 支持直通 Alpha；不支持 Alpha 的视频采用明确的不透明背景
 
 ### 编码与音频
 
-首批显式提供 MP4（MPEG-4 Part 2／AAC）及 MOV（Motion JPEG／PCM16）。不冒充
+首批提供两个 MP4 档位：MPEG-4 Part 2／AAC，以及 Motion JPEG／PCM16。不冒充
 H.264，不在缺编解码器时静默换格式。两者均是有损视频；PNG 保持原始 RGBA，视频
 按不透明背景合成并要求偶数尺寸。Qt 6.8 的软件 MPEG-4 编码器不能完整映射质量／
 码率选项，因此该兼容格式不承诺可调码率或无损质量；高保真原始输出使用 PNG。
 
 首批只开放经过实际封装时长检查的容器。Qt 6.8 的 Matroska／PCM 写入曾把一秒
 片段声明为 1.783 秒；AVI／MJPEG 的帧率头也出现十倍错误。二者均未作为最终能力
-开放，不在文件成品上修补元数据。MOV 通过同样的解码、标称帧率、总时长及精确 PCM
-样本检查，作为另一种可用的视频输出。
+开放，不在文件成品上修补元数据。Qt 6.8 的 QuickTime 选项实际也映射到 MP4，因此
+不将其命名为 MOV。MJPEG／PCM 档采用 MP4 的 ISO BMFF `ipcm` 标识，需要支持此
+标识的播放器（例如 FFmpeg 7.1 及以上）；默认 MPEG-4／AAC 档用于一般兼容播放。
+两个档位均核对实际编解码器、标称帧率、容器总时长与解码内容，PCM 样本保持精确。
 
 通过 Qt 的 `QVideoFrameInput`／`QAudioBufferInput` 就绪信号反压，不预生成整段帧。
 应用一次只交接一个图像和最多 1024 个音频采样帧；输入队列由固定 Qt 后端限制。
@@ -66,7 +68,7 @@ MJPEG 另要求最多 10 个 RGB 码值；原始复制／30fps 回归仍要求�
 ### Qt 操作与部署
 
 文件菜单的原版视频导出命令（保留原来的 AVI 标签）打开导出设置，默认选择 MP4；
-NG 菜单的序列导出默认选择 PNG。设置窗口也可切换为 MOV。首批没有 VFW／AVI
+NG 菜单的序列导出默认选择 PNG。设置窗口也可切换为 MP4 的 MJPEG／PCM 档。首批没有 VFW／AVI
 编码器。帧率可输入整数或 `N/D`，范围使用 MMD 的 30fps 帧号；视频明确要求偶数尺寸，
 扩展名必须匹配所选容器。音频复选框初值遵循项目 WAV 启用状态，可以手动改变。
 
@@ -87,3 +89,5 @@ NG 菜单的序列导出默认选择 PNG。设置窗口也可切换为 MOV。首
 [音频输入](https://doc.qt.io/qt-6.8/qaudiobufferinput.html)、
 [Recorder EOS](https://doc.qt.io/qt-6.8/qmediarecorder.html#autoStop-prop)、
 [Qt 6.8.3 编码选项](https://github.com/qt/qtmultimedia/blob/v6.8.3/src/plugins/multimedia/ffmpeg/recordingengine/qffmpegencoderoptions.cpp)。
+Qt 的 QuickTime／MP4 映射见
+[格式实现](https://github.com/qt/qtmultimedia/blob/v6.8.3/src/plugins/multimedia/ffmpeg/qffmpegmediaformatinfo.cpp)。

@@ -28,7 +28,7 @@ void ExportTask::run() {
         success = format == 0 ? ExportImages(snapshot, builtins, backend, destination, settings,
                                              progress, reason)
                               : ExportMovie(snapshot, builtins, backend, destination, settings,
-                                            format == 1 ? VideoProfile::Mp4 : VideoProfile::Mov,
+                                            format == 1 ? VideoProfile::Mp4 : VideoProfile::Mp4Pcm,
                                             audio, progress, reason);
     } catch (const std::exception& error) {
         reason = std::string("export-exception:") + error.what();
@@ -54,7 +54,7 @@ ExportDialog::ExportDialog(editor::EditorSession& session, Language& language,
     };
     format_ = new QComboBox(settings_);
     format_->setObjectName("export.format");
-    format_->addItems({"PNG", "MP4 · MPEG-4 / AAC", "MOV · Motion JPEG / PCM"});
+    format_->addItems({"PNG", "MP4 · MPEG-4 / AAC", "MP4 · Motion JPEG / PCM"});
     form->addRow(label("export.format"), format_);
     rate_ = new QComboBox(settings_);
     rate_->setObjectName("export.rate");
@@ -131,17 +131,13 @@ ExportDialog::ExportDialog(editor::EditorSession& session, Language& language,
     });
     audio_->setEnabled(false);
     connect(browse_, &QPushButton::clicked, this, [this] {
-        const auto filter = format_->currentIndex() == 1   ? "MP4 (*.mp4)"
-                            : format_->currentIndex() == 2 ? "MOV (*.mov)"
-                                                           : QString();
+        const auto filter = format_->currentIndex() ? "MP4 (*.mp4)" : QString();
         QFileDialog dialog(this, language_.Text("export.destination"));
         dialog.setAcceptMode(QFileDialog::AcceptSave);
         dialog.setFileMode(QFileDialog::AnyFile);
         dialog.setOption(QFileDialog::DontUseNativeDialog);
         dialog.setNameFilter(filter);
-        dialog.selectFile(format_->currentIndex() == 0   ? "frames"
-                          : format_->currentIndex() == 1 ? "video.mp4"
-                                                         : "video.mov");
+        dialog.selectFile(format_->currentIndex() ? "video.mp4" : "frames");
         if (dialog.exec() == QDialog::Accepted && !dialog.selectedFiles().isEmpty())
             destination_->setText(dialog.selectedFiles().front());
     });

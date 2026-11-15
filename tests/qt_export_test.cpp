@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
     settings.last = 59;
     CHECK(render::MakeExportTimeline(settings, timeline, reason));
     for (unsigned clip = 0; clip < 4; ++clip) {
-        const auto profile = (clip & 1) ? qt::VideoProfile::Mov : qt::VideoProfile::Mp4;
+        const auto profile = (clip & 1) ? qt::VideoProfile::Mp4Pcm : qt::VideoProfile::Mp4;
         if (clip == 2) {
             settings.last = 3629;
             settings.rateNumerator = 30000;
@@ -85,9 +85,9 @@ int main(int argc, char** argv) {
         }
         qt::VideoEncoder encoder;
         const auto target = directory / (clip == 2                          ? "clock-ntsc.mp4"
-                                         : clip == 3                        ? "clock-ntsc.mov"
+                                         : clip == 3                        ? "clock-pcm-ntsc.mp4"
                                          : profile == qt::VideoProfile::Mp4 ? "clock.mp4"
-                                                                            : "clock.mov");
+                                                                            : "clock-pcm.mp4");
         CHECK(encoder.Open(target, timeline, profile, &wave, [] { return true; }, reason));
         for (unsigned n = 0; n < timeline.frames; ++n) {
             render::ExportFrame frame{n, timeline.TimestampUs(n), timeline.TimestampUs(n + 1), {}};

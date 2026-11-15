@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -14,7 +15,10 @@ import cpu_import_fixture
 
 
 def run(*command):
-    return subprocess.run([str(x) for x in command], check=True, capture_output=True, timeout=120).stdout
+    result = subprocess.run([str(x) for x in command], capture_output=True, timeout=120)
+    if result.returncode:
+        raise RuntimeError(f'Decoder command failed: {command}\n{result.stderr.decode(errors="replace")}')
+    return result.stdout
 
 
 def check_audio_length(stream, expected, decoded):
@@ -38,6 +42,8 @@ def inspect(path):
     rate = Fraction(30000, 1001) if long else Fraction(60, 1)
     count = 3597 if long else 60
     duration = float(info['format']['duration'])
+    brand = info['format']['tags']['major_brand']
+    assert brand.startswith(('iso', 'mp4')), ('unexpected container brand', brand)
     assert abs(duration - float(count / rate)) <= .0011, ('container duration', duration, str(count / rate))
     frames = [f for f in info['frames'] if f['media_type'] == 'video']
     assert int(stream['nb_read_frames']) == count
@@ -62,24 +68,27 @@ def inspect(path):
     mse = sum(e*e for e in color_errors) / len(color_errors)
     psnr = 10 * math.log10(255**2 / mse) if mse else 100
     assert psnr >= 30, psnr
-    if path.suffix == '.mov':
+    if stream['codec_name'] == 'mjpeg':
         assert max(color_errors) <= 10, max(color_errors)
     samples = array.array('f')
     samples.frombytes(run('ffmpeg', '-v', 'error', '-i', path, '-map', '0:a:0', '-f', 'f32le', '-'))
     left, right = samples[::2], samples[1::2]
     audio_count = int(count / rate * 48000)
     audio_stream = next(s for s in info['streams'] if s['codec_type'] == 'audio')
+    if audio_stream['codec_name'].startswith('pcm_'):
+        assert audio_stream['codec_tag_string'] == 'ipcm'
     declared = check_audio_length(audio_stream, audio_count, len(left))
     active = [n for n, value in enumerate(left) if abs(value) > .2]
     pulse = 5724000 if long else 12000
     assert abs(min(active) - 12000) <= 48 and abs(max(active) - (pulse+479)) <= 48
     assert max(abs(x) for x in left[(pulse+24000 if long else 30000):]) < .001
     assert min(right[12048:12432]) < -.4 and max(left[12048:12432]) > .6
-    if path.suffix == '.mov':
+    if audio_stream['codec_name'].startswith('pcm_'):
         assert len(left) == audio_count
         assert all(abs(left[n] - .75) < 1/32768 and abs(right[n] + .5) < 1/32768 for n in range(12000, 12480))
     return dict(file=path.name, sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
                 videoCodec=stream['codec_name'], decodedFrames=len(frames), containerDurationSeconds=duration,
+                containerMajorBrand=brand, audioCodecTag=audio_stream['codec_tag_string'],
                 maxTimestampErrorSeconds=timing_error, maxRgbByteError=max(color_errors),
                 colorPatchPsnrDb=psnr, frameNumbersVerified=True, frameCounterBits=12,
                 decodedAudioFrames=len(left), declaredAudioSampleFrames=declared,
@@ -97,9 +106,13 @@ def main():
     for tool in ('ffmpeg', 'ffprobe'):
         if not shutil.which(tool):
             raise RuntimeError(f'{tool} is required for independent export qualification (test-only)')
+    version = run('ffmpeg', '-version').decode().splitlines()[0]
+    match = re.search(r'version n?(\d+)\.(\d+)', version)
+    if not match or tuple(map(int, match.groups())) < (7, 1):
+        raise RuntimeError(f'FFmpeg >=7.1 is required to decode ISO BMFF ipcm (test-only): {version}')
     if args.deployed_prefix:
         result = []
-        for suffix in ('.mp4', '.mov'):
+        for suffix in ('.mp4', '.pcm.mp4'):
             movie = args.deployed_prefix.with_suffix(suffix)
             info = json.loads(run('ffprobe', '-v', 'error', '-count_frames', '-show_format', '-show_streams', '-of', 'json', movie))
             video = next(s for s in info['streams'] if s['codec_type'] == 'video')
@@ -132,7 +145,7 @@ def main():
         env = os.environ.copy()
         env.update(QT_QPA_PLATFORM='offscreen', QT_MEDIA_BACKEND='ffmpeg', MDS_EXPORT_EVIDENCE=str(output))
         subprocess.run([args.program, str(root), args.assets], check=True, env=env, timeout=120)
-        results = [inspect(output / name) for name in ('clock.mp4', 'clock.mov', 'clock-ntsc.mp4', 'clock-ntsc.mov')]
+        results = [inspect(output / name) for name in ('clock.mp4', 'clock-pcm.mp4', 'clock-ntsc.mp4', 'clock-pcm-ntsc.mp4')]
         original = run('ffmpeg', '-v', 'error', '-framerate', '30', '-i',
                        output/'sequence/frame_%08d.png', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-')
         assert len(original) == 3*160*96*3

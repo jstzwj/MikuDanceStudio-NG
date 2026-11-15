@@ -35,7 +35,36 @@ jobs:
           key: editor-fonts-${{ runner.os }}-noto2004-b76b0433
       - name: Linux Qt and offscreen dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y ninja-build ccache patchelf spirv-tools libvulkan1 mesa-vulkan-drivers libxcb1-dev libwayland-dev wayland-protocols libxkbcommon-x11-0 libxcb-cursor0 libegl1 libgl1 libpulse-dev ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y ninja-build ccache patchelf spirv-tools libvulkan1 mesa-vulkan-drivers libxcb1-dev libwayland-dev wayland-protocols libxkbcommon-x11-0 libxcb-cursor0 libegl1 libgl1 libpulse-dev zlib1g-dev
+      - uses: actions/cache@v4
+        id: decoder
+        if: runner.os == 'Linux'
+        with:
+          path: out/export-oracle
+          key: export-oracle-ffmpeg801-linux-x64-v1
+      - uses: actions/checkout@v4
+        if: runner.os == 'Linux' && steps.decoder.outputs.cache-hit != 'true'
+        with:
+          repository: FFmpeg/FFmpeg
+          ref: n8.0.1
+          path: out/ffmpeg-source
+      - name: Independent Linux decoder (test-only, never deployed)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          if [ ! -x out/export-oracle/bin/ffmpeg ]; then
+            test "$(git -C out/ffmpeg-source rev-parse HEAD)" = "894da5ca7d742e4429ffb2af534fcda0103ef593"
+            export_oracle_prefix="$PWD/out/export-oracle"
+            cd out/ffmpeg-source
+            ./configure --prefix="$export_oracle_prefix" --disable-everything --disable-autodetect --disable-doc --disable-debug --disable-x86asm --disable-network \
+              --enable-ffmpeg --enable-ffprobe --enable-zlib --enable-protocol=file,pipe \
+              --enable-demuxer=mov,image2 --enable-muxer=rawvideo,f32le \
+              --enable-decoder=mpeg4,mjpeg,aac,pcm_s16le,png --enable-encoder=rawvideo,pcm_f32le \
+              --enable-filter=scale,format,aresample,aformat,anull,null,trim,atrim
+            make -j3
+            make install
+          fi
+          echo "$GITHUB_WORKSPACE/out/export-oracle/bin" >> "$GITHUB_PATH"
       - uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.3'

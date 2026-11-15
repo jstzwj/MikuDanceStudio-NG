@@ -86,7 +86,7 @@ fallback glyph differences follow the accepted P4 policy.
 The complete runtime includes Qt Multimedia's FFmpeg plugin and shared codec
 libraries. The editor never invokes a system `ffmpeg` executable. Keep the whole
 portable directory and its notices together. File → the original video-export
-command opens MP4/MOV/PNG settings; the legacy AVI label does not imply a
+command opens MP4/PNG settings; the legacy AVI label does not imply a
 VFW encoder. Export runs on a frozen scene in a background worker.
 
 For the P6.1 desktop gate, run:
@@ -99,6 +99,9 @@ python tests/check_export_media.py --deployed-prefix out/media-distribution
 The latter
 uses test-only ffmpeg/ffprobe to independently decode the package's output;
 these tools are deliberately absent from the editor process's search path.
+The MJPEG/PCM MP4 profile uses ISO BMFF `ipcm`; its decoder must support that
+tag (FFmpeg >=7.1). The focused Linux gate builds a small, pinned FFmpeg 8.0.1
+oracle from upstream source and caches it. That test tool is never deployed.
 See [media contracts and limits](CROSS_PLATFORM_P6.md).
 
 ## Android reproduction
