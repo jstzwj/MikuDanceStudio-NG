@@ -1556,6 +1556,64 @@ inline constexpr TranslationMessage kTranslationMessages[] = {
     {QT_TRID_NOOP("mobile.controls"), "Controls"},
     //% "Viewport"
     {QT_TRID_NOOP("mobile.viewport"), "Viewport"},
+    //% "MME effects…"
+    {QT_TRID_NOOP("mme.title"), "MME effects…"},
+    //% "Assign…"
+    {QT_TRID_NOOP("mme.assign"), "Assign…"},
+    //% "Remove"
+    {QT_TRID_NOOP("mme.remove"), "Remove"},
+    //% "Reload"
+    {QT_TRID_NOOP("mme.reload"), "Reload"},
+    //% "Undo effects"
+    {QT_TRID_NOOP("mme.undo"), "Undo effects"},
+    //% "Redo effects"
+    {QT_TRID_NOOP("mme.redo"), "Redo effects"},
+    //% "Enabled"
+    {QT_TRID_NOOP("mme.enabled"), "Enabled"},
+    //% "Use basic materials"
+    {QT_TRID_NOOP("mme.basic"), "Use basic materials"},
+    //% "Whole object"
+    {QT_TRID_NOOP("mme.whole"), "Whole object"},
+    //% "Parameter"
+    {QT_TRID_NOOP("mme.parameter"), "Parameter"},
+    //% "Type"
+    {QT_TRID_NOOP("mme.type"), "Type"},
+    //% "Value"
+    {QT_TRID_NOOP("mme.value"), "Value"},
+    //% "Explicitly disable all effects. Unsupported effects never fall back silently."
+    {QT_TRID_NOOP("mme.basic.help"), "Explicitly disable all effects. Unsupported effects never fall back silently."},
+    //% "Export"
+    {QT_TRID_NOOP("export.title"), "Export"},
+    //% "Format"
+    {QT_TRID_NOOP("export.format"), "Format"},
+    //% "Frame rate"
+    {QT_TRID_NOOP("export.rate"), "Frame rate"},
+    //% "First / last MMD frame (30 fps)"
+    {QT_TRID_NOOP("export.range"), "First / last MMD frame (30 fps)"},
+    //% "Width / height"
+    {QT_TRID_NOOP("export.size"), "Width / height"},
+    //% "Keep alpha (PNG only)"
+    {QT_TRID_NOOP("export.alpha"), "Keep alpha (PNG only)"},
+    //% "Include project WAV"
+    {QT_TRID_NOOP("export.audio"), "Include project WAV"},
+    //% "Destination"
+    {QT_TRID_NOOP("export.destination"), "Destination"},
+    //% "Browse…"
+    {QT_TRID_NOOP("export.browse"), "Browse…"},
+    //% "Start export"
+    {QT_TRID_NOOP("export.start"), "Start export"},
+    //% "Export uses a snapshot; you can continue editing."
+    {QT_TRID_NOOP("export.note"), "Export uses a snapshot; you can continue editing."},
+    //% "Exporting…"
+    {QT_TRID_NOOP("export.working"), "Exporting…"},
+    //% "Export complete"
+    {QT_TRID_NOOP("export.done"), "Export complete"},
+    //% "Export cancelled"
+    {QT_TRID_NOOP("export.cancelled"), "Export cancelled"},
+    //% "Stopping export…"
+    {QT_TRID_NOOP("export.stopping"), "Stopping export…"},
+    //% "PNG sequence"
+    {QT_TRID_NOOP("export.png"), "PNG sequence"},
 };
 struct EmptyTranslation { const char* id; const char* language; };
 inline constexpr EmptyTranslation kEmptyTranslations[] = {

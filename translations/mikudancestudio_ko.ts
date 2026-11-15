@@ -3213,5 +3213,69 @@ Please add body first.</source>
             <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
             <translation>모든 효과를 명시적으로 끕니다. 지원하지 않는 효과는 자동으로 대체되지 않습니다.</translation>
         </message>
+        <message id="export.title">
+            <source>Export</source>
+            <translation>내보내기</translation>
+        </message>
+        <message id="export.format">
+            <source>Format</source>
+            <translation>형식</translation>
+        </message>
+        <message id="export.rate">
+            <source>Frame rate</source>
+            <translation>프레임 속도</translation>
+        </message>
+        <message id="export.range">
+            <source>First / last MMD frame (30 fps)</source>
+            <translation>MMD 시작 / 끝 프레임 (30 fps)</translation>
+        </message>
+        <message id="export.size">
+            <source>Width / height</source>
+            <translation>너비 / 높이</translation>
+        </message>
+        <message id="export.alpha">
+            <source>Keep alpha (PNG only)</source>
+            <translation>알파 유지 (PNG만)</translation>
+        </message>
+        <message id="export.audio">
+            <source>Include project WAV</source>
+            <translation>프로젝트 WAV 오디오 포함</translation>
+        </message>
+        <message id="export.destination">
+            <source>Destination</source>
+            <translation>출력 위치</translation>
+        </message>
+        <message id="export.browse">
+            <source>Browse…</source>
+            <translation>찾아보기…</translation>
+        </message>
+        <message id="export.start">
+            <source>Start export</source>
+            <translation>내보내기 시작</translation>
+        </message>
+        <message id="export.note">
+            <source>Export uses a snapshot; you can continue editing.</source>
+            <translation>스냅샷을 내보내므로 계속 편집할 수 있습니다.</translation>
+        </message>
+        <message id="export.working">
+            <source>Exporting…</source>
+            <translation>내보내는 중…</translation>
+        </message>
+        <message id="export.done">
+            <source>Export complete</source>
+            <translation>내보내기 완료</translation>
+        </message>
+        <message id="export.cancelled">
+            <source>Export cancelled</source>
+            <translation>내보내기 취소됨</translation>
+        </message>
+        <message id="export.stopping">
+            <source>Stopping export…</source>
+            <translation>내보내기 중지 중…</translation>
+        </message>
+        <message id="export.png">
+            <source>PNG sequence</source>
+            <translation>PNG 이미지 시퀀스</translation>
+        </message>
     </context>
 </TS>

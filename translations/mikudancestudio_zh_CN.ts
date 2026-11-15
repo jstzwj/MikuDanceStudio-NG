@@ -3213,5 +3213,69 @@ Please add body first.</source>
             <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
             <translation>明确禁用全部效果。不支持的效果不会静默降级。</translation>
         </message>
+        <message id="export.title">
+            <source>Export</source>
+            <translation>导出</translation>
+        </message>
+        <message id="export.format">
+            <source>Format</source>
+            <translation>格式</translation>
+        </message>
+        <message id="export.rate">
+            <source>Frame rate</source>
+            <translation>输出帧率</translation>
+        </message>
+        <message id="export.range">
+            <source>First / last MMD frame (30 fps)</source>
+            <translation>MMD 起止帧（30 fps）</translation>
+        </message>
+        <message id="export.size">
+            <source>Width / height</source>
+            <translation>宽度／高度</translation>
+        </message>
+        <message id="export.alpha">
+            <source>Keep alpha (PNG only)</source>
+            <translation>保留透明度（仅 PNG）</translation>
+        </message>
+        <message id="export.audio">
+            <source>Include project WAV</source>
+            <translation>包含工程 WAV 音频</translation>
+        </message>
+        <message id="export.destination">
+            <source>Destination</source>
+            <translation>输出位置</translation>
+        </message>
+        <message id="export.browse">
+            <source>Browse…</source>
+            <translation>浏览…</translation>
+        </message>
+        <message id="export.start">
+            <source>Start export</source>
+            <translation>开始导出</translation>
+        </message>
+        <message id="export.note">
+            <source>Export uses a snapshot; you can continue editing.</source>
+            <translation>导出使用独立快照，期间可继续编辑。</translation>
+        </message>
+        <message id="export.working">
+            <source>Exporting…</source>
+            <translation>正在导出…</translation>
+        </message>
+        <message id="export.done">
+            <source>Export complete</source>
+            <translation>导出完成</translation>
+        </message>
+        <message id="export.cancelled">
+            <source>Export cancelled</source>
+            <translation>已取消导出</translation>
+        </message>
+        <message id="export.stopping">
+            <source>Stopping export…</source>
+            <translation>正在停止导出…</translation>
+        </message>
+        <message id="export.png">
+            <source>PNG sequence</source>
+            <translation>PNG 图像序列</translation>
+        </message>
     </context>
 </TS>

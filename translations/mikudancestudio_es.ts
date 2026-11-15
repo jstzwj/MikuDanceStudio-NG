@@ -3213,5 +3213,69 @@ Añade uno primero.</translation>
             <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
             <translation>Desactiva explícitamente todos los efectos. Los efectos no compatibles nunca se sustituyen sin avisar.</translation>
         </message>
+        <message id="export.title">
+            <source>Export</source>
+            <translation>Exportar</translation>
+        </message>
+        <message id="export.format">
+            <source>Format</source>
+            <translation>Formato</translation>
+        </message>
+        <message id="export.rate">
+            <source>Frame rate</source>
+            <translation>Fotogramas por segundo</translation>
+        </message>
+        <message id="export.range">
+            <source>First / last MMD frame (30 fps)</source>
+            <translation>Primer / último fotograma MMD (30 fps)</translation>
+        </message>
+        <message id="export.size">
+            <source>Width / height</source>
+            <translation>Anchura / altura</translation>
+        </message>
+        <message id="export.alpha">
+            <source>Keep alpha (PNG only)</source>
+            <translation>Conservar alfa (solo PNG)</translation>
+        </message>
+        <message id="export.audio">
+            <source>Include project WAV</source>
+            <translation>Incluir WAV del proyecto</translation>
+        </message>
+        <message id="export.destination">
+            <source>Destination</source>
+            <translation>Destino</translation>
+        </message>
+        <message id="export.browse">
+            <source>Browse…</source>
+            <translation>Examinar…</translation>
+        </message>
+        <message id="export.start">
+            <source>Start export</source>
+            <translation>Iniciar exportación</translation>
+        </message>
+        <message id="export.note">
+            <source>Export uses a snapshot; you can continue editing.</source>
+            <translation>Se exporta una instantánea; puede seguir editando.</translation>
+        </message>
+        <message id="export.working">
+            <source>Exporting…</source>
+            <translation>Exportando…</translation>
+        </message>
+        <message id="export.done">
+            <source>Export complete</source>
+            <translation>Exportación completada</translation>
+        </message>
+        <message id="export.cancelled">
+            <source>Export cancelled</source>
+            <translation>Exportación cancelada</translation>
+        </message>
+        <message id="export.stopping">
+            <source>Stopping export…</source>
+            <translation>Deteniendo exportación…</translation>
+        </message>
+        <message id="export.png">
+            <source>PNG sequence</source>
+            <translation>Secuencia PNG</translation>
+        </message>
     </context>
 </TS>

@@ -71,27 +71,62 @@ def inspect(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--program', required=True)
-    parser.add_argument('--assets', required=True)
+    parser.add_argument('--program')
+    parser.add_argument('--assets')
     parser.add_argument('--output', type=Path)
+    parser.add_argument('--deployed-prefix', type=Path, help='Decode outputs of --media package qualification')
     args = parser.parse_args()
     for tool in ('ffmpeg', 'ffprobe'):
         if not shutil.which(tool):
             raise RuntimeError(f'{tool} is required for independent export qualification (test-only)')
+    if args.deployed_prefix:
+        result = []
+        for suffix in ('.mp4', '.mkv'):
+            movie = args.deployed_prefix.with_suffix(suffix)
+            info = json.loads(run('ffprobe', '-v', 'error', '-count_frames', '-show_streams', '-of', 'json', movie))
+            video = next(s for s in info['streams'] if s['codec_type'] == 'video')
+            audio = next(s for s in info['streams'] if s['codec_type'] == 'audio')
+            assert (video['width'], video['height'], int(video['nb_read_frames'])) == (96, 64, 2)
+            assert int(audio['sample_rate']) == 48000 and int(audio['channels']) == 2
+            samples = array.array('f')
+            samples.frombytes(run('ffmpeg', '-v', 'error', '-i', movie, '-map', '0:a:0', '-f', 'f32le', '-'))
+            assert 3200 <= len(samples)//2 <= 4224
+            assert max(samples[::2]) > .2 and min(samples[::2]) < -.2
+            assert max(abs(x) for x in samples[1::2]) < .001
+            result.append(dict(file=movie.name, decodedFrames=2, audioFrames=len(samples)//2,
+                               videoCodec=video['codec_name'], audioCodec=audio['codec_name']))
+        report = dict(schema=1, passed=True, packagedMedia=result)
+        args.deployed_prefix.with_suffix('.decoded.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
+        print(json.dumps(report))
+        return
+    if not args.program or not args.assets:
+        parser.error('--program and --assets are required unless --deployed-prefix is used')
     with tempfile.TemporaryDirectory(prefix='mds-export-oracle-') as temporary:
         root = Path(temporary)
         cpu_import_fixture.write(root)
-        output = args.output.resolve() if args.output else root / 'evidence'
+        requested = args.output or os.environ.get('MDS_EXPORT_QUALIFICATION_DIR')
+        output = Path(requested).resolve() if requested else root / 'evidence'
         if output.exists():
             raise RuntimeError(f'Refusing to overwrite previous evidence: {output}')
         env = os.environ.copy()
         env.update(QT_QPA_PLATFORM='offscreen', QT_MEDIA_BACKEND='ffmpeg', MDS_EXPORT_EVIDENCE=str(output))
         subprocess.run([args.program, str(root), args.assets], check=True, env=env, timeout=120)
         results = [inspect(output / name) for name in ('clock.mp4', 'clock.mkv', 'clock-ntsc.mp4')]
-        video = run('ffmpeg', '-v', 'error', '-i', output/'scene.mp4', '-map', '0:v:0', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-')
-        assert len(video) == 3*160*96*3
+        original = run('ffmpeg', '-v', 'error', '-framerate', '30', '-i',
+                       output/'sequence/frame_%08d.png', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-')
+        assert len(original) == 3*160*96*3
+        scene_quality = {}
+        for name in ('scene.mp4', 'worker.mp4'):
+            video = run('ffmpeg', '-v', 'error', '-i', output/name, '-map', '0:v:0',
+                        '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-')
+            assert len(video) == len(original)
+            mse = sum((a-b)**2 for a, b in zip(original, video)) / len(video)
+            psnr = 10*math.log10(255**2/mse) if mse else 100
+            assert psnr >= 30, (name, psnr)
+            scene_quality[name] = psnr
         report = dict(schema=1, backend=env.get('MDS_GPU_BACKEND', 'default'), passed=True, media=results,
-                      sceneFrames=3, rawMmd30HzRegression='separate qt_mme strict gate',
+                      sceneFrames=3, materialAndTwoPassMme=True, scenePsnrDb=scene_quality,
+                      rawMmd30HzRegression='separate qt_mme strict gate',
                       ffmpegOracle=run('ffmpeg', '-version').decode().splitlines()[0])
         (output/'report.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
         print(json.dumps(report))

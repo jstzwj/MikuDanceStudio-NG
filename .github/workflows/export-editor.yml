@@ -1,0 +1,143 @@
+name: Offline export closure
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        options: [all, windows-2022, ubuntu-22.04, macos-15]
+        default: all
+        description: Qualify offline MME video/audio and relocated packages; rerun only affected platforms
+concurrency:
+  group: export-editor-${{ github.ref }}
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  editor:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJSON(inputs.platform == 'macos-15' && '["macos-15"]' || inputs.platform == 'windows-2022' && '["windows-2022"]' || inputs.platform == 'ubuntu-22.04' && '["ubuntu-22.04"]' || '["windows-2022","ubuntu-22.04","macos-15"]') }}
+    runs-on: ${{ matrix.os }}
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
+      CCACHE_MAXSIZE: 700M
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - uses: actions/cache@v4
+        with:
+          path: out/build/editor-fonts
+          key: editor-fonts-${{ runner.os }}-noto2004-b76b0433
+      - name: Linux Qt and offscreen dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y ninja-build ccache patchelf spirv-tools libvulkan1 mesa-vulkan-drivers libxcb1-dev libwayland-dev wayland-protocols libxkbcommon-x11-0 libxcb-cursor0 libegl1 libgl1 libpulse-dev ffmpeg
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          aqtversion: '==3.3.0'
+          arch: ${{ runner.os == 'Windows' && 'win64_msvc2022_64' || '' }}
+          modules: ${{ runner.os == 'Linux' && 'qtmultimedia qtwaylandcompositor' || 'qtmultimedia' }}
+          cache: true
+      - uses: actions/cache/restore@v4
+        if: runner.os == 'macOS'
+        with:
+          path: out/dxc
+          key: dxc-b106a961-macos15-arm64-v1
+          fail-on-cache-miss: true
+      - uses: actions/cache@v4
+        id: windows-compiler
+        if: runner.os == 'Windows'
+        with:
+          path: out/dxc
+          key: dxc-v1825051-windows-x64-v1
+      - uses: actions/cache@v4
+        id: linux-compiler
+        if: runner.os == 'Linux'
+        with:
+          path: out/dxc
+          key: dxc-v1825051-linux-x64-v1
+      - name: Fetch pinned DXC
+        if: (runner.os == 'Windows' && steps.windows-compiler.outputs.cache-hit != 'true') || (runner.os == 'Linux' && steps.linux-compiler.outputs.cache-hit != 'true')
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -p test_fetch_dxc.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/fetch_dxc.py --output out/dxc
+          exit $LASTEXITCODE
+      - uses: actions/checkout@v4
+        if: runner.os == 'Linux'
+        with:
+          repository: KhronosGroup/Vulkan-Headers
+          ref: v1.3.296
+          path: out/vulkan-headers
+      - name: Metal validation tools
+        if: runner.os == 'macOS'
+        run: chmod +x out/dxc/bin/dxc && brew install spirv-tools ccache ffmpeg
+      - uses: actions/cache@v4
+        if: runner.os != 'Windows'
+        with:
+          path: .cache/ccache
+          key: export-editor-${{ runner.os }}-qt683-${{ github.sha }}
+          restore-keys: |
+            export-editor-${{ runner.os }}-qt683-
+            mme-editor-${{ runner.os }}-qt683-
+            editor-objects-${{ runner.os == 'Linux' && 'ubuntu2204' || 'macos15' }}-${{ runner.arch }}-qt683-v1-
+      - name: Independent decoder tools on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (!(Get-Command ffmpeg -ErrorAction SilentlyContinue)) { choco install ffmpeg -y --no-progress }
+          ffmpeg -version
+          ffprobe -version
+      - name: Build the production editor and focused closure gates
+        shell: pwsh
+        run: |
+          $dxcPath = if ($IsWindows) { "$PWD/out/dxc/dxc.exe" } else { "$PWD/out/dxc/bin/dxc" }
+          $configure = @('-S','cmake/portable-editor','-B','out/build','-G','Ninja','-DCMAKE_BUILD_TYPE=Release',"-DMDS_DXC=$dxcPath")
+          if (!$IsWindows) { $configure += '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache' }
+          # This Windows slice executes D3D11/D3D12. Linux executes Vulkan;
+          # the developer hardware gate additionally covers Windows Vulkan.
+          if ($IsWindows) { $configure += '-DMIKUDANCESTUDIO_RHI_VULKAN=OFF' }
+          if ($IsMacOS) { $configure += @('-DMIKUDANCESTUDIO_RHI_VULKAN=OFF','-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0','-DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache') }
+          if ($IsLinux) { $configure += "-DMDS_VULKAN_INCLUDE=$PWD/out/vulkan-headers/include" }
+          cmake @configure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build out/build --target qt_export_test qt_mme_test qt_editor_render_test qt_menu_test MikuDanceStudioNG --parallel 3
+          exit $LASTEXITCODE
+      - name: Decode exports and execute retained strict gates offscreen
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+          MTL_DEBUG_LAYER: '1'
+        run: |
+          $env:MDS_GPU_DRIVER = if ($IsMacOS) { 'hardware' } else { 'software' }
+          $apis = if ($IsWindows) { @('d3d11','d3d12') } elseif ($IsMacOS) { @('metal') } else { @('vulkan') }
+          foreach ($api in $apis) {
+            $env:MDS_GPU_BACKEND = $api
+            $env:MDS_EXPORT_QUALIFICATION_DIR = "$PWD/out/export-$api"
+            ctest --test-dir out/build -R '^(qt_export|qt_mme|qt_editor_render|qt_menu)$' --no-tests=error --output-on-failure --output-junit "export-$api.xml"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Qualify packaged codecs with no SDK or external ffmpeg paths
+        shell: pwsh
+        run: |
+          cmake --build out/build --target dist --parallel 3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/test_editor_distribution.py --dist out/dist --media --report out/media-distribution.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tests/check_export_media.py --deployed-prefix out/media-distribution
+          exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: export-editor-${{ runner.os }}
+          path: |
+            out/build/export-*.xml
+            out/build/Testing/Temporary/
+            out/media-distribution.*
+            out/export-*/report.json

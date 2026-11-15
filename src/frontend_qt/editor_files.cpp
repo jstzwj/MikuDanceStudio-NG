@@ -15,7 +15,6 @@
 #include <QLayout>
 #include <QImage>
 #include <QMessageBox>
-#include <QProgressDialog>
 #include <QStandardPaths>
 #include <QSaveFile>
 #include <cmath>
@@ -259,38 +258,8 @@ void EditorWindow::FileAction(const QString& id, const QString& inputPath) {
         Refresh();
         return;
     }
-    if (id == "file.sequence") {
-        const auto path =
-            ChooseFile(FileKind::Project, true, language_.Text(id), {}, "frames", false);
-        if (path.isEmpty())
-            return;
-        session_.Pause();
-        audio_.Stop();
-        timer_.stop();
-        const auto& d = session_.Document();
-        const auto start = unsigned(d.timeline.playStartFrame),
-                   end = unsigned(d.timeline.playStopFrame);
-        QProgressDialog progress(language_.Text(id), language_.Text("dialog.cancel"), 0,
-                                 int(end - start + 1), this);
-        progress.setWindowModality(Qt::WindowModal);
-        progress.setMinimumDuration(0);
-        std::string r;
-        const bool ok = ExportSequence(
-            session_, assets_, viewport_->Options(), Path(path), start, end,
-            d.envelope.settings.renderWidth, d.envelope.settings.renderHeight,
-            [&](unsigned done, unsigned total) {
-                progress.setMaximum(int(total));
-                progress.setValue(int(done));
-                QApplication::processEvents();
-                return !progress.wasCanceled();
-            },
-            r);
-        if (r != "export-cancelled")
-            Result(ok, r);
-        clock_.restart();
-        if (!testing_)
-            timer_.start();
-        Refresh();
+    if (id == "file.sequence" || id == "file.video") {
+        Export(id == "file.video");
         return;
     }
     if (id == "file.image") {

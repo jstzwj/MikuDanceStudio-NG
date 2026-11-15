@@ -3213,5 +3213,69 @@ Najpierw dodaj bryłę.</translation>
             <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
             <translation>Jawnie wyłącza wszystkie efekty. Nieobsługiwane efekty nie są zastępowane bez powiadomienia.</translation>
         </message>
+        <message id="export.title">
+            <source>Export</source>
+            <translation>Eksport</translation>
+        </message>
+        <message id="export.format">
+            <source>Format</source>
+            <translation>Format</translation>
+        </message>
+        <message id="export.rate">
+            <source>Frame rate</source>
+            <translation>Liczba klatek na sekundę</translation>
+        </message>
+        <message id="export.range">
+            <source>First / last MMD frame (30 fps)</source>
+            <translation>Pierwsza / ostatnia klatka MMD (30 kl./s)</translation>
+        </message>
+        <message id="export.size">
+            <source>Width / height</source>
+            <translation>Szerokość / wysokość</translation>
+        </message>
+        <message id="export.alpha">
+            <source>Keep alpha (PNG only)</source>
+            <translation>Zachowaj alfę (tylko PNG)</translation>
+        </message>
+        <message id="export.audio">
+            <source>Include project WAV</source>
+            <translation>Dołącz WAV projektu</translation>
+        </message>
+        <message id="export.destination">
+            <source>Destination</source>
+            <translation>Miejsce docelowe</translation>
+        </message>
+        <message id="export.browse">
+            <source>Browse…</source>
+            <translation>Przeglądaj…</translation>
+        </message>
+        <message id="export.start">
+            <source>Start export</source>
+            <translation>Rozpocznij eksport</translation>
+        </message>
+        <message id="export.note">
+            <source>Export uses a snapshot; you can continue editing.</source>
+            <translation>Eksportowany jest stan projektu; można kontynuować edycję.</translation>
+        </message>
+        <message id="export.working">
+            <source>Exporting…</source>
+            <translation>Eksportowanie…</translation>
+        </message>
+        <message id="export.done">
+            <source>Export complete</source>
+            <translation>Eksport zakończony</translation>
+        </message>
+        <message id="export.cancelled">
+            <source>Export cancelled</source>
+            <translation>Eksport anulowany</translation>
+        </message>
+        <message id="export.stopping">
+            <source>Stopping export…</source>
+            <translation>Zatrzymywanie eksportu…</translation>
+        </message>
+        <message id="export.png">
+            <source>PNG sequence</source>
+            <translation>Sekwencja PNG</translation>
+        </message>
     </context>
 </TS>

@@ -3213,5 +3213,69 @@ Please add body first.</source>
             <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
             <translation>Tüm efektleri açıkça kapatır. Desteklenmeyen efektler sessizce değiştirilmez.</translation>
         </message>
+        <message id="export.title">
+            <source>Export</source>
+            <translation>Dışa aktar</translation>
+        </message>
+        <message id="export.format">
+            <source>Format</source>
+            <translation>Biçim</translation>
+        </message>
+        <message id="export.rate">
+            <source>Frame rate</source>
+            <translation>Kare hızı</translation>
+        </message>
+        <message id="export.range">
+            <source>First / last MMD frame (30 fps)</source>
+            <translation>İlk / son MMD karesi (30 fps)</translation>
+        </message>
+        <message id="export.size">
+            <source>Width / height</source>
+            <translation>Genişlik / yükseklik</translation>
+        </message>
+        <message id="export.alpha">
+            <source>Keep alpha (PNG only)</source>
+            <translation>Alfayı koru (yalnızca PNG)</translation>
+        </message>
+        <message id="export.audio">
+            <source>Include project WAV</source>
+            <translation>Projenin WAV sesini ekle</translation>
+        </message>
+        <message id="export.destination">
+            <source>Destination</source>
+            <translation>Hedef</translation>
+        </message>
+        <message id="export.browse">
+            <source>Browse…</source>
+            <translation>Gözat…</translation>
+        </message>
+        <message id="export.start">
+            <source>Start export</source>
+            <translation>Dışa aktarmayı başlat</translation>
+        </message>
+        <message id="export.note">
+            <source>Export uses a snapshot; you can continue editing.</source>
+            <translation>Bir anlık görüntü dışa aktarılır; düzenlemeye devam edebilirsiniz.</translation>
+        </message>
+        <message id="export.working">
+            <source>Exporting…</source>
+            <translation>Dışa aktarılıyor…</translation>
+        </message>
+        <message id="export.done">
+            <source>Export complete</source>
+            <translation>Dışa aktarma tamamlandı</translation>
+        </message>
+        <message id="export.cancelled">
+            <source>Export cancelled</source>
+            <translation>Dışa aktarma iptal edildi</translation>
+        </message>
+        <message id="export.stopping">
+            <source>Stopping export…</source>
+            <translation>Dışa aktarma durduruluyor…</translation>
+        </message>
+        <message id="export.png">
+            <source>PNG sequence</source>
+            <translation>PNG dizisi</translation>
+        </message>
     </context>
 </TS>

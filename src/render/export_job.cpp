@@ -41,15 +41,16 @@ bool MakeExportTimeline(const ExportSettings& s, ExportTimeline& out, std::strin
     reason.clear();
     return true;
 }
-ExportSnapshot CaptureExport(const editor::EditorSession& s) {
-    return {s.Document(), s.Assets(), s.Effects(), s.DisplayOptions(), s.EffectRevision()};
-}
 bool RunExport(const ExportSnapshot& snapshot, const std::filesystem::path& builtins,
                rhi::BackendOptions options, const ExportSettings& requested,
                const ExportFrameSink& sink, const ExportProgress& progress, std::string& reason) {
     ExportTimeline timeline;
-    if (!MakeExportTimeline(requested, timeline, reason) || !sink)
+    if (!MakeExportTimeline(requested, timeline, reason))
         return false;
+    if (!sink) {
+        reason = "export-frame-sink-missing";
+        return false;
+    }
     const auto& spec = timeline.settings;
     auto report = [&](unsigned done) {
         if (progress && !progress(done, timeline.frames)) {

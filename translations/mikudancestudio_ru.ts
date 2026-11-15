@@ -3213,5 +3213,69 @@ Please add body first.</source>
             <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
             <translation>Явно отключает все эффекты. Неподдерживаемые эффекты не заменяются без уведомления.</translation>
         </message>
+        <message id="export.title">
+            <source>Export</source>
+            <translation>Экспорт</translation>
+        </message>
+        <message id="export.format">
+            <source>Format</source>
+            <translation>Формат</translation>
+        </message>
+        <message id="export.rate">
+            <source>Frame rate</source>
+            <translation>Частота кадров</translation>
+        </message>
+        <message id="export.range">
+            <source>First / last MMD frame (30 fps)</source>
+            <translation>Первый / последний кадр MMD (30 кадр/с)</translation>
+        </message>
+        <message id="export.size">
+            <source>Width / height</source>
+            <translation>Ширина / высота</translation>
+        </message>
+        <message id="export.alpha">
+            <source>Keep alpha (PNG only)</source>
+            <translation>Сохранить альфа-канал (только PNG)</translation>
+        </message>
+        <message id="export.audio">
+            <source>Include project WAV</source>
+            <translation>Включить WAV проекта</translation>
+        </message>
+        <message id="export.destination">
+            <source>Destination</source>
+            <translation>Путь вывода</translation>
+        </message>
+        <message id="export.browse">
+            <source>Browse…</source>
+            <translation>Обзор…</translation>
+        </message>
+        <message id="export.start">
+            <source>Start export</source>
+            <translation>Начать экспорт</translation>
+        </message>
+        <message id="export.note">
+            <source>Export uses a snapshot; you can continue editing.</source>
+            <translation>Экспортируется снимок проекта; можно продолжать редактирование.</translation>
+        </message>
+        <message id="export.working">
+            <source>Exporting…</source>
+            <translation>Экспорт…</translation>
+        </message>
+        <message id="export.done">
+            <source>Export complete</source>
+            <translation>Экспорт завершён</translation>
+        </message>
+        <message id="export.cancelled">
+            <source>Export cancelled</source>
+            <translation>Экспорт отменён</translation>
+        </message>
+        <message id="export.stopping">
+            <source>Stopping export…</source>
+            <translation>Остановка экспорта…</translation>
+        </message>
+        <message id="export.png">
+            <source>PNG sequence</source>
+            <translation>Последовательность PNG</translation>
+        </message>
     </context>
 </TS>

@@ -3215,5 +3215,69 @@ Please add body first.</translation>
             <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
             <translation>Explicitly disable all effects. Unsupported effects never fall back silently.</translation>
         </message>
+        <message id="export.title">
+            <source>Export</source>
+            <translation>Export</translation>
+        </message>
+        <message id="export.format">
+            <source>Format</source>
+            <translation>Format</translation>
+        </message>
+        <message id="export.rate">
+            <source>Frame rate</source>
+            <translation>Frame rate</translation>
+        </message>
+        <message id="export.range">
+            <source>First / last MMD frame (30 fps)</source>
+            <translation>First / last MMD frame (30 fps)</translation>
+        </message>
+        <message id="export.size">
+            <source>Width / height</source>
+            <translation>Width / height</translation>
+        </message>
+        <message id="export.alpha">
+            <source>Keep alpha (PNG only)</source>
+            <translation>Keep alpha (PNG only)</translation>
+        </message>
+        <message id="export.audio">
+            <source>Include project WAV</source>
+            <translation>Include project WAV</translation>
+        </message>
+        <message id="export.destination">
+            <source>Destination</source>
+            <translation>Destination</translation>
+        </message>
+        <message id="export.browse">
+            <source>Browse…</source>
+            <translation>Browse…</translation>
+        </message>
+        <message id="export.start">
+            <source>Start export</source>
+            <translation>Start export</translation>
+        </message>
+        <message id="export.note">
+            <source>Export uses a snapshot; you can continue editing.</source>
+            <translation>Export uses a snapshot; you can continue editing.</translation>
+        </message>
+        <message id="export.working">
+            <source>Exporting…</source>
+            <translation>Exporting…</translation>
+        </message>
+        <message id="export.done">
+            <source>Export complete</source>
+            <translation>Export complete</translation>
+        </message>
+        <message id="export.cancelled">
+            <source>Export cancelled</source>
+            <translation>Export cancelled</translation>
+        </message>
+        <message id="export.stopping">
+            <source>Stopping export…</source>
+            <translation>Stopping export…</translation>
+        </message>
+        <message id="export.png">
+            <source>PNG sequence</source>
+            <translation>PNG sequence</translation>
+        </message>
     </context>
 </TS>

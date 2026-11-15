@@ -3221,5 +3221,69 @@ Please add body first.</source>
             <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
             <translation>すべての効果を明示的に無効にします。未対応の効果を自動的に置き換えることはありません。</translation>
         </message>
+        <message id="export.title">
+            <source>Export</source>
+            <translation>エクスポート</translation>
+        </message>
+        <message id="export.format">
+            <source>Format</source>
+            <translation>形式</translation>
+        </message>
+        <message id="export.rate">
+            <source>Frame rate</source>
+            <translation>出力フレームレート</translation>
+        </message>
+        <message id="export.range">
+            <source>First / last MMD frame (30 fps)</source>
+            <translation>MMD 開始／終了フレーム（30 fps）</translation>
+        </message>
+        <message id="export.size">
+            <source>Width / height</source>
+            <translation>幅／高さ</translation>
+        </message>
+        <message id="export.alpha">
+            <source>Keep alpha (PNG only)</source>
+            <translation>アルファを保持（PNG のみ）</translation>
+        </message>
+        <message id="export.audio">
+            <source>Include project WAV</source>
+            <translation>プロジェクトの WAV 音声を含める</translation>
+        </message>
+        <message id="export.destination">
+            <source>Destination</source>
+            <translation>出力先</translation>
+        </message>
+        <message id="export.browse">
+            <source>Browse…</source>
+            <translation>参照…</translation>
+        </message>
+        <message id="export.start">
+            <source>Start export</source>
+            <translation>エクスポート開始</translation>
+        </message>
+        <message id="export.note">
+            <source>Export uses a snapshot; you can continue editing.</source>
+            <translation>スナップショットを書き出すため、編集中も作業を続けられます。</translation>
+        </message>
+        <message id="export.working">
+            <source>Exporting…</source>
+            <translation>エクスポート中…</translation>
+        </message>
+        <message id="export.done">
+            <source>Export complete</source>
+            <translation>エクスポート完了</translation>
+        </message>
+        <message id="export.cancelled">
+            <source>Export cancelled</source>
+            <translation>エクスポートをキャンセルしました</translation>
+        </message>
+        <message id="export.stopping">
+            <source>Stopping export…</source>
+            <translation>エクスポートを停止中…</translation>
+        </message>
+        <message id="export.png">
+            <source>PNG sequence</source>
+            <translation>PNG 連番画像</translation>
+        </message>
     </context>
 </TS>

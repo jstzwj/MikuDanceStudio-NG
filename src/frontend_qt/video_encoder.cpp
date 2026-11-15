@@ -270,6 +270,10 @@ bool ExportMovie(const render::ExportSnapshot& snapshot, const std::filesystem::
     if (!render::MakeExportTimeline(settings, timeline, reason))
         return false;
     const auto target = std::filesystem::absolute(destination).lexically_normal();
+    if (Path(target.extension()).toLower() != (profile == VideoProfile::Mp4 ? ".mp4" : ".mkv")) {
+        reason = "export-video-extension-mismatch";
+        return false;
+    }
     if (std::filesystem::exists(target)) {
         reason = "export-destination-exists";
         return false;
@@ -287,7 +291,7 @@ bool ExportMovie(const render::ExportSnapshot& snapshot, const std::filesystem::
     if (audio && !snapshot.assets.wave.empty()) {
         std::ifstream file(snapshot.assets.wave, std::ios::binary | std::ios::ate);
         const auto size = file ? file.tellg() : std::streampos(-1);
-        if (size < 0 || size > 256 * 1024 * 1024) {
+        if (size < 0 || size > 64 * 1024 * 1024) {
             reason = "export-wave-read-or-size-failed";
             return false;
         }

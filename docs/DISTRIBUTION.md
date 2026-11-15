@@ -81,6 +81,26 @@ SHA-256 and bundled with its license. Use `MDS_EDITOR_FONT_FILE` for offline
 builds of the same qualified TTC. Original installed fonts retain priority;
 fallback glyph differences follow the accepted P4 policy.
 
+## Offline video export qualification
+
+The complete runtime includes Qt Multimedia's FFmpeg plugin and shared codec
+libraries. The editor never invokes a system `ffmpeg` executable. Keep the whole
+portable directory and its notices together. File → the original video-export
+command opens MP4/Matroska/PNG settings; the legacy AVI label does not imply a
+VFW encoder. Export runs on a frozen scene in a background worker.
+
+For the P6.1 desktop gate, run:
+
+```sh
+python tests/test_editor_distribution.py --dist out/dist --media --report out/media-distribution.json
+python tests/check_export_media.py --deployed-prefix out/media-distribution
+```
+
+The latter
+uses test-only ffmpeg/ffprobe to independently decode the package's output;
+these tools are deliberately absent from the editor process's search path.
+See [media contracts and limits](CROSS_PLATFORM_P6.md).
+
 ## Android reproduction
 
 Use a Linux x64 build host, Java 17, Android SDK 35 / build-tools 35.0.0 and

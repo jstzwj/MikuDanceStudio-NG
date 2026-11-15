@@ -3213,5 +3213,69 @@ Hãy thêm vật rắn trước.</translation>
             <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
             <translation>Tắt rõ ràng mọi hiệu ứng. Hiệu ứng không hỗ trợ không bao giờ bị âm thầm thay thế.</translation>
         </message>
+        <message id="export.title">
+            <source>Export</source>
+            <translation>Xuất</translation>
+        </message>
+        <message id="export.format">
+            <source>Format</source>
+            <translation>Định dạng</translation>
+        </message>
+        <message id="export.rate">
+            <source>Frame rate</source>
+            <translation>Tốc độ khung hình</translation>
+        </message>
+        <message id="export.range">
+            <source>First / last MMD frame (30 fps)</source>
+            <translation>Khung MMD đầu / cuối (30 fps)</translation>
+        </message>
+        <message id="export.size">
+            <source>Width / height</source>
+            <translation>Chiều rộng / chiều cao</translation>
+        </message>
+        <message id="export.alpha">
+            <source>Keep alpha (PNG only)</source>
+            <translation>Giữ alpha (chỉ PNG)</translation>
+        </message>
+        <message id="export.audio">
+            <source>Include project WAV</source>
+            <translation>Kèm âm thanh WAV của dự án</translation>
+        </message>
+        <message id="export.destination">
+            <source>Destination</source>
+            <translation>Nơi lưu</translation>
+        </message>
+        <message id="export.browse">
+            <source>Browse…</source>
+            <translation>Duyệt…</translation>
+        </message>
+        <message id="export.start">
+            <source>Start export</source>
+            <translation>Bắt đầu xuất</translation>
+        </message>
+        <message id="export.note">
+            <source>Export uses a snapshot; you can continue editing.</source>
+            <translation>Xuất từ bản chụp trạng thái; bạn có thể tiếp tục chỉnh sửa.</translation>
+        </message>
+        <message id="export.working">
+            <source>Exporting…</source>
+            <translation>Đang xuất…</translation>
+        </message>
+        <message id="export.done">
+            <source>Export complete</source>
+            <translation>Đã xuất xong</translation>
+        </message>
+        <message id="export.cancelled">
+            <source>Export cancelled</source>
+            <translation>Đã hủy xuất</translation>
+        </message>
+        <message id="export.stopping">
+            <source>Stopping export…</source>
+            <translation>Đang dừng xuất…</translation>
+        </message>
+        <message id="export.png">
+            <source>PNG sequence</source>
+            <translation>Chuỗi ảnh PNG</translation>
+        </message>
     </context>
 </TS>

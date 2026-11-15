@@ -74,6 +74,7 @@ the portable frontend gates and does not claim that native oracle result.
 | Portable editor | Build shared editor, P4/P5 regressions, presentation, portable deployment | Main/PR; focused manual qualification; reused by Release. Test evidence and development archives |
 | Android qualification | Build Qt Android ARM64+x86_64, APK, emulator lifecycle/rendering | Focused manual run or reused by Release; evidence and signed release artifact only when tagged |
 | Portable rendering | Backend/resource/pass/GPU contract regressions | Main/PR/manual; test evidence, no product Release |
+| Offline export closure | P6.1 decoded frame IDs/timestamps/audio pulses, strict MME regression and relocated video/audio codecs | Focused manual three-platform run; affected-platform reruns only; no publication |
 | Portable formats | Formats, encoding and CPU portability | Main/PR/manual; test evidence, no product Release |
 | Bullet 2.75 build | Original-source integrity and compiler/architecture physics checks | Main/PR/manual; test evidence, no product Release |
 | Release portable editor | Coordinate qualification and publish all five qualified packages | Version tag or explicit existing-tag dispatch |

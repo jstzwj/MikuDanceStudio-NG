@@ -10,7 +10,7 @@ linked Qt remains replaceable by a compatible shared build.
 * Bullet 2.75: zlib license, `Bullet/LICENSE.txt`; unmodified source is retained
   under this repository's `recipes/bullet275/bullet-src` directory.
 * stb_image: MIT/public-domain alternatives, full notice in `stb_image.h`.
-* DXC, when Vulkan or Metal is enabled: upstream licenses/notices in `DXC/`.
+* DXC, for runtime FX compilation and Vulkan/Metal: upstream licenses/notices in `DXC/`.
   Pinned binary source: https://github.com/microsoft/DirectXShaderCompiler/releases/tag/v1.8.2505.1
   macOS source revision: b106a961d09221b3c5bdb37be45b679257da08b8.
 * SPIRV-Cross, native Metal builds: Apache-2.0/MIT alternatives; statically linked
@@ -26,7 +26,8 @@ linked Qt remains replaceable by a compatible shared build.
   `libpulse.so.0` and a running audio service. Source and license:
   https://gitlab.freedesktop.org/pulseaudio/pulseaudio
 
-The official Qt multimedia deployment may also include FFmpeg shared libraries;
+Offline video/audio export uses Qt's FFmpeg multimedia plugin and its deployed shared libraries;
 their corresponding source and notices are available in the Qt multimedia source
-archive for this exact Qt version. No external models, Ray assets or original
+archive for this exact Qt version. No external ffmpeg executable is required or shipped.
+No external models, Ray assets or original
 MMD executable are included in this distribution.

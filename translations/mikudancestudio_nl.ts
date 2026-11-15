@@ -3213,5 +3213,69 @@ Voeg eerst een lichaam toe.</translation>
             <source>Explicitly disable all effects. Unsupported effects never fall back silently.</source>
             <translation>Schakelt alle effecten expliciet uit. Niet-ondersteunde effecten worden nooit stilzwijgend vervangen.</translation>
         </message>
+        <message id="export.title">
+            <source>Export</source>
+            <translation>Exporteren</translation>
+        </message>
+        <message id="export.format">
+            <source>Format</source>
+            <translation>Formaat</translation>
+        </message>
+        <message id="export.rate">
+            <source>Frame rate</source>
+            <translation>Beeldsnelheid</translation>
+        </message>
+        <message id="export.range">
+            <source>First / last MMD frame (30 fps)</source>
+            <translation>Eerste / laatste MMD-frame (30 fps)</translation>
+        </message>
+        <message id="export.size">
+            <source>Width / height</source>
+            <translation>Breedte / hoogte</translation>
+        </message>
+        <message id="export.alpha">
+            <source>Keep alpha (PNG only)</source>
+            <translation>Alfa behouden (alleen PNG)</translation>
+        </message>
+        <message id="export.audio">
+            <source>Include project WAV</source>
+            <translation>WAV van project opnemen</translation>
+        </message>
+        <message id="export.destination">
+            <source>Destination</source>
+            <translation>Bestemming</translation>
+        </message>
+        <message id="export.browse">
+            <source>Browse…</source>
+            <translation>Bladeren…</translation>
+        </message>
+        <message id="export.start">
+            <source>Start export</source>
+            <translation>Export starten</translation>
+        </message>
+        <message id="export.note">
+            <source>Export uses a snapshot; you can continue editing.</source>
+            <translation>Een momentopname wordt geëxporteerd; u kunt verder bewerken.</translation>
+        </message>
+        <message id="export.working">
+            <source>Exporting…</source>
+            <translation>Exporteren…</translation>
+        </message>
+        <message id="export.done">
+            <source>Export complete</source>
+            <translation>Export voltooid</translation>
+        </message>
+        <message id="export.cancelled">
+            <source>Export cancelled</source>
+            <translation>Export geannuleerd</translation>
+        </message>
+        <message id="export.stopping">
+            <source>Stopping export…</source>
+            <translation>Export stoppen…</translation>
+        </message>
+        <message id="export.png">
+            <source>PNG sequence</source>
+            <translation>PNG-reeks</translation>
+        </message>
     </context>
 </TS>

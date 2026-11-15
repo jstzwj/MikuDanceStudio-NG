@@ -11,6 +11,8 @@ import sys
 import tarfile
 import tempfile
 import zipfile
+import wave
+import struct
 import cpu_import_fixture
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from release_contract import inspect_archive
@@ -23,7 +25,10 @@ def main():
     source.add_argument('--archive', type=Path, help='Verify checksum, extract, then test the actual shipping archive')
     parser.add_argument('--report', type=Path)
     parser.add_argument('--mme', action='store_true', help='Also qualify raw FX, save/reopen and export')
+    parser.add_argument('--media', action='store_true', help='Also qualify packaged MME video and WAV encoding')
     args = parser.parse_args()
+    if args.media:
+        args.mme = True
     if args.archive:
         record = inspect_archive(args.archive)
         with tempfile.TemporaryDirectory(prefix='mds-shipping-archive-') as temporary:
@@ -37,7 +42,7 @@ def main():
             package, = root.iterdir()
             report = args.report or args.archive.parent / 'distribution-check.json'
             subprocess.run([sys.executable, str(Path(__file__).resolve()), '--dist', str(package),
-                            '--report', str(report.resolve())] + (['--mme'] if args.mme else []), check=True)
+                            '--report', str(report.resolve())] + (['--media'] if args.media else ['--mme'] if args.mme else []), check=True)
         print(f'Shipping archive passed: {record["archive"]} ({record["arch"]})')
         return
     dist = args.dist.resolve(strict=True)
@@ -50,6 +55,10 @@ def main():
         fixtures = root / 'fixtures'
         fixtures.mkdir()
         cpu_import_fixture.write(fixtures)
+        if args.media:
+            with wave.open(str(fixtures / 'export.wav'), 'wb') as audio:
+                audio.setnchannels(2); audio.setsampwidth(2); audio.setframerate(48000)
+                audio.writeframes(b''.join(struct.pack('<hh', 12000 if n % 480 < 240 else -12000, 0) for n in range(4800)))
         system = platform.system()
         if system == 'Windows':
             for name in ('msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll'):
@@ -81,7 +90,7 @@ def main():
         # previously failed intermittently while unloading plugins at exit.
         for attempt, qpa in enumerate(profiles):
             env['QT_QPA_PLATFORM'] = qpa
-            result = subprocess.run([str(exe), '--mme-deployment-check' if args.mme else '--deployment-check', str(report), str(fixtures / 'v2.pmm')],
+            result = subprocess.run([str(exe), '--media-deployment-check' if args.media else '--mme-deployment-check' if args.mme else '--deployment-check', str(report), str(fixtures / 'v2.pmm')],
                                     cwd=root, env=env, text=True, encoding='utf-8', errors='replace',
                                     capture_output=True, timeout=120,
                                     creationflags=subprocess.CREATE_NO_WINDOW if system == 'Windows' else 0)
@@ -127,6 +136,13 @@ def main():
                                          f'{diagnostic.stem}.{crash.name}')
             raise RuntimeError(f'Relocated distribution failed ({result.returncode}); see {diagnostic.with_suffix(".log")}')
         evidence = json.loads(report.read_text(encoding='utf-8'))
+        if args.media:
+            if not evidence.get('mediaExport'):
+                raise RuntimeError('Packaged video/audio export was not executed')
+            for suffix in ('.mp4', '.mkv'):
+                if Path(str(report) + suffix).stat().st_size < 1024:
+                    raise RuntimeError('Packaged encoder did not publish a complete movie')
+                shutil.copy2(str(report) + suffix, diagnostic.with_suffix(suffix))
         if args.mme:
             if not evidence.get('mme') or not Path(evidence['shaderCompiler']).resolve().is_relative_to(package):
                 raise RuntimeError('MME did not use the packaged shader compiler')

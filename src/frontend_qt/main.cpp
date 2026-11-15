@@ -1,5 +1,6 @@
 #include "editor_window.hpp"
 #include "export.hpp"
+#include "video_encoder.hpp"
 #include "editor_style.hpp"
 #include "editor_font.hpp"
 #include <QApplication>
@@ -43,7 +44,7 @@ void AppleMessageHandler(QtMsgType, const QMessageLogContext& context, const QSt
 #endif
 int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& report,
                     const std::filesystem::path& assets, const QString& project,
-                    bool mmeCheck = false) {
+                    bool mmeCheck = false, bool mediaCheck = false) {
     using namespace mikudancestudio;
     const auto fail = [&](int code, const QString& message) {
         // Android does not forward ordinary stderr to logcat. Keep failure
@@ -120,6 +121,25 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
             session.Runtime().Counters().frames != frames)
             return fail(14, "deployment MME export/CPU snapshot mismatch");
     }
+    if (mediaCheck) {
+        auto snapshot = render::CaptureExport(window.Session());
+        snapshot.sharedToons = qt::Path(QCoreApplication::applicationDirPath()) / "data";
+        render::ExportSettings settings;
+        settings.width = 96;
+        settings.height = 64;
+        settings.last = 1;
+        settings.alpha = render::ExportAlpha::Opaque;
+        if (!window.Session().ImportWave(qt::Path(project).parent_path() / "export.wav", reason))
+            return fail(15, "deployment audio: " + QString::fromStdString(reason));
+        snapshot.assets.wave = window.Session().Assets().wave;
+        for (auto profile : {qt::VideoProfile::Mp4, qt::VideoProfile::Matroska}) {
+            const auto output = report + (profile == qt::VideoProfile::Mp4 ? ".mp4" : ".mkv");
+            if (!qt::ExportMovie(snapshot, assets, options, qt::Path(output), settings, profile,
+                                 true, {}, reason) ||
+                QFileInfo(output).size() < 1024)
+                return fail(16, "deployment video: " + QString::fromStdString(reason));
+        }
+    }
     const bool runtimeCompiler = rhi::DefaultSpirvCompiler()->Available();
 #ifndef __ANDROID__
     if (rhi::BackendAvailable(rhi::Backend::Vulkan) || rhi::BackendAvailable(rhi::Backend::Metal)) {
@@ -145,6 +165,7 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
     const auto proxy = qobject_cast<QProxyStyle*>(qApp->style());
     const auto styleBase = proxy ? proxy->baseStyle()->objectName() : qApp->style()->objectName();
     QJsonObject result{{"qt", qVersion()},
+                       {"mediaExport", mediaCheck},
                        {"mme", mmeCheck},
                        {"shaderCompiler", qt::Path(rhi::DefaultSpirvCompiler()->Executable())},
                        {"version", QCoreApplication::applicationVersion()},
@@ -204,6 +225,8 @@ int main(int argc, char** argv) {
     parser.addOption({"mme-deployment-check",
                       "Check installed FX, save/reopen and export without showing windows",
                       "report"});
+    parser.addOption({"media-deployment-check",
+                      "Check installed MME video/audio export without showing windows", "report"});
 #ifdef __ANDROID__
     parser.addOption(
         {"android-acceptance", "Isolated emulator presentation and lifecycle check", "report"});
@@ -227,7 +250,8 @@ int main(int argc, char** argv) {
     }
 #endif
     const auto assets = mikudancestudio::qt::Path(assetsPath);
-    bool testing = parser.isSet("deployment-check") || parser.isSet("mme-deployment-check");
+    bool testing = parser.isSet("deployment-check") || parser.isSet("mme-deployment-check") ||
+                   parser.isSet("media-deployment-check");
 #ifdef __ANDROID__
     testing = testing || parser.isSet("android-acceptance");
 #endif
@@ -238,6 +262,9 @@ int main(int argc, char** argv) {
     if (parser.isSet("mme-deployment-check"))
         return DeploymentCheck(window, parser.value("mme-deployment-check"), assets,
                                parser.positionalArguments().value(0), true);
+    if (parser.isSet("media-deployment-check"))
+        return DeploymentCheck(window, parser.value("media-deployment-check"), assets,
+                               parser.positionalArguments().value(0), true, true);
     if (parser.isSet("language"))
         window.SetLanguage(parser.value("language"));
     if (!parser.positionalArguments().empty())

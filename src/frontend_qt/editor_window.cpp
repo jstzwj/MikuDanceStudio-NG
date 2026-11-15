@@ -6,6 +6,7 @@
 #include "model_physics_dialog.hpp"
 #include "preferences_dialog.hpp"
 #include "effect_dialog.hpp"
+#include "export_dialog.hpp"
 #include <QStatusBar>
 #include "model_labels.hpp"
 #include "editor_font.hpp"
@@ -245,6 +246,7 @@ EditorWindow::~EditorWindow() {
         disconnect(physicsDialog_, nullptr, this, nullptr);
     delete physicsDialog_.data();
     delete effectDialog_.data();
+    delete exportDialog_.data();
     if (!testing_) {
         QSettings settings;
         settings.setValue("editor/lowPower", lowPower_);
@@ -306,6 +308,8 @@ bool EditorWindow::SetLanguage(const QString& language) {
     }
     if (effectDialog_)
         effectDialog_->Retranslate();
+    if (exportDialog_)
+        exportDialog_->Retranslate();
     return true;
 }
 void EditorWindow::Effects() {
@@ -317,6 +321,16 @@ void EditorWindow::Effects() {
     effectDialog_->Refresh();
     effectDialog_->show();
     effectDialog_->raise();
+}
+void EditorWindow::Export(bool video) {
+    if (!exportDialog_)
+        exportDialog_ = new ExportDialog(
+            session_, language_, assets_, [this] { return viewport_->Options(); }, this);
+    exportDialog_->SelectVideo(video);
+    if (!testing_ && isVisible()) {
+        exportDialog_->show();
+        exportDialog_->raise();
+    }
 }
 void EditorWindow::TranslateStandardDialogs() {
     language_.Activate();

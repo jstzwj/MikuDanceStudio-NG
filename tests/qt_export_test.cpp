@@ -1,5 +1,8 @@
 #include "video_encoder.hpp"
+#include "export_dialog.hpp"
+#include "editor_window.hpp"
 #include <QApplication>
+#include <QComboBox>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QLineEdit>
@@ -117,6 +120,12 @@ int main(int argc, char** argv) {
     std::filesystem::copy(MDS_EDITOR_EFFECTS_DIR, root / "effects",
                           std::filesystem::copy_options::recursive);
     CHECK(session.AssignEffect({false, 0, -1}, root / "effects/Material.fx", reason));
+    CHECK(session.ImportAccessory(root / "bound.x", reason));
+    auto placement = session.Document().accessories[0].state;
+    placement.position[0] = 10000;
+    CHECK(session.SetAccessory(0, placement, reason));
+    CHECK(session.Register({{editor::Track::Accessory, 0, 0, 0}}, reason));
+    CHECK(session.AssignEffect({true, 0, -1}, root / "effects/Scene.fx", reason));
     auto snapshot = render::CaptureExport(session);
     const auto count = session.Runtime().Counters().frames;
     settings.first = 0;
@@ -127,14 +136,121 @@ int main(int argc, char** argv) {
         qt::ExportImages(snapshot, argv[2], options, directory / "sequence", settings, {}, reason));
     CHECK(qt::ExportMovie(snapshot, argv[2], options, directory / "scene.mp4", settings,
                           qt::VideoProfile::Mp4, false, {}, reason));
+    auto faster = settings;
+    faster.rateNumerator = 60;
+    CHECK(qt::ExportImages(snapshot, argv[2], options, directory / "sequence-60", faster, {},
+                           reason));
+    CHECK(std::filesystem::exists(directory / "sequence-60/frame_00000005.png") &&
+          !std::filesystem::exists(directory / "sequence-60/frame_00000006.png"));
     CHECK(!qt::ExportMovie(snapshot, argv[2], options, directory / "scene.mp4", settings,
                            qt::VideoProfile::Mp4, false, {}, reason));
     unsigned callbacks = 0;
     CHECK(!qt::ExportMovie(
         snapshot, argv[2], options, directory / "cancel.mp4", settings, qt::VideoProfile::Mp4,
-        false, [&](unsigned, unsigned) { return ++callbacks < 6; }, reason));
+        false,
+        [&](unsigned completed, unsigned) {
+            ++callbacks;
+            return completed < 1;
+        },
+        reason));
     CHECK(reason == "export-cancelled" && !std::filesystem::exists(directory / "cancel.mp4"));
+    CHECK(callbacks > 1);
+    CHECK(!qt::ExportMovie(snapshot, argv[2], options, directory / "wrong.avi", settings,
+                           qt::VideoProfile::Mp4, false, {}, reason));
+    CHECK(reason == "export-video-extension-mismatch");
+    auto broken = snapshot;
+    broken.assets.wave = root / "missing.wav";
+    CHECK(!qt::ExportMovie(broken, argv[2], options, directory / "missing-wave.mp4", settings,
+                           qt::VideoProfile::Mp4, true, {}, reason));
+    CHECK(reason == "export-wave-read-or-size-failed");
+    {
+        std::ofstream file(root / "effects/broken.fx");
+        file << "not an effect";
+    }
+    CHECK(session.AssignEffect({false, 0, -1}, root / "effects/broken.fx", reason));
+    broken = render::CaptureExport(session);
+    CHECK(!qt::ExportMovie(broken, argv[2], options, directory / "broken.mp4", settings,
+                           qt::VideoProfile::Mp4, false, {}, reason));
+    CHECK(!reason.empty() && !std::filesystem::exists(directory / "broken.mp4"));
+    CHECK(session.AssignEffect({false, 0, -1}, root / "effects/Material.fx", reason));
     CHECK(session.Runtime().Counters().frames == count);
+    // Export owns a frozen scene while UI events and edits continue on the
+    // main thread. The worker must not borrow widgets or the live session.
+    qt::ExportTask worker;
+    worker.snapshot = snapshot;
+    worker.settings = settings;
+    worker.backend = options;
+    worker.builtins = argv[2];
+    worker.destination = directory / "worker.mp4";
+    worker.format = 1;
+    worker.audio = false;
+    unsigned heartbeats = 0;
+    QTimer heartbeat;
+    heartbeat.setInterval(1);
+    QObject::connect(&heartbeat, &QTimer::timeout, [&] { ++heartbeats; });
+    heartbeat.start();
+    worker.start();
+    CHECK(session.UnloadModel(0, reason));
+    const auto afterUnload = session.Runtime().Counters().frames;
+    QElapsedTimer deadline;
+    deadline.start();
+    while (worker.isRunning() && deadline.elapsed() < 30000) {
+        app.processEvents();
+        QThread::msleep(1);
+    }
+    CHECK(worker.wait(1000) && worker.success);
+    CHECK(heartbeats > 0 && session.Runtime().Counters().frames == afterUnload);
+    heartbeat.stop();
+    CHECK(session.ImportModel(root / "triangle.pmx", reason));
+    qt::Language language;
+    qt::ExportDialog dialog(session, language, argv[2], [&] { return options; }, nullptr);
+    dialog.SelectVideo(true);
+    CHECK(dialog.findChild<QComboBox*>("export.format")->currentIndex() == 1);
+    dialog.SelectVideo(false);
+    for (const auto& item : qt::Language::Available()) {
+        CHECK(language.Set(item.code));
+        dialog.Retranslate();
+        CHECK(dialog.windowTitle() != "export.title");
+    }
+    dialog.findChild<QLineEdit*>("export.destination")
+        ->setText(qt::Path(directory / "dialog-sequence"));
+    dialog.findChild<QSpinBox*>("export.range.last")->setValue(2);
+    dialog.findChild<QSpinBox*>("export.size.first")->setValue(160);
+    dialog.findChild<QSpinBox*>("export.size.last")->setValue(96);
+    dialog.findChild<QPushButton*>("export.start")->click();
+    CHECK(dialog.Running());
+    deadline.restart();
+    while ((dialog.Running() || !dialog.findChild<QPushButton*>("export.start")->isEnabled()) &&
+           deadline.elapsed() < 30000) {
+        app.processEvents();
+        QThread::msleep(1);
+    }
+    CHECK(!dialog.Running() &&
+          std::filesystem::exists(directory / "dialog-sequence/sequence.json"));
+    CHECK(!dialog.isVisible());
+    // Closing a running dialog cancels its worker before destruction. The
+    // next attempt must succeed using the same UI, without partial output.
+    dialog.findChild<QLineEdit*>("export.destination")->setText(qt::Path(directory / "closed"));
+    dialog.findChild<QSpinBox*>("export.range.last")->setValue(2999);
+    dialog.findChild<QPushButton*>("export.start")->click();
+    CHECK(dialog.Running());
+    dialog.close();
+    deadline.restart();
+    while ((dialog.Running() || !dialog.findChild<QPushButton*>("export.start")->isEnabled()) &&
+           deadline.elapsed() < 30000) {
+        app.processEvents();
+        QThread::msleep(1);
+    }
+    CHECK(!dialog.Running() && !std::filesystem::exists(directory / "closed"));
+    dialog.findChild<QLineEdit*>("export.destination")->setText(qt::Path(directory / "recovered"));
+    dialog.findChild<QSpinBox*>("export.range.last")->setValue(0);
+    dialog.findChild<QPushButton*>("export.start")->click();
+    deadline.restart();
+    while (dialog.Running() && deadline.elapsed() < 30000) {
+        app.processEvents();
+        QThread::msleep(1);
+    }
+    CHECK(!dialog.Running() && std::filesystem::exists(directory / "recovered/sequence.json"));
     for (const auto& entry : std::filesystem::directory_iterator(directory))
         CHECK(entry.path().filename().string().find(".mds-") != 0);
     std::cout

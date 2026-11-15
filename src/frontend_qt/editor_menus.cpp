@@ -38,6 +38,8 @@ const char* FileCommand(int command) {
         return "file.lipsync";
     case MDS_CMD_RENDER_IMAGE:
         return "file.image";
+    case MDS_CMD_RENDER_VIDEO:
+        return "file.video";
     case MDS_CMD_NUMERIC_INPUT:
         return "edit.numeric";
     case MDS_CMD_SCREEN_SIZE:

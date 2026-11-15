@@ -33,7 +33,9 @@ struct ExportSnapshot {
     std::uint64_t effectRevision = 0;
     std::filesystem::path sharedToons;
 };
-ExportSnapshot CaptureExport(const editor::EditorSession&);
+inline ExportSnapshot CaptureExport(const editor::EditorSession& s) {
+    return {s.Document(), s.Assets(), s.Effects(), s.DisplayOptions(), s.EffectRevision()};
+}
 struct ExportFrame {
     unsigned index = 0;
     std::int64_t startUs = 0, endUs = 0;

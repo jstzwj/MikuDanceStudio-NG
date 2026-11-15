@@ -5,6 +5,7 @@
 #include "editor_morph_purge_fixture.hpp"
 #include "editor_key_capacity_fixture.hpp"
 #include <QApplication>
+#include <QComboBox>
 #include <QAbstractButton>
 #include <QFile>
 #include <QJsonArray>
@@ -555,7 +556,12 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 94);
+    CHECK(implemented == 95);
+    CHECK(command(MDS_CMD_RENDER_VIDEO)->isEnabled());
+    command(MDS_CMD_RENDER_VIDEO)->trigger();
+    auto* exportFormat = window.findChild<QComboBox*>("export.format");
+    CHECK(exportFormat && exportFormat->currentIndex() == 1);
+    CHECK(!window.isVisible());
     for (const char* language : {"en", "ja", "zh_CN"}) {
         qt::EditorWindow about(std::filesystem::absolute(argv[2]), true);
         CHECK(about.SetLanguage(language));
