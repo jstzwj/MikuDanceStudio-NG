@@ -11,6 +11,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QThread>
+#include <cmath>
 #include <iostream>
 #include <fstream>
 using namespace mikudancestudio;
@@ -51,6 +52,21 @@ int main(int argc, char** argv) {
         std::cout << "decode " << video["file"].toString().toStdString() << std::endl;
         CHECK(decoder.Open(root / video["file"].toString().toStdString(), reason));
         CHECK(decoder.Info().width == 160 && decoder.Info().height == 96);
+        CHECK(decoder.Read(0, frame, {}, reason));
+        // Independent known source colors catch an oracle that generated a
+        // malformed clip; comparing two decoders alone could agree on it.
+        for (unsigned y : {20u, 60u})
+            for (unsigned x : {20u, 100u}) {
+                const unsigned offset = (y * 160 + x) * 4;
+                const std::array<int, 3> rgb{0, y < 48 ? 40 : 180, x < 80 ? 32 : 224};
+                for (unsigned c = 0; c < 3; ++c) {
+                    const int actual = frame.image->pixels[offset + c];
+                    if (std::abs(actual - rgb[c]) > 8)
+                        std::cerr << "source patch " << x << ',' << y << " channel " << c
+                                  << ": expected " << rgb[c] << ", got " << actual << '\n';
+                    CHECK(std::abs(actual - rgb[c]) <= 8);
+                }
+            }
         const auto frames = video["frames"].toArray();
         // Forward, backwards, exact boundary, just before boundary, endpoint.
         for (int pass = 0; pass < 2; ++pass)
@@ -75,6 +91,7 @@ int main(int argc, char** argv) {
     CHECK(!decoder.Open(root / "triangle.pmx", reason));
     CHECK(decoder.Open(root / "rotated.mp4", reason));
     CHECK(decoder.Info().width == 96 && decoder.Info().height == 160);
+    CHECK(decoder.Info().clockwiseRotation == 270);
     CHECK(decoder.Read(0, frame, {}, reason));
     CHECK(frame.image->width == 96 && frame.image->height == 160);
     for (const auto& name : {"rotated.mp4", "wide.mp4"}) {

@@ -7,6 +7,12 @@ import zlib
 
 
 def run(*args, **kwargs):
+    if str(args[0]) == 'ffmpeg':
+        # Each call has one final output. Pin RGB/YUV conversion rather than
+        # inherit SIMD-dependent defaults: the minimal 8.0.1 C path generated
+        # incorrect colors without accurate rounding. Known source patches in
+        # the native test qualify this encoder independently of the decoder.
+        args = (*args[:-1], '-sws_flags', 'bilinear+accurate_rnd', args[-1])
     return subprocess.run(list(map(str, args)), check=True, stdout=subprocess.PIPE,
                           stderr=subprocess.PIPE, **kwargs).stdout
 
@@ -57,8 +63,14 @@ def write(root):
     run('ffmpeg', '-y', '-v', 'error', '-framerate', '30', '-i', root/'source-%03d.png',
         '-frames:v', '4', '-vf', 'setsar=2/1', '-c:v', 'mpeg4', '-q:v', '2', root/'wide.mp4')
     for name in ('rotated.mp4', 'wide.mp4'):
-        (root/(name+'.rgba')).write_bytes(run('ffmpeg', '-v', 'error', '-i', root/name,
-                                              '-vf', 'scale=w=iw*sar:h=ih:flags=bilinear+accurate_rnd,setsar=1',
+        # Contract: expand sample aspect ratio and convert YUV to RGBA before
+        # rotating RGB pixels. Automatic YUV420 rotation moves chroma siting,
+        # so it is a different operation even when the image direction agrees.
+        filters = 'scale=w=iw*sar:h=ih:flags=bilinear+accurate_rnd,format=rgba'
+        if name == 'rotated.mp4':
+            filters += ',transpose=cclock'  # fixture's +90 display matrix
+        (root/(name+'.rgba')).write_bytes(run('ffmpeg', '-v', 'error', '-noautorotate', '-i', root/name,
+                                              '-vf', filters+',setsar=1',
                                               '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', '-'))
     # The video's audio must never become a second project WAV track.
     import wave
