@@ -87,6 +87,13 @@ int main(int argc, char** argv) {
             const int delta = int(bytes[n]) - frame.image->pixels[n];
             squared += delta * delta;
         }
+        const auto actual = QImage(frame.image->pixels.data(), int(frame.image->width),
+                                   int(frame.image->height), QImage::Format_RGBA8888);
+        const auto expected =
+            QImage(bytes.data(), actual.width(), actual.height(), QImage::Format_RGBA8888);
+        CHECK(actual.save(qt::Path(root / (std::string(name) + ".actual.png"))));
+        CHECK(expected.save(qt::Path(root / (std::string(name) + ".expected.png"))));
+        std::cout << name << " RGBA mean squared error: " << squared / bytes.size() << std::endl;
         CHECK(squared / bytes.size() < 20); // PSNR >35dB, orientation/SAR over every pixel.
     }
 #ifdef _WIN32

@@ -185,3 +185,5 @@ jobs:
             out/background-*/report.json
             out/background-*/native.log
             out/background-*/vfw-reference.json
+            out/background-*/*.actual.png
+            out/background-*/*.expected.png
