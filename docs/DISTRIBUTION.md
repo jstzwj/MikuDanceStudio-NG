@@ -104,6 +104,14 @@ tag (FFmpeg >=7.1). The focused Linux gate builds a small, pinned FFmpeg 8.0.1
 oracle from upstream source and caches it. That test tool is never deployed.
 See [media contracts and limits](CROSS_PLATFORM_P6.md).
 
+For P6.2, use `--background` in place of `--media`. It includes the media/MME
+gate, generates a numbered background movie before stripping SDK/tool paths,
+then checks packaged decoding, shared composition, PMM save/reopen and export.
+The decoder resolves the bundled FFmpeg 7 ABI (avformat/avcodec 61, avutil 59,
+swscale 8); a different system ABI is rejected. CMake downloads checksum-pinned
+7.1.1 public headers only, or accepts an offline source through
+`FETCHCONTENT_SOURCE_DIR_MDS_MEDIA_HEADERS`. No codec is built from those headers.
+
 ## Android reproduction
 
 Use a Linux x64 build host, Java 17, Android SDK 35 / build-tools 35.0.0 and

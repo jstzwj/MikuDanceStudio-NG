@@ -26,7 +26,10 @@ def main():
     parser.add_argument('--report', type=Path)
     parser.add_argument('--mme', action='store_true', help='Also qualify raw FX, save/reopen and export')
     parser.add_argument('--media', action='store_true', help='Also qualify packaged MME video and WAV encoding')
+    parser.add_argument('--background', action='store_true', help='Also decode/compose scene-time background video with the bundled runtime')
     args = parser.parse_args()
+    if args.background:
+        args.media = True
     if args.media:
         args.mme = True
     if args.archive:
@@ -42,7 +45,7 @@ def main():
             package, = root.iterdir()
             report = args.report or args.archive.parent / 'distribution-check.json'
             subprocess.run([sys.executable, str(Path(__file__).resolve()), '--dist', str(package),
-                            '--report', str(report.resolve())] + (['--media'] if args.media else ['--mme'] if args.mme else []), check=True)
+                            '--report', str(report.resolve())] + (['--background'] if args.background else ['--media'] if args.media else ['--mme'] if args.mme else []), check=True)
         print(f'Shipping archive passed: {record["archive"]} ({record["arch"]})')
         return
     dist = args.dist.resolve(strict=True)
@@ -55,6 +58,9 @@ def main():
         fixtures = root / 'fixtures'
         fixtures.mkdir()
         cpu_import_fixture.write(fixtures)
+        if args.background:
+            import background_video_fixture
+            background_video_fixture.write(fixtures)
         if args.media:
             with wave.open(str(fixtures / 'export.wav'), 'wb') as audio:
                 audio.setnchannels(2); audio.setsampwidth(2); audio.setframerate(48000)
@@ -90,7 +96,7 @@ def main():
         # previously failed intermittently while unloading plugins at exit.
         for attempt, qpa in enumerate(profiles):
             env['QT_QPA_PLATFORM'] = qpa
-            result = subprocess.run([str(exe), '--media-deployment-check' if args.media else '--mme-deployment-check' if args.mme else '--deployment-check', str(report), str(fixtures / 'v2.pmm')],
+            result = subprocess.run([str(exe), '--background-deployment-check' if args.background else '--media-deployment-check' if args.media else '--mme-deployment-check' if args.mme else '--deployment-check', str(report), str(fixtures / 'v2.pmm')],
                                     cwd=root, env=env, text=True, encoding='utf-8', errors='replace',
                                     capture_output=True, timeout=120,
                                     creationflags=subprocess.CREATE_NO_WINDOW if system == 'Windows' else 0)
@@ -136,6 +142,8 @@ def main():
                                          f'{diagnostic.stem}.{crash.name}')
             raise RuntimeError(f'Relocated distribution failed ({result.returncode}); see {diagnostic.with_suffix(".log")}')
         evidence = json.loads(report.read_text(encoding='utf-8'))
+        if args.background and not evidence.get('backgroundVideo'):
+            raise RuntimeError('Packaged scene-time background decoding was not executed')
         if args.media:
             if not evidence.get('mediaExport'):
                 raise RuntimeError('Packaged video/audio export was not executed')

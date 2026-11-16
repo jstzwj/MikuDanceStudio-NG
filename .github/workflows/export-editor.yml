@@ -6,7 +6,7 @@ on:
         type: choice
         options: [all, windows-2022, ubuntu-22.04, macos-15]
         default: all
-        description: Qualify offline MME video/audio and relocated packages; rerun only affected platforms
+        description: Qualify scene-time background video and offline MME exports; rerun only affected platforms
 concurrency:
   group: export-editor-${{ github.ref }}
   cancel-in-progress: false
@@ -41,7 +41,7 @@ jobs:
         if: runner.os == 'Linux'
         with:
           path: out/export-oracle
-          key: export-oracle-ffmpeg801-linux-x64-v2
+          key: export-oracle-ffmpeg801-linux-x64-p62-v1
       - uses: actions/checkout@v4
         if: runner.os == 'Linux' && steps.decoder.outputs.cache-hit != 'true'
         with:
@@ -58,9 +58,10 @@ jobs:
             cd out/ffmpeg-source
             ./configure --prefix="$export_oracle_prefix" --disable-everything --disable-autodetect --disable-doc --disable-debug --disable-x86asm --disable-network \
               --enable-ffmpeg --enable-ffprobe --enable-zlib --enable-protocol=file,pipe \
-              --enable-demuxer=mov,image2,wav --enable-muxer=rawvideo,pcm_f32le \
-              --enable-decoder=mpeg4,mjpeg,aac,pcm_s16le,png --enable-encoder=rawvideo,pcm_f32le \
-              --enable-filter=scale,format,aresample,aformat,anull,null,trim,atrim
+              --enable-demuxer=mov,image2,wav,avi,matroska,concat --enable-muxer=rawvideo,pcm_f32le,mov,mp4,avi,matroska \
+              --enable-decoder=mpeg4,mjpeg,aac,pcm_s16le,png,rawvideo --enable-encoder=rawvideo,pcm_f32le,mpeg4,aac,png \
+              --enable-filter=scale,format,aresample,aformat,anull,null,trim,atrim,setsar,vflip,transpose,hflip \
+              --enable-parser=mpeg4video
             make -j3
             make install
           fi
@@ -146,7 +147,7 @@ jobs:
           if ($IsLinux) { $configure += "-DMDS_VULKAN_INCLUDE=$PWD/out/vulkan-headers/include" }
           cmake @configure
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cmake --build out/build --target qt_export_test qt_mme_test qt_editor_render_test qt_menu_test MikuDanceStudioNG --parallel 3
+          cmake --build out/build --target qt_background_video_test qt_export_test qt_mme_test qt_editor_render_test qt_menu_test MikuDanceStudioNG --parallel 3
           exit $LASTEXITCODE
       - name: Decode exports and execute retained strict gates offscreen
         shell: pwsh
@@ -159,7 +160,8 @@ jobs:
           foreach ($api in $apis) {
             $env:MDS_GPU_BACKEND = $api
             $env:MDS_EXPORT_QUALIFICATION_DIR = "$PWD/out/export-$api"
-            ctest --test-dir out/build -R '^(qt_export|qt_mme|qt_editor_render|qt_menu)$' --no-tests=error --output-on-failure --output-junit "export-$api.xml"
+            $env:MDS_BACKGROUND_QUALIFICATION_DIR = "$PWD/out/background-$api"
+            ctest --test-dir out/build -R '^(qt_background_video|qt_export|qt_mme|qt_editor_render|qt_menu)$' --no-tests=error --output-on-failure --output-junit "export-$api.xml"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - name: Qualify packaged codecs with no SDK or external ffmpeg paths
@@ -167,7 +169,7 @@ jobs:
         run: |
           cmake --build out/build --target dist --parallel 3
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python tests/test_editor_distribution.py --dist out/dist --media --report out/media-distribution.json
+          python tests/test_editor_distribution.py --dist out/dist --background --report out/media-distribution.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python tests/check_export_media.py --deployed-prefix out/media-distribution
           exit $LASTEXITCODE
@@ -180,3 +182,6 @@ jobs:
             out/build/Testing/Temporary/
             out/media-distribution.*
             out/export-*/report.json
+            out/background-*/report.json
+            out/background-*/native.log
+            out/background-*/vfw-reference.json
