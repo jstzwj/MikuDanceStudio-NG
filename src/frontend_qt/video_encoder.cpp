@@ -1,5 +1,6 @@
 #include "video_encoder.hpp"
 #include "editor_window.hpp"
+#include "background_video.hpp"
 #include <QMediaRecorder>
 #include <QMediaFormat>
 #include <QMediaCaptureSession>
@@ -308,6 +309,7 @@ bool ExportMovie(const render::ExportSnapshot& snapshot, const std::filesystem::
         if (!encoder.Open(temporary, timeline, profile, wave.sampleRate ? &wave : nullptr, proceed,
                           reason))
             return false;
+        VideoDecoder background;
         if (!render::RunExport(
                 snapshot, builtins, options, settings,
                 [&](const render::ExportFrame& frame, std::string& r) {
@@ -316,7 +318,10 @@ bool ExportMovie(const render::ExportSnapshot& snapshot, const std::filesystem::
                     completed = frame.index + 1;
                     return true;
                 },
-                progress, reason) ||
+                progress, reason,
+                ExportVideoSource(snapshot.assets.videoPath, background,
+                                  timeline.settings.rateNumerator == 30 &&
+                                      timeline.settings.rateDenominator == 1)) ||
             !encoder.Finish(reason))
             return false;
     }

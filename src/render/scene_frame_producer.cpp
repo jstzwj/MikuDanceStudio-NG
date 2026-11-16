@@ -326,6 +326,8 @@ struct SceneFrameProducer::Impl {
     ScreenTextureHistory history;
     std::shared_ptr<const RgbaImage> picture;
     ModelReplayResource pictureTexture, pictureVertices;
+    std::shared_ptr<const RgbaImage> video;
+    ModelReplayResource videoTexture, videoVertices, videoCaptureVertices;
     bool rendered = false;
     bool sphereAdd = false, pendingSphereAdd = false, pendingMaterialRebuild = false;
     bool hasMaterialHistory = false, pending = false;
@@ -335,6 +337,13 @@ SceneFrameProducer::~SceneFrameProducer() = default;
 bool SceneFrameProducer::Load(const runtime::SceneRuntime& scene, const SceneRenderSources& sources,
                               const AssetSource& builtins, std::string& reason) try {
     auto next = std::make_unique<Impl>();
+    if (nextId_ > UINT64_MAX - 0x100000000ull)
+        return Fail(reason, "scene_resource_id_exhausted");
+    next->videoTexture.key = {nextId_, 1};
+    next->videoTexture.kind = ReplayResourceKind::Texture;
+    next->videoVertices.key = {nextId_ + 1, 1};
+    next->videoCaptureVertices.key = {nextId_ + 2, 1};
+    nextId_ += 0x100000000ull;
     if (impl_)
         next->sphereAdd = impl_->sphereAdd;
     if (impl_)
@@ -587,8 +596,21 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
     for (unsigned slot = 0; slot < 256; ++slot)
         if (scene.Resource(std::uint8_t(slot)) && !impl_->models.count(std::uint8_t(slot)))
             return Fail(reason, "model_resource_changed_reload_required");
-    if (doc && doc->avi.enabled)
+    if (doc && doc->avi.enabled && !settings.video)
         return Fail(reason, "scene_background_requires_media_service");
+    if (settings.video && impl_->video != settings.video) {
+        if (!settings.video->width || !settings.video->height || settings.video->width > 8192 ||
+            settings.video->height > 8192 ||
+            std::uint64_t(settings.video->width) * settings.video->height > 16777216 ||
+            settings.video->pixels.size() !=
+                std::size_t(settings.video->width) * settings.video->height * 4)
+            return Fail(reason, "scene_background_video_invalid");
+        if (impl_->videoTexture.key.version == UINT64_MAX)
+            return Fail(reason, "background_video_version_exhausted");
+        ++impl_->videoTexture.key.version;
+        impl_->videoTexture.texture.levels = {*settings.video};
+        impl_->video = settings.video;
+    }
     const int requestedMode = settings.shadow.mode < 0
                                   ? (session ? session->Pose().selfShadowMode : 0)
                                   : settings.shadow.mode;
@@ -648,18 +670,18 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         doc && doc->appearance.blackBackground ? ClearColor{0, 0, 0, 0} : ClearColor{1, 1, 1, 0};
     main.depthStencil = FrameAttachment{2};
     const bool picture = doc && doc->picture.enabled && impl_->picture;
-    if (picture) {
-        const auto& placement = doc->picture;
+    const auto background = [&](const format::PmmBackgroundReference& placement,
+                                const RgbaImage& image, ModelReplayResource& vb,
+                                ReplayResourceKey texture, bool video) {
         if (!std::isfinite(placement.scale))
             return Fail(reason, "background_placement_not_finite");
         BackgroundView view;
         view.width = int(settings.width);
         view.height = int(settings.height);
         view.scale = BackgroundViewScale(view.width);
-        const auto rect =
-            PlaceBackground({placement.offsetX, placement.offsetY, int(impl_->picture->width),
-                             int(impl_->picture->height), placement.scale},
-                            view);
+        const auto rect = PlaceBackground({placement.offsetX, placement.offsetY, int(image.width),
+                                           int(image.height), placement.scale},
+                                          view);
         std::array<TexturedScreenVertex, 6> screen;
         WriteBackgroundQuad(screen.data(), rect.left, rect.top, rect.right, rect.bottom);
         std::array<std::array<float, 8>, 6> vertices{};
@@ -672,7 +694,6 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         SnapshotBytes bytes;
         bytes.resize(sizeof vertices);
         std::memcpy(bytes.data(), vertices.data(), sizeof vertices);
-        auto& vb = impl_->pictureVertices;
         if (vb.bytes != bytes) {
             if (vb.key.version == UINT64_MAX)
                 return Fail(reason, "background_vertex_version_exhausted");
@@ -682,7 +703,12 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         }
         ModelReplayDraw draw;
         draw.vertices = vb.key;
-        draw.textures[0] = impl_->pictureTexture.key;
+        draw.textures[0] = texture;
+        if (video) {
+            draw.textures[0] = {};
+            draw.targetTextures[0] = {6, 1024, 1024};
+            main.sampled.push_back(6);
+        }
         draw.indexed = false;
         draw.drawVertexCount = 6;
         auto& p = draw.pipeline;
@@ -705,13 +731,68 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         stage.colorArg2 = MaterialColorSource::LitDiffuse;
         p.shader.samplers[0].u = p.shader.samplers[0].v = SamplerAddress::Wrap;
         main.draws.push_back(std::move(draw));
-    }
+        return true;
+    };
+    if (picture && !background(doc->picture, *impl_->picture, impl_->pictureVertices,
+                               impl_->pictureTexture.key, false))
+        return false;
     // Visibility does not unload the native picture. Keep its resource lease
     // while hidden so showing it cannot resurrect a retired version.
     if (impl_->picture) {
         result.resources.push_back(impl_->pictureTexture);
         if (!impl_->pictureVertices.bytes.empty())
             result.resources.push_back(impl_->pictureVertices);
+    }
+    // Native AVI: upload the decoded source, linear stretch into a single-level
+    // opaque 1024-square target, then place it after the picture and before the
+    // ground/models. Capture mode 3 samples this same target, before MME.
+    if (impl_->video) {
+        result.resources.push_back(impl_->videoTexture);
+        result.targets.push_back({6, {1024, 1024, TextureFormat::Rgba8, access}});
+        auto& vb = impl_->videoCaptureVertices;
+        if (vb.bytes.empty()) {
+            const std::array<std::array<float, 8>, 6> vertices{{{-1, 1, 0, 0, 0, 0, 0, 0},
+                                                                {1, 1, 0, 0, 0, 0, 1, 0},
+                                                                {-1, -1, 0, 0, 0, 0, 0, 1},
+                                                                {1, 1, 0, 0, 0, 0, 1, 0},
+                                                                {1, -1, 0, 0, 0, 0, 1, 1},
+                                                                {-1, -1, 0, 0, 0, 0, 0, 1}}};
+            vb.bytes.resize(sizeof vertices);
+            std::memcpy(vb.bytes.data(), vertices.data(), sizeof vertices);
+            vb.bytes.Seal();
+        }
+        result.resources.push_back(vb);
+        FramePass capture;
+        capture.name = "background_video";
+        capture.color = FrameAttachment{6};
+        ModelReplayDraw draw;
+        draw.vertices = vb.key;
+        draw.textures[0] = impl_->videoTexture.key;
+        draw.indexed = false;
+        draw.drawVertexCount = 6;
+        auto& p = draw.pipeline;
+        p.viewport = {0, 0, 1024, 1024};
+        p.raster.depthTest = p.raster.depthWrite = false;
+        p.raster.cull = BatchCull::None;
+        p.shader.world = p.shader.view = p.shader.projection = p.shader.normalView = Identity();
+        p.shader.diffuse = p.shader.nativeDiffuse = {1, 1, 1, 1};
+        p.shader.textureTransforms[0] = Identity();
+        auto& stage = p.shader.layout.stages[0];
+        stage.role = MaterialTextureRole::Base;
+        stage.color = MaterialCombine::Modulate;
+        stage.colorArg2 = MaterialColorSource::LitDiffuse;
+        p.shader.samplers[0].min = p.shader.samplers[0].mag = p.shader.samplers[0].mip =
+            SamplerFilter::Linear;
+        p.shader.samplers[0].maxAnisotropy = 1;
+        p.shader.samplers[0].u = p.shader.samplers[0].v = SamplerAddress::Clamp;
+        p.shader.samplers[0].mipmaps = false;
+        capture.draws.push_back(std::move(draw));
+        result.passes.push_back(std::move(capture));
+        if (doc && doc->avi.enabled &&
+            !background(doc->avi, *impl_->video, impl_->videoVertices, {}, true))
+            return false;
+        if (!impl_->videoVertices.bytes.empty())
+            result.resources.push_back(impl_->videoVertices);
     }
     FramePass cast;
     cast.name = "self_shadow";
@@ -726,7 +807,7 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         cast.color = FrameAttachment{3};
         cast.color->clear = {1, 1, 1, 1};
         cast.depthStencil = FrameAttachment{4};
-        main.sampled = {3};
+        main.sampled.push_back(3);
     }
     HistoryDesc history;
     history.width = settings.width;
@@ -1288,8 +1369,9 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
         return Fail(reason, check ? "scene_post_process" : check.reason);
     }
     if (doc && (!consumers.empty() || doc->view.captureMode) &&
-        !impl_->history.Apply(result, consumers, ScreenCaptureKind(doc->view.captureMode),
-                              result.finalColor))
+        !impl_->history.Apply(
+            result, consumers, ScreenCaptureKind(doc->view.captureMode), result.finalColor,
+            impl_->video ? RenderTargetReference{6, 1024, 1024} : RenderTargetReference{}))
         return Fail(reason, "scene_screen_history");
     if (!ApplyMaterialSampling(result, MaterialSamplingPolicy::PortableTrilinear))
         return Fail(reason, "scene_sampling_policy");

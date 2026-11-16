@@ -218,7 +218,7 @@ bool SceneEffects::Build(const editor::EffectDocument& document, std::uint64_t r
     for (const auto& p : base.passes) {
         if (p.name == "scene")
             main = &p;
-        else if (p.name == "self_shadow")
+        else if (p.name == "self_shadow" || p.name == "background_video")
             geometry.prepasses.push_back(p);
         else if (p.name != "post_process")
             Fail("effect-host-pass-not-supported:" + p.name);

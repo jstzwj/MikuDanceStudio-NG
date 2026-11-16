@@ -3277,5 +3277,13 @@ Please add body first.</source>
             <source>PNG sequence</source>
             <translation>PNG 图像序列</translation>
         </message>
+        <message id="background.video_load_title">
+            <source>Load background video</source>
+            <translation>载入背景视频</translation>
+        </message>
+        <message id="background.video_filter">
+            <source>Video files (*.avi *.mp4 *.mov *.mkv *.webm)</source>
+            <translation>视频文件 (*.avi *.mp4 *.mov *.mkv *.webm)</translation>
+        </message>
     </context>
 </TS>

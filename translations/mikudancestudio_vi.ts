@@ -3277,5 +3277,13 @@ Hãy thêm vật rắn trước.</translation>
             <source>PNG sequence</source>
             <translation>Chuỗi ảnh PNG</translation>
         </message>
+        <message id="background.video_load_title">
+            <source>Load background video</source>
+            <translation>Tải video nền</translation>
+        </message>
+        <message id="background.video_filter">
+            <source>Video files (*.avi *.mp4 *.mov *.mkv *.webm)</source>
+            <translation>Tệp video (*.avi *.mp4 *.mov *.mkv *.webm)</translation>
+        </message>
     </context>
 </TS>

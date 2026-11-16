@@ -200,6 +200,34 @@ void EditorWindow::FileAction(const QString& id, const QString& inputPath) {
         Refresh();
         return;
     }
+    if (id == "background.video_load") {
+        const auto path = inputPath.isEmpty()
+                              ? ChooseFile(FileKind::Background, false,
+                                           language_.Text("background.video_load_title"),
+                                           language_.Text("background.video_filter"))
+                              : inputPath;
+        if (path.isEmpty())
+            return;
+        VideoDecoder decoder;
+        std::string reason;
+        media::VideoFrame first;
+        const bool opened = decoder.Open(Path(path), reason) && decoder.Read(0, first, {}, reason);
+        Result(opened && session_.ImportVideo(
+                             Path(path), decoder.Info().width, decoder.Info().height,
+                             unsigned(qRound(viewport_->width() * viewport_->devicePixelRatio())),
+                             unsigned(qRound(viewport_->height() * viewport_->devicePixelRatio())),
+                             reason),
+               reason);
+        Refresh();
+        return;
+    }
+    if (id == "background.video_show") {
+        std::string reason;
+        if (session_.Document().avi.enabled || !session_.Assets().videoPath.empty())
+            Result(session_.ShowVideo(!session_.Document().avi.enabled, reason), reason);
+        Refresh();
+        return;
+    }
     if (id == "background.black" || id.startsWith("background.capture.")) {
         std::string r;
         Result(session_.Edit(
@@ -385,6 +413,10 @@ void EditorWindow::DropFiles(const QList<QUrl>& urls) {
         case DroppedFileKind::Wave:
             remember(FileKind::Wave);
             Result(session_.ImportWave(Path(path), reason), reason);
+            break;
+        case DroppedFileKind::Video:
+            remember(FileKind::Background);
+            FileAction("background.video_load", path);
             break;
         case DroppedFileKind::Vocaloid:
             LoadLipSync(path);

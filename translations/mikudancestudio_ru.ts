@@ -3277,5 +3277,13 @@ Please add body first.</source>
             <source>PNG sequence</source>
             <translation>Последовательность PNG</translation>
         </message>
+        <message id="background.video_load_title">
+            <source>Load background video</source>
+            <translation>Загрузить фоновое видео</translation>
+        </message>
+        <message id="background.video_filter">
+            <source>Video files (*.avi *.mp4 *.mov *.mkv *.webm)</source>
+            <translation>Видеофайлы (*.avi *.mp4 *.mov *.mkv *.webm)</translation>
+        </message>
     </context>
 </TS>

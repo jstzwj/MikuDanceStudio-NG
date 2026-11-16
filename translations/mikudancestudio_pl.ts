@@ -3277,5 +3277,13 @@ Najpierw dodaj bryłę.</translation>
             <source>PNG sequence</source>
             <translation>Sekwencja PNG</translation>
         </message>
+        <message id="background.video_load_title">
+            <source>Load background video</source>
+            <translation>Wczytaj wideo w tle</translation>
+        </message>
+        <message id="background.video_filter">
+            <source>Video files (*.avi *.mp4 *.mov *.mkv *.webm)</source>
+            <translation>Pliki wideo (*.avi *.mp4 *.mov *.mkv *.webm)</translation>
+        </message>
     </context>
 </TS>

@@ -1,6 +1,7 @@
 #pragma once
 #include "editor_session.hpp"
 #include "scene_effects.hpp"
+#include "background_video.hpp"
 #include <functional>
 namespace mikudancestudio::render {
 enum class ExportAlpha {
@@ -46,5 +47,6 @@ using ExportFrameSink = std::function<bool(const ExportFrame&, std::string&)>;
 // No Qt, file encoding or visible surface. Synchronous bounded handoff: the next
 // frame is not produced until the sink accepts this one. Callbacks run on caller.
 bool RunExport(const ExportSnapshot&, const std::filesystem::path& builtins, rhi::BackendOptions,
-               const ExportSettings&, const ExportFrameSink&, const ExportProgress&, std::string&);
+               const ExportSettings&, const ExportFrameSink&, const ExportProgress&, std::string&,
+               const media::VideoFrameSource& video = {});
 }

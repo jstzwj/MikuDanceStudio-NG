@@ -46,6 +46,10 @@ const char* FileCommand(int command) {
         return "view.screen_size";
     case MDS_CMD_LOAD_BACKGROUND_IMAGE:
         return "background.load";
+    case MDS_CMD_LOAD_BACKGROUND_VIDEO:
+        return "background.video_load";
+    case MDS_CMD_TOGGLE_BACKGROUND_VIDEO:
+        return "background.video_show";
     case MDS_CMD_TOGGLE_BACKGROUND_IMAGE:
         return "background.show";
     case MDS_CMD_TOGGLE_BLACK_BACKGROUND:
@@ -338,6 +342,7 @@ void EditorWindow::RefreshMenus() {
         check(command, doc.physics.playbackMode == PhysicsMode(command));
     check(MDS_CMD_TOGGLE_BLACK_BACKGROUND, doc.appearance.blackBackground);
     check(MDS_CMD_TOGGLE_BACKGROUND_IMAGE, doc.picture.enabled);
+    check(MDS_CMD_TOGGLE_BACKGROUND_VIDEO, doc.avi.enabled);
     for (int i = 0; i < 4; ++i)
         check(MDS_CMD_SCREEN_CAPTURE_OFF + i, doc.view.captureMode == i);
     check(MDS_CMD_TOGGLE_INFORMATION, doc.view.fpsOverlay);

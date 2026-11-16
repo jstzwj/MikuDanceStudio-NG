@@ -1614,6 +1614,10 @@ inline constexpr TranslationMessage kTranslationMessages[] = {
     {QT_TRID_NOOP("export.stopping"), "Stopping export…"},
     //% "PNG sequence"
     {QT_TRID_NOOP("export.png"), "PNG sequence"},
+    //% "Load background video"
+    {QT_TRID_NOOP("background.video_load_title"), "Load background video"},
+    //% "Video files (*.avi *.mp4 *.mov *.mkv *.webm)"
+    {QT_TRID_NOOP("background.video_filter"), "Video files (*.avi *.mp4 *.mov *.mkv *.webm)"},
 };
 struct EmptyTranslation { const char* id; const char* language; };
 inline constexpr EmptyTranslation kEmptyTranslations[] = {

@@ -150,11 +150,13 @@ bool Viewport::OutputLimits(QSize& output, std::string& reason) const {
 }
 bool Viewport::ReloadTextures(std::string& reason) {
     deviceError_.clear();
+    video_.Clear();
     const auto& assets = session_.Assets();
     if (loadedAssets_ && assets.models == loaded_.models &&
         assets.accessories == loaded_.accessories && assets.modelPaths == loaded_.modelPaths &&
         assets.modelTexturePaths == loaded_.modelTexturePaths &&
-        assets.accessoryPaths == loaded_.accessoryPaths && assets.picture == loaded_.picture) {
+        assets.accessoryPaths == loaded_.accessoryPaths && assets.picture == loaded_.picture &&
+        assets.videoPath == loaded_.videoPath) {
         if (!producer_.ReloadTextures(session_.Runtime(), EditorRenderSources(assets), builtins_,
                                       reason))
             return false;
@@ -252,6 +254,10 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         return true;
     }
     if (!PrepareFrame(w, h, reason)) {
+        if (reason == "background-video-pending") {
+            reason.clear();
+            return true; // Never submit a previous seek's frame as the new time.
+        }
         // Present an unmistakable error surface, never the previous successful
         // scene. No scene history or staged effect state is committed here.
         effects_.Abandon();
@@ -347,7 +353,8 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
     if (!loadedAssets_ || assets.models != loaded_.models ||
         assets.accessories != loaded_.accessories || assets.modelPaths != loaded_.modelPaths ||
         assets.modelTexturePaths != loaded_.modelTexturePaths ||
-        assets.accessoryPaths != loaded_.accessoryPaths || assets.picture != loaded_.picture) {
+        assets.accessoryPaths != loaded_.accessoryPaths || assets.picture != loaded_.picture ||
+        assets.videoPath != loaded_.videoPath) {
         if (!producer_.Load(session_.Runtime(), EditorRenderSources(assets), builtins_, reason))
             return false;
         loaded_ = assets;
@@ -367,6 +374,24 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
     settings.height = h;
     settings.editorModel = session_.Selected().model;
     settings.display = session_.DisplayOptions();
+    if (session_.Document().avi.enabled) {
+        media::VideoFrame frame;
+        const auto ready = video_.Request(assets.videoPath, session_.CursorSeconds(), frame, reason,
+                                          !session_.Playing());
+        if (ready == VideoReady::Failed)
+            return false;
+        if (ready == VideoReady::Pending) {
+            reason = "background-video-pending";
+            return false;
+        }
+        settings.video = frame.image;
+        if (cachedVideo_ != frame.image)
+            frameCached_ = false;
+        cachedVideo_ = frame.image;
+    } else {
+        video_.Clear();
+        cachedVideo_.reset();
+    }
     const auto* device = controller_.GetDevice();
     const auto samples =
         settings.display.antialiasing && device ? SceneAntialiasSamples(*device) : 1;
@@ -941,6 +966,15 @@ bool RenderImage(const runtime::SceneRuntime& scene, const editor::EditorAssets&
     settings.width = width;
     settings.height = height;
     settings.display = display;
+    VideoDecoder video;
+    if (scene.Session() && scene.Session()->Document().avi.enabled) {
+        media::VideoFrame decoded;
+        if (!video.Open(assets.videoPath, reason) ||
+            !video.ReadScene(scene.Session()->Pose().frame / 30., !scene.Playing(), decoded, {},
+                             reason))
+            return false;
+        settings.video = decoded.image;
+    }
     rhi::RenderFrame frame;
     if (!producer.Build(scene, settings, frame, reason))
         return false;

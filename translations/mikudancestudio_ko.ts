@@ -3277,5 +3277,13 @@ Please add body first.</source>
             <source>PNG sequence</source>
             <translation>PNG 이미지 시퀀스</translation>
         </message>
+        <message id="background.video_load_title">
+            <source>Load background video</source>
+            <translation>배경 동영상 불러오기</translation>
+        </message>
+        <message id="background.video_filter">
+            <source>Video files (*.avi *.mp4 *.mov *.mkv *.webm)</source>
+            <translation>동영상 파일 (*.avi *.mp4 *.mov *.mkv *.webm)</translation>
+        </message>
     </context>
 </TS>

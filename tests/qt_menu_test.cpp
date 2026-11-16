@@ -556,7 +556,7 @@ int main(int argc, char** argv) {
     }
     for (int id = 200; id <= 302; ++id)
         implemented += command(id)->property("mmdImplemented").toBool();
-    CHECK(implemented == 95);
+    CHECK(implemented == 97);
     CHECK(command(MDS_CMD_RENDER_VIDEO)->isEnabled());
     command(MDS_CMD_RENDER_VIDEO)->trigger();
     auto* exportFormat = window.findChild<QComboBox*>("export.format");

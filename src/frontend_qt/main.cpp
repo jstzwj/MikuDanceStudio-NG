@@ -44,7 +44,7 @@ void AppleMessageHandler(QtMsgType, const QMessageLogContext& context, const QSt
 #endif
 int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& report,
                     const std::filesystem::path& assets, const QString& project,
-                    bool mmeCheck = false, bool mediaCheck = false) {
+                    bool mmeCheck = false, bool mediaCheck = false, bool backgroundCheck = false) {
     using namespace mikudancestudio;
     const auto fail = [&](int code, const QString& message) {
         // Android does not forward ordinary stderr to logcat. Keep failure
@@ -86,6 +86,15 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
         options.driver = rhi::BackendDriver::Software;
     QImage image;
     std::string reason;
+    if (backgroundCheck) {
+        qt::VideoDecoder decoder;
+        media::VideoFrame frame;
+        const auto path = qt::Path(project).parent_path() / "ntsc.mp4";
+        if (!decoder.Open(path, reason) || !decoder.ReadScene(.3, false, frame, {}, reason) ||
+            !window.Session().ImportVideo(path, decoder.Info().width, decoder.Info().height, 96, 64,
+                                          reason))
+            return fail(17, "deployment background video: " + QString::fromStdString(reason));
+    }
     if (mmeCheck) {
         auto& session = window.Session();
         if (session.Document().models.empty() ||
@@ -166,6 +175,7 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
     const auto styleBase = proxy ? proxy->baseStyle()->objectName() : qApp->style()->objectName();
     QJsonObject result{{"qt", qVersion()},
                        {"mediaExport", mediaCheck},
+                       {"backgroundVideo", backgroundCheck},
                        {"mme", mmeCheck},
                        {"shaderCompiler", qt::Path(rhi::DefaultSpirvCompiler()->Executable())},
                        {"version", QCoreApplication::applicationVersion()},
@@ -227,6 +237,8 @@ int main(int argc, char** argv) {
                       "report"});
     parser.addOption({"media-deployment-check",
                       "Check installed MME video/audio export without showing windows", "report"});
+    parser.addOption({"background-deployment-check",
+                      "Check installed background decoding, MME and audio/video export", "report"});
 #ifdef __ANDROID__
     parser.addOption(
         {"android-acceptance", "Isolated emulator presentation and lifecycle check", "report"});
@@ -251,7 +263,8 @@ int main(int argc, char** argv) {
 #endif
     const auto assets = mikudancestudio::qt::Path(assetsPath);
     bool testing = parser.isSet("deployment-check") || parser.isSet("mme-deployment-check") ||
-                   parser.isSet("media-deployment-check");
+                   parser.isSet("media-deployment-check") ||
+                   parser.isSet("background-deployment-check");
 #ifdef __ANDROID__
     testing = testing || parser.isSet("android-acceptance");
 #endif
@@ -265,6 +278,9 @@ int main(int argc, char** argv) {
     if (parser.isSet("media-deployment-check"))
         return DeploymentCheck(window, parser.value("media-deployment-check"), assets,
                                parser.positionalArguments().value(0), true, true);
+    if (parser.isSet("background-deployment-check"))
+        return DeploymentCheck(window, parser.value("background-deployment-check"), assets,
+                               parser.positionalArguments().value(0), true, true, true);
     if (parser.isSet("language"))
         window.SetLanguage(parser.value("language"));
     if (!parser.positionalArguments().empty())

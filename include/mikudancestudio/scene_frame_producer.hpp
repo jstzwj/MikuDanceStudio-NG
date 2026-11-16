@@ -21,6 +21,9 @@ struct SceneRenderSettings {
     // selects the camera panel, other values select the model reference pivot.
     std::optional<std::uint8_t> editorModel;
     SceneDisplayOptions display;
+    // Host-selected frame at this scene time; top-left, opaque SDR RGBA8.
+    // No decoder, wall clock or native device leaks into scene production.
+    std::shared_ptr<const rhi::RgbaImage> video;
 };
 bool SceneViewInputs(const runtime::SceneRuntime&, const SceneRenderSettings&, ModelFrameInputs&,
                      std::string&);

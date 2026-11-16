@@ -43,12 +43,17 @@ bool MakeExportTimeline(const ExportSettings& s, ExportTimeline& out, std::strin
 }
 bool RunExport(const ExportSnapshot& snapshot, const std::filesystem::path& builtins,
                rhi::BackendOptions options, const ExportSettings& requested,
-               const ExportFrameSink& sink, const ExportProgress& progress, std::string& reason) {
+               const ExportFrameSink& sink, const ExportProgress& progress, std::string& reason,
+               const media::VideoFrameSource& video) {
     ExportTimeline timeline;
     if (!MakeExportTimeline(requested, timeline, reason))
         return false;
     if (!sink) {
         reason = "export-frame-sink-missing";
+        return false;
+    }
+    if (snapshot.document.avi.enabled && !video) {
+        reason = "export-background-video-source-missing";
         return false;
     }
     const auto& spec = timeline.settings;
@@ -111,7 +116,20 @@ bool RunExport(const ExportSnapshot& snapshot, const std::filesystem::path& buil
     rhi::SceneRenderer renderer(*backend.device);
     rhi::PreparedModelFrame prepared;
     rhi::CompletionToken token;
-    auto draw = [&](bool output, unsigned index) {
+    auto draw = [&](bool output, unsigned index, double seconds) {
+        if (snapshot.document.avi.enabled) {
+            media::VideoFrame decoded;
+            if (!video(seconds, decoded, [&] { return report(index); }, reason)) {
+                report(index); // Preserve the export's cancellation diagnostic.
+                return false;
+            }
+            std::int64_t requestedUs;
+            if (!media::VideoTime(seconds, requestedUs) || !decoded.Covers(requestedUs)) {
+                reason = "export-background-video-frame-does-not-cover-time";
+                return false;
+            }
+            settings.video = decoded.image;
+        }
         rhi::RenderFrame base, frame;
         if (!producer.Build(scene, settings, base, reason) ||
             !effects.Build(snapshot.effects, snapshot.effectRevision, scene, sources, settings,
@@ -167,7 +185,7 @@ bool RunExport(const ExportSnapshot& snapshot, const std::filesystem::path& buil
             return false;
         if ((snapshot.document.view.captureMode || producer.HasMaterialHistory() ||
              !snapshot.effects.assignments.empty()) &&
-            !draw(false, 0))
+            !draw(false, 0, double(n) / 30))
             return false;
     }
     double cursor = spec.first ? double(spec.first - 1) / 30 : 0;
@@ -191,7 +209,7 @@ bool RunExport(const ExportSnapshot& snapshot, const std::filesystem::path& buil
         }
         if (std::abs(double(checkpoint) / 30 - target) < 1e-10)
             ++checkpoint;
-        if (!draw(true, n))
+        if (!draw(true, n, target))
             return false;
     }
     if (!report(timeline.frames))

@@ -3277,5 +3277,13 @@ Aggiungi prima un corpo.</translation>
             <source>PNG sequence</source>
             <translation>Sequenza PNG</translation>
         </message>
+        <message id="background.video_load_title">
+            <source>Load background video</source>
+            <translation>Carica video di sfondo</translation>
+        </message>
+        <message id="background.video_filter">
+            <source>Video files (*.avi *.mp4 *.mov *.mkv *.webm)</source>
+            <translation>File video (*.avi *.mp4 *.mov *.mkv *.webm)</translation>
+        </message>
     </context>
 </TS>

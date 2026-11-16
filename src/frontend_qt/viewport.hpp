@@ -5,6 +5,7 @@
 #include "mikudancestudio/scene_editor_overlay.hpp"
 #include "mikudancestudio/scene_effects.hpp"
 #include "relative_pointer.hpp"
+#include "background_video.hpp"
 #include <QWindow>
 #include <QImage>
 #include <functional>
@@ -73,6 +74,8 @@ private:
     rhi::ScenePreviewController controller_;
     render::SceneFrameProducer producer_;
     render::SceneEffects effects_;
+    VideoPreview video_;
+    std::shared_ptr<const rhi::RgbaImage> cachedVideo_;
     std::uint64_t cachedEffects_ = 0;
     std::string deviceError_;
     std::uint64_t failedRevision_ = 0, failedEffects_ = 0, failedUpdates_ = 0;

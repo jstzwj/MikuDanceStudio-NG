@@ -776,6 +776,19 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
         resolver.ResolveFile(SceneResourceKind::Wave, next.document.wave.pathBytes,
                              next.assets.wave);
     }
+    const auto& videoPath = next.document.avi.pathBytes;
+    if (videoPath[0]) {
+        std::string decoded;
+        const auto end = std::find(videoPath.begin(), videoPath.end(), 0);
+        if (!text::DecodeCp932({videoPath.data(), std::size_t(end - videoPath.begin())}, decoded)) {
+            reason = "invalid-video-path";
+            return false;
+        }
+        std::replace(decoded.begin(), decoded.end(), '\\', '/');
+        next.assets.videoPath =
+            (absolute.parent_path() / std::filesystem::u8path(decoded)).lexically_normal();
+        resolver.ResolveFile(SceneResourceKind::Background, videoPath, next.assets.videoPath);
+    }
     const auto& picturePath = next.document.picture.pathBytes;
     if (picturePath[0]) {
         std::string decoded;
@@ -854,6 +867,9 @@ bool EditorSession::Save(const std::filesystem::path& path, const AtomicWrite& w
     if (!next.assets.picturePath.empty() &&
         !DiskPath(next.assets.picturePath, absolute.parent_path(), next.document.picture.pathBytes,
                   reason))
+        return false;
+    if (!next.assets.videoPath.empty() && !DiskPath(next.assets.videoPath, absolute.parent_path(),
+                                                    next.document.avi.pathBytes, reason))
         return false;
     SceneSession session;
     std::vector<std::uint8_t> bytes;
@@ -1054,6 +1070,47 @@ bool EditorSession::ShowPicture(bool visible, std::string& reason) {
         "background-picture-visible",
         [&](auto& doc, auto&) {
             doc.picture.enabled = visible ? 1 : 0;
+            return true;
+        },
+        reason);
+}
+bool EditorSession::ImportVideo(const std::filesystem::path& path, unsigned width, unsigned height,
+                                unsigned viewWidth, unsigned viewHeight, std::string& reason) {
+    if (!width || !height || width > 8192 || height > 8192 ||
+        std::uint64_t(width) * height > 16777216 || !viewWidth || !viewHeight ||
+        viewWidth > 16384 || viewHeight > 16384) {
+        reason = "invalid-video-size-or-viewport";
+        return false;
+    }
+    const auto absolute = std::filesystem::absolute(path).lexically_normal();
+    if (!std::filesystem::is_regular_file(absolute)) {
+        reason = "background-video-file-missing";
+        return false;
+    }
+    auto next = Current();
+    if (!DiskPath(absolute, absolute.parent_path(), next.document.avi.pathBytes, reason))
+        return false;
+    render::BackgroundView view;
+    view.width = int(viewWidth);
+    view.height = int(viewHeight);
+    view.scale = render::BackgroundViewScale(view.width);
+    const auto fit = render::FitBackground(int(width), int(height), view);
+    next.document.avi.offsetX = fit.x;
+    next.document.avi.offsetY = fit.y;
+    next.document.avi.scale = fit.scale;
+    next.document.avi.enabled = 1;
+    next.assets.videoPath = absolute;
+    return Commit(std::move(next), reason);
+}
+bool EditorSession::ShowVideo(bool visible, std::string& reason) {
+    if (visible && state_.assets.videoPath.empty()) {
+        reason = "background-video-not-loaded";
+        return false;
+    }
+    return Edit(
+        "background-video-visible",
+        [&](auto& doc, auto&) {
+            doc.avi.enabled = visible ? 1 : 0;
             return true;
         },
         reason);

@@ -1,5 +1,6 @@
 #include "export.hpp"
 #include "editor_window.hpp"
+#include "background_video.hpp"
 #include <QCoreApplication>
 #include <QTemporaryDir>
 #include <QDir>
@@ -28,6 +29,7 @@ bool ExportImages(const render::ExportSnapshot& snapshot, const std::filesystem:
         reason = "export-staging-unavailable";
         return false;
     }
+    VideoDecoder video;
     if (!render::RunExport(
             snapshot, builtins, options, settings,
             [&](const render::ExportFrame& frame, std::string& error) {
@@ -43,7 +45,10 @@ bool ExportImages(const render::ExportSnapshot& snapshot, const std::filesystem:
                 }
                 return true;
             },
-            progress, reason))
+            progress, reason,
+            ExportVideoSource(snapshot.assets.videoPath, video,
+                              timeline.settings.rateNumerator == 30 &&
+                                  timeline.settings.rateDenominator == 1)))
         return false;
     QJsonObject manifest{
         {"version", 2},

@@ -56,6 +56,7 @@ struct EditorAssets {
     std::filesystem::path wave;
     std::filesystem::path picturePath;
     std::shared_ptr<const rhi::RgbaImage> picture;
+    std::filesystem::path videoPath;
 };
 struct BoneDragInput {
     int mode = 0; // 1..6 rotation, 7..9 view plane, 10..12 local/world translation.
@@ -117,6 +118,11 @@ public:
     bool ImportPicture(const std::filesystem::path&, unsigned viewWidth, unsigned viewHeight,
                        std::string&);
     bool ShowPicture(bool visible, std::string&);
+    // Host validates the decoder and supplies display dimensions. PMM retains
+    // the native path/visibility/placement fields, not decoder handles.
+    bool ImportVideo(const std::filesystem::path&, unsigned width, unsigned height,
+                     unsigned viewWidth, unsigned viewHeight, std::string&);
+    bool ShowVideo(bool visible, std::string&);
     bool UnloadModel(std::uint8_t, std::string&);
     bool UnloadAccessory(std::uint8_t, std::string&);
     bool ImportMotion(const format::VmdDocument&, std::uint8_t slot, std::string&);
