@@ -4,16 +4,19 @@
 
 更新时间：2026-11-16。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
 
-**P6 最新状态（2026-11-15）：P6.1 统一导出与带音频视频已在声明的桌面范围完成。**
+**P6 最新状态（2026-11-16）：P6.1 已完成；P6.2 首批桌面背景视频链路已验收。**
 PNG 与 MP4 共享独立场景／MME 帧生产，支持有理数帧率、区间、Alpha 契约、WAV
 裁剪／静音补齐、后台进度、取消及成功后发布。Windows x64 DX11／DX12、Linux x64
 Vulkan、macOS ARM64 Metal 的定向门禁和便携包检查通过，本机硬件 Vulkan 另行通过。
 30fps 原有精确导出回归保留；两种编码档位通过 120 秒分数帧率、完整帧号、时间戳与
 音频脉冲检查。能力、限制和实际构建提交见 [P6.1 验收](docs/CROSS_PLATFORM_P6.md) 与
-[证据](docs/evidence/p61-export-43698441877.json)。P6.2 背景视频解码／定位／RHI 合成
-已实现，Windows 本机 DX11／DX12／Vulkan 回归通过，三平台与便携包定向验收进行中；
-见 [P6.2 契约](docs/CROSS_PLATFORM_P6.md#p62背景视频解码定位与共享-rhi-合成)。完整
-P6／P7 及 Windows ARM64／Android 媒体／MME 组合均未据此验收。
+[证据](docs/evidence/p61-export-43698441877.json)。P6.2 已接通本地 SDR 背景视频的 PTS
+定位／AVI 原生时间规则、异步预览、共享 RHI／MME、PMM 及导出。Windows DX11／DX12、
+Linux Vulkan、macOS Metal 各五项定向门禁与便携包通过，本机硬件 Vulkan 另行通过；
+原有严格比较保留。契约、独立工具修复和各平台实际提交见 [P6.2 记录](docs/CROSS_PLATFORM_P6.md#p62背景视频解码定位与共享-rhi-合成)
+与[证据](docs/evidence/p62-background-43838076911.json)。隐藏视频跨项目重开／导出时的
+冻结帧与屏幕捕获模式 3 组合仍需补齐；不将首批链路称为全部原版媒体兼容。
+完整 P6／P7 及 Windows ARM64／Android 媒体／MME 组合均未据此验收。
 
 **P5 最新状态（2026-11-08）：P5.1～P5.5 已在明确的桌面效果子集范围验收，C2 按此范围完成。**
 Qt 已接入效果分配／数值参数／多语言、保存重开及同一装配服务的视口和导出；原始 PMM

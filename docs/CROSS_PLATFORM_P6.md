@@ -129,9 +129,11 @@ GPU／干净系统资格，也不扩大 Windows ARM64／Android 或完整 FX9／
 
 ## P6.2：背景视频解码、定位与共享 RHI 合成
 
-**实现及 Windows 本机回归完成，三平台定向验收进行中（2026-11-16）。**
-不将实现完成记为尚未执行的平台资格。完整 P6／P7、移动媒体及完整 FX9／Ray
-仍在原有范围之外。
+**首批桌面链路已按下述范围验收（2026-11-16）。**
+[版本化证据](evidence/p62-background-43838076911.json) 区分各平台实际构建、补验及失败历史。
+本批完成可见背景的解码、定位、共享合成及导出；当前实例显隐保留已解码资源。
+隐藏视频跨项目重开时的冻结帧／捕获模式 3 语义仍需补齐，不宣称全部原版媒体状态
+已兼容。完整 P6／P7、移动媒体及完整 FX9／Ray 仍在原有范围之外。
 
 ### 原版行为与时间选择
 
@@ -199,3 +201,37 @@ x86asm 的独立构建已复现。测试工具显式使用 `bilinear+accurate_rn
 `--background-deployment-check` 在移除 SDK／外部 ffmpeg 搜索路径后实际解码、合成、
 保存重开并编码带 MME 的成品；包外工具只用于预先生成输入及事后独立解码。
 `export-editor.yml` 仍为手动定向工作流；本批不自动发布 Release。
+
+### 验收结果与剩余边界
+
+| 平台／执行路径 | 定向门禁 | 便携包 |
+|---|---|---|
+| Windows x64，DX11／DX12 WARP | 各 5/5，无跳过 | 背景解码、MME、保存重开、两种带 WAV 视频编码及独立解码通过 |
+| Linux x64，软件 Vulkan | 5/5，无跳过 | 同上，新增已知源色块与转换顺序检查通过 |
+| macOS ARM64，Metal，API 验证开启 | 5/5，无跳过 | 同上，包含正常进程退出 |
+
+每组为 `qt_background_video`、`qt_export`、`qt_mme`、`qt_editor_render`、`qt_menu`。
+Windows／macOS 使用 `6f01b18`，来自
+[43833644474](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/43833644474) 的成功任务；
+该运行 Linux 的失败及诊断补验
+[43834902890](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/43834902890)
+保持可查。修正独立工具后的 Linux `569f3fa` 通过
+[43838076911](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/43838076911)。
+后两个提交仅涉及测试诊断／参考流程及文档，没有改变产品实现，不把旧任务记录为
+新测试在所有平台的重复执行资格。
+
+本机 DX11／DX12 WARP 和硬件 Vulkan 均通过完整背景测试，原有四项离屏回归通过。
+Windows 独立 VFW 核对三个 AVI、共 135 个原生帧选择。15 语言 lupdate 往返通过。
+背景＋材质＋两级场景效果的 60fps 输出逐帧编号正确，无背景音轨；有损视频对同源
+PNG 的 PSNR 为 31～33 dB，保持 ≥30 dB 标准；
+[PNG／解码视频对照](evidence/p62-background-images/png-and-mp4.png) 已复看。
+本批同时重跑 P6.1 的 120 秒 30000/1001 视频／音频脉冲门禁，原始复制和原生 30fps
+精确回归仍独立通过。便携包移除 SDK／外部 ffmpeg 搜索路径后检查通过；本机
+`out/dist` 的实际生产源码为 `6f01b18`，构建标记未修改。
+
+剩余兼容项：原版 PMM 读取会先加载视频，再恢复隐藏标志，因而可能保留一个供
+`screen.bmp` 模式 3 使用的冻结帧。当前预览只在启用视频时准备新帧；隐藏状态跨项目
+重开／导出尚未传递这个冻结帧身份，不能由“当前生产者保留隐藏资源”推断该项通过。
+该组合另行补齐与对照。HDR、多视频流、镜像／非正交旋转、动态尺寸及任意编码器
+不在首批支持范围。以上也不替代 Windows ARM64／Android 媒体组合或 P7 实体 GPU／
+干净系统发行资格。

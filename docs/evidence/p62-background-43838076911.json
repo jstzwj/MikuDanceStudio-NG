@@ -1,0 +1,987 @@
+{
+  "schema": 1,
+  "stage": "P6.2",
+  "accepted": true,
+  "date": "2026-11-16",
+  "scope": "First desktop Qt C2 background-media slice: local single-video-stream SDR decode, scene-time seek, shared RHI/MME, PMM and offline export. Cold reopen of hidden-video freeze/capture mode 3 is excluded and tracked explicitly.",
+  "productionSource": "6f01b187160c6b46c30b2b5e963c6fea3819c986",
+  "featureCommits": [
+    "187fe70",
+    "967e729",
+    "6f01b18"
+  ],
+  "testFollowups": [
+    "09a9e21",
+    "569f3fa"
+  ],
+  "platforms": [
+    {
+      "platform": "Windows",
+      "architecture": "x64",
+      "driver": "WARP",
+      "source": "6f01b187160c6b46c30b2b5e963c6fea3819c986",
+      "job": 133184784003,
+      "run": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/43833644474",
+      "runOverallConclusion": "failure",
+      "gates": [
+        {
+          "backend": "d3d11",
+          "passed": 5,
+          "skipped": 0,
+          "tests": [
+            "qt_menu",
+            "qt_background_video",
+            "qt_export",
+            "qt_mme",
+            "qt_editor_render"
+          ],
+          "evidence": {
+            "file": "out/evidence/p62-ci-Windows/build/export-d3d11.xml",
+            "sha256": "fac34128e85a412ed960a4390b1f27964e608c4eee1e31b0303b6c33759e66c8"
+          },
+          "background": {
+            "stage": "P6.2",
+            "passed": true,
+            "backend": "d3d11",
+            "inputs": [
+              {
+                "file": "native.avi",
+                "frames": 40
+              },
+              {
+                "file": "ntsc.mp4",
+                "frames": 180
+              },
+              {
+                "file": "variable.mkv",
+                "frames": 13
+              },
+              {
+                "file": "with-audio.mp4",
+                "frames": 180
+              }
+            ],
+            "outputFrames": 12,
+            "frameNumbers": true,
+            "videoPsnrDb": 31.778150536601295,
+            "noBackgroundAudio": true,
+            "checks": [
+              "forward/backward boundary and endpoint",
+              "VFR and NTSC B frames",
+              "rotation and sample aspect ratio",
+              "latest seek generation",
+              "PMM save/reopen",
+              "material and two-pass MME",
+              "PNG and video",
+              "cancel and missing media cleanup",
+              "hidden Qt language and toggle"
+            ]
+          },
+          "backgroundEvidence": {
+            "file": "out/evidence/p62-ci-Windows/background-d3d11/report.json",
+            "sha256": "56eab9e1058abdb7c1defe0a896821bed4896f69b40ffd67afef559fd617c37a"
+          },
+          "retainedExportEvidence": {
+            "file": "out/evidence/p62-ci-Windows/export-d3d11/report.json",
+            "sha256": "ab3acc9d95a9d5104eb081d8a9437c173c680e97cde92979f729e0efba317a8b"
+          },
+          "retainedClocks": [
+            {
+              "file": "clock.mp4",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm.mp4",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mp4",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.02,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm-ntsc.mp4",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.019896,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            }
+          ]
+        },
+        {
+          "backend": "d3d12",
+          "passed": 5,
+          "skipped": 0,
+          "tests": [
+            "qt_menu",
+            "qt_background_video",
+            "qt_export",
+            "qt_mme",
+            "qt_editor_render"
+          ],
+          "evidence": {
+            "file": "out/evidence/p62-ci-Windows/build/export-d3d12.xml",
+            "sha256": "9d9ce683af8e0a9556ef610dfa00fac99724114dfaa69701447ef97739e80336"
+          },
+          "background": {
+            "stage": "P6.2",
+            "passed": true,
+            "backend": "d3d12",
+            "inputs": [
+              {
+                "file": "native.avi",
+                "frames": 40
+              },
+              {
+                "file": "ntsc.mp4",
+                "frames": 180
+              },
+              {
+                "file": "variable.mkv",
+                "frames": 13
+              },
+              {
+                "file": "with-audio.mp4",
+                "frames": 180
+              }
+            ],
+            "outputFrames": 12,
+            "frameNumbers": true,
+            "videoPsnrDb": 31.778150536601295,
+            "noBackgroundAudio": true,
+            "checks": [
+              "forward/backward boundary and endpoint",
+              "VFR and NTSC B frames",
+              "rotation and sample aspect ratio",
+              "latest seek generation",
+              "PMM save/reopen",
+              "material and two-pass MME",
+              "PNG and video",
+              "cancel and missing media cleanup",
+              "hidden Qt language and toggle"
+            ]
+          },
+          "backgroundEvidence": {
+            "file": "out/evidence/p62-ci-Windows/background-d3d12/report.json",
+            "sha256": "9abd0aacd8c9ae7cef9494769f9f2be932af2b574319b97be138c88d2dedfdf7"
+          },
+          "retainedExportEvidence": {
+            "file": "out/evidence/p62-ci-Windows/export-d3d12/report.json",
+            "sha256": "c31ee51be5ca3f63ae4239e11278d86d22507676ca23dce8253dd4a13680e680"
+          },
+          "retainedClocks": [
+            {
+              "file": "clock.mp4",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm.mp4",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mp4",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.02,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm-ntsc.mp4",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.019896,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            }
+          ]
+        }
+      ],
+      "package": {
+        "build": {
+          "system": "Windows",
+          "qt": "6.8.3",
+          "version": "0.0.2",
+          "vulkan": false,
+          "metal": false,
+          "mme": true,
+          "schema": 1,
+          "product": "MikuDanceStudio-NG",
+          "format": "portable",
+          "commit": "6f01b187160c6b46c30b2b5e963c6fea3819c986",
+          "tag": null,
+          "arch": "x64",
+          "development": true,
+          "modified": false
+        },
+        "languages": [
+          "en",
+          "ja",
+          "zh_CN",
+          "zh_TW",
+          "ko",
+          "fr",
+          "de",
+          "es",
+          "it",
+          "pt_BR",
+          "ru",
+          "nl",
+          "pl",
+          "tr",
+          "vi"
+        ],
+        "qpa": "offscreen",
+        "visible": false,
+        "backgroundVideo": true,
+        "sdkAndExternalFfmpegPathRemoved": true,
+        "decoded": {
+          "schema": 1,
+          "passed": true,
+          "packagedMedia": [
+            {
+              "file": "media-distribution.mp4",
+              "decodedFrames": 2,
+              "audioFrames": 3168,
+              "declaredAudioSampleFrames": 3168.0,
+              "videoCodec": "mpeg4",
+              "audioCodec": "aac"
+            },
+            {
+              "file": "media-distribution.pcm.mp4",
+              "decodedFrames": 2,
+              "audioFrames": 3200,
+              "declaredAudioSampleFrames": 3200,
+              "videoCodec": "mjpeg",
+              "audioCodec": "pcm_s16le"
+            }
+          ]
+        },
+        "evidence": [
+          {
+            "file": "out/evidence/p62-ci-Windows/media-distribution.json",
+            "sha256": "2f639883df41a070324610cd1e5c65dcc91b33eaaa962e29c4b7a46aec76794c"
+          },
+          {
+            "file": "out/evidence/p62-ci-Windows/media-distribution.decoded.json",
+            "sha256": "c661c5632f50db0ff4f3c25978c33ae8721f23b06ad003285efff36b6f1e7c7c"
+          }
+        ]
+      }
+    },
+    {
+      "platform": "macOS",
+      "architecture": "arm64",
+      "driver": "Metal, API validation enabled",
+      "source": "6f01b187160c6b46c30b2b5e963c6fea3819c986",
+      "job": 133184784460,
+      "run": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/43833644474",
+      "runOverallConclusion": "failure",
+      "gates": [
+        {
+          "backend": "metal",
+          "passed": 5,
+          "skipped": 0,
+          "tests": [
+            "qt_menu",
+            "qt_background_video",
+            "qt_export",
+            "qt_mme",
+            "qt_editor_render"
+          ],
+          "evidence": {
+            "file": "out/evidence/p62-ci-macOS/build/export-metal.xml",
+            "sha256": "2c7964363b3c13c7d2eeab1fcbe139042e715dc21c7bef3c53e86884ed4ac64a"
+          },
+          "background": {
+            "stage": "P6.2",
+            "passed": true,
+            "backend": "metal",
+            "inputs": [
+              {
+                "file": "native.avi",
+                "frames": 40
+              },
+              {
+                "file": "ntsc.mp4",
+                "frames": 180
+              },
+              {
+                "file": "variable.mkv",
+                "frames": 13
+              },
+              {
+                "file": "with-audio.mp4",
+                "frames": 180
+              }
+            ],
+            "outputFrames": 12,
+            "frameNumbers": true,
+            "videoPsnrDb": 32.68271553980453,
+            "noBackgroundAudio": true,
+            "checks": [
+              "forward/backward boundary and endpoint",
+              "VFR and NTSC B frames",
+              "rotation and sample aspect ratio",
+              "latest seek generation",
+              "PMM save/reopen",
+              "material and two-pass MME",
+              "PNG and video",
+              "cancel and missing media cleanup",
+              "hidden Qt language and toggle"
+            ]
+          },
+          "backgroundEvidence": {
+            "file": "out/evidence/p62-ci-macOS/background-metal/report.json",
+            "sha256": "efe6142f8ad427fcd8e3a5981ea4bcbd9f108cf47d40328c10661668a109e02a"
+          },
+          "retainedExportEvidence": {
+            "file": "out/evidence/p62-ci-macOS/export-metal/report.json",
+            "sha256": "62df8b6fc6e66eea891ab5efeb51d0798d4ba7f069057eca658d6737dc553e89"
+          },
+          "retainedClocks": [
+            {
+              "file": "clock.mp4",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm.mp4",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mp4",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.02,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm-ntsc.mp4",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.019896,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            }
+          ]
+        }
+      ],
+      "package": {
+        "build": {
+          "system": "Darwin",
+          "qt": "6.8.3",
+          "version": "0.0.2",
+          "vulkan": false,
+          "metal": true,
+          "mme": true,
+          "schema": 1,
+          "product": "MikuDanceStudio-NG",
+          "format": "portable",
+          "commit": "6f01b187160c6b46c30b2b5e963c6fea3819c986",
+          "tag": null,
+          "arch": "arm64",
+          "development": true,
+          "modified": false
+        },
+        "languages": [
+          "en",
+          "ja",
+          "zh_CN",
+          "zh_TW",
+          "ko",
+          "fr",
+          "de",
+          "es",
+          "it",
+          "pt_BR",
+          "ru",
+          "nl",
+          "pl",
+          "tr",
+          "vi"
+        ],
+        "qpa": "offscreen",
+        "visible": false,
+        "backgroundVideo": true,
+        "sdkAndExternalFfmpegPathRemoved": true,
+        "decoded": {
+          "schema": 1,
+          "passed": true,
+          "packagedMedia": [
+            {
+              "file": "media-distribution.mp4",
+              "decodedFrames": 2,
+              "audioFrames": 3168,
+              "declaredAudioSampleFrames": 3168.0,
+              "videoCodec": "mpeg4",
+              "audioCodec": "aac"
+            },
+            {
+              "file": "media-distribution.pcm.mp4",
+              "decodedFrames": 2,
+              "audioFrames": 3200,
+              "declaredAudioSampleFrames": 3200,
+              "videoCodec": "mjpeg",
+              "audioCodec": "pcm_s16le"
+            }
+          ]
+        },
+        "evidence": [
+          {
+            "file": "out/evidence/p62-ci-macOS/media-distribution.json",
+            "sha256": "2bbbcdf9869fc762176ea63125cb87fdd804fffa5f7d7dde55ed58713cf12305"
+          },
+          {
+            "file": "out/evidence/p62-ci-macOS/media-distribution.decoded.json",
+            "sha256": "0c30905dddeb3cb9c2ec7dc035039016f15588bf47e77c4a671b561a9c6acc61"
+          }
+        ]
+      }
+    },
+    {
+      "platform": "Linux",
+      "architecture": "x64",
+      "driver": "software Vulkan",
+      "source": "569f3facb3d72649fa5babdb6da9ab6758637ffb",
+      "job": 133199607667,
+      "run": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/43838076911",
+      "runOverallConclusion": "success",
+      "gates": [
+        {
+          "backend": "vulkan",
+          "passed": 5,
+          "skipped": 0,
+          "tests": [
+            "qt_menu",
+            "qt_background_video",
+            "qt_export",
+            "qt_mme",
+            "qt_editor_render"
+          ],
+          "evidence": {
+            "file": "out/evidence/p62-ci-linux-qualified/build/export-vulkan.xml",
+            "sha256": "2576e0d383935a960de72dd26452f40967e6fcfecabc7f32f7b433918d9fd1cd"
+          },
+          "background": {
+            "stage": "P6.2",
+            "passed": true,
+            "backend": "vulkan",
+            "inputs": [
+              {
+                "file": "native.avi",
+                "frames": 40
+              },
+              {
+                "file": "ntsc.mp4",
+                "frames": 180
+              },
+              {
+                "file": "variable.mkv",
+                "frames": 13
+              },
+              {
+                "file": "with-audio.mp4",
+                "frames": 180
+              }
+            ],
+            "outputFrames": 12,
+            "frameNumbers": true,
+            "videoPsnrDb": 33.073190849708915,
+            "noBackgroundAudio": true,
+            "checks": [
+              "forward/backward boundary and endpoint",
+              "VFR and NTSC B frames",
+              "rotation and sample aspect ratio",
+              "latest seek generation",
+              "PMM save/reopen",
+              "material and two-pass MME",
+              "PNG and video",
+              "cancel and missing media cleanup",
+              "hidden Qt language and toggle"
+            ]
+          },
+          "backgroundEvidence": {
+            "file": "out/evidence/p62-ci-linux-qualified/background-vulkan/report.json",
+            "sha256": "43378870f6c726e67e9d55e291e7517283a1aa1211f8d4fb63339fe47af5a11a"
+          },
+          "retainedExportEvidence": {
+            "file": "out/evidence/p62-ci-linux-qualified/export-vulkan/report.json",
+            "sha256": "c06c2e06a89d5cfd61d9f742d41519bfa4dea977a1f429d76b2d8838023f2a26"
+          },
+          "retainedClocks": [
+            {
+              "file": "clock.mp4",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm.mp4",
+              "decodedFrames": 60,
+              "containerDurationSeconds": 1.0,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mp4",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.02,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm-ntsc.mp4",
+              "decodedFrames": 3597,
+              "containerDurationSeconds": 120.019896,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            }
+          ]
+        }
+      ],
+      "package": {
+        "build": {
+          "system": "Linux",
+          "qt": "6.8.3",
+          "version": "0.0.2",
+          "vulkan": true,
+          "metal": false,
+          "mme": true,
+          "schema": 1,
+          "product": "MikuDanceStudio-NG",
+          "format": "portable",
+          "commit": "569f3facb3d72649fa5babdb6da9ab6758637ffb",
+          "tag": null,
+          "arch": "x64",
+          "development": true,
+          "modified": false
+        },
+        "languages": [
+          "en",
+          "ja",
+          "zh_CN",
+          "zh_TW",
+          "ko",
+          "fr",
+          "de",
+          "es",
+          "it",
+          "pt_BR",
+          "ru",
+          "nl",
+          "pl",
+          "tr",
+          "vi"
+        ],
+        "qpa": "offscreen",
+        "visible": false,
+        "backgroundVideo": true,
+        "sdkAndExternalFfmpegPathRemoved": true,
+        "decoded": {
+          "schema": 1,
+          "passed": true,
+          "packagedMedia": [
+            {
+              "file": "media-distribution.mp4",
+              "decodedFrames": 2,
+              "audioFrames": 4096,
+              "declaredAudioSampleFrames": 3168.0,
+              "videoCodec": "mpeg4",
+              "audioCodec": "aac"
+            },
+            {
+              "file": "media-distribution.pcm.mp4",
+              "decodedFrames": 2,
+              "audioFrames": 3200,
+              "declaredAudioSampleFrames": 3200,
+              "videoCodec": "mjpeg",
+              "audioCodec": "pcm_s16le"
+            }
+          ]
+        },
+        "evidence": [
+          {
+            "file": "out/evidence/p62-ci-linux-qualified/media-distribution.json",
+            "sha256": "2682237d782b2eb4abce7718875ece19dbe453f28f78bacb9a97e0daa44251e3"
+          },
+          {
+            "file": "out/evidence/p62-ci-linux-qualified/media-distribution.decoded.json",
+            "sha256": "11e194096ad8716c8445278894bc6fb335379ed6ff70dded27d1d85ee08b0248"
+          }
+        ]
+      }
+    }
+  ],
+  "local": [
+    {
+      "backend": "d3d11",
+      "driver": "WARP",
+      "report": {
+        "stage": "P6.2",
+        "passed": true,
+        "backend": "d3d11",
+        "inputs": [
+          {
+            "file": "native.avi",
+            "frames": 40
+          },
+          {
+            "file": "ntsc.mp4",
+            "frames": 180
+          },
+          {
+            "file": "variable.mkv",
+            "frames": 13
+          },
+          {
+            "file": "with-audio.mp4",
+            "frames": 180
+          }
+        ],
+        "outputFrames": 12,
+        "frameNumbers": true,
+        "videoPsnrDb": 33.10551965800983,
+        "noBackgroundAudio": true,
+        "checks": [
+          "forward/backward boundary and endpoint",
+          "VFR and NTSC B frames",
+          "rotation and sample aspect ratio",
+          "latest seek generation",
+          "PMM save/reopen",
+          "material and two-pass MME",
+          "PNG and video",
+          "cancel and missing media cleanup",
+          "hidden Qt language and toggle"
+        ]
+      },
+      "evidence": {
+        "file": "out/evidence/p62-accurate-oracle/report.json",
+        "sha256": "a787f219d3d77c3185309a02e376db3b7e5dda3c99de415b360568fd4c673525"
+      }
+    },
+    {
+      "backend": "d3d12",
+      "driver": "WARP",
+      "report": {
+        "stage": "P6.2",
+        "passed": true,
+        "backend": "d3d12",
+        "inputs": [
+          {
+            "file": "native.avi",
+            "frames": 40
+          },
+          {
+            "file": "ntsc.mp4",
+            "frames": 180
+          },
+          {
+            "file": "variable.mkv",
+            "frames": 13
+          },
+          {
+            "file": "with-audio.mp4",
+            "frames": 180
+          }
+        ],
+        "outputFrames": 12,
+        "frameNumbers": true,
+        "videoPsnrDb": 31.74895747118123,
+        "noBackgroundAudio": true,
+        "checks": [
+          "forward/backward boundary and endpoint",
+          "VFR and NTSC B frames",
+          "rotation and sample aspect ratio",
+          "latest seek generation",
+          "PMM save/reopen",
+          "material and two-pass MME",
+          "PNG and video",
+          "cancel and missing media cleanup",
+          "hidden Qt language and toggle"
+        ]
+      },
+      "evidence": {
+        "file": "out/evidence/p62-d3d12/report.json",
+        "sha256": "2c07369fb12d2c6cac842fdcd813e12da00cd3c26d2b27b1f6508412784d82bd"
+      }
+    },
+    {
+      "backend": "vulkan",
+      "driver": "hardware",
+      "report": {
+        "stage": "P6.2",
+        "passed": true,
+        "backend": "vulkan",
+        "inputs": [
+          {
+            "file": "native.avi",
+            "frames": 40
+          },
+          {
+            "file": "ntsc.mp4",
+            "frames": 180
+          },
+          {
+            "file": "variable.mkv",
+            "frames": 13
+          },
+          {
+            "file": "with-audio.mp4",
+            "frames": 180
+          }
+        ],
+        "outputFrames": 12,
+        "frameNumbers": true,
+        "videoPsnrDb": 31.771049088390384,
+        "noBackgroundAudio": true,
+        "checks": [
+          "forward/backward boundary and endpoint",
+          "VFR and NTSC B frames",
+          "rotation and sample aspect ratio",
+          "latest seek generation",
+          "PMM save/reopen",
+          "material and two-pass MME",
+          "PNG and video",
+          "cancel and missing media cleanup",
+          "hidden Qt language and toggle"
+        ]
+      },
+      "evidence": {
+        "file": "out/evidence/p62-vulkan/report.json",
+        "sha256": "0c98abffa5c4b207b377fb606f704a3ebc9ab826e38787ede1eb53f3acd69454"
+      }
+    }
+  ],
+  "localWindowsPackage": {
+    "build": {
+      "system": "Windows",
+      "qt": "6.8.3",
+      "version": "0.0.2",
+      "vulkan": true,
+      "metal": false,
+      "mme": true,
+      "schema": 1,
+      "product": "MikuDanceStudio-NG",
+      "format": "portable",
+      "commit": "6f01b187160c6b46c30b2b5e963c6fea3819c986",
+      "tag": null,
+      "arch": "x64",
+      "development": true,
+      "modified": false
+    },
+    "evidence": {
+      "file": "out/evidence/p62-package.json",
+      "sha256": "501af17176972b0e783196e3a80c35ac488f8fecc1f7e89c79bc91d88a8651ea"
+    },
+    "decoded": {
+      "schema": 1,
+      "passed": true,
+      "packagedMedia": [
+        {
+          "file": "p62-package.mp4",
+          "decodedFrames": 2,
+          "audioFrames": 4096,
+          "declaredAudioSampleFrames": 3168.0,
+          "videoCodec": "mpeg4",
+          "audioCodec": "aac"
+        },
+        {
+          "file": "p62-package.pcm.mp4",
+          "decodedFrames": 2,
+          "audioFrames": 3200,
+          "declaredAudioSampleFrames": 3200,
+          "videoCodec": "mjpeg",
+          "audioCodec": "pcm_s16le"
+        }
+      ]
+    }
+  },
+  "vfwOracle": {
+    "streams": [
+      "native.avi",
+      "native24.avi",
+      "native-ntsc.avi"
+    ],
+    "nativeSamples": 135,
+    "gpuOrVisibleWindowRequired": false,
+    "evidence": {
+      "file": "out/evidence/p62-accurate-oracle/vfw-reference.json",
+      "sha256": "8a596a1d27f2bc01610b6942a280ac462fe992d9d2b886e8e49910b3711033ed"
+    }
+  },
+  "runtime": {
+    "publicHeaders": "FFmpeg 7.1.1",
+    "headerSha256": "733984395e0dbbe5c046abda2dc49a5544e7e0e1e2366bba849222ae9e3a03b1",
+    "checkedAbiMajors": {
+      "avformat": 61,
+      "avcodec": 61,
+      "avutil": 59,
+      "swscale": 8
+    },
+    "publicApi": true,
+    "qtPrivateApi": false,
+    "externalDecoderExecutable": false
+  },
+  "oracleColorReproduction": {
+    "default": [
+      [
+        0,
+        180,
+        0
+      ],
+      [
+        0,
+        202,
+        0
+      ],
+      [
+        0,
+        255,
+        0
+      ],
+      [
+        0,
+        255,
+        0
+      ]
+    ],
+    "accurate": [
+      [
+        0,
+        38,
+        30
+      ],
+      [
+        0,
+        38,
+        223
+      ],
+      [
+        0,
+        178,
+        32
+      ],
+      [
+        1,
+        177,
+        223
+      ]
+    ],
+    "reference": [
+      [
+        0,
+        40,
+        32
+      ],
+      [
+        0,
+        40,
+        224
+      ],
+      [
+        0,
+        180,
+        32
+      ],
+      [
+        0,
+        180,
+        224
+      ]
+    ],
+    "source": "FFmpeg n8.0.1@894da5ca7d742e4429ffb2af534fcda0103ef593; Cygwin GCC12.4; --disable-x86asm",
+    "accurateFlag": "bilinear+accurate_rnd",
+    "rotated.mp4Mse": 5.90390625,
+    "wide.mp4Mse": 5.88291015625
+  },
+  "incrementalQualification": "All production code is unchanged after 6f01b18. Windows/macOS qualify that production commit; 09a9e21 retains image diagnostics, and 569f3fa fixes independent fixture conversion/rotation order and adds known source-color checks. Linux and local DX11 execute those additional checks. Previous passing results are retained without claiming a rerun of newer tests on macOS/DX12.",
+  "failureHistory": [
+    {
+      "run": 43833644474,
+      "platform": "Linux",
+      "reason": "Background orientation/SAR oracle failed; four retained tests passed. Windows/macOS jobs and packages succeeded."
+    },
+    {
+      "run": 43834902890,
+      "platform": "Linux",
+      "reason": "Diagnostic images retained: RGBA MSE 730.054. Minimal FFmpeg 8.0.1 default RGB/YUV conversion produced malformed source colors; local same-revision C build reproduced it. Pinning accurate rounding restores known colors. Oracle RGB rotation now follows the declared conversion-before-rotation contract. Threshold unchanged."
+    }
+  ],
+  "limits": {
+    "containers": [
+      "AVI",
+      "MP4/MOV",
+      "Matroska/WebM"
+    ],
+    "streams": "exactly one video stream; audio ignored",
+    "transfer": "opaque SDR RGBA8; PQ/HLG rejected",
+    "axisPixels": 8192,
+    "pixels": 16777216,
+    "durationHours": 6,
+    "compressedPacketMiB": 64,
+    "operationDeadlineSeconds": 10,
+    "decoderThreads": 2,
+    "preview": "one active request, one replaceable latest request, one published result; generation cancellation",
+    "timestamps": "increasing PTS; select interval then clamp endpoints; AVI native 33ms stream ordinal compatibility",
+    "sampling": "source -> linear 1024x1024 single-mip target -> scene/MME; screen capture mode 3 uses video target",
+    "quality": "rotation/SAR RGBA MSE <20; compressed movie PSNR >=30dB; retained strict copy/30fps gates unchanged"
+  },
+  "notQualified": [
+    "Cold reopen/export of hidden background video frozen-frame identity for screen capture mode 3; tested hide/show retains an already decoded producer lease only",
+    "HDR, multiple video streams, mirrored/nonorthogonal display matrices, dynamic coded dimensions, arbitrary codecs",
+    "Windows ARM64/Android media and MME combinations",
+    "arbitrary FX9/full Ray/C3",
+    "P7 physical GPU/clean-machine release qualification"
+  ],
+  "reviewImage": "p62-background-images/png-and-mp4.png"
+}
