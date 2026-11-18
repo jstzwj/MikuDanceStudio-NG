@@ -203,6 +203,8 @@ jobs:
       - name: Prepare real touch, presentation and Android input-method tests
         run: |
           sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
           python -m pip install -r requirements-android-tests.txt
           python tools/build_android_test_ime.py --sdk "$ANDROID_HOME"
       - name: Permit KVM only on this isolated emulator runner

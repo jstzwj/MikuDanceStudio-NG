@@ -18,6 +18,7 @@
 #include <QDebug>
 #include <QMediaDevices>
 #include <QAudioDevice>
+#include <QSettings>
 #include "mikudancestudio/shader_compiler.hpp"
 #include <cstdio>
 #include <iostream>
@@ -46,7 +47,8 @@ void AppleMessageHandler(QtMsgType, const QMessageLogContext& context, const QSt
 #endif
 int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& report,
                     const std::filesystem::path& assets, const QString& project,
-                    bool mmeCheck = false, bool mediaCheck = false, bool backgroundCheck = false) {
+                    bool mmeCheck = false, bool mediaCheck = false, bool backgroundCheck = false,
+                    bool releaseCheck = false) {
     using namespace mikudancestudio;
     const auto fail = [&](int code, const QString& message) {
         // Android does not forward ordinary stderr to logcat. Keep failure
@@ -88,13 +90,25 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
         options.driver = rhi::BackendDriver::Software;
     QImage image;
     std::string reason;
+    const auto testWidth = releaseCheck ? 160u : 96u;
+    const auto testHeight = releaseCheck ? 96u : 64u;
+    const auto fixture = qt::Path(project).parent_path();
+    if (releaseCheck && !window.Session().Edit(
+                            "package video fixture",
+                            [](auto& d, auto&) {
+                                d.view.groundGrid = d.view.groundShadow = 0;
+                                d.appearance.floorVisible = 0;
+                                return true;
+                            },
+                            reason))
+        return fail(17, QString::fromStdString(reason));
     if (backgroundCheck) {
         qt::VideoDecoder decoder;
         media::VideoFrame frame;
-        const auto path = qt::Path(project).parent_path() / "ntsc.mp4";
+        const auto path = fixture / "ntsc.mp4";
         if (!decoder.Open(path, reason) || !decoder.ReadScene(.3, false, frame, {}, reason) ||
-            !window.Session().ImportVideo(path, decoder.Info().width, decoder.Info().height, 96, 64,
-                                          reason))
+            !window.Session().ImportVideo(path, decoder.Info().width, decoder.Info().height,
+                                          testWidth, testHeight, reason))
             return fail(17, "deployment background video: " + QString::fromStdString(reason));
     }
     if (mmeCheck) {
@@ -107,16 +121,16 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
                                   assets / "effects/Scene.fx", reason))
             return fail(10, "deployment MME assignment: " + QString::fromStdString(reason));
     }
-    if (!qt::RenderImage(window.Session().Runtime(), window.Session().Assets(), assets, options, 96,
-                         64, image, reason, window.Session().DisplayOptions(),
+    if (!qt::RenderImage(window.Session().Runtime(), window.Session().Assets(), assets, options,
+                         testWidth, testHeight, image, reason, window.Session().DisplayOptions(),
                          window.Session().Effects())) {
         return fail(4, "deployment render: " + QString::fromStdString(reason));
     }
     if (mmeCheck) {
         auto& session = window.Session();
         QImage basic;
-        if (!qt::RenderImage(session.Runtime(), session.Assets(), assets, options, 96, 64, basic,
-                             reason) ||
+        if (!qt::RenderImage(session.Runtime(), session.Assets(), assets, options, testWidth,
+                             testHeight, basic, reason) ||
             basic == image)
             return fail(11, "deployment MME did not change the image: " +
                                 QString::fromStdString(reason));
@@ -124,8 +138,8 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
         if (!window.Save(saved) || !window.Open(saved) || session.Effects().assignments.size() != 2)
             return fail(12, "deployment MME save/reopen: " + window.LastError());
         const auto frames = session.Runtime().Counters().frames;
-        if (!qt::ExportSequence(session, assets, options, qt::Path(report + ".sequence"), 0, 1, 96,
-                                64, {}, reason))
+        if (!qt::ExportSequence(session, assets, options, qt::Path(report + ".sequence"), 0,
+                                releaseCheck ? 5 : 1, testWidth, testHeight, {}, reason))
             return fail(13, "deployment MME export: " + QString::fromStdString(reason));
         if (QImage(report + ".sequence/frame_00000000.png")
                     .convertToFormat(QImage::Format_RGBA8888) != image ||
@@ -136,20 +150,57 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
         auto snapshot = render::CaptureExport(window.Session());
         snapshot.sharedToons = qt::Path(QCoreApplication::applicationDirPath()) / "data";
         render::ExportSettings settings;
-        settings.width = 96;
-        settings.height = 64;
-        settings.last = 1;
+        settings.width = testWidth;
+        settings.height = testHeight;
+        settings.last = releaseCheck ? 5 : 1;
         settings.alpha = render::ExportAlpha::Opaque;
         if (!window.Session().ImportWave(qt::Path(project).parent_path() / "export.wav", reason))
             return fail(15, "deployment audio: " + QString::fromStdString(reason));
         snapshot.assets.wave = window.Session().Assets().wave;
         for (auto profile : {qt::VideoProfile::Mp4, qt::VideoProfile::Mp4Pcm}) {
             const auto output = report + (profile == qt::VideoProfile::Mp4 ? ".mp4" : ".pcm.mp4");
+            if (releaseCheck && profile == qt::VideoProfile::Mp4Pcm) {
+                const auto cancel = [](unsigned complete, unsigned) { return complete < 1; };
+                if (qt::ExportMovie(snapshot, assets, options, qt::Path(output), settings, profile,
+                                    true, cancel, reason) ||
+                    reason != "export-cancelled" || QFileInfo::exists(output))
+                    return fail(18,
+                                "deployment cancelled export: " + QString::fromStdString(reason));
+                auto broken = snapshot;
+                broken.assets.wave = fixture / "missing.wav";
+                if (qt::ExportMovie(broken, assets, options, qt::Path(output), settings, profile,
+                                    true, {}, reason) ||
+                    reason != "wave-file-read-failed" || QFileInfo::exists(output))
+                    return fail(18, "deployment failed export: " + QString::fromStdString(reason));
+            }
             if (!qt::ExportMovie(snapshot, assets, options, qt::Path(output), settings, profile,
                                  true, {}, reason) ||
                 QFileInfo(output).size() < 1024)
                 return fail(16, "deployment video: " + QString::fromStdString(reason));
         }
+    }
+    if (releaseCheck) {
+        // Both paths belong to the disposable qualification workspace.
+        const auto directory = QFileInfo(report).absolutePath();
+        QSettings::setDefaultFormat(QSettings::IniFormat);
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, directory + "/legacy");
+        QCoreApplication::setOrganizationName("NG-distribution-test");
+        QCoreApplication::setApplicationName("migration");
+        {
+            QSettings old;
+            old.setValue("language", "fr-CA");
+            old.setValue("editor/lowPower", true);
+            old.sync();
+        }
+        qt::EditorSettingsStore store(directory + "/editor.json", true);
+        QString diagnostic;
+        auto saved = store.Load(diagnostic);
+        if (!diagnostic.isEmpty() || saved.language != "fr-CA" || !saved.lowPower ||
+            !store.Save(saved, diagnostic))
+            return fail(19, "deployment settings migration: " + diagnostic);
+        saved = store.Load(diagnostic);
+        if (!diagnostic.isEmpty() || saved.language != "fr-CA" || !saved.lowPower)
+            return fail(19, "deployment settings reopen: " + diagnostic);
     }
     const bool runtimeCompiler = rhi::DefaultSpirvCompiler()->Available();
 #ifndef __ANDROID__
@@ -176,6 +227,7 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
     const auto proxy = qobject_cast<QProxyStyle*>(qApp->style());
     const auto styleBase = proxy ? proxy->baseStyle()->objectName() : qApp->style()->objectName();
     QJsonObject result{{"qt", qVersion()},
+                       {"releaseMedia", releaseCheck},
                        {"mediaExport", mediaCheck},
                        {"backgroundVideo", backgroundCheck},
                        {"mme", mmeCheck},
@@ -258,9 +310,14 @@ int main(int argc, char** argv) {
                       "Check installed MME video/audio export without showing windows", "report"});
     parser.addOption({"background-deployment-check",
                       "Check installed background decoding, MME and audio/video export", "report"});
+    parser.addOption({"release-deployment-check",
+                      "Check media recovery and settings migration in a relocated package",
+                      "report"});
 #ifdef __ANDROID__
     parser.addOption(
         {"android-acceptance", "Isolated emulator presentation and lifecycle check", "report"});
+    parser.addOption(
+        {"android-media-fixtures", "Add media to the isolated emulator check", "directory"});
     parser.addOption(
         {"android-ui-report", "Observe ordinary editor UI state for emulator tests", "report"});
 #endif
@@ -287,11 +344,17 @@ int main(int argc, char** argv) {
     const auto assets = mikudancestudio::qt::Path(assetsPath);
     bool testing = parser.isSet("deployment-check") || parser.isSet("mme-deployment-check") ||
                    parser.isSet("media-deployment-check") ||
-                   parser.isSet("background-deployment-check");
+                   parser.isSet("background-deployment-check") ||
+                   parser.isSet("release-deployment-check");
 #ifdef __ANDROID__
     testing = testing || parser.isSet("android-acceptance");
 #endif
-    mikudancestudio::qt::EditorWindow window(assets, testing);
+    std::unique_ptr<mikudancestudio::qt::AudioOutput> acceptanceAudio;
+#ifdef __ANDROID__
+    if (parser.isSet("android-acceptance") && parser.isSet("android-media-fixtures"))
+        acceptanceAudio = mikudancestudio::qt::CreateAudioOutput();
+#endif
+    mikudancestudio::qt::EditorWindow window(assets, testing, std::move(acceptanceAudio));
     if (parser.isSet("deployment-check"))
         return DeploymentCheck(window, parser.value("deployment-check"), assets,
                                parser.positionalArguments().value(0));
@@ -304,6 +367,9 @@ int main(int argc, char** argv) {
     if (parser.isSet("background-deployment-check"))
         return DeploymentCheck(window, parser.value("background-deployment-check"), assets,
                                parser.positionalArguments().value(0), true, true, true);
+    if (parser.isSet("release-deployment-check"))
+        return DeploymentCheck(window, parser.value("release-deployment-check"), assets,
+                               parser.positionalArguments().value(0), true, true, true, true);
     if (parser.isSet("language"))
         window.SetLanguage(parser.value("language"));
     if (!parser.positionalArguments().empty())
@@ -311,7 +377,8 @@ int main(int argc, char** argv) {
 #ifdef __ANDROID__
     if (parser.isSet("android-acceptance"))
         return mikudancestudio::qt::RunAndroidAcceptance(app, window,
-                                                         parser.value("android-acceptance"));
+                                                         parser.value("android-acceptance"),
+                                                         parser.value("android-media-fixtures"));
     if (parser.isSet("android-ui-report"))
         mikudancestudio::qt::StartAndroidUiReport(window, parser.value("android-ui-report"));
     if (!window.menuBar()->actions().isEmpty()) {

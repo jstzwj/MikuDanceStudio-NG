@@ -278,7 +278,7 @@ def language_controls(output):
         wait_tree(output, 'language-closed-' + code, label(code, 'menu.file'))
 
 
-def phone_controls(output, project, model, ime):
+def phone_controls(output, project, model, ime, media_project):
     print('Phone: camera touch drag', flush=True)
     tree = wait_tree(output, 'camera-start', 'Scene viewport')
     x0, y0, x1, y1 = bounds(find(tree, 'Scene viewport'))
@@ -313,7 +313,10 @@ def phone_controls(output, project, model, ime):
     start = (round(x0 + 150 * scale), round(y0 + 8 * scale))
     end = (round(x0 + 220 * scale), start[1])
     adb('shell', 'input', 'swipe', *map(str, (*start, *end, 500)))
-    wait_state(lambda s: s['frame'] != initial['frame'])
+    dragged = wait_state(lambda s: s['frame'] != initial['frame'] and
+                         (not media_project or s.get('videoCurrent')))
+    if media_project:
+        assert dragged.get('waveLoaded') and dragged.get('videoVisible') and not dragged['error'], dragged
     tap(find(tree, 'Timeline'))
     tap(find(wait_tree(output, 'phone', 'Controls'), 'Controls'))
     tap(scroll_control(output, 'model manipulation'))
@@ -394,6 +397,7 @@ def main():
     parser.add_argument('--model', default=FILES + '/fixtures/triangle.pmx')
     parser.add_argument('--ime', type=Path)
     parser.add_argument('--phone', action='store_true')
+    parser.add_argument('--media-project', action='store_true')
     parser.add_argument('--phone-only', action='store_true', help='Local focused rerun; full Release gate also tests tablet')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
@@ -455,7 +459,8 @@ def main():
             launch(args.driver, observe=True)
             wait_state(lambda s: s['submissions'] > 3)
             stable_presentation()
-            result['phone'] = phone_controls(args.output, args.project, args.model, args.ime)
+            result['phone'] = phone_controls(args.output, args.project, args.model, args.ime,
+                                             args.media_project)
         (args.output / 'ui.json').write_text(json.dumps(result, indent=2) + '\n')
     except Exception:
         if args.ime:

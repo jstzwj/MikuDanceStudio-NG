@@ -1,0 +1,57 @@
+name: Release media test decoder
+description: Install the independent test-only FFmpeg oracle outside the package
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache@v4
+      id: linux
+      if: runner.os == 'Linux'
+      with:
+        path: out/export-oracle
+        key: export-oracle-ffmpeg801-linux-x64-p62-v1
+    - uses: actions/checkout@v4
+      if: runner.os == 'Linux' && steps.linux.outputs.cache-hit != 'true'
+      with:
+        repository: FFmpeg/FFmpeg
+        ref: '894da5ca7d742e4429ffb2af534fcda0103ef593'
+        path: out/ffmpeg-source
+    - if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        if [ ! -x out/export-oracle/bin/ffmpeg ]; then
+          sudo apt-get install -y zlib1g-dev
+          export_oracle_prefix="$PWD/out/export-oracle"
+          cd out/ffmpeg-source
+          ./configure --prefix="$export_oracle_prefix" --disable-everything --disable-autodetect --disable-doc --disable-debug --disable-x86asm --disable-network \
+            --enable-ffmpeg --enable-ffprobe --enable-zlib --enable-protocol=file,pipe \
+            --enable-demuxer=mov,image2,wav,avi,matroska,concat --enable-muxer=rawvideo,pcm_f32le,mov,mp4,avi,matroska \
+            --enable-decoder=mpeg4,mjpeg,aac,pcm_s16le,png,rawvideo --enable-encoder=rawvideo,pcm_f32le,mpeg4,aac,png \
+            --enable-filter=scale,format,aresample,aformat,anull,null,trim,atrim,setsar,vflip,transpose,hflip \
+            --enable-parser=mpeg4video
+          make -j3
+          make install
+        fi
+        echo "$GITHUB_WORKSPACE/out/export-oracle/bin" >> "$GITHUB_PATH"
+    - uses: actions/cache@v4
+      id: windows
+      if: runner.os == 'Windows'
+      with:
+        path: out/release-ffmpeg
+        key: test-oracle-gyan-windows-x64-8.0.1-v1
+    - if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $folder = 'out/release-ffmpeg/ffmpeg-8.0.1-essentials_build/bin'
+        if (!(Test-Path "$folder/ffprobe.exe")) {
+          $archive = Join-Path $env:RUNNER_TEMP 'ffmpeg-8.0.1-essentials_build.zip'
+          curl.exe -fLS --retry 2 -o $archive https://github.com/GyanD/codexffmpeg/releases/download/8.0.1/ffmpeg-8.0.1-essentials_build.zip
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ((Get-FileHash -Algorithm SHA256 $archive).Hash -ne 'e2aaeaa0fdbc397d4794828086424d4aaa2102cef1fb6874f6ffd29c0b88b673') {
+            throw 'FFmpeg oracle checksum mismatch'
+          }
+          Expand-Archive $archive out/release-ffmpeg
+        }
+        (Resolve-Path $folder).Path >> $env:GITHUB_PATH
+    - if: runner.os == 'macOS'
+      shell: bash
+      run: brew install ffmpeg

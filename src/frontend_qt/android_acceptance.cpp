@@ -1,5 +1,6 @@
 #include "android_acceptance.hpp"
 #include "editor_window.hpp"
+#include "mikudancestudio/panel_controls.hpp"
 #include <QApplication>
 #include <QElapsedTimer>
 #include <QFile>
@@ -12,6 +13,7 @@
 #include <QAbstractButton>
 #include <QJsonArray>
 #include <QTouchEvent>
+#include <algorithm>
 
 namespace mikudancestudio::qt {
 namespace {
@@ -61,6 +63,10 @@ void StartAndroidUiReport(EditorWindow& window, const QString& report) {
     QObject::connect(timer, &QTimer::timeout, &window, [&window, report, input] {
         const auto& session = window.Session();
         const auto& camera = session.Runtime().Session()->Pose().camera;
+        const auto& assets = session.Assets();
+        std::int64_t videoTime = 0;
+        const bool videoCurrent = media::VideoTime(session.RequestVideo().seconds, videoTime) &&
+                                  assets.video.frozen.Covers(videoTime);
         auto* focus = QApplication::focusWidget();
         const auto edit = qobject_cast<QLineEdit*>(focus);
         QJsonArray nativeWindows;
@@ -78,6 +84,9 @@ void StartAndroidUiReport(EditorWindow& window, const QString& report) {
             {"selectedModel", session.Selected().model},
             {"frame", session.Document().timeline.currentFrame},
             {"playing", session.Playing()},
+            {"waveLoaded", !assets.wave.empty()},
+            {"videoVisible", session.Document().avi.enabled != 0},
+            {"videoCurrent", videoCurrent},
             {"revision", qint64(session.Revision())},
             {"cameraX", camera.rotation[0]},
             {"cameraY", camera.rotation[1]},
@@ -111,10 +120,13 @@ void StartAndroidUiReport(EditorWindow& window, const QString& report) {
     });
     timer->start(250);
 }
-int RunAndroidAcceptance(QApplication& app, EditorWindow& window, const QString& report) {
+int RunAndroidAcceptance(QApplication& app, EditorWindow& window, const QString& report,
+                         const QString& mediaDirectory) {
     int phase = 0;
     qint64 nextProgress = 0;
     bool suspended = false, resumed = false;
+    bool mediaPlayed = false, mediaSought = false;
+    auto& session = window.Session();
     QElapsedTimer elapsed;
     elapsed.start();
     auto save = [&](const QString& state, const std::string& reason = {}) {
@@ -133,9 +145,31 @@ int RunAndroidAcceptance(QApplication& app, EditorWindow& window, const QString&
                            {"submissions", qint64(window.RenderWindow()->Submissions())},
                            {"suspended", suspended},
                            {"resumed", resumed},
+                           {"mediaPlayed", mediaPlayed},
+                           {"mediaSought", mediaSought},
                            {"reason", QString::fromStdString(reason)}};
         return file.write(QJsonDocument(result).toJson()) > 0;
     };
+    if (!mediaDirectory.isEmpty()) {
+        const auto fixture = Path(mediaDirectory);
+        std::string reason;
+        VideoDecoder decoder;
+        media::VideoFrame first, later, again;
+        if (!decoder.Open(fixture / "mobile.avi", reason) ||
+            !decoder.ReadScene(0, true, first, {}, reason) ||
+            !decoder.ReadScene(1, true, later, {}, reason) ||
+            !decoder.ReadScene(0, true, again, {}, reason) ||
+            first.image->pixels == later.image->pixels ||
+            first.image->pixels != again.image->pixels ||
+            !session.ImportVideo(fixture / "mobile.avi", decoder.Info().width,
+                                 decoder.Info().height, 160, 96, reason) ||
+            !session.ImportWave(fixture / "mobile.wav", reason)) {
+            save("failed", reason.empty() ? "android-media-seek-mismatch" : reason);
+            return 14;
+        }
+    }
+    qint64 lastTick = 0;
+    bool startedMedia = false;
     const auto stateConnection = QObject::connect(
         &app, &QGuiApplication::applicationStateChanged, [&](Qt::ApplicationState state) {
             if (phase == 2 && state != Qt::ApplicationActive)
@@ -166,6 +200,41 @@ int RunAndroidAcceptance(QApplication& app, EditorWindow& window, const QString&
         if (viewport->Submissions() < 3)
             return;
         if (phase == 0) {
+            if (!mediaDirectory.isEmpty() && !mediaSought) {
+                const auto now = elapsed.elapsed();
+                if (!startedMedia) {
+                    window.Dispatch(panel::kPlayButton);
+                    startedMedia = true;
+                    lastTick = now;
+                    return;
+                }
+                if (!mediaPlayed) {
+                    window.Tick(std::min(1., (now - lastTick) / 1000.));
+                    lastTick = now;
+                    if (!session.Playing() || !window.LastError().isEmpty()) {
+                        save("failed", window.LastError().toStdString());
+                        app.exit(15);
+                        return;
+                    }
+                    if (session.CursorSeconds() < .3)
+                        return;
+                    mediaPlayed = true;
+                    window.Dispatch(panel::kPlayButton);
+                    if (!session.Seek(31, reason)) {
+                        save("failed", reason);
+                        app.exit(16);
+                    }
+                    return;
+                }
+                if (!session.Assets().video.frozen.Covers(1033333))
+                    return;
+                mediaSought = true;
+                if (!window.Save(Path(report + ".pmm"))) {
+                    save("failed", window.LastError().toStdString());
+                    app.exit(16);
+                    return;
+                }
+            }
             // Native surface retirement and reacquisition use the ordinary
             // editor path. Retain the PMM/model state across replacement.
             viewport->hide();
@@ -182,6 +251,12 @@ int RunAndroidAcceptance(QApplication& app, EditorWindow& window, const QString&
             phase = 2;
             save("await-lifecycle");
         } else if (phase == 2 && resumed) {
+            if (!mediaDirectory.isEmpty() &&
+                (!session.Assets().video.frozen.Covers(1033333) || session.Assets().wave.empty())) {
+                save("failed", "android-media-state-lost");
+                app.exit(17);
+                return;
+            }
             save("passed");
             timer.stop();
             // The external emulator gate captures the actual presented view

@@ -12,8 +12,11 @@ on:
   workflow_call:
     inputs:
       release_tag:
-        required: true
+        default: ''
         type: string
+      candidate:
+        type: boolean
+        default: false
   workflow_dispatch:
     inputs:
       platform:
@@ -21,6 +24,10 @@ on:
         description: Platform to validate (all by default)
         default: all
         options: [all, windows, windows-x64, windows-arm64, linux, macos, linux-macos]
+      release_media:
+        description: Include packaged media, long WAV and settings qualification
+        type: boolean
+        default: false
       macos_runner:
         type: choice
         description: macOS acceptance image
@@ -68,9 +75,11 @@ concurrency:
   cancel-in-progress: ${{ !inputs.release_tag }}
 permissions:
   contents: read
+env:
+  MDS_RELEASE_MEDIA: ${{ inputs.release_tag != '' || inputs.candidate || inputs.release_media }}
 jobs:
   format:
-    if: ${{ !inputs.release_tag && (github.event_name == 'pull_request' || github.event_name == 'push') }}
+    if: ${{ !inputs.release_tag && !inputs.candidate && (github.event_name == 'pull_request' || github.event_name == 'push') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -151,7 +160,7 @@ jobs:
             out/p5/production/mme-dependencies.json
             out/p5/Testing/Temporary/
   windows:
-    if: ${{ !inputs.mme_only && (inputs.release_tag || github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'windows' || startsWith(inputs.platform, 'windows-')) }}
+    if: ${{ !inputs.mme_only && (inputs.release_tag || inputs.candidate || github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'windows' || startsWith(inputs.platform, 'windows-')) }}
     strategy:
       fail-fast: false
       matrix:
@@ -166,7 +175,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag || github.ref }}
+          ref: ${{ inputs.release_tag || github.sha }}
           fetch-depth: 0
       - name: Validate tagged product version
         if: inputs.release_tag
@@ -381,6 +390,14 @@ jobs:
           MDS_GPU_BACKEND: d3d11
           MDS_GPU_DRIVER: software
         run: ctest --test-dir out/build -C Release -L native-reference --output-on-failure --output-junit native-reference.xml
+      - uses: ./.github/actions/release-decoder
+        if: env.MDS_RELEASE_MEDIA == 'true'
+      - name: Qualify long WAV, numbered video and audio export on the native architecture
+        if: env.MDS_RELEASE_MEDIA == 'true'
+        env:
+          MDS_GPU_BACKEND: d3d11
+          MDS_GPU_DRIVER: software
+        run: ctest --test-dir out/build -C Release -R '^(wave_format|wave_stream|qt_audio|qt_export|qt_background_video)$' --no-tests=error --output-on-failure --output-junit release-media.xml
       - name: Deploy and validate relocated package
         if: ${{ success() && env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true' }}
         shell: bash
@@ -388,7 +405,9 @@ jobs:
           cmake --build out/build --config Release --target dist --parallel 3
           for archive in out/releases/MikuDanceStudio-NG-*-portable.zip out/releases/MikuDanceStudio-NG-*-portable.tar.gz; do
             [ -f "$archive" ] || continue
-            python tests/test_editor_distribution.py --archive "$archive" --report out/distribution-check.json
+            media=()
+            if [ "$MDS_RELEASE_MEDIA" = true ]; then media=(--release-media); fi
+            python tests/test_editor_distribution.py --archive "$archive" --report out/distribution-check.json "${media[@]}"
           done
       - uses: actions/upload-artifact@v4
         if: ${{ success() && env.MDS_IME_ONLY != 'true' && env.MDS_OBSERVERS_ONLY != 'true' }}
@@ -410,6 +429,7 @@ jobs:
           name: editor-tests-windows-${{ matrix.arch }}
           path: |
             out/build/p4.xml
+            out/build/release-media.xml
             out/build/production/mme-cli/report.json
             out/build/production/mme-dependencies.json
             out/build/native-reference.xml
@@ -438,12 +458,12 @@ jobs:
             out/build/native-audio*.json
             out/build/Testing/Temporary/
   linux:
-    if: ${{ !inputs.mme_only && (inputs.release_tag || github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'linux' || inputs.platform == 'linux-macos') }}
+    if: ${{ !inputs.mme_only && (inputs.release_tag || inputs.candidate || github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'linux' || inputs.platform == 'linux-macos') }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag || github.ref }}
+          ref: ${{ inputs.release_tag || github.sha }}
           fetch-depth: 0
       - name: Validate tagged product version
         if: inputs.release_tag
@@ -550,6 +570,8 @@ jobs:
           python tests/test_native_audio.py --test out/build/qt_native_audio_test --seconds 3 --report out/build/native-audio-smoke.json || smoke_status=$?
           python tests/test_native_audio.py --test out/build/qt_native_audio_test --report out/build/native-audio.json
           test "$smoke_status" -eq 0
+      - uses: ./.github/actions/release-decoder
+        if: env.MDS_RELEASE_MEDIA == 'true'
       - name: Deploy and validate relocated package
         if: ${{ success() && !inputs.ui_only }}
         shell: bash
@@ -557,7 +579,9 @@ jobs:
           cmake --build out/build --config Release --target dist --parallel 3
           for archive in out/releases/MikuDanceStudio-NG-*-portable.zip out/releases/MikuDanceStudio-NG-*-portable.tar.gz; do
             [ -f "$archive" ] || continue
-            python tests/test_editor_distribution.py --archive "$archive" --report out/distribution-check.json
+            media=()
+            if [ "$MDS_RELEASE_MEDIA" = true ]; then media=(--release-media); fi
+            python tests/test_editor_distribution.py --archive "$archive" --report out/distribution-check.json "${media[@]}"
           done
       - uses: actions/upload-artifact@v4
         if: ${{ success() && !inputs.ui_only }}
@@ -707,6 +731,8 @@ jobs:
       - name: Native CoreAudio silent clock
         if: ${{ success() && !inputs.ui_only }}
         run: python tests/test_native_audio.py --test out/build/qt_native_audio_test --report out/build/native-audio.json --allow-unavailable
+      - uses: ./.github/actions/release-decoder
+        if: env.MDS_RELEASE_MEDIA == 'true'
       - name: Deploy and validate relocated package
         if: ${{ success() && !inputs.ui_only }}
         shell: bash
@@ -714,7 +740,9 @@ jobs:
           cmake --build out/build --config Release --target dist --parallel 3
           for archive in out/releases/MikuDanceStudio-NG-*-portable.zip out/releases/MikuDanceStudio-NG-*-portable.tar.gz; do
             [ -f "$archive" ] || continue
-            python tests/test_editor_distribution.py --archive "$archive" --report out/distribution-check.json
+            media=()
+            if [ "$MDS_RELEASE_MEDIA" = true ]; then media=(--release-media); fi
+            python tests/test_editor_distribution.py --archive "$archive" --report out/distribution-check.json "${media[@]}"
           done
       - uses: actions/upload-artifact@v4
         if: ${{ success() && !inputs.ui_only }}

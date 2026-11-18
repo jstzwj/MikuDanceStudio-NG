@@ -11,9 +11,10 @@ import zipfile
 import sys
 import hashlib
 import shutil
+import wave
 import cpu_import_fixture
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
-from release_contract import inspect_archive
+from release_contract import binary_arch, inspect_archive
 
 PACKAGE = 'io.github.jstzwj.mikudancestudiong'
 ACTIVITY = PACKAGE + '/' + PACKAGE + '.EditorActivity'
@@ -68,10 +69,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--apk', type=Path, required=True)
     parser.add_argument('--output', type=Path, default=Path('out/android-tests'))
+    parser.add_argument('--media-only', action='store_true', help='Run only media and native lifecycle on a development emulator')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
-    inspect_archive(args.apk)
+    identity = inspect_archive(args.apk)
     with zipfile.ZipFile(args.apk) as apk:
+        codecs = ('libavcodec.so', 'libavformat.so', 'libavutil.so', 'libswscale.so')
+        for abi in identity['abis']:
+            for name in codecs:
+                with apk.open(f'lib/{abi}/{name}') as library:
+                    assert binary_arch(library.read(64)) == ('arm64' if abi == 'arm64-v8a' else 'x64')
+            assert f'lib/{abi}/libplugins_multimedia_ffmpegmediaplugin_{abi}.so' in apk.namelist()
         (args.output / 'build-info.json').write_bytes(apk.read('assets/build-info.json'))
         if hashlib.sha256(apk.read('assets/fonts/NotoSansCJK-Regular.ttc')).hexdigest() != \
                 'b76b0433203017ca80401b2ee0dd69350349871c4b19d504c34dbdd80541690a':
@@ -105,6 +113,12 @@ def main():
             (fixture / 'Model').mkdir()
             for name in ('triangle.pmx', 'checker.bmp'):
                 shutil.copyfile(fixture / name, fixture / 'Model' / name)
+            subprocess.run(['ffmpeg', '-y', '-v', 'error', '-f', 'lavfi', '-i',
+                            'testsrc2=size=160x96:rate=30:duration=4', '-c:v', 'mpeg4',
+                            str(fixture / 'mobile.avi')], check=True, timeout=20)
+            with wave.open(str(fixture / 'mobile.wav'), 'wb') as pcm:
+                pcm.setparams((2, 2, 48000, 0, 'NONE', 'not compressed'))
+                pcm.writeframes(bytes(4 * 48000 * 4))
             adb('push', *(str(path) for path in sorted(Path(temporary).iterdir())), FILES + '/fixtures/')
         adb('shell', 'chown', '-R', uid + ':' + uid, FILES)
         adb('shell', 'restorecon', '-RF', FILES)
@@ -118,6 +132,7 @@ def main():
         print('Android guest Vulkan:', [(d['properties']['deviceName'], d['properties']['apiVersion'],
                                          d['properties']['deviceType']) for d in devices], 'driver:', driver)
         adb('logcat', '-c')
+        adb('shell', 'rm', '-f', FILES + '/deployment.json', FILES + '/native.json')
         start('--deployment-check ' + FILES + '/deployment.json ' + FILES + '/fixtures/v2.pmm', driver)
         deployment = wait_report('deployment.json', None, args.output)
         version = (Path(__file__).resolve().parents[1] / 'VERSION').read_text().strip()
@@ -137,18 +152,22 @@ def main():
         (args.output / 'deployment.json').write_text(json.dumps(deployment, indent=2) + '\n')
         adb('pull', FILES + '/deployment.json.png', str(args.output / 'offscreen.png'))
         adb('shell', 'am', 'force-stop', PACKAGE)
-        arguments = '--android-acceptance ' + FILES + '/native.json ' + FILES + '/fixtures/v2.pmm'
+        arguments = ('--android-acceptance ' + FILES + '/native.json --android-media-fixtures ' +
+                     FILES + '/fixtures ' + FILES + '/fixtures/relocated.pmm')
         start(arguments, driver)
         wait_report('native.json', ('await-lifecycle',), args.output)
         adb('shell', 'input', 'keyevent', 'KEYCODE_HOME')
         time.sleep(2)
         start(arguments, driver)
         native = wait_report('native.json', ('passed',), args.output)
-        if not native.get('suspended') or not native.get('resumed') or native.get('submissions', 0) < 3:
+        if (not all(native.get(k) for k in ('suspended', 'resumed', 'mediaPlayed', 'mediaSought'))
+                or native.get('submissions', 0) < 3):
             raise RuntimeError(f'Android native lifecycle was not exercised: {native}')
         (args.output / 'native.json').write_text(json.dumps(native, indent=2) + '\n')
         with (args.output / 'presentation.png').open('wb') as image:
             adb('exec-out', 'screencap', '-p', stdout=image)
+        if args.media_only:
+            return
         # These drive the ordinary editor, using real Android touch events and
         # an emulator-only IME. The opt-in JSON observer never performs edits.
         root = Path(__file__).resolve().parents[1]
@@ -157,7 +176,16 @@ def main():
                        check=True, timeout=300)
         subprocess.run([sys.executable, str(root / 'tests/test_android_ui.py'),
                         '--driver', driver, '--phone', '--ime', str(root / 'out/android-test-ime/test-ime.apk'),
+                        '--project', FILES + '/native.json.pmm', '--media-project',
                         '--output', str(args.output / 'touch')], check=True, timeout=900)
+        (args.output / 'media-qualification.json').write_text(json.dumps({
+            'target': 'android-universal', 'packageSha256': identity['sha256'],
+            'commit': identity['commit'], 'verifiedCodecAbis': identity['abis'],
+            'vulkanDevices': [d['properties']['deviceName'] for d in devices],
+            'driver': driver, 'playedSilentWave': native['mediaPlayed'],
+            'backgroundSeek': native['mediaSought'], 'suspendResume': native['resumed'],
+            'mediaProjectTouch': True, 'runtimeFx': False,
+        }, indent=2) + '\n', encoding='utf-8')
     except Exception:
         # Root on the isolated emulator permits stacks from the unchanged,
         # non-debuggable shipping APK. Collect before stopping a hung process.
