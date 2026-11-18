@@ -60,6 +60,13 @@ int main() try {
     Check(!MmeLegacyDescribe("float X=; technique T {}", result, reason, &diagnostic) &&
               diagnostic.declaration == "X",
           "empty initializer is not a valid default");
+    Check(
+        MmeLegacyDescribe("shared texture Shadow:OFFSCREENRENDERTARGET<int2 Dimensions={2048,1024};"
+                          "string Format=\"R32F\";>; technique T {}",
+                          result, reason) &&
+            result.textures.size() == 1 &&
+            result.textures.front().annotations.at("DIMENSIONS") == "{2048,1024}",
+        "preserve integer vector target annotations in the metadata inventory");
     std::cout
         << "FX definitions: defaults, shared flags, annotations, techniques, empty passes and diagnostics passed\n";
     return 0;

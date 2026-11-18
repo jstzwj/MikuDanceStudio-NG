@@ -221,3 +221,31 @@ child. They do not certify the original arithmetic clip expression or a complete
 Ray scene on RHI. The earlier intermittent Vulkan/Ray crash observation also
 remains open; see the preceding subeffect batch's stability note. This batch
 makes no full-Ray or general FX9 compatibility claim.
+
+## C3 root-effect baseline (2026-11-19)
+
+The refreshed inventory uses the local `ray.fx` with SHA-256
+`602f106f1a30cc3c77f27d27ffadd9a108228fc70a9a105c638f2176071408b4`.
+Build `mme_ray_smoke_test` and `mme_offscreen_turn_test` with
+`MIKUDANCESTUDIO_RAY_TEST_EFFECT` set to that file. Run
+`ctest -C Release -R '^mme_ray_(shared_)?requirements$' --output-on-failure`
+in the build directory. Both gates passed on a hidden Windows x64 DX9 HAL
+device. They write `mme-ray-requirements.txt` and
+`mme-ray-shared-requirements.txt` locally; Ray's sources and scene assets
+remain external.
+
+| Measurement | Result |
+| --- | --- |
+| Root script | 39 resource records, selected `DeferredLighting` technique, 31 successful `Draw=Buffer` calls; main target, depth and viewport restored |
+| Shared resource turn | `MaterialMap` selected the expected child, with the native repeat-boundary and first-draw regression passing |
+| Highest native pixel binding count | `DeferredLighting/ShadingTransparent` uses 13 bindings in slots 0–12, measured from the compiled FX9 shader |
+| Strict importer, native-expanded root | `MME_legacy_static_initializer` at `ray.fx:61`, `mSSAOScale`. The initializer depends on live controller values |
+| Cross-platform metadata import | Defaulted input parameters and integer-vector target annotations now pass parsing. The next rejection is `MME_legacy_sampler_filter` on `Gbuffer1Map`, which declares `NONE` for minification, magnification and mip filtering |
+
+The public parser regressions cover nested default argument expressions,
+invalid defaults and integer-vector target dimensions. The native run
+exercises the empty-scene root script and the separate material turn.
+Root lighting and final composition still require a portable execution
+comparison with live controller inputs. The next compatibility checks are
+DX9's effective minification/magnification state for `NONE` and the
+evaluation of controller-dependent static initializers in all shader targets.

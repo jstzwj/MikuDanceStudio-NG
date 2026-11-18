@@ -208,7 +208,8 @@ public:
                     value += next.substr(1, next.size() - 2);
                 }
             } else {
-                if (type != "bool" && type != "int" && type != "float" && type != "float2" &&
+                if (type != "bool" && type != "int" && type != "int2" && type != "int3" &&
+                    type != "int4" && type != "float" && type != "float2" &&
                     type != "float3" && type != "float4")
                     Fail("annotation");
                 while (Peek() != ";") {
@@ -223,6 +224,27 @@ public:
         }
     }
     std::string Semantic() { return Eat(":") ? Upper(Name()) : ""; }
+    void DefaultArgument() {
+        const auto start = p;
+        std::vector<std::string> closing;
+        while (!Peek().empty() && (!closing.empty() || (Peek() != "," && Peek() != ")"))) {
+            const auto token = Take();
+            if (token == "(")
+                closing.emplace_back(")");
+            else if (token == "[")
+                closing.emplace_back("]");
+            else if (token == "{")
+                closing.emplace_back("}");
+            else if (token == ")" || token == "]" || token == "}") {
+                if (closing.empty() || closing.back() != token)
+                    Fail("default_argument", p - 1);
+                closing.pop_back();
+            } else if (token == ";")
+                Fail("default_argument", p - 1);
+        }
+        if (p == start || !closing.empty())
+            Fail("default_argument");
+    }
     std::string Initializer() {
         const auto start = p + 1;
         bool present = false;
@@ -364,6 +386,8 @@ public:
             MmeLegacyProgram::Function f;
             f.result = type;
             f.name = name;
+            auto signatureStart = begin;
+            bool hasDefault = false;
             if (!Eat(")")) {
                 do {
                     std::string direction = "in";
@@ -371,11 +395,22 @@ public:
                         direction = Take();
                     const auto pt = Name(), pn = Name(), semantic = Semantic();
                     f.parameters.push_back({pt, pn, semantic, direction});
+                    const auto argument = p;
+                    if (Eat("=")) {
+                        if (direction != "in")
+                            Fail("default_argument", argument);
+                        DefaultArgument();
+                        f.signature += Join(t, signatureStart, argument) + " ";
+                        signatureStart = p;
+                        hasDefault = true;
+                    } else if (hasDefault)
+                        Fail("default_argument");
                 } while (Eat(","));
                 Need(")");
             }
             f.semantic = Semantic();
-            f.signature = Join(t, begin, p);
+            f.signature += Join(t, signatureStart, p);
+            f.prototype = hasDefault ? Join(t, begin, p) : f.signature;
             f.body = Body();
             if (!result.functions.count(name))
                 Unique(name);
@@ -605,9 +640,9 @@ public:
             auto functions = result.overloads[name];
             functions.insert(functions.begin(), result.functions.at(name));
             for (const auto& f : functions) {
-                prototypes += f.signature + ";\n";
+                prototypes += f.prototype + ";\n";
                 definitions += f.signature + f.body + "\n";
-                for (const auto& token : Lex(f.body))
+                for (const auto& token : Lex(f.prototype + " " + f.body))
                     if (result.functions.count(token))
                         pending.push_back(token);
             }

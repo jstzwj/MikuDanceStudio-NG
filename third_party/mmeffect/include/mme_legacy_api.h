@@ -69,7 +69,7 @@ struct MmeLegacyProgram {
         };
         std::string result, name, semantic;
         std::vector<Field> parameters;
-        std::string body, signature;
+        std::string body, signature, prototype;
     };
     std::map<std::string, std::vector<Function::Field>> structures;
     std::map<std::string, Function> functions;

@@ -56,6 +56,23 @@ int main() try {
         text.replace(at, std::string(from).size(), to);
         return text;
     };
+    const auto defaulted =
+        replace("float4 PixelMain(", "float3 Defaulted(float3 color, float range = max(6.0, 1.0)) "
+                                     "{ return color / range; }\nfloat4 PixelMain(");
+    auto called = defaulted;
+    const auto pixel = called.find("float4 PixelMain(");
+    const auto body = called.find('{', pixel);
+    CHECK(pixel != called.npos && body != called.npos);
+    called.insert(body + 1, "float3 adjusted = Defaulted(float3(1, 1, 1));");
+    CHECK(MmeLegacyDescribe(called, program, reason));
+    CHECK(MmeLegacyImport(called, program, reason));
+    CHECK(program.functions.at("Defaulted").prototype.find("max") != std::string::npos &&
+          program.functions.at("Defaulted").signature.find('=') == std::string::npos);
+    CHECK(MmeLegacyShader(program, program.passes[0], hlsl, inputs, reason));
+    rejects("float F(out float n = 1) { return n; }\n" + source, "MME_legacy_default_argument");
+    rejects("float F(float n = 1, float m) { return n; }\n" + source,
+            "MME_legacy_default_argument");
+    rejects("float F(float n =) { return n; }\n" + source, "MME_legacy_default_argument");
     rejects(replace("AddressV=WRAP", "AddressV=BORDER"), "MME_legacy_sampler_address");
     rejects(replace("MipFilter=LINEAR", "MipFilter=NONE"), "MME_legacy_sampler_filter");
     rejects(replace("sampler2D ColorSampler", "samplerCUBE ColorSampler"),
