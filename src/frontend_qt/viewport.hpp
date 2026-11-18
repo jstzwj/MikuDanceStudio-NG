@@ -75,6 +75,7 @@ private:
     render::SceneFrameProducer producer_;
     render::SceneEffects effects_;
     VideoPreview video_;
+    std::uint64_t videoIdentity_ = 0;
     std::shared_ptr<const rhi::RgbaImage> cachedVideo_;
     std::uint64_t cachedEffects_ = 0;
     std::string deviceError_;

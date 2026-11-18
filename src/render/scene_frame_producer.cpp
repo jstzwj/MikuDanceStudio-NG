@@ -598,6 +598,12 @@ bool SceneFrameProducer::Build(const runtime::SceneRuntime& scene,
             return Fail(reason, "model_resource_changed_reload_required");
     if (doc && doc->avi.enabled && !settings.video)
         return Fail(reason, "scene_background_requires_media_service");
+    // Availability belongs to the session, never the renderer's previous
+    // upload. A null lease explicitly removes the capture resource.
+    if (!settings.video) {
+        impl_->video.reset();
+        impl_->videoTexture.texture.levels.clear();
+    }
     if (settings.video && impl_->video != settings.video) {
         if (!settings.video->width || !settings.video->height || settings.video->width > 8192 ||
             settings.video->height > 8192 ||

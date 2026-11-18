@@ -5,6 +5,7 @@
 #include "scene_runtime.hpp"
 #include "pmm_edit.hpp"
 #include "rhi_image.hpp"
+#include "background_video.hpp"
 #include "bone_selection.hpp"
 #include "editor_effects.hpp"
 #include <filesystem>
@@ -57,6 +58,13 @@ struct EditorAssets {
     std::filesystem::path picturePath;
     std::shared_ptr<const rhi::RgbaImage> picture;
     std::filesystem::path videoPath;
+    media::VideoState video;
+};
+struct VideoRequest {
+    std::filesystem::path path;
+    std::uint64_t identity = 0;
+    double seconds = 0;
+    bool nativeThirtyHz = true;
 };
 struct BoneDragInput {
     int mode = 0; // 1..6 rotation, 7..9 view plane, 10..12 local/world translation.
@@ -123,6 +131,11 @@ public:
     bool ImportVideo(const std::filesystem::path&, unsigned width, unsigned height,
                      unsigned viewWidth, unsigned viewHeight, std::string&);
     bool ShowVideo(bool visible, std::string&);
+    VideoRequest RequestVideo() const;
+    // Owner-thread publication only. Rejects stale work without touching
+    // document revisions, undo history, animation or physics.
+    bool PublishVideo(const VideoRequest&, const media::VideoFrame&, std::string&);
+    void RefreshVideo(); // explicit native still-image mode-3 refresh/reload
     bool UnloadModel(std::uint8_t, std::string&);
     bool UnloadAccessory(std::uint8_t, std::string&);
     bool ImportMotion(const format::VmdDocument&, std::uint8_t slot, std::string&);
@@ -282,6 +295,7 @@ private:
         std::uint64_t revision = 0;
     };
     State state_;
+    std::uint64_t nextVideoIdentity_ = 0;
     EffectDocument effects_;
     std::vector<EffectDocument> effectUndo_, effectRedo_;
     std::uint64_t effectRevision_ = 1;

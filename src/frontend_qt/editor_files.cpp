@@ -211,12 +211,15 @@ void EditorWindow::FileAction(const QString& id, const QString& inputPath) {
         VideoDecoder decoder;
         std::string reason;
         media::VideoFrame first;
-        const bool opened = decoder.Open(Path(path), reason) && decoder.Read(0, first, {}, reason);
-        Result(opened && session_.ImportVideo(
-                             Path(path), decoder.Info().width, decoder.Info().height,
-                             unsigned(qRound(viewport_->width() * viewport_->devicePixelRatio())),
-                             unsigned(qRound(viewport_->height() * viewport_->devicePixelRatio())),
-                             reason),
+        const bool opened = decoder.Open(Path(path), reason) &&
+                            decoder.ReadScene(session_.CursorSeconds(), true, first, {}, reason);
+        Result(opened &&
+                   session_.ImportVideo(
+                       Path(path), decoder.Info().width, decoder.Info().height,
+                       unsigned(qRound(viewport_->width() * viewport_->devicePixelRatio())),
+                       unsigned(qRound(viewport_->height() * viewport_->devicePixelRatio())),
+                       reason) &&
+                   session_.PublishVideo(session_.RequestVideo(), first, reason),
                reason);
         Refresh();
         return;
@@ -296,6 +299,8 @@ void EditorWindow::FileAction(const QString& id, const QString& inputPath) {
             return;
         QImage image;
         std::string r;
+        if (session_.Document().view.captureMode == 3 && !session_.Assets().videoPath.empty())
+            session_.RefreshVideo();
         const auto& settings = session_.Document().envelope.settings;
         if (Result(RenderImage(session_.Runtime(), session_.Assets(), assets_, viewport_->Options(),
                                settings.renderWidth, settings.renderHeight, image, r,

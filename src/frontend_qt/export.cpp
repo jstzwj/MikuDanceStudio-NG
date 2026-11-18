@@ -47,8 +47,10 @@ bool ExportImages(const render::ExportSnapshot& snapshot, const std::filesystem:
             },
             progress, reason,
             ExportVideoSource(snapshot.assets.videoPath, video,
-                              timeline.settings.rateNumerator == 30 &&
-                                  timeline.settings.rateDenominator == 1)))
+                              !snapshot.document.avi.enabled
+                                  ? snapshot.assets.video.nativeThirtyHz
+                                  : timeline.settings.rateNumerator == 30 &&
+                                        timeline.settings.rateDenominator == 1)))
         return false;
     QJsonObject manifest{
         {"version", 2},

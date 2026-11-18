@@ -127,7 +127,7 @@ void AviBgOverlayRefresh(MMDApp* app) {
     // has closed its handles. Do not allocate GPU surfaces for that state:
     // default frame dimensions are zero and would report an unrelated DX9
     // allocation failure every time playback stops.
-    if (s.AviBackgroundEnabled() != 1 || s.AviStream() == nullptr || s.AviFrameReader() == nullptr)
+    if (s.AviStream() == nullptr || s.AviFrameReader() == nullptr)
         return;
     D3DRenderer* wrapper = s.Renderer();
     if (wrapper == nullptr)

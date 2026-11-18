@@ -26,6 +26,15 @@ struct VideoFrame {
         return image && (first || time >= startUs) && (last || time < endUs);
     }
 };
+// Transient session state, copied by value into export snapshots. PMM stores
+// only the path and visibility; cold reopen initializes seconds at its cursor.
+// The immutable CPU lease survives hidden paints and GPU/device replacement.
+struct VideoState {
+    std::uint64_t identity = 0;
+    double seconds = 0;
+    bool nativeThirtyHz = true;
+    VideoFrame frozen;
+};
 // Host decoder boundary: tightly packed top-left SDR RGBA8, immutable lease,
 // media-relative PTS. Reading is cancellable; success covers the requested time.
 using VideoProceed = std::function<bool()>;

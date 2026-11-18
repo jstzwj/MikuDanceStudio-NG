@@ -52,7 +52,9 @@ bool RunExport(const ExportSnapshot& snapshot, const std::filesystem::path& buil
         reason = "export-frame-sink-missing";
         return false;
     }
-    if (snapshot.document.avi.enabled && !video) {
+    const bool loadedVideo = !snapshot.assets.videoPath.empty();
+    if ((snapshot.document.avi.enabled || (loadedVideo && !snapshot.assets.video.frozen.image)) &&
+        !video) {
         reason = "export-background-video-source-missing";
         return false;
     }
@@ -102,6 +104,20 @@ bool RunExport(const ExportSnapshot& snapshot, const std::filesystem::path& buil
     settings.width = spec.width;
     settings.height = spec.height;
     settings.display = snapshot.display;
+    if (loadedVideo && !snapshot.document.avi.enabled) {
+        auto frozen = snapshot.assets.video.frozen;
+        const auto seconds = snapshot.assets.video.seconds;
+        if (!frozen.image && !video(seconds, frozen, [&] { return report(0); }, reason)) {
+            report(0);
+            return false;
+        }
+        std::int64_t time;
+        if (!media::VideoTime(seconds, time) || !frozen.Covers(time)) {
+            reason = "export-background-video-frame-does-not-cover-time";
+            return false;
+        }
+        settings.video = frozen.image;
+    }
     unsigned samples = 1;
     if (snapshot.display.antialiasing) {
         const auto mask =

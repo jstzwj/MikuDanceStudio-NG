@@ -577,6 +577,7 @@ bool EditorSession::New(std::string& reason) {
     if (!Prepare(next, runtime, reason))
         return false;
     state_ = std::move(next);
+    state_.assets.video.identity = ++nextVideoIdentity_;
     runtime_ = std::move(runtime);
     path_.clear();
     effects_ = {};
@@ -814,6 +815,8 @@ bool EditorSession::Open(const std::filesystem::path& path, std::string& reason)
         return false;
     runtime_ = std::move(runtime);
     state_ = std::move(next);
+    state_.assets.video.identity = ++nextVideoIdentity_;
+    state_.assets.video.seconds = Document().timeline.currentFrame / 30.;
     effects_ = std::move(effects);
     effectUndo_.clear();
     effectRedo_.clear();
@@ -1100,6 +1103,7 @@ bool EditorSession::ImportVideo(const std::filesystem::path& path, unsigned widt
     next.document.avi.scale = fit.scale;
     next.document.avi.enabled = 1;
     next.assets.videoPath = absolute;
+    next.assets.video = {++nextVideoIdentity_, CursorSeconds(), true, {}};
     return Commit(std::move(next), reason);
 }
 bool EditorSession::ShowVideo(bool visible, std::string& reason) {
@@ -2396,8 +2400,12 @@ bool EditorSession::Play(std::string& reason) {
     return true;
 }
 void EditorSession::Pause() {
+    const bool stopped = playing_;
     playing_ = false;
     runtime_->Pause();
+    // Native bone-box stop explicitly refreshes even a hidden loaded video.
+    if (stopped && Document().timeline.editMode == 1 && !Assets().videoPath.empty())
+        RefreshVideo();
 }
 bool EditorSession::TickIdle(double delta, std::string& reason) {
     if (playing_ || !std::isfinite(delta) || delta < 0 || delta > 1) {

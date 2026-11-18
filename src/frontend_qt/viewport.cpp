@@ -151,6 +151,8 @@ bool Viewport::OutputLimits(QSize& output, std::string& reason) const {
 bool Viewport::ReloadTextures(std::string& reason) {
     deviceError_.clear();
     video_.Clear();
+    if (session_.Document().avi.enabled)
+        session_.RefreshVideo();
     const auto& assets = session_.Assets();
     if (loadedAssets_ && assets.models == loaded_.models &&
         assets.accessories == loaded_.accessories && assets.modelPaths == loaded_.modelPaths &&
@@ -374,24 +376,37 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
     settings.height = h;
     settings.editorModel = session_.Selected().model;
     settings.display = session_.DisplayOptions();
-    if (session_.Document().avi.enabled) {
-        media::VideoFrame frame;
-        const auto ready = video_.Request(assets.videoPath, session_.CursorSeconds(), frame, reason,
-                                          !session_.Playing());
-        if (ready == VideoReady::Failed)
-            return false;
-        if (ready == VideoReady::Pending) {
-            reason = "background-video-pending";
+    const auto request = session_.RequestVideo();
+    if (videoIdentity_ != request.identity) {
+        video_.Clear();
+        videoIdentity_ = request.identity;
+    }
+    if (!request.path.empty()) {
+        auto frame = assets.video.frozen;
+        std::int64_t time;
+        if (!media::VideoTime(request.seconds, time)) {
+            reason = "background-video-time-or-path-invalid";
             return false;
         }
+        if (assets.video.nativeThirtyHz != request.nativeThirtyHz || !frame.Covers(time)) {
+            const auto ready = video_.Request(request.path, request.seconds, frame, reason,
+                                              request.nativeThirtyHz);
+            if (ready == VideoReady::Failed)
+                return false;
+            if (ready == VideoReady::Pending) {
+                reason = "background-video-pending";
+                return false;
+            }
+            if (!session_.PublishVideo(request, frame, reason))
+                return false;
+        }
         settings.video = frame.image;
-        if (cachedVideo_ != frame.image)
-            frameCached_ = false;
-        cachedVideo_ = frame.image;
     } else {
         video_.Clear();
-        cachedVideo_.reset();
     }
+    if (cachedVideo_ != settings.video)
+        frameCached_ = false;
+    cachedVideo_ = settings.video;
     const auto* device = controller_.GetDevice();
     const auto samples =
         settings.display.antialiasing && device ? SceneAntialiasSamples(*device) : 1;
@@ -967,11 +982,15 @@ bool RenderImage(const runtime::SceneRuntime& scene, const editor::EditorAssets&
     settings.height = height;
     settings.display = display;
     VideoDecoder video;
-    if (scene.Session() && scene.Session()->Document().avi.enabled) {
+    if (scene.Session() && !assets.videoPath.empty()) {
+        const bool visible = scene.Session()->Document().avi.enabled != 0;
+        const double seconds = visible ? scene.Session()->Pose().frame / 30. : assets.video.seconds;
+        const bool native = visible ? !scene.Playing() : assets.video.nativeThirtyHz;
         media::VideoFrame decoded;
-        if (!video.Open(assets.videoPath, reason) ||
-            !video.ReadScene(scene.Session()->Pose().frame / 30., !scene.Playing(), decoded, {},
-                             reason))
+        if (!visible && assets.video.frozen.image)
+            decoded = assets.video.frozen;
+        else if (!video.Open(assets.videoPath, reason) ||
+                 !video.ReadScene(seconds, native, decoded, {}, reason))
             return false;
         settings.video = decoded.image;
     }
