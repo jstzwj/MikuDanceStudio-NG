@@ -1,0 +1,277 @@
+{
+  "stage": "P6.4–P6.6 desktop media, settings and export automation",
+  "source": "fc9d8082f5d0a2d1e329b86fd8f4cbf17413275f",
+  "run": 44299557081,
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/44299557081",
+  "platforms": [
+    {
+      "platform": "Windows",
+      "sharedTests": [
+        "qt_audio",
+        "qt_language_switch",
+        "wave_format",
+        "wave_stream"
+      ],
+      "backends": [
+        {
+          "backend": "d3d11",
+          "passedTests": [
+            "qt_background_video",
+            "qt_editor_render",
+            "qt_export",
+            "qt_export_command",
+            "qt_menu",
+            "qt_mme"
+          ],
+          "combinedMedia": {
+            "frames": 6,
+            "exactPcmPulse": [
+              960,
+              1439
+            ],
+            "audioFrames": 9600,
+            "budget": {
+              "cancelCycles": 9,
+              "exactPngFrames": 6,
+              "residentAfter": 542679040,
+              "residentBefore": 543453184,
+              "rssGrowthLimitBytes": 100663296
+            }
+          },
+          "hiddenVideo": {
+            "hidden": 40.263452630177895,
+            "hidden-mme": 42.11020369539948
+          }
+        },
+        {
+          "backend": "d3d12",
+          "passedTests": [
+            "qt_background_video",
+            "qt_editor_render",
+            "qt_export",
+            "qt_export_command",
+            "qt_menu",
+            "qt_mme"
+          ],
+          "combinedMedia": {
+            "frames": 6,
+            "exactPcmPulse": [
+              960,
+              1439
+            ],
+            "audioFrames": 9600,
+            "budget": {
+              "cancelCycles": 9,
+              "exactPngFrames": 6,
+              "residentAfter": 487645184,
+              "residentBefore": 530141184,
+              "rssGrowthLimitBytes": 100663296
+            }
+          },
+          "hiddenVideo": {
+            "hidden": 40.263452630177895,
+            "hidden-mme": 42.11020369539948
+          }
+        }
+      ],
+      "nativeAudio": {
+        "status": "unavailable",
+        "seconds": 3,
+        "detail": "No native audio output device"
+      },
+      "package": {
+        "system": "Windows",
+        "qt": "6.8.3",
+        "version": "0.0.2",
+        "vulkan": false,
+        "metal": false,
+        "mme": true,
+        "schema": 1,
+        "product": "MikuDanceStudio-NG",
+        "format": "portable",
+        "commit": "fc9d8082f5d0a2d1e329b86fd8f4cbf17413275f",
+        "tag": null,
+        "arch": "x64",
+        "development": true,
+        "modified": false
+      }
+    },
+    {
+      "platform": "Linux",
+      "sharedTests": [
+        "qt_audio",
+        "qt_language_switch",
+        "wave_format",
+        "wave_stream"
+      ],
+      "backends": [
+        {
+          "backend": "vulkan",
+          "passedTests": [
+            "qt_background_video",
+            "qt_editor_render",
+            "qt_export",
+            "qt_export_command",
+            "qt_menu",
+            "qt_mme"
+          ],
+          "combinedMedia": {
+            "frames": 6,
+            "exactPcmPulse": [
+              960,
+              1439
+            ],
+            "audioFrames": 9600,
+            "budget": {
+              "cancelCycles": 9,
+              "exactPngFrames": 6,
+              "residentAfter": 646316032,
+              "residentBefore": 639074304,
+              "rssGrowthLimitBytes": 100663296
+            }
+          },
+          "hiddenVideo": {
+            "hidden": 40.03150631136465,
+            "hidden-mme": 42.11020369539948
+          }
+        }
+      ],
+      "nativeAudio": {
+        "status": "passed",
+        "seconds": 120,
+        "detail": "Native silent PCM, processed clock, stop, seek/restart and EOF passed"
+      },
+      "package": {
+        "system": "Linux",
+        "qt": "6.8.3",
+        "version": "0.0.2",
+        "vulkan": true,
+        "metal": false,
+        "mme": true,
+        "schema": 1,
+        "product": "MikuDanceStudio-NG",
+        "format": "portable",
+        "commit": "fc9d8082f5d0a2d1e329b86fd8f4cbf17413275f",
+        "tag": null,
+        "arch": "x64",
+        "development": true,
+        "modified": false
+      }
+    },
+    {
+      "platform": "macOS",
+      "sharedTests": [
+        "qt_audio",
+        "qt_language_switch",
+        "wave_format",
+        "wave_stream"
+      ],
+      "backends": [
+        {
+          "backend": "metal",
+          "passedTests": [
+            "qt_background_video",
+            "qt_editor_render",
+            "qt_export",
+            "qt_export_command",
+            "qt_menu",
+            "qt_mme"
+          ],
+          "combinedMedia": {
+            "frames": 6,
+            "exactPcmPulse": [
+              960,
+              1439
+            ],
+            "audioFrames": 9600,
+            "budget": {
+              "cancelCycles": 9,
+              "exactPngFrames": 6,
+              "residentAfter": 616579072,
+              "residentBefore": 613531648,
+              "rssGrowthLimitBytes": 100663296
+            }
+          },
+          "hiddenVideo": {
+            "hidden": 40.180355545044705,
+            "hidden-mme": 42.11020369539948
+          }
+        }
+      ],
+      "nativeAudio": {
+        "status": "passed",
+        "seconds": 3,
+        "detail": "Native silent PCM, processed clock, stop, seek/restart and EOF passed"
+      },
+      "package": {
+        "system": "Darwin",
+        "qt": "6.8.3",
+        "version": "0.0.2",
+        "vulkan": false,
+        "metal": true,
+        "mme": true,
+        "schema": 1,
+        "product": "MikuDanceStudio-NG",
+        "format": "portable",
+        "commit": "fc9d8082f5d0a2d1e329b86fd8f4cbf17413275f",
+        "tag": null,
+        "arch": "arm64",
+        "development": true,
+        "modified": false
+      }
+    }
+  ],
+  "localWindows": {
+    "passedTests": [
+      "qt_audio",
+      "qt_background_video",
+      "qt_editor_render",
+      "qt_export",
+      "qt_export_command",
+      "qt_language_switch",
+      "qt_menu",
+      "qt_mme",
+      "wave_format",
+      "wave_stream"
+    ],
+    "nativeAudio": {
+      "advancingSamples": 11720,
+      "blockedUiAfterReadEndSeconds": 1.2521521,
+      "blockedUiAfterReadStartSeconds": 1.2517248,
+      "blockedUiBeforeReadEndSeconds": 1.0010326,
+      "blockedUiBeforeReadStartSeconds": 1.0000438,
+      "blockedUiClockAdvanceSeconds": 0.25,
+      "blockedUiDevice": "state=0 error=0 source=532728/43306200 duration-us=122750000 processed-us=1440000 raw-processed-us=1510000 elapsed-us=1615195 buffer=35280 free=10584",
+      "blockedUiMaximumElapsedSeconds": 0.25210829999999995,
+      "blockedUiMinimumElapsedSeconds": 0.25069220000000003,
+      "channels": 2,
+      "detail": "Native silent PCM, processed clock, stop, seek/restart and EOF passed",
+      "device": "Remote Audio",
+      "editorJitteredTicks": 141,
+      "editorMaximumFrameError": 6.661338147750939e-15,
+      "editorMaximumWallErrorSeconds": 0.07802090000000006,
+      "endDevice": "state=3 error=0 source=52920/52920 duration-us=150000 processed-us=150000 raw-processed-us=150000 elapsed-us=313862 buffer=35280 free=35280",
+      "endMilliseconds": 221,
+      "endPositionSeconds": 123,
+      "ended": true,
+      "firstProgressMilliseconds": 190.5791,
+      "initializationMilliseconds": 109,
+      "longSourceDevice": "state=0 error=0 source=35280/7620480000 duration-us=21600000000 processed-us=0 raw-processed-us=100000 elapsed-us=220600 buffer=35280 free=0",
+      "longSourcePcmBytes": 7620480000,
+      "longSourceSeconds": 21600,
+      "maximumLagSeconds": 0.021379000000003145,
+      "maximumLeadSeconds": 0.004625799999999458,
+      "positionSeconds": 120.44,
+      "sampleRate": 44100,
+      "seconds": 120,
+      "silent": true,
+      "startupClockLatencySeconds": 0.1732336,
+      "startupDevice": "state=0 error=0 source=102312/43306200 duration-us=122750000 processed-us=190000 raw-processed-us=290000 elapsed-us=362716 buffer=35280 free=0",
+      "startupMilliseconds": 362,
+      "status": "passed",
+      "stopMilliseconds": 4,
+      "wallSeconds": 119.9978928
+    },
+    "portableExportCommandPassed": true
+  }
+}
