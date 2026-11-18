@@ -4,6 +4,13 @@
 #include <array>
 #include <cstring>
 namespace mikudancestudio::qt {
+qint64 AudioDurationMicroseconds(const QAudioFormat& format, qint64 bytes) {
+    if (bytes <= 0 || format.bytesPerFrame() <= 0 || format.sampleRate() <= 0)
+        return 0;
+    const auto frames = bytes / format.bytesPerFrame();
+    return (frames / format.sampleRate()) * 1000000 +
+           (frames % format.sampleRate()) * 1000000 / format.sampleRate();
+}
 qint64 AudioSamples::Size() const {
     return wave ? qint64(wave->SampleFrames() * wave->channels * sizeof(float)) : pcm.size();
 }

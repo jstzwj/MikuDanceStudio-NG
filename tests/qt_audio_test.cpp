@@ -65,6 +65,14 @@ public:
 int main(int argc, char** argv) {
     QApplication app(argc, argv);
     CHECK(argc == 2);
+    QAudioFormat longFormat;
+    longFormat.setSampleFormat(QAudioFormat::Float);
+    longFormat.setSampleRate(48000);
+    longFormat.setChannelCount(2);
+    const qint64 longBytes = qint64(21600) * 48000 * 8;
+    CHECK(longBytes > UINT32_MAX);
+    CHECK(qt::AudioDurationMicroseconds(longFormat, longBytes) == qint64(21600) * 1000000);
+    CHECK(qt::AudioDurationMicroseconds(longFormat, longBytes - 8) == 21599999979LL);
     QTemporaryDir dir;
     CHECK(dir.isValid());
     QFile wave(dir.path() + "/clock.wav");

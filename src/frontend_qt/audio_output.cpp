@@ -28,7 +28,7 @@ public:
         source_ = std::make_unique<WaveDevice>(pcm_, offset);
         sink_ = std::make_unique<QAudioSink>(device, format);
         format_ = format;
-        duration_ = format.durationForBytes(pcm.Size() - offset);
+        duration_ = AudioDurationMicroseconds(format, pcm.Size() - offset);
         // Leave enough queued data for the platform's timer scheduling quantum.
         // The platform may round this up; the clock uses its actual padding.
         sink_->setBufferSize(format.bytesForDuration(100000));
@@ -84,12 +84,14 @@ public:
         auto processed = sink_->processedUSecs();
 #if defined(Q_OS_WIN) && QT_VERSION >= QT_VERSION_CHECK(6, 8, 0) &&                                \
     QT_VERSION < QT_VERSION_CHECK(6, 9, 0)
-        // Qt 6.8's WASAPI implementation reports totalInputBytes, including
-        // samples still queued on the device. Subtract its current padding,
-        // expressed in the input format by the public buffer queries. Other
-        // platform backends already report played samples; do not correct twice.
+        // Qt 6.8's WASAPI clock narrows totalInputBytes through qint32, and
+        // includes samples still queued on the device. This unbuffered source
+        // is read/rendered on this same output thread; retain its 64-bit PCM
+        // count and subtract current padding in the input format. Other native
+        // backends already report played samples; do not correct twice.
+        processed = AudioDurationMicroseconds(format_, source_ ? source_->pos() : 0);
         const auto queued = std::max<qsizetype>(0, sink_->bufferSize() - sink_->bytesFree());
-        processed = std::max<qint64>(0, processed - format_.durationForBytes(queued));
+        processed = std::max<qint64>(0, processed - AudioDurationMicroseconds(format_, queued));
 #endif
         processed_ = std::max(processed_, processed);
         return processed_;

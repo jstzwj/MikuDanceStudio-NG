@@ -2,7 +2,11 @@
 #include "mikudancestudio/wave_format.hpp"
 #include <QIODevice>
 #include <QByteArray>
+#include <QAudioFormat>
 namespace mikudancestudio::qt {
+// QAudioFormat's byte conversion accepts qint32, even on 64-bit platforms.
+// Native queues need the full streamed source duration, not a narrowed count.
+qint64 AudioDurationMicroseconds(const QAudioFormat&, qint64 bytes);
 // Value lease, no QObject or shared cursor. Native output threads own their
 // read positions; WAV random reads are serialized inside its file lease.
 struct AudioSamples {

@@ -1,4 +1,5 @@
 #include "audio.hpp"
+#include "audio_samples.hpp"
 #include "editor_window.hpp"
 #include "mikudancestudio/panel_controls.hpp"
 #include <QApplication>
@@ -12,6 +13,7 @@
 #include <QMediaDevices>
 #include <QTemporaryDir>
 #include <QThread>
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
@@ -34,6 +36,20 @@ public:
 
 private:
     std::unique_ptr<AudioOutput> native_ = mikudancestudio::qt::CreateAudioOutput();
+};
+
+class LongSilence final : public mikudancestudio::format::WaveSource {
+public:
+    std::uint64_t SampleFrames() const override { return std::uint64_t(sampleRate) * 21600; }
+    bool ReadFrames(std::uint64_t, unsigned count, float* out, std::string& reason) const override {
+        if (count > MaxReadFrames || !out) {
+            reason = "invalid-silent-read";
+            return false;
+        }
+        std::fill_n(out, std::size_t(count) * channels, 0.f);
+        reason.clear();
+        return true;
+    }
 };
 
 // This opt-in test opens a real platform audio device, feeding only float zero.
@@ -77,6 +93,25 @@ int main(int argc, char** argv) {
     report["channels"] = format.channelCount();
     if (!device.isFormatSupported(format))
         return finish(1, "Preferred-rate float PCM is unsupported");
+    // Start a logical six-hour source on the actual adapter. A short WAV
+    // alone misses narrowing through Qt's qint32 durationForBytes API. The
+    // file reader itself has a separate real 2 GB random-read/RSS gate.
+    auto longWave = std::make_shared<LongSilence>();
+    longWave->sampleRate = unsigned(format.sampleRate());
+    longWave->channels = unsigned(format.channelCount());
+    mikudancestudio::qt::WaveDevice longDevice({longWave, {}});
+    auto longOutput = mikudancestudio::qt::CreateAudioOutput();
+    std::string reason;
+    if (!longOutput->Start(format, longDevice, 0, reason))
+        return finish(1, reason);
+    const auto longDiagnostic = longOutput->Diagnostic();
+    report["longSourceSeconds"] = 21600;
+    report["longSourcePcmBytes"] = double(longDevice.size());
+    report["longSourceDevice"] = QString::fromStdString(longDiagnostic);
+    const bool longRunning = longOutput->Running();
+    longOutput->Stop();
+    if (!longRunning || longDiagnostic.find("duration-us=21600000000") == std::string::npos)
+        return finish(1, "Native adapter narrowed the six-hour PCM duration");
     QTemporaryDir temporary;
     QFile wave(temporary.path() + "/silence.wav");
     if (!temporary.isValid() || !wave.open(QIODevice::WriteOnly))
@@ -98,7 +133,6 @@ int main(int argc, char** argv) {
         return finish(1, "Cannot write silent WAV");
     wave.close();
     mikudancestudio::qt::AudioTransport transport;
-    std::string reason;
     if (!transport.Load(mikudancestudio::qt::Path(wave.fileName()), reason))
         return finish(1, reason);
     QElapsedTimer elapsed;

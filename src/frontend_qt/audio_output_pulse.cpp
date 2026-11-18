@@ -40,7 +40,7 @@ public:
             Stop();
             return false;
         }
-        duration_ = format.durationForBytes(pcm_.Size() - start_);
+        duration_ = AudioDurationMicroseconds(format, pcm_.Size() - start_);
         volume_ = std::clamp(volume, 0.f, 1.f);
         loop_ = pa_threaded_mainloop_new();
         if (loop_)
@@ -254,7 +254,7 @@ private:
             // once, then let only that queue finish on Pulse's monotonic clock.
             // A drain acknowledgement can be delayed by the sink's rewind
             // history and is not the played-sample timestamp.
-            const auto end = format_.durationForBytes(timing->write_index);
+            const auto end = AudioDurationMicroseconds(format_, timing->write_index);
             tailPosition_ =
                 end - qint64(timing->sink_usec) + qint64(pa_timeval_age(&timing->timestamp));
             tailTime_ = pa_rtclock_now();

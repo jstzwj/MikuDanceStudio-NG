@@ -35,7 +35,7 @@ public:
         start_ = source.pos();
         length_ = pcm_.Size() - start_;
         format_ = format;
-        duration_ = format.durationForBytes(length_);
+        duration_ = AudioDurationMicroseconds(format, length_);
         AudioStreamBasicDescription stream{};
         stream.mSampleRate = format.sampleRate();
         stream.mFormatID = kAudioFormatLinearPCM;
