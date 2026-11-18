@@ -4,6 +4,7 @@
 #include "viewport.hpp"
 #include "audio.hpp"
 #include "file_dialog_history.hpp"
+#include "editor_settings.hpp"
 #include "mikudancestudio/mmd_editor_layout.hpp"
 #include <QMainWindow>
 #include <QByteArray>
@@ -27,7 +28,8 @@ class MobileEditor;
 class EditorWindow final : public QMainWindow {
 public:
     explicit EditorWindow(std::filesystem::path assets, bool testing = false,
-                          std::unique_ptr<AudioOutput> audio = {});
+                          std::unique_ptr<AudioOutput> audio = {},
+                          std::optional<EditorSettingsStore> settings = {});
     ~EditorWindow() override;
     editor::EditorSession& Session() { return session_; }
     QWidget* Control(int id) const;
@@ -57,10 +59,12 @@ private:
     editor::EditorSession session_;
     Language language_;
     void TranslateStandardDialogs();
+    void SaveSettings();
     void Preferences();
     void Effects();
     void Export(bool video);
     std::filesystem::path assets_;
+    std::optional<EditorSettingsStore> settings_;
     QWidget* canvas_ = nullptr;
     Timeline* timeline_ = nullptr;
     Interpolation* interpolation_ = nullptr;

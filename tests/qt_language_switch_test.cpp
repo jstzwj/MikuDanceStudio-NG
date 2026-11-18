@@ -15,6 +15,8 @@
 #include <QDialogButtonBox>
 #include <QPushButton>
 #include <QDir>
+#include <QFile>
+#include <QSaveFile>
 #include <iostream>
 
 using namespace mikudancestudio;
@@ -36,7 +38,37 @@ int main(int argc, char** argv) try {
     QCoreApplication::setApplicationName("language-test");
     QSettings::setDefaultFormat(QSettings::IniFormat);
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
-    qt::EditorWindow window(qt::Path(QString::fromLocal8Bit(argv[1])), argc != 4);
+    const auto settingsPath = settings.filePath("editor.json");
+    const qt::EditorSettingsStore store(settingsPath, true);
+    QString diagnostic;
+    {
+        auto old = QSettings();
+        old.setValue("language", "fr-CA");
+        old.setValue("renderer/mipmaps", false);
+        old.setValue("viewport/separateSize", QSize(-1, 0));
+        old.sync();
+    }
+    const auto migrated = store.Load(diagnostic);
+    Check(diagnostic.isEmpty() && migrated.language == "fr-CA" && !migrated.mipmaps &&
+              migrated.separateSize == QSize(800, 657),
+          "migration validates legacy settings");
+    const auto write = [&](const QByteArray& bytes) {
+        QSaveFile file(settingsPath);
+        Check(file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit(),
+              "write settings test fixture");
+    };
+    write("{invalid");
+    Check(store.Load(diagnostic).language == "system" && diagnostic == "editor-settings-damaged",
+          "damaged settings start with defaults");
+    Check(store.Save(migrated, diagnostic) &&
+              QDir(settings.path()).entryList({"editor.json.corrupt-*"}, QDir::Files).size() == 1,
+          "recovery preserves damaged bytes before saving");
+    write(R"({"version": 99, "language": "ja"})");
+    Check(!store.Save(migrated, diagnostic) && diagnostic == "editor-settings-newer-version",
+          "newer settings version is protected");
+    Check(QFile::remove(settingsPath), "restore legacy migration fixture");
+    qt::EditorWindow window(qt::Path(QString::fromLocal8Bit(argv[1])), argc != 4, {},
+                            argc == 4 ? std::optional(store) : std::nullopt);
     window.findChild<QChronoTimer*>("editor.frameTimer")->stop();
     auto& session = window.Session();
     std::string reason;
@@ -170,8 +202,7 @@ int main(int argc, char** argv) try {
                       window.findChild<QAction*>("file.preferences")->text().remove(QChar(0x2026)),
                   "Qt application translator installed");
             if (argc == 4)
-                Check(QSettings().value("language").toString() == code,
-                      "language setting persists");
+                Check(store.Load(diagnostic).language == code, "language setting persists");
         }
     auto* dialog = window.findChild<QDialog*>("preferences");
     auto* combo = dialog->findChild<QComboBox*>("preferences.language");
@@ -189,9 +220,11 @@ int main(int argc, char** argv) try {
               window.CurrentLanguage() == qt::Language::Resolve("system"),
           "system preference retains selection and resolves effective language");
     if (argc == 4) {
-        Check(QSettings().value("language").toString() == "system", "persist system selection");
-        QSettings().setValue("language", "fr-CA");
-        qt::EditorWindow restarted(qt::Path(QString::fromLocal8Bit(argv[1])), false);
+        auto saved = store.Load(diagnostic);
+        Check(saved.language == "system", "persist system selection");
+        saved.language = "fr-CA";
+        Check(store.Save(saved, diagnostic), "store regional preference");
+        qt::EditorWindow restarted(qt::Path(QString::fromLocal8Bit(argv[1])), false, {}, store);
         restarted.findChild<QChronoTimer*>("editor.frameTimer")->stop();
         Check(restarted.CurrentLanguage() == "fr" && !restarted.isVisible(),
               "restart restores regional preference without showing window");

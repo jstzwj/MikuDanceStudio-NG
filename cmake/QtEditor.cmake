@@ -34,6 +34,7 @@ function(mds_add_qt_editor)
     qt_add_library(mikudancestudio_frontend_qt STATIC
         "${root}/src/frontend_qt/language.cpp"
         "${root}/src/frontend_qt/preferences_dialog.cpp"
+        "${root}/src/frontend_qt/editor_settings.cpp"
         "${root}/src/frontend_qt/effect_dialog.cpp"
         "${root}/src/frontend_qt/audio_output.cpp"
         "${root}/src/frontend_qt/timeline.cpp"

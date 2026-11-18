@@ -925,7 +925,9 @@ int main(int argc, char** argv) {
         QSettings::setDefaultFormat(QSettings::IniFormat);
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
         for (const char* language : {"en", "ja", "zh_CN"}) {
-            qt::EditorWindow overflow(std::filesystem::absolute(argv[2]));
+            qt::EditorWindow overflow(
+                std::filesystem::absolute(argv[2]), false, {},
+                qt::EditorSettingsStore(settings.filePath("editor.json"), true));
             CHECK(overflow.SetLanguage(language));
             qt::Language messages;
             CHECK(messages.Set(language));

@@ -25,7 +25,7 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollBar>
-#include <QSettings>
+#include <QDebug>
 #include <QSlider>
 #include <cmath>
 
@@ -47,8 +47,10 @@ QString Name(const std::vector<char>& bytes) {
 
 }
 EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
-                           std::unique_ptr<AudioOutput> audio)
-    : assets_(std::move(assets)), testing_(testing), audio_(std::move(audio), testing) {
+                           std::unique_ptr<AudioOutput> audio,
+                           std::optional<EditorSettingsStore> settings)
+    : assets_(std::move(assets)), settings_(std::move(settings)), testing_(testing),
+      audio_(std::move(audio), testing) {
     InstallEditorStyle(*qApp);
     setObjectName("mmd.editor");
     setAcceptDrops(true);
@@ -157,25 +159,30 @@ EditorWindow::EditorWindow(std::filesystem::path assets, bool testing,
     if (qEnvironmentVariable("MDS_GPU_DRIVER") == "software")
         options.driver = rhi::BackendDriver::Software;
     CreateViewport(options);
-    if (!testing_) {
-        QSettings settings;
-        lowPower_ = settings.value("editor/lowPower", false).toBool();
-        session_.SetMipmaps(settings.value("renderer/mipmaps", true).toBool());
-        session_.SetAntialiasing(settings.value("renderer/antialiasing", true).toBool());
-        session_.SetWireframe(settings.value("renderer/wireframe", false).toBool());
-        fileHistory_.enabled = settings.value("files/rememberFolders", true).toBool();
-        fileHistory_.Restore(settings.value("files/directories").toStringList());
-        language_.Set(settings.value("language", language_.Selection()).toString());
-        separateGeometry_ = settings.value("viewport/separateGeometry").toByteArray();
-        separateSize_ = settings.value("viewport/separateSize", separateSize_).toSize();
-        if (!separateSize_.isValid())
-            separateSize_ = QSize(800, 657);
-        separateOnTop_ = settings.value("viewport/alwaysOnTop", false).toBool();
+    if (!settings_ && !testing_)
+        settings_.emplace(EditorSettingsStore::ForApplication());
+    bool startSeparate = false;
+    if (settings_) {
+        QString diagnostic;
+        const auto saved = settings_->Load(diagnostic);
+        if (!diagnostic.isEmpty())
+            qWarning().noquote() << diagnostic;
+        lowPower_ = saved.lowPower;
+        session_.SetMipmaps(saved.mipmaps);
+        session_.SetAntialiasing(saved.antialiasing);
+        session_.SetWireframe(saved.wireframe);
+        fileHistory_.enabled = saved.rememberFolders;
+        fileHistory_.Restore(saved.directories);
+        language_.Set(saved.language);
+        separateGeometry_ = saved.separateGeometry;
+        separateSize_ = saved.separateSize;
+        separateOnTop_ = saved.alwaysOnTop;
+        startSeparate = saved.separate;
     }
     BuildMenus();
     Texts();
     Refresh();
-    if (!testing_ && QSettings().value("viewport/separate", false).toBool())
+    if (startSeparate)
         SetSeparateWindow(true);
     timer_.setParent(this);
     timer_.setObjectName("editor.frameTimer");
@@ -266,22 +273,7 @@ EditorWindow::~EditorWindow() {
     delete physicsDialog_.data();
     delete effectDialog_.data();
     delete exportDialog_.data();
-    if (!testing_) {
-        QSettings settings;
-        settings.setValue("editor/lowPower", lowPower_);
-        settings.setValue("renderer/mipmaps", session_.DisplayOptions().mipmaps);
-        settings.setValue("renderer/antialiasing", session_.DisplayOptions().antialiasing);
-        settings.setValue("renderer/wireframe", session_.DisplayOptions().wireframe);
-        settings.setValue("files/rememberFolders", fileHistory_.enabled);
-        settings.setValue("files/directories", fileHistory_.Save());
-        settings.setValue("viewport/separate", separate_ != nullptr || restoreSeparate_);
-        settings.setValue("viewport/alwaysOnTop", separateOnTop_);
-        settings.setValue("viewport/separateGeometry",
-                          separate_ ? separate_->saveGeometry() : separateGeometry_);
-        settings.setValue("viewport/separateSize", separate_ && !separate_->isMaximized()
-                                                       ? separate_->size()
-                                                       : separateSize_);
-    }
+    SaveSettings();
     if (viewportContainer_)
         delete viewportContainer_;
     viewport_ = nullptr;
@@ -310,14 +302,31 @@ bool EditorWindow::Result(bool ok, const std::string& reason) {
     }
     return false;
 }
+void EditorWindow::SaveSettings() {
+    if (!settings_)
+        return;
+    EditorSettings settings;
+    settings.language = language_.Selection();
+    settings.lowPower = lowPower_;
+    settings.mipmaps = session_.DisplayOptions().mipmaps;
+    settings.antialiasing = session_.DisplayOptions().antialiasing;
+    settings.wireframe = session_.DisplayOptions().wireframe;
+    settings.rememberFolders = fileHistory_.enabled;
+    settings.directories = fileHistory_.Save();
+    settings.separate = separate_ != nullptr || restoreSeparate_;
+    settings.alwaysOnTop = separateOnTop_;
+    settings.separateGeometry = separate_ ? separate_->saveGeometry() : separateGeometry_;
+    settings.separateSize =
+        separate_ && !separate_->isMaximized() ? separate_->size() : separateSize_;
+    QString diagnostic;
+    if (!settings_->Save(settings, diagnostic))
+        qWarning().noquote() << diagnostic;
+}
 bool EditorWindow::SetLanguage(const QString& language) {
     if (!language_.Set(language))
         return false;
     TranslateStandardDialogs();
-    if (!testing_) {
-        QSettings settings;
-        settings.setValue("language", language_.Selection());
-    }
+    SaveSettings();
     RetranslateMenus();
     Texts();
     Refresh();
