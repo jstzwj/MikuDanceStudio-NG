@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 namespace mikudancestudio::qt {
-// The transport owns decoded PCM and positioning. Only this adapter touches
+// The transport owns a read-only PCM source and positioning. Only this adapter touches
 // the platform audio device; ordinary tests use a deterministic consuming sink.
 class AudioOutput {
 public:

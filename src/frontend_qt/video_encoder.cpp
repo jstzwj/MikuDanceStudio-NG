@@ -26,7 +26,7 @@ struct VideoEncoder::Impl {
     QAudioFormat audioFormat;
     QVideoFrameFormat videoFormat;
     render::ExportTimeline timeline;
-    const format::WaveAudio* wave = nullptr;
+    const format::WaveSource* wave = nullptr;
     std::function<bool()> proceed;
     std::uint64_t audioFrames = 0;
     unsigned videoFrames = 0;
@@ -77,13 +77,8 @@ struct VideoEncoder::Impl {
             const auto count = unsigned(std::min<std::uint64_t>(1024, end - audioFrames));
             QByteArray bytes(qsizetype(count) * wave->channels * sizeof(float), 0);
             const auto first = timeline.SourceAudioSample(wave->sampleRate) + audioFrames;
-            const auto available =
-                first < wave->SampleFrames()
-                    ? std::min<std::uint64_t>(count, wave->SampleFrames() - first)
-                    : 0;
-            if (available)
-                std::memcpy(bytes.data(), wave->samples.data() + first * wave->channels,
-                            std::size_t(available * wave->channels * sizeof(float)));
+            if (!wave->ReadFrames(first, count, reinterpret_cast<float*>(bytes.data()), reason))
+                return false;
             const auto stamp = qint64(audioFrames * 1000000 / wave->sampleRate);
             audioReady = false;
             if (!audio->sendAudioBuffer(QAudioBuffer(bytes, audioFormat, stamp))) {
@@ -113,7 +108,7 @@ VideoEncoder::~VideoEncoder() {
     }
 }
 bool VideoEncoder::Open(const std::filesystem::path& path, const render::ExportTimeline& timeline,
-                        VideoProfile profile, const format::WaveAudio* wave,
+                        VideoProfile profile, const format::WaveSource* wave,
                         const std::function<bool()>& proceed, std::string& reason) {
     auto& i = *impl_;
     const auto& s = timeline.settings;
@@ -287,27 +282,16 @@ bool ExportMovie(const render::ExportSnapshot& snapshot, const std::filesystem::
         reason = "export-staging-unavailable";
         return false;
     }
-    format::WaveAudio wave;
-    if (audio && !snapshot.assets.wave.empty()) {
-        std::ifstream file(snapshot.assets.wave, std::ios::binary | std::ios::ate);
-        const auto size = file ? file.tellg() : std::streampos(-1);
-        if (size < 0 || size > 64 * 1024 * 1024) {
-            reason = "export-wave-read-or-size-failed";
-            return false;
-        }
-        std::vector<std::uint8_t> bytes(static_cast<std::size_t>(size));
-        file.seekg(0);
-        if (!file.read(reinterpret_cast<char*>(bytes.data()), std::streamsize(bytes.size())) ||
-            !format::ReadWave(bytes, wave, reason))
-            return false;
-    }
+    std::shared_ptr<const format::WaveSource> wave;
+    if (audio && !snapshot.assets.wave.empty() &&
+        !format::OpenWaveFile(snapshot.assets.wave, wave, reason))
+        return false;
     const auto temporary = Path(staging.path()) / "video.mp4";
     unsigned completed = 0;
     {
         VideoEncoder encoder;
         auto proceed = [&] { return !progress || progress(completed, timeline.frames); };
-        if (!encoder.Open(temporary, timeline, profile, wave.sampleRate ? &wave : nullptr, proceed,
-                          reason))
+        if (!encoder.Open(temporary, timeline, profile, wave.get(), proceed, reason))
             return false;
         VideoDecoder background;
         if (!render::RunExport(

@@ -60,6 +60,7 @@ function(mds_add_qt_editor)
         "${root}/src/frontend_qt/relative_pointer.cpp"
         "${root}/src/frontend_qt/surface.cpp")
     target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/audio.cpp" "${root}/src/frontend_qt/export.cpp")
+    target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/audio_samples.cpp")
     target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/video_encoder.cpp")
     target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/export_dialog.cpp")
     target_sources(mikudancestudio_frontend_qt PRIVATE "${root}/src/frontend_qt/background_video_decode.cpp"

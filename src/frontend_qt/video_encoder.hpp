@@ -13,7 +13,7 @@ public:
     VideoEncoder();
     ~VideoEncoder();
     bool Open(const std::filesystem::path&, const render::ExportTimeline&, VideoProfile,
-              const format::WaveAudio*, const std::function<bool()>& cancelCheck, std::string&);
+              const format::WaveSource*, const std::function<bool()>& cancelCheck, std::string&);
     bool Write(const render::ExportFrame&, std::string&);
     bool Finish(std::string&);
 

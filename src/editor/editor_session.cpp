@@ -1004,20 +1004,8 @@ bool EditorSession::ImportAccessory(const std::filesystem::path& path, std::stri
 }
 bool EditorSession::ImportWave(const std::filesystem::path& path, std::string& reason) {
     const auto absolute = std::filesystem::absolute(path).lexically_normal();
-    std::ifstream file(absolute, std::ios::binary | std::ios::ate);
-    const auto size = file ? file.tellg() : std::streampos(-1);
-    if (size < 0 || size > (256u << 20)) {
-        reason = "wave-file-read-failed";
-        return false;
-    }
-    std::vector<std::uint8_t> bytes(std::size_t(size), 0);
-    file.seekg(0);
-    if (!file.read(reinterpret_cast<char*>(bytes.data()), std::streamsize(bytes.size()))) {
-        reason = "wave-file-read-failed";
-        return false;
-    }
-    format::WaveAudio parsed;
-    if (!format::ReadWave(bytes, parsed, reason))
+    std::shared_ptr<const format::WaveSource> parsed;
+    if (!format::OpenWaveFile(absolute, parsed, reason))
         return false;
     auto next = Current();
     next.assets.wave = absolute;

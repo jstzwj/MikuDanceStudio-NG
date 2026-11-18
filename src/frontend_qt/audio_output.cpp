@@ -2,7 +2,7 @@
 #include <QAudioSink>
 #include <QAudioDevice>
 #include <QMediaDevices>
-#include <QBuffer>
+#include "audio_samples.hpp"
 #include <QThread>
 #include <algorithm>
 #include <sstream>
@@ -15,28 +15,20 @@ std::unique_ptr<AudioOutput> CreateCoreAudioOutput();
 namespace {
 class NativeAudioEngine final {
 public:
-    bool Start(const QAudioDevice& device, const QAudioFormat& format, const QByteArray& pcm,
+    bool Start(const QAudioDevice& device, const QAudioFormat& format, const AudioSamples& pcm,
                qint64 offset, float volume, std::string& reason) {
         Stop();
-        if (offset < 0 || offset > pcm.size()) {
+        if (offset < 0 || offset > pcm.Size()) {
             reason = "audio-output-source-unavailable";
             return false;
         }
         pcm_ = pcm;
-        source_ = std::make_unique<QBuffer>();
-        // Qt's native adapters use QIODevice::size() to configure short-stream
-        // prebuffering. A seek into the full WAV misreports the available tail
-        // and can leave it below PulseAudio's prebuffer forever. Expose only
-        // the remaining immutable PCM; retain its shared owner without copying.
-        source_->setData(QByteArray::fromRawData(pcm_.constData() + offset, pcm_.size() - offset));
-        if (!source_->open(QIODevice::ReadOnly)) {
-            reason = "audio-output-source-unavailable";
-            Stop();
-            return false;
-        }
+        // The output thread owns a tail cursor. Its size excludes the seek
+        // prefix, preserving native short-stream prebuffer and drain behavior.
+        source_ = std::make_unique<WaveDevice>(pcm_, offset);
         sink_ = std::make_unique<QAudioSink>(device, format);
         format_ = format;
-        duration_ = format.durationForBytes(pcm.size() - offset);
+        duration_ = format.durationForBytes(pcm.Size() - offset);
         // Leave enough queued data for the platform's timer scheduling quantum.
         // The platform may round this up; the clock uses its actual padding.
         sink_->setBufferSize(format.bytesForDuration(100000));
@@ -57,7 +49,7 @@ public:
             sink_->reset();
         sink_.reset();
         source_.reset();
-        pcm_.clear();
+        pcm_ = {};
         processed_ = 0;
         duration_ = 0;
     }
@@ -77,6 +69,8 @@ public:
                Error().empty() && ProcessedMicroseconds() < duration_;
     }
     std::string Error() const {
+        if (source_ && !source_->Failure().empty())
+            return source_->Failure();
         // Idle at the end of a finite source is normal. Underrun while source
         // data remains and device/IO errors must not silently switch clocks.
         if (!sink_ || sink_->error() == QAudio::NoError ||
@@ -116,8 +110,8 @@ public:
 private:
     std::unique_ptr<QAudioSink> sink_;
     QAudioFormat format_;
-    std::unique_ptr<QBuffer> source_;
-    QByteArray pcm_;
+    std::unique_ptr<WaveDevice> source_;
+    AudioSamples pcm_;
     mutable qint64 processed_ = 0;
     qint64 duration_ = 0;
 };
@@ -141,15 +135,10 @@ public:
             reason = "audio-output-format-unavailable";
             return false;
         }
-        // Transport supplies immutable decoded PCM in a QBuffer. Give the
-        // audio thread its own shared-data cursor; never read a UI-owned device
-        // across threads or depend on the editor/render event loop to refill it.
-        const auto* buffer = qobject_cast<QBuffer*>(&source);
-        if (!buffer) {
-            reason = "audio-output-source-unavailable";
+        // Transfer a value lease, never a UI-owned QIODevice or its cursor.
+        AudioSamples pcm;
+        if (!CaptureAudioSamples(source, pcm, reason))
             return false;
-        }
-        const auto pcm = buffer->data();
         const auto offset = source.pos();
         bool result = false;
         Invoke([&] { result = engine_.Start(device, format, pcm, offset, volume, reason); });

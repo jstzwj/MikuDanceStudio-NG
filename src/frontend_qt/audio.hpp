@@ -1,7 +1,7 @@
 #pragma once
 #include "mikudancestudio/wave_format.hpp"
 #include "audio_output.hpp"
-#include <QBuffer>
+#include "audio_samples.hpp"
 #include <QTimer>
 #include <filesystem>
 #include <memory>
@@ -30,9 +30,8 @@ public:
 private:
     bool Start(std::uint64_t sampleOffset, bool playbackClock, std::string&);
     std::filesystem::path path_;
-    format::WaveAudio wave_;
-    QByteArray pcm_;
-    QBuffer buffer_;
+    std::shared_ptr<const format::WaveSource> wave_;
+    std::unique_ptr<WaveDevice> buffer_;
     std::unique_ptr<AudioOutput> output_;
     double start_ = 0;
     float volume_ = 1;

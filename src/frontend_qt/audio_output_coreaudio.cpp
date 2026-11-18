@@ -1,6 +1,6 @@
 #include "audio_output.hpp"
 #include <QAudioDevice>
-#include <QBuffer>
+#include "audio_samples.hpp"
 #include <QMediaDevices>
 #include <AudioToolbox/AudioToolbox.h>
 #include <algorithm>
@@ -20,18 +20,20 @@ public:
     bool Start(const QAudioFormat& format, QIODevice& source, float volume,
                std::string& reason) override {
         Stop();
-        const auto* buffer = qobject_cast<QBuffer*>(&source);
+        AudioSamples samples;
+        if (!CaptureAudioSamples(source, samples, reason))
+            return false;
         const auto device = QMediaDevices::defaultAudioOutput();
-        if (!buffer || device.isNull() || !device.isFormatSupported(format) ||
+        if (device.isNull() || !device.isFormatSupported(format) ||
             format.sampleFormat() != QAudioFormat::Float || format.sampleRate() <= 0 ||
-            format.channelCount() < 1 || source.pos() < 0 || source.pos() >= buffer->size() ||
-            source.pos() % format.bytesPerFrame() || buffer->size() % format.bytesPerFrame()) {
+            format.channelCount() < 1 || source.pos() < 0 || source.pos() >= samples.Size() ||
+            source.pos() % format.bytesPerFrame() || samples.Size() % format.bytesPerFrame()) {
             reason = "audio-output-format-or-source-unavailable";
             return false;
         }
-        pcm_ = buffer->data();
+        pcm_ = std::move(samples);
         start_ = source.pos();
-        length_ = pcm_.size() - start_;
+        length_ = pcm_.Size() - start_;
         format_ = format;
         duration_ = format.durationForBytes(length_);
         AudioStreamBasicDescription stream{};
@@ -47,7 +49,7 @@ public:
         if (status == noErr)
             status = AudioQueueCreateTimeline(queue_, &timeline_);
         // Three frame-aligned buffers; the system consumes/refills them without
-        // UI timers. No allocation or Qt object access occurs in the callback.
+        // UI timers. Refills use bounded file reads, without Qt object access.
         const auto bytes = UInt32(format.bytesForFrames(std::max(1, format.sampleRate() / 20)));
         for (unsigned i = 0; status == noErr && i < 3 && nextByte_ < length_; ++i) {
             AudioQueueBufferRef buffer = nullptr;
@@ -80,7 +82,7 @@ public:
         }
         queue_ = nullptr;
         timeline_ = nullptr;
-        pcm_.clear();
+        pcm_ = {};
         nextByte_ = 0;
         pending_ = 0;
         status_ = noErr;
@@ -159,7 +161,11 @@ private:
             return false;
         const auto bytes =
             UInt32(std::min<qint64>(buffer->mAudioDataBytesCapacity, length_ - offset));
-        std::memcpy(buffer->mAudioData, pcm_.constData() + start_ + offset, bytes);
+        std::string reason;
+        if (!pcm_.Read(start_ + offset, static_cast<char*>(buffer->mAudioData), bytes, reason)) {
+            Store(kAudioFileInvalidFileError);
+            return false;
+        }
         buffer->mAudioDataByteSize = bytes;
         ++pending_;
         const auto status = AudioQueueEnqueueBuffer(queue, buffer, 0, nullptr);
@@ -181,7 +187,7 @@ private:
     AudioQueueRef queue_ = nullptr;
     AudioQueueTimelineRef timeline_ = nullptr;
     QAudioFormat format_;
-    QByteArray pcm_;
+    AudioSamples pcm_;
     qint64 start_ = 0, length_ = 0, duration_ = 0;
     std::atomic<qint64> nextByte_{0};
     std::atomic<unsigned> pending_{0};

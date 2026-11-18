@@ -1,6 +1,6 @@
 #include "audio_output.hpp"
 #include <QAudioDevice>
-#include <QBuffer>
+#include "audio_samples.hpp"
 #include <QMediaDevices>
 #include <pulse/pulseaudio.h>
 #include <pulse/rtclock.h>
@@ -20,25 +20,27 @@ public:
     bool Start(const QAudioFormat& format, QIODevice& source, float volume,
                std::string& reason) override {
         Stop();
-        const auto* buffer = qobject_cast<QBuffer*>(&source);
+        AudioSamples samples;
+        if (!CaptureAudioSamples(source, samples, reason))
+            return false;
         const auto device = QMediaDevices::defaultAudioOutput();
-        if (!buffer || device.isNull() || !device.isFormatSupported(format) ||
+        if (device.isNull() || !device.isFormatSupported(format) ||
             format.sampleFormat() != QAudioFormat::Float || format.channelCount() < 1 ||
             format.channelCount() > PA_CHANNELS_MAX || format.sampleRate() <= 0 ||
-            source.pos() < 0 || source.pos() >= buffer->size()) {
+            source.pos() < 0 || source.pos() >= samples.Size()) {
             reason = "audio-output-format-or-source-unavailable";
             return false;
         }
-        pcm_ = buffer->data();
+        pcm_ = std::move(samples);
         cursor_ = source.pos();
         start_ = cursor_;
         format_ = format;
-        if (cursor_ % format.bytesPerFrame() || pcm_.size() % format.bytesPerFrame()) {
+        if (cursor_ % format.bytesPerFrame() || pcm_.Size() % format.bytesPerFrame()) {
             reason = "audio-output-source-unavailable";
             Stop();
             return false;
         }
-        duration_ = format.durationForBytes(pcm_.size() - start_);
+        duration_ = format.durationForBytes(pcm_.Size() - start_);
         volume_ = std::clamp(volume, 0.f, 1.f);
         loop_ = pa_threaded_mainloop_new();
         if (loop_)
@@ -162,7 +164,7 @@ public:
             loop_ = nullptr;
         }
         loopStarted_ = false;
-        pcm_.clear();
+        pcm_ = {};
         processed_ = duration_ = cursor_ = start_ = 0;
         tail_ = false;
         tailPosition_ = 0;
@@ -184,7 +186,7 @@ public:
         if (!error_.empty() || !stream_)
             return false;
         const auto position = ProcessedLocked();
-        return cursor_ < pcm_.size() || position < duration_;
+        return cursor_ < pcm_.Size() || position < duration_;
     }
     qint64 ProcessedMicroseconds() const override {
         if (!loop_)
@@ -204,7 +206,7 @@ public:
         Lock locked(loop_);
         std::ostringstream result;
         result << "pulse state=" << (stream_ ? int(pa_stream_get_state(stream_)) : -1)
-               << " source=" << cursor_ - start_ << '/' << pcm_.size() - start_
+               << " source=" << cursor_ - start_ << '/' << pcm_.Size() - start_
                << " processed-us=" << ProcessedLocked() << " duration-us=" << duration_
                << " drained=" << drained_ << " native-tail=" << tail_ << " error=" << nativeError_;
         if (stream_)
@@ -242,9 +244,9 @@ private:
         }
         const auto* timing = pa_stream_get_timing_info(stream_);
         if (!tail_ && timing && !timing->read_index_corrupt && !timing->write_index_corrupt &&
-            !timing->playing && cursor_ == pcm_.size() &&
-            timing->read_index >= pcm_.size() - start_ &&
-            timing->write_index == pcm_.size() - start_) {
+            !timing->playing && cursor_ == pcm_.Size() &&
+            timing->read_index >= pcm_.Size() - start_ &&
+            timing->write_index == pcm_.Size() - start_) {
             // Once the server has consumed the final sample its read index
             // stops advancing. Later sink latency includes unrelated silence;
             // repeatedly subtracting it freezes get_time before the real tail.
@@ -271,21 +273,17 @@ private:
             return;
         }
         std::array<float, 8192> scaled;
-        while (requested && cursor_ < pcm_.size()) {
-            auto bytes = std::min({requested, std::size_t(pcm_.size() - cursor_), sizeof scaled});
+        while (requested && cursor_ < pcm_.Size()) {
+            auto bytes = std::min({requested, std::size_t(pcm_.Size() - cursor_), sizeof scaled});
             bytes -= bytes % format_.bytesPerFrame();
             if (!bytes)
                 break;
-            const void* data = pcm_.constData() + cursor_;
-            if (volume_ != 1) {
-                for (std::size_t i = 0; i < bytes / sizeof(float); ++i) {
-                    float value;
-                    std::memcpy(&value, pcm_.constData() + cursor_ + i * sizeof(float),
-                                sizeof value);
-                    scaled[i] = value * volume_;
-                }
-                data = scaled.data();
-            }
+            if (!pcm_.Read(cursor_, reinterpret_cast<char*>(scaled.data()), qint64(bytes), error_))
+                return;
+            if (volume_ != 1)
+                for (std::size_t i = 0; i < bytes / sizeof(float); ++i)
+                    scaled[i] *= volume_;
+            const void* data = scaled.data();
             if (pa_stream_write(stream_, data, bytes, nullptr, 0, PA_SEEK_RELATIVE) < 0) {
                 Fail();
                 return;
@@ -296,7 +294,7 @@ private:
         Drain();
     }
     void Drain() {
-        if (uncorked_ && error_.empty() && cursor_ == pcm_.size() && !drain_) {
+        if (uncorked_ && error_.empty() && cursor_ == pcm_.Size() && !drain_) {
             drain_ = pa_stream_drain(stream_, &Drained, this);
             if (!drain_)
                 Fail();
@@ -358,7 +356,7 @@ private:
     pa_time_event* deadline_ = nullptr;
     pa_time_event* timing_ = nullptr;
     bool loopStarted_ = false, operationDone_ = false, drained_ = false, uncorked_ = false;
-    QByteArray pcm_;
+    AudioSamples pcm_;
     QAudioFormat format_;
     qint64 start_ = 0, cursor_ = 0, duration_ = 0;
     mutable qint64 processed_ = 0;
