@@ -36,6 +36,7 @@ public:
     bool ReloadTextures(std::string&);
     std::string VideoFailure() const;
     void RetryVideo();
+    VideoPreviewStats VideoStats() const { return video_.Stats(); }
     bool OutputLimits(QSize&, std::string&) const;
     unsigned AntialiasSamples() const;
     std::function<void(QPoint, Qt::MouseButtons, Qt::KeyboardModifiers)> drag;
@@ -78,6 +79,7 @@ private:
     render::SceneEffects effects_;
     VideoPreview video_;
     std::uint64_t videoIdentity_ = 0;
+    bool videoErrorPresented_ = false;
     std::shared_ptr<const rhi::RgbaImage> cachedVideo_;
     std::uint64_t cachedEffects_ = 0;
     std::string deviceError_;

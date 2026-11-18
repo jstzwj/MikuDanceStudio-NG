@@ -47,7 +47,9 @@ struct VideoEncoder::Impl {
         while (!ready()) {
             if (!Check(reason))
                 return false;
-            if (deadline.elapsed() > 30000) {
+            if (deadline.elapsed() >
+                std::chrono::duration_cast<std::chrono::milliseconds>(MediaBudget::EncoderTimeout)
+                    .count()) {
                 reason = "export-encoder-stalled";
                 return false;
             }
@@ -74,7 +76,8 @@ struct VideoEncoder::Impl {
         while (audioFrames < end) {
             if (!Wait([&] { return audioReady; }, reason))
                 return false;
-            const auto count = unsigned(std::min<std::uint64_t>(1024, end - audioFrames));
+            const auto count = unsigned(
+                std::min<std::uint64_t>(MediaBudget::EncoderAudioFrames, end - audioFrames));
             QByteArray bytes(qsizetype(count) * wave->channels * sizeof(float), 0);
             const auto first = timeline.SourceAudioSample(wave->sampleRate) + audioFrames;
             if (!wave->ReadFrames(first, count, reinterpret_cast<float*>(bytes.data()), reason))

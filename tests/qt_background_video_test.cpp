@@ -91,6 +91,8 @@ int main(int argc, char** argv) {
     CHECK(!decoder.Open(root / "missing.mp4", reason));
     CHECK(!decoder.Open(root / "ntsc.mp4", reason, [] { return false; }));
     CHECK(reason == "background-video-cancelled");
+    qt::VideoDecoder expired(std::chrono::milliseconds(0));
+    CHECK(!expired.Open(root / "ntsc.mp4", reason) && reason == "background-video-timeout");
     CHECK(!decoder.Read(0, frame, {}, reason));
     CHECK(!decoder.Open(root / "triangle.pmx", reason));
     CHECK(decoder.Open(root / "rotated.mp4", reason));
@@ -136,6 +138,7 @@ int main(int argc, char** argv) {
     CHECK(decoder.Read(0, frame, {}, reason));
     {
         qt::VideoPreview preview;
+        CHECK(preview.Stats().workers == 0);
         for (double time : {1., 0., .8, .2, 1.1, .1})
             preview.Request(root / "ntsc.mp4", time, frame, reason);
         QElapsedTimer timer;
@@ -162,6 +165,28 @@ int main(int argc, char** argv) {
             QThread::msleep(1);
         } while (ready == qt::VideoReady::Pending && timer.elapsed() < 10000);
         CHECK(ready == qt::VideoReady::Ready && Number(*frame.image) == 5);
+        for (unsigned cycle = 0; cycle < 24; ++cycle) {
+            for (double time : {1., .1, .4, .2})
+                preview.Request(root / "ntsc.mp4", time, frame, reason);
+            timer.restart();
+            do {
+                ready = preview.Request(root / "ntsc.mp4", .2, frame, reason);
+                QThread::msleep(1);
+            } while (ready == qt::VideoReady::Pending && timer.elapsed() < 10000);
+            CHECK(ready == qt::VideoReady::Ready);
+            const auto live = preview.Stats();
+            CHECK(live.workers == 1 && live.openDecoders == 1 && live.inFlight <= 1 &&
+                  live.queued <= 1 && live.decoderBytes <= 2 * 160 * 96 * 4 &&
+                  live.publishedBytes == 160 * 96 * 4);
+            preview.Clear();
+            timer.restart();
+            while ((preview.Stats().openDecoders || preview.Stats().inFlight) &&
+                   timer.elapsed() < 10000)
+                QThread::msleep(1);
+            const auto released = preview.Stats();
+            CHECK(released.decoderBytes == 0 && released.openDecoders == 0 &&
+                  released.publishedBytes == 0 && released.queued == 0 && released.inFlight == 0);
+        }
     }
     rhi::BackendOptions options;
     const auto api = qEnvironmentVariable("MDS_GPU_BACKEND");
@@ -240,6 +265,15 @@ int main(int argc, char** argv) {
             if (n == 4)
                 CHECK(renderer.Rebind(*replacement.device));
         }
+        const auto live = renderer.Stats();
+        CHECK(live.residentTargets > 0 && live.residentResources > 0);
+        CHECK(renderer.Unload(1) && renderer.Detach());
+        const auto released = renderer.Stats();
+        CHECK(released.residentTargets == 0 && released.residentResources == 0 &&
+              released.retiringResources == 0 && released.pooledBuffers == 0);
+        std::cout << "Video GPU resources before unload: " << live.residentResources
+                  << ", targets: " << live.residentTargets
+                  << ", retired peak: " << live.peakRetiringResources << std::endl;
         // A screen.bmp consumer reads the same initialized AVI target this
         // frame; its sampled attachment precedes geometry and never feeds back.
         CHECK(session.ImportAccessory(root / "screen.x", reason));

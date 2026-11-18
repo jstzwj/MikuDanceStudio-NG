@@ -16,6 +16,7 @@ struct SceneRendererStats {
     std::size_t pooledBuffers = 0, pooledBufferBytes = 0, residentBufferBytes = 0,
                 retiringBufferBytes = 0, peakRetiringResources = 0;
     std::size_t residentResources = 0, retiringResources = 0, cpuResources = 0;
+    std::size_t residentTargets = 0;
 };
 class PreparedModelFrame {
 public:

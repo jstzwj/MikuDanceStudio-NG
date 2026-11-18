@@ -13,8 +13,9 @@ bool Fail(std::string& reason, const char* text) {
 }
 constexpr AVRational Microseconds{1, 1000000};
 bool Size(int width, int height) {
-    return width > 0 && height > 0 && width <= 8192 && height <= 8192 &&
-           std::int64_t(width) * height <= 16777216;
+    return width > 0 && height > 0 && width <= MediaBudget::VideoSide &&
+           height <= MediaBudget::VideoSide &&
+           std::int64_t(width) * height <= MediaBudget::VideoPixels;
 }
 }
 struct VideoDecoder::Impl {
@@ -50,7 +51,7 @@ struct VideoDecoder::Impl {
     bool Interrupted() {
         if (!interruption && proceed && !proceed())
             interruption = "background-video-cancelled";
-        if (!interruption && std::chrono::steady_clock::now() > deadline)
+        if (!interruption && std::chrono::steady_clock::now() >= deadline)
             interruption = "background-video-timeout";
         return interruption != nullptr;
     }
@@ -154,7 +155,7 @@ struct VideoDecoder::Impl {
             } else if (read < 0) {
                 return Failed(reason, "background-video-packet-read-failed");
             } else {
-                if (packet->size > 64 * 1024 * 1024)
+                if (packet->size > MediaBudget::VideoPacketBytes)
                     return Fail(reason, "background-video-packet-limit");
                 if (api.avcodec_send_packet(codec, packet) < 0)
                     return Fail(reason, "background-video-packet-decode-failed");
@@ -164,11 +165,18 @@ struct VideoDecoder::Impl {
         return Fail(reason, "background-video-decode-work-limit");
     }
 };
-VideoDecoder::VideoDecoder() = default;
+VideoDecoder::VideoDecoder(std::chrono::milliseconds timeout) : timeout_(timeout) {
+}
 VideoDecoder::~VideoDecoder() = default;
 const media::VideoInfo& VideoDecoder::Info() const {
     static const media::VideoInfo empty;
     return impl_ ? impl_->info : empty;
+}
+std::size_t VideoDecoder::CachedBytes() const {
+    const auto bytes = [](const media::VideoFrame& f) {
+        return f.image ? f.image->pixels.size() : 0;
+    };
+    return impl_ ? bytes(impl_->current) + bytes(impl_->next) : 0;
 }
 bool VideoDecoder::Open(const std::filesystem::path& path, std::string& reason,
                         const media::VideoProceed& proceed) {
@@ -182,7 +190,7 @@ bool VideoDecoder::Open(const std::filesystem::path& path, std::string& reason,
         reason = p->api.error;
         return false;
     }
-    p->deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    p->deadline = std::chrono::steady_clock::now() + timeout_;
     p->proceed = proceed;
     if (p->Interrupted())
         return Fail(reason, p->interruption);
@@ -222,8 +230,8 @@ bool VideoDecoder::Open(const std::filesystem::path& path, std::string& reason,
     p->codec = p->api.avcodec_alloc_context3(decoder);
     if (!p->codec || p->api.avcodec_parameters_to_context(p->codec, parameters) < 0)
         return Fail(reason, "background-video-codec-allocation-failed");
-    p->codec->thread_count = 2;
-    p->codec->max_pixels = 16777216;
+    p->codec->thread_count = MediaBudget::VideoCodecThreads;
+    p->codec->max_pixels = MediaBudget::VideoPixels;
     if (p->api.avcodec_open2(p->codec, decoder, nullptr) < 0)
         return Fail(reason, "background-video-codec-unsupported");
     p->origin = p->stream->start_time == AV_NOPTS_VALUE ? 0 : p->stream->start_time;
@@ -276,7 +284,7 @@ bool VideoDecoder::Read(double seconds, media::VideoFrame& out, const media::Vid
         Impl& impl;
         ~ResetProceed() { impl.proceed = {}; }
     } reset{p};
-    p.deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    p.deadline = std::chrono::steady_clock::now() + timeout_;
     p.interruption = nullptr;
     if (p.Interrupted())
         return Fail(reason, p.interruption);

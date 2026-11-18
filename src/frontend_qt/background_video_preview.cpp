@@ -19,7 +19,8 @@ struct VideoPreview::Impl {
     Request requested, published;
     media::VideoFrame frame;
     std::string error;
-    std::thread worker{[this] { Run(); }};
+    std::thread worker;
+    VideoPreviewStats stats;
     ~Impl() {
         {
             std::lock_guard<std::mutex> lock(mutex);
@@ -27,7 +28,8 @@ struct VideoPreview::Impl {
             ++generation;
         }
         wake.notify_one();
-        worker.join();
+        if (worker.joinable())
+            worker.join();
     }
     void Run() {
         std::unique_ptr<VideoDecoder> decoder;
@@ -41,10 +43,13 @@ struct VideoPreview::Impl {
                     return;
                 request = requested;
                 pending = false;
+                stats.inFlight = 1;
             }
             if (request.path.empty()) {
                 decoder.reset();
                 loaded.clear();
+                std::lock_guard<std::mutex> lock(mutex);
+                stats.decoderBytes = stats.inFlight = stats.openDecoders = 0;
                 continue;
             }
             std::string reason;
@@ -74,6 +79,9 @@ struct VideoPreview::Impl {
             }
             {
                 std::lock_guard<std::mutex> lock(mutex);
+                stats.decoderBytes = decoder ? decoder->CachedBytes() : 0;
+                stats.openDecoders = decoder ? 1 : 0;
+                stats.inFlight = 0;
                 if (request.generation == generation) {
                     published = request;
                     frame = std::move(decoded);
@@ -86,6 +94,14 @@ struct VideoPreview::Impl {
 VideoPreview::VideoPreview() : impl_(std::make_unique<Impl>()) {
 }
 VideoPreview::~VideoPreview() = default;
+VideoPreviewStats VideoPreview::Stats() const {
+    auto& p = *impl_;
+    std::lock_guard<std::mutex> lock(p.mutex);
+    auto stats = p.stats;
+    stats.queued = p.pending && !p.requested.path.empty() ? 1 : 0;
+    stats.publishedBytes = p.frame.image ? p.frame.image->pixels.size() : 0;
+    return stats;
+}
 std::string VideoPreview::Failure() const {
     auto& p = *impl_;
     std::lock_guard<std::mutex> lock(p.mutex);
@@ -134,6 +150,10 @@ VideoReady VideoPreview::Request(const std::filesystem::path& path, double secon
     }
     if (p.requested.path != path || p.requested.seconds != seconds ||
         p.requested.nativeThirtyHz != nativeThirtyHz) {
+        if (!p.worker.joinable()) {
+            p.worker = std::thread([&p] { p.Run(); });
+            p.stats.workers = 1;
+        }
         p.requested = {path, seconds, ++p.generation, nativeThirtyHz};
         p.pending = true;
         p.wake.notify_one();

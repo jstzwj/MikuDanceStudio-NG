@@ -793,13 +793,16 @@ bool SceneRenderer::ReadTarget(std::uint64_t scene, std::uint64_t target, Attach
 }
 SceneRendererStats SceneRenderer::Stats() const {
     auto out = impl->stats;
-    for (const auto& s : impl->scenes)
+    for (const auto& s : impl->scenes) {
+        for (const auto& t : s.second.targets)
+            out.residentTargets += bool(t.second.handle);
         for (const auto& r : s.second.resources) {
             ++out.cpuResources;
             out.residentResources += bool(r.second.handle);
             if (r.second.handle)
                 out.residentBufferBytes += r.second.buffer.size;
         }
+    }
     out.retiringResources = impl->retired.size();
     for (const auto& r : impl->retired)
         out.retiringBufferBytes += r.buffer.size;

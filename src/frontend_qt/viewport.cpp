@@ -154,6 +154,7 @@ std::string Viewport::VideoFailure() const {
 }
 void Viewport::RetryVideo() {
     video_.Clear();
+    videoErrorPresented_ = false;
     frameCached_ = false;
 }
 bool Viewport::ReloadTextures(std::string& reason) {
@@ -173,6 +174,7 @@ bool Viewport::ReloadTextures(std::string& reason) {
     } else if (!producer_.Load(session_.Runtime(), EditorRenderSources(assets), builtins_, reason))
         return false;
     loaded_ = assets;
+    loaded_.video = {};
     loadedAssets_ = true;
     frameCached_ = false;
     return true;
@@ -272,9 +274,12 @@ bool Viewport::Render(std::string& reason, bool hiddenAcceptance) {
         // scene. No scene history or staged effect state is committed here.
         effects_.Abandon();
         frameCached_ = false;
-        PresentError(w, h);
+        if (VideoFailure().empty() || !videoErrorPresented_)
+            PresentError(w, h);
+        videoErrorPresented_ = !VideoFailure().empty();
         return false;
     }
+    videoErrorPresented_ = false;
     const auto submissions = Submissions();
     if (!controller_.Draw(cachedFrame_)) {
         effects_.Abandon();
@@ -368,6 +373,7 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
         if (!producer_.Load(session_.Runtime(), EditorRenderSources(assets), builtins_, reason))
             return false;
         loaded_ = assets;
+        loaded_.video = {};
         loadedAssets_ = true;
         frameCached_ = false;
     }

@@ -1,4 +1,5 @@
 #include "audio_samples.hpp"
+#include "media_budget.hpp"
 #include <QBuffer>
 #include <algorithm>
 #include <array>
@@ -59,7 +60,7 @@ bool WaveDevice::seek(qint64 offset) {
     return true;
 }
 qint64 WaveDevice::readData(char* output, qint64 requested) {
-    const auto bytes = std::min({requested, size() - pos(), qint64(65536)});
+    const auto bytes = std::min({requested, size() - pos(), qint64(MediaBudget::AudioReadBytes)});
     std::string reason;
     if (bytes < 0 || !samples_.Read(origin_ + pos(), output, bytes, reason)) {
         failure_ = reason.empty() ? "wave-file-read-failed" : reason;
