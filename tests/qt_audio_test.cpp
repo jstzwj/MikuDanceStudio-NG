@@ -171,7 +171,30 @@ int main(int argc, char** argv) {
     CHECK(!session.Playing() && !sink->Running() && session.CursorSeconds() == failedCursor);
     CHECK(session.Runtime().Counters().frames == failedFrames &&
           window.LastError() == "injected-streaming-device-failure");
+    window.Tick(.25);
+    CHECK(session.Runtime().Counters().frames == failedFrames);
     sink->deviceFailed = false;
+    CHECK(session.Edit(
+        "retry-keeps-current-frame",
+        [](auto& d, auto&) {
+            d.timeline.startAtCurrent = 0;
+            d.timeline.playStartFrame = 30;
+            return true;
+        },
+        reason));
+    window.Dispatch(panel::kPlayButton);
+    CHECK(session.Playing() && session.CursorSeconds() == failedCursor);
+    sink->running = false;
+    window.Tick(.25);
+    CHECK(!session.Playing() && session.CursorSeconds() == failedCursor &&
+          window.LastError() == "audio-output-stopped-before-end");
+    CHECK(session.Edit(
+        "test-from-current",
+        [](auto& d, auto&) {
+            d.timeline.startAtCurrent = 1;
+            return true;
+        },
+        reason));
     CHECK(session.Seek(179 * 30, reason));
     CHECK(session.Edit(
         "audio-end",

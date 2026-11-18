@@ -34,7 +34,8 @@ public:
     VideoPreview();
     ~VideoPreview();
     VideoReady Request(const std::filesystem::path&, double seconds, media::VideoFrame&,
-                       std::string&, bool nativeThirtyHz = true);
+                       std::string&, bool nativeThirtyHz = true, bool supersede = true);
+    std::string Failure() const;
     void Clear();
 
 private:

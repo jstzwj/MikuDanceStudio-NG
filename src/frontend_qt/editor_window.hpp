@@ -113,6 +113,7 @@ private:
     std::vector<editor::KeyScope> scopes_;
     QString lastError_;
     AudioTransport audio_;
+    bool mediaInterrupted_ = false;
     void Layout();
     void FinishSidebarDrag();
     void BuildMenus();
@@ -158,6 +159,8 @@ private:
     void AccessoryOrder();
     QString ModelLabel(std::uint8_t) const;
     bool Result(bool, const std::string&);
+    bool StartPlaybackAudio(bool reopen, std::string&);
+    void StopForMediaFailure(const std::string&);
     bool ConfirmUnsaved();
     void CreateViewport(const rhi::BackendOptions&);
     void SetSeparateWindow(bool enabled);

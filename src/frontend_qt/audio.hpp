@@ -36,6 +36,7 @@ private:
     double start_ = 0;
     float volume_ = 1;
     bool clockActive_ = false;
+    std::string clockFailure_;
     QTimer previewTimer_;
 };
 }

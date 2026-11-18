@@ -148,9 +148,17 @@ bool Viewport::OutputLimits(QSize& output, std::string& reason) const {
     reason.clear();
     return true;
 }
+std::string Viewport::VideoFailure() const {
+    const auto request = session_.RequestVideo();
+    return request.identity == videoIdentity_ ? video_.Failure() : std::string{};
+}
+void Viewport::RetryVideo() {
+    video_.Clear();
+    frameCached_ = false;
+}
 bool Viewport::ReloadTextures(std::string& reason) {
     deviceError_.clear();
-    video_.Clear();
+    RetryVideo();
     if (session_.Document().avi.enabled)
         session_.RefreshVideo();
     const auto& assets = session_.Assets();
@@ -390,7 +398,7 @@ bool Viewport::PrepareFrame(unsigned w, unsigned h, std::string& reason) {
         }
         if (assets.video.nativeThirtyHz != request.nativeThirtyHz || !frame.Covers(time)) {
             const auto ready = video_.Request(request.path, request.seconds, frame, reason,
-                                              request.nativeThirtyHz);
+                                              request.nativeThirtyHz, !session_.Playing());
             if (ready == VideoReady::Failed)
                 return false;
             if (ready == VideoReady::Pending) {

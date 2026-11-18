@@ -25,6 +25,7 @@ struct VideoDecoder::Impl {
     AVFrame* frame = nullptr;
     SwsContext* scale = nullptr;
     media::VideoInfo info;
+    std::filesystem::path path;
     AVStream* stream = nullptr;
     std::int64_t origin = 0;
     int index = -1, turns = 0, scaledWidth = 0;
@@ -45,10 +46,18 @@ struct VideoDecoder::Impl {
         if (format)
             api.avformat_close_input(&format);
     }
-    bool Interrupted() const {
-        return (proceed && !proceed()) || std::chrono::steady_clock::now() > deadline;
+    const char* interruption = nullptr;
+    bool Interrupted() {
+        if (!interruption && proceed && !proceed())
+            interruption = "background-video-cancelled";
+        if (!interruption && std::chrono::steady_clock::now() > deadline)
+            interruption = "background-video-timeout";
+        return interruption != nullptr;
     }
     static int Interrupt(void* context) { return static_cast<Impl*>(context)->Interrupted(); }
+    bool Failed(std::string& reason, const char* fallback) {
+        return Fail(reason, Interrupted() ? interruption : fallback);
+    }
     bool Convert(media::VideoFrame& out, std::string& reason) {
         if (!Size(frame->width, frame->height) || frame->width != codec->width ||
             frame->height != codec->height)
@@ -116,7 +125,7 @@ struct VideoDecoder::Impl {
         out = {};
         for (unsigned packets = 0; packets < 100000; ++packets) {
             if (Interrupted())
-                return Fail(reason, "background-video-cancelled-or-timeout");
+                return Fail(reason, interruption);
             const auto received = api.avcodec_receive_frame(codec, frame);
             if (received == 0) {
                 const bool ok = Convert(out, reason);
@@ -135,7 +144,7 @@ struct VideoDecoder::Impl {
             do {
                 api.av_packet_unref(packet);
                 if (Interrupted())
-                    return Fail(reason, "background-video-cancelled-or-timeout");
+                    return Fail(reason, interruption);
                 read = api.av_read_frame(format, packet);
             } while (read >= 0 && packet->stream_index != index);
             if (read == AVERROR_EOF) {
@@ -143,7 +152,7 @@ struct VideoDecoder::Impl {
                 if (api.avcodec_send_packet(codec, nullptr) < 0)
                     return Fail(reason, "background-video-drain-failed");
             } else if (read < 0) {
-                return Fail(reason, "background-video-packet-read-failed");
+                return Failed(reason, "background-video-packet-read-failed");
             } else {
                 if (packet->size > 64 * 1024 * 1024)
                     return Fail(reason, "background-video-packet-limit");
@@ -168,12 +177,15 @@ bool VideoDecoder::Open(const std::filesystem::path& path, std::string& reason,
     if (!std::filesystem::is_regular_file(path, fileError))
         return Fail(reason, "background-video-file-missing");
     auto p = std::make_unique<Impl>();
+    p->path = path;
     if (!p->api.error.empty()) {
         reason = p->api.error;
         return false;
     }
     p->deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     p->proceed = proceed;
+    if (p->Interrupted())
+        return Fail(reason, p->interruption);
     p->format = p->api.avformat_alloc_context();
     if (!p->format)
         return Fail(reason, "background-video-allocation-failed");
@@ -189,7 +201,7 @@ bool VideoDecoder::Open(const std::filesystem::path& path, std::string& reason,
         p->api.avformat_open_input(&p->format, path.u8string().c_str(), nullptr, &options);
     p->api.av_dict_free(&options);
     if (opened < 0 || p->api.avformat_find_stream_info(p->format, nullptr) < 0)
-        return Fail(reason, "background-video-open-failed");
+        return p->Failed(reason, "background-video-open-failed");
     const AVCodec* decoder = nullptr;
     p->index = p->api.av_find_best_stream(p->format, AVMEDIA_TYPE_VIDEO, -1, -1, &decoder, 0);
     if (p->index < 0 || !decoder)
@@ -265,13 +277,17 @@ bool VideoDecoder::Read(double seconds, media::VideoFrame& out, const media::Vid
         ~ResetProceed() { impl.proceed = {}; }
     } reset{p};
     p.deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    p.interruption = nullptr;
     if (p.Interrupted())
-        return Fail(reason, "background-video-cancelled-or-timeout");
+        return Fail(reason, p.interruption);
     if (p.current.Covers(target)) {
         out = p.current;
         reason.clear();
         return true;
     }
+    std::error_code fileError;
+    if (!std::filesystem::is_regular_file(p.path, fileError))
+        return Fail(reason, "background-video-file-missing");
     // Sequential playback reuses two decoded frames; seek only for backwards
     // or distant movement. Decode from the keyframe, never trust seek's result.
     if (!p.current.image || target < p.current.startUs || target > p.current.endUs + 2000000) {
@@ -283,7 +299,7 @@ bool VideoDecoder::Read(double seconds, media::VideoFrame& out, const media::Vid
         const auto stamp = p.origin + p.api.av_rescale_q_rnd(seekUs, Microseconds,
                                                              p.stream->time_base, AV_ROUND_DOWN);
         if (p.api.av_seek_frame(p.format, p.index, stamp, AVSEEK_FLAG_BACKWARD) < 0)
-            return Fail(reason, "background-video-seek-failed");
+            return p.Failed(reason, "background-video-seek-failed");
         p.api.avcodec_flush_buffers(p.codec);
         p.api.av_packet_unref(p.packet);
         p.current = {};

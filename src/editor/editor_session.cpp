@@ -2366,11 +2366,12 @@ bool EditorSession::Seek(std::uint32_t frame, std::string& reason) {
     cursorSeconds_ = frame / 30.;
     return true;
 }
-bool EditorSession::Play(std::string& reason) {
+bool EditorSession::Play(std::string& reason, bool resumeAtCursor) {
     EndGesture();
     const auto settings = Document().timeline;
     playOrigin_ = std::uint32_t(settings.currentFrame);
-    if (!settings.startAtCurrent && !Seek(std::uint32_t(settings.playStartFrame), reason))
+    if (!resumeAtCursor && !settings.startAtCurrent &&
+        !Seek(std::uint32_t(settings.playStartFrame), reason))
         return false;
     auto history = FrameHistory();
     const bool globals = AppliesGlobalTracks();
@@ -2387,12 +2388,12 @@ bool EditorSession::Play(std::string& reason) {
     ++playbackEpoch_;
     return true;
 }
-void EditorSession::Pause() {
+void EditorSession::Pause(bool refreshVideo) {
     const bool stopped = playing_;
     playing_ = false;
     runtime_->Pause();
     // Native bone-box stop explicitly refreshes even a hidden loaded video.
-    if (stopped && Document().timeline.editMode == 1 && !Assets().videoPath.empty())
+    if (refreshVideo && stopped && Document().timeline.editMode == 1 && !Assets().videoPath.empty())
         RefreshVideo();
 }
 bool EditorSession::TickIdle(double delta, std::string& reason) {

@@ -43,8 +43,10 @@ bool AtomicSave(const std::filesystem::path& path, const std::vector<std::uint8_
 bool EditorWindow::Open(const std::filesystem::path& path) {
     std::string r;
     const bool ok = Result(session_.Open(path, r), r);
-    if (ok)
+    if (ok) {
+        mediaInterrupted_ = false;
         Refresh();
+    }
     return ok;
 }
 bool EditorWindow::Save(const std::filesystem::path& path) {
@@ -250,7 +252,8 @@ void EditorWindow::FileAction(const QString& id, const QString& inputPath) {
     if (id == "file.new") {
         if (ConfirmUnsaved()) {
             std::string r;
-            Result(session_.New(r), r);
+            if (Result(session_.New(r), r))
+                mediaInterrupted_ = false;
             Refresh();
         }
         return;

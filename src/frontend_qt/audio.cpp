@@ -73,6 +73,7 @@ bool AudioTransport::PreviewFrame(std::uint32_t frame, std::string& reason) {
 void AudioTransport::Stop() {
     previewTimer_.stop();
     clockActive_ = false;
+    clockFailure_.clear();
     if (output_)
         output_->Stop();
     if (buffer_)
@@ -87,7 +88,7 @@ bool AudioTransport::Running() const {
     return output_ && output_->Running();
 }
 std::string AudioTransport::Error() const {
-    return output_ ? output_->Error() : std::string{};
+    return !clockFailure_.empty() ? clockFailure_ : output_ ? output_->Error() : std::string{};
 }
 std::string AudioTransport::Diagnostic() const {
     return output_ ? output_->Diagnostic() : std::string{};
@@ -103,9 +104,19 @@ std::optional<double> AudioTransport::ClockPosition() {
     // Query completion first: the adapter may observe the final processed
     // sample while deciding that its device-latency tail has finished.
     const bool running = Running();
-    const auto position = Position();
-    if (!running)
+    auto position = Position();
+    if (!running) {
         clockActive_ = false;
+        const auto end = double(wave_->SampleFrames()) / wave_->sampleRate;
+        // Native device clocks round down to a whole microsecond.
+        if (end - position > 1.01e-6) {
+            clockFailure_ = Error();
+            if (clockFailure_.empty())
+                clockFailure_ = "audio-output-stopped-before-end";
+            return {};
+        }
+        position = end;
+    }
     return position;
 }
 }

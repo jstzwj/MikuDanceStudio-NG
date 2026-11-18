@@ -34,6 +34,8 @@ public:
     const rhi::BackendOptions& Options() const { return options_; }
     bool Reset(std::string&);
     bool ReloadTextures(std::string&);
+    std::string VideoFailure() const;
+    void RetryVideo();
     bool OutputLimits(QSize&, std::string&) const;
     unsigned AntialiasSamples() const;
     std::function<void(QPoint, Qt::MouseButtons, Qt::KeyboardModifiers)> drag;

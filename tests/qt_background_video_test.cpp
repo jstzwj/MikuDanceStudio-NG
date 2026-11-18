@@ -89,6 +89,8 @@ int main(int argc, char** argv) {
         CHECK(decoder.Read(0, frame, {}, reason) && Number(*frame.image) == 0);
     }
     CHECK(!decoder.Open(root / "missing.mp4", reason));
+    CHECK(!decoder.Open(root / "ntsc.mp4", reason, [] { return false; }));
+    CHECK(reason == "background-video-cancelled");
     CHECK(!decoder.Read(0, frame, {}, reason));
     CHECK(!decoder.Open(root / "triangle.pmx", reason));
     CHECK(decoder.Open(root / "rotated.mp4", reason));

@@ -94,16 +94,16 @@ void EditorWindow::Dispatch(int id) {
             audio_.Stop();
         } else {
             clock_.restart();
-            ok = session_.Play(r);
-            if (ok && !session_.PlaybackAudioDisabled() && session_.Document().wave.enabled &&
-                !session_.Assets().wave.empty()) {
-                if (audio_.Path() != session_.Assets().wave)
-                    ok = audio_.Load(session_.Assets().wave, r);
-                if (ok)
-                    ok = audio_.Play(session_.CursorSeconds(), r);
-                if (!ok)
-                    session_.Pause();
+            const bool retry = mediaInterrupted_;
+            if (retry)
+                viewport_->RetryVideo();
+            ok = session_.Play(r, retry);
+            if (ok && !StartPlaybackAudio(retry, r)) {
+                StopForMediaFailure(r);
+                ok = false;
             }
+            if (ok)
+                mediaInterrupted_ = false;
         }
         break;
     case kLoadModelButton:

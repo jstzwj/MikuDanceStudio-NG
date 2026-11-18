@@ -200,15 +200,15 @@ void EditorWindow::Tick(double seconds) {
     if (!idleRenderState_)
         return;
     if (session_.Playing()) {
+        const auto position = audio_.ClockPosition();
         const auto audioError = audio_.Error();
-        if (!audioError.empty()) {
-            session_.Pause();
-            audio_.Stop();
-            Result(false, audioError);
+        const auto videoError = viewport_->VideoFailure();
+        if (!audioError.empty() || !videoError.empty()) {
+            StopForMediaFailure(audioError.empty() ? videoError : audioError);
             Refresh();
             return;
         }
-        if (const auto position = audio_.ClockPosition())
+        if (position)
             seconds = std::max(0., *position - session_.CursorSeconds());
         std::string reason;
         const auto epoch = session_.PlaybackEpoch();
@@ -218,19 +218,38 @@ void EditorWindow::Tick(double seconds) {
             session_.Document().wave.enabled && !session_.Assets().wave.empty()) {
             if (session_.PlaybackAudioDisabled())
                 audio_.ReleaseClock();
-            else if (!Result(audio_.Play(session_.CursorSeconds(), reason), reason))
-                session_.Pause();
+            else if (!StartPlaybackAudio(false, reason))
+                StopForMediaFailure(reason);
         }
         Refresh();
     } else {
         std::string reason;
-        if (!session_.TickIdle(std::min(1., seconds), reason)) {
+        if (!mediaInterrupted_ && !session_.TickIdle(std::min(1., seconds), reason)) {
             // As with a failed render, retain the diagnostic without reopening
             // a modal dialog on every timer tick of a failed runtime.
             lastError_ = QString::fromUtf8(reason.c_str());
             return;
         }
         UpdateFrame();
+    }
+}
+bool EditorWindow::StartPlaybackAudio(bool reopen, std::string& reason) {
+    if (session_.PlaybackAudioDisabled() || !session_.Document().wave.enabled ||
+        session_.Assets().wave.empty())
+        return true;
+    const auto& path = session_.Assets().wave;
+    if ((reopen || audio_.Path() != path) && !audio_.Load(path, reason))
+        return false;
+    return audio_.Play(session_.CursorSeconds(), reason);
+}
+void EditorWindow::StopForMediaFailure(const std::string& reason) {
+    session_.Pause(false);
+    audio_.Stop();
+    mediaInterrupted_ = true;
+    lastError_ = QString::fromStdString(reason);
+    if (!testing_) {
+        statusBar()->showMessage(lastError_);
+        statusBar()->show();
     }
 }
 EditorWindow::~EditorWindow() {
@@ -559,7 +578,7 @@ void EditorWindow::UpdateFrame() {
             lastError_ = QString::fromStdString(reason);
             statusBar()->showMessage(lastError_);
             statusBar()->show();
-        } else if (auto* bar = findChild<QStatusBar*>()) {
+        } else if (auto* bar = findChild<QStatusBar*>(); bar && !mediaInterrupted_) {
             bar->clearMessage();
             bar->hide();
         }

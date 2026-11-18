@@ -249,8 +249,8 @@ public:
     void SetEditMode(std::int32_t mode);
     unsigned CoordinateSystem() const { return coordinateSystem_; }
     void CycleCoordinateSystem();
-    bool Play(std::string&);
-    void Pause();
+    bool Play(std::string&, bool resumeAtCursor = false);
+    void Pause(bool refreshVideo = true);
     bool Advance(double deltaSeconds, std::string&);
     // A paused display frame: update live poses/physics without moving the
     // timeline, marking the document dirty or creating history. Zero is a no-op.

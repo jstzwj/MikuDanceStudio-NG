@@ -60,10 +60,12 @@ struct VideoPreview::Impl {
                         loaded.clear();
                     }
                 }
-                if (decoder)
-                    decoder->ReadScene(
-                        request.seconds, request.nativeThirtyHz, decoded,
-                        [&] { return generation == request.generation; }, reason);
+                if (decoder && !decoder->ReadScene(
+                                   request.seconds, request.nativeThirtyHz, decoded,
+                                   [&] { return generation == request.generation; }, reason)) {
+                    decoder.reset();
+                    loaded.clear();
+                }
             } catch (const std::exception& e) {
                 decoder.reset();
                 loaded.clear();
@@ -84,6 +86,11 @@ struct VideoPreview::Impl {
 VideoPreview::VideoPreview() : impl_(std::make_unique<Impl>()) {
 }
 VideoPreview::~VideoPreview() = default;
+std::string VideoPreview::Failure() const {
+    auto& p = *impl_;
+    std::lock_guard<std::mutex> lock(p.mutex);
+    return p.error;
+}
 void VideoPreview::Clear() {
     auto& p = *impl_;
     std::lock_guard<std::mutex> lock(p.mutex);
@@ -97,8 +104,8 @@ void VideoPreview::Clear() {
     p.wake.notify_one();
 }
 VideoReady VideoPreview::Request(const std::filesystem::path& path, double seconds,
-                                 media::VideoFrame& frame, std::string& reason,
-                                 bool nativeThirtyHz) {
+                                 media::VideoFrame& frame, std::string& reason, bool nativeThirtyHz,
+                                 bool supersede) {
     auto& p = *impl_;
     std::lock_guard<std::mutex> lock(p.mutex);
     frame = {};
@@ -117,6 +124,13 @@ VideoReady VideoPreview::Request(const std::filesystem::path& path, double secon
         !p.error.empty()) {
         reason = p.error;
         return VideoReady::Failed;
+    }
+    // Playback polls more frequently than a cold decoder can open a file.
+    // Let one request finish; a paused drag can still supersede the seek.
+    if (!supersede && p.requested.path == path && p.requested.nativeThirtyHz == nativeThirtyHz &&
+        p.requested.generation != p.published.generation) {
+        reason.clear();
+        return VideoReady::Pending;
     }
     if (p.requested.path != path || p.requested.seconds != seconds ||
         p.requested.nativeThirtyHz != nativeThirtyHz) {
