@@ -117,8 +117,17 @@ Download `qualified-portable-packages` for the candidate archives and
 `platform-support.json`. The `editor-symbols-*` artifacts carry the PDB, dSYM
 or ELF debug information. Match a crash to the package SHA-256 and the symbol
 record's binary SHA-256. ELF records also carry build IDs, and the macOS
-record carries the Mach-O UUID. Companion `editor-media-*` artifacts and job
-diagnostics retain the test logs, including Android logcat.
+record carries the Mach-O UUID and source-line mapping check. Generate the
+dSYM from the original linked executable, then check its UUID against the
+deployed executable. Qt deployment may remove the linker's debug map.
+Companion `editor-media-*` artifacts and job diagnostics retain the test
+logs, including Android logcat.
+
+For a macOS-only candidate recheck after a packaging or runner failure, use
+`portable-editor.yml` with `platform=macos` and
+`macos_candidate_source=<full candidate SHA>`. Verify the replacement archive
+against its own media report and symbols before combining it with the same
+source commit's other four targets.
 
 Complete the required platform gates, update `VERSION` and
 `docs/releases/vVERSION.md`, then commit all production inputs. Review package

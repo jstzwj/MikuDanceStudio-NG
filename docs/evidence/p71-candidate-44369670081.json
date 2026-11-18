@@ -1,0 +1,343 @@
+{
+  "schema": 1,
+  "commit": "6e7e9fb9f5d64167799d58d60ae1b802ccb6b365",
+  "tag": null,
+  "targets": [
+    {
+      "target": "android-universal",
+      "archive": "MikuDanceStudio-NG-v0.0.2-android-universal.apk",
+      "sha256": "1521a3cd2c5c4e30febbf410bada13d48add3f8eb9f4745b1d4ad0200542762c",
+      "mediaArtifact": "editor-media-android-universal",
+      "symbolArtifact": "editor-symbols-android-universal",
+      "symbols": {
+        "commit": "6e7e9fb9f5d64167799d58d60ae1b802ccb6b365",
+        "arch": "universal",
+        "files": {
+          "arm64-v8a.debug": "8a2a6ed0a42151524120fb485fe1799568024764ef37be68bdf1a9bfd7a6fba4",
+          "x86_64.debug": "2462cfe08443dcab763c022280b5c24ab569f30ea8f2af77c3b526c5b7c5d62d"
+        },
+        "packageSha256": "1521a3cd2c5c4e30febbf410bada13d48add3f8eb9f4745b1d4ad0200542762c",
+        "binaries": {
+          "arm64-v8a": {
+            "buildId": "8536b4ec1fecbb1df8388c5e72230764750d8771",
+            "binarySha256": "3fc54311896a45b597ee8a0f107a4902a90e2d87494522370acd885c545493cc"
+          },
+          "x86_64": {
+            "buildId": "6d3a4b271db091fdeda2836dcbe17a98c3ecae58",
+            "binarySha256": "32be57da0290ccc2beae93ae703fb3fbc36db0214345d6941a08da298c7f06da"
+          }
+        }
+      },
+      "coverage": {
+        "verifiedCodecAbis": [
+          "arm64-v8a",
+          "x86_64"
+        ],
+        "vulkanDevices": [
+          "SwiftShader Device (Subzero)"
+        ],
+        "driver": "software",
+        "runtimeFx": false,
+        "desktopExport": "unqualified",
+        "physicalArmGpu": "unqualified"
+      }
+    },
+    {
+      "target": "linux-x64",
+      "archive": "MikuDanceStudio-NG-v0.0.2-linux-x64-portable.tar.gz",
+      "sha256": "aa9ba63358442cdf83b780bccae858d320b39a31d9dfce9c0b2d8534ffd850a0",
+      "mediaArtifact": "editor-media-linux-x64",
+      "symbolArtifact": "editor-symbols-linux-x64",
+      "symbols": {
+        "commit": "6e7e9fb9f5d64167799d58d60ae1b802ccb6b365",
+        "arch": "x64",
+        "files": {
+          "MikuDanceStudioNG.debug": "17c1f384f9d716db6a2290b722cf6234abac3246573fef6f26b3432dbbb183b0"
+        },
+        "binarySha256": "ddd688c067dee1cb6d1ebb12975070aee6e7dff6241c5656996d9f56f780560c",
+        "buildId": "3b19397fe1d5135c7637efb7a643914917d58882"
+      },
+      "coverage": {
+        "mme": "packaged material and two-pass effect",
+        "gpu": {
+          "adapter": "llvmpipe (LLVM 15.0.7, 256 bits)",
+          "backend": "vulkan",
+          "driver": "software"
+        },
+        "media": {
+          "backgroundFrames": [
+            {
+              "suffix": ".mp4",
+              "frameNumbers": [
+                0,
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            {
+              "suffix": ".pcm.mp4",
+              "frameNumbers": [
+                0,
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            }
+          ],
+          "exactPcmPulse": [
+            960,
+            1439
+          ],
+          "audioFrames": 9600,
+          "longWaveBytes": 691200044,
+          "repeatPngFrames": 6,
+          "failureRetry": true,
+          "settingsMigration": true,
+          "offscreen": true
+        },
+        "nativeAudio": {
+          "status": "passed",
+          "seconds": 120,
+          "detail": "Native silent PCM, processed clock, stop, seek/restart and EOF passed"
+        }
+      }
+    },
+    {
+      "target": "macos-arm64",
+      "archive": "MikuDanceStudio-NG-v0.0.2-macos-arm64-portable.tar.gz",
+      "sha256": "cd43a718ceed8c338cba33e0dbec9fe058c0f77ad53323e3727b3c98654c292b",
+      "mediaArtifact": "editor-media-macos-arm64",
+      "symbolArtifact": "editor-symbols-macos-arm64",
+      "symbols": {
+        "commit": "6e7e9fb9f5d64167799d58d60ae1b802ccb6b365",
+        "arch": "arm64",
+        "files": {
+          "MikuDanceStudioNG.dSYM/Contents/Info.plist": "ef801600fe5ea8c2ee788d21cc924e8ad4a74299efcc556f0f7bbf566b0a2d8c",
+          "MikuDanceStudioNG.dSYM/Contents/Resources/DWARF/MikuDanceStudioNG": "ae274a2dff5b4e8a0132863fb7a84afb909b6a7d0ee336f701d88620695db003",
+          "MikuDanceStudioNG.dSYM/Contents/Resources/Relocations/aarch64/MikuDanceStudioNG.yml": "0f8d4f39c7ae66890cae72c16619c7b87a84f2447147f3fd6ff4112d1f724c28"
+        },
+        "binarySha256": "5a0230a73c7159be68487c3c1cb1a829ad07c7b97d5c89bf0d91c64a48cf9061",
+        "uuid": "9E27C629-3F7A-39A0-B16A-5EA5A88D539D",
+        "sourceLineMappings": true
+      },
+      "coverage": {
+        "mme": "packaged material and two-pass effect",
+        "gpu": {
+          "adapter": "Apple Paravirtual device",
+          "backend": "metal",
+          "driver": "hardware"
+        },
+        "media": {
+          "backgroundFrames": [
+            {
+              "suffix": ".mp4",
+              "frameNumbers": [
+                0,
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            {
+              "suffix": ".pcm.mp4",
+              "frameNumbers": [
+                0,
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            }
+          ],
+          "exactPcmPulse": [
+            960,
+            1439
+          ],
+          "audioFrames": 9600,
+          "longWaveBytes": 691200044,
+          "repeatPngFrames": 6,
+          "failureRetry": true,
+          "settingsMigration": true,
+          "offscreen": true
+        },
+        "nativeAudio": {
+          "status": "passed",
+          "seconds": 120,
+          "detail": "Native silent PCM, processed clock, stop, seek/restart and EOF passed"
+        }
+      }
+    },
+    {
+      "target": "windows-arm64",
+      "archive": "MikuDanceStudio-NG-v0.0.2-windows-arm64-portable.zip",
+      "sha256": "2810fc20c439dd4e8b0f11f2146960b83a3af5ea6f2be6ccd796aeb72dc61942",
+      "mediaArtifact": "editor-media-windows-arm64",
+      "symbolArtifact": "editor-symbols-windows-arm64",
+      "symbols": {
+        "commit": "6e7e9fb9f5d64167799d58d60ae1b802ccb6b365",
+        "arch": "arm64",
+        "files": {
+          "MikuDanceStudioNG.pdb": "c24f9fd17abaaa936f2fe0df21540e8a2233c7c3af32e41aa3bff9567a37a9f2"
+        },
+        "binarySha256": "15a50945a6409c1ee9b0d501f80e93ca27079100b68142dd535b396b86f764c3"
+      },
+      "coverage": {
+        "mme": "packaged material and two-pass effect",
+        "gpu": {
+          "adapter": "Microsoft Basic Render Driver",
+          "backend": "dx11",
+          "driver": "software"
+        },
+        "media": {
+          "backgroundFrames": [
+            {
+              "suffix": ".mp4",
+              "frameNumbers": [
+                0,
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            {
+              "suffix": ".pcm.mp4",
+              "frameNumbers": [
+                0,
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            }
+          ],
+          "exactPcmPulse": [
+            960,
+            1439
+          ],
+          "audioFrames": 9600,
+          "longWaveBytes": 691200044,
+          "repeatPngFrames": 6,
+          "failureRetry": true,
+          "settingsMigration": true,
+          "offscreen": true
+        },
+        "nativeAudio": {
+          "status": "unavailable",
+          "seconds": 120,
+          "detail": "No native audio output device"
+        }
+      }
+    },
+    {
+      "target": "windows-x64",
+      "archive": "MikuDanceStudio-NG-v0.0.2-windows-x64-portable.zip",
+      "sha256": "794717c838e7f4cc201bb880a814f9471e09e29a090f251d4a4e3a3e1e979572",
+      "mediaArtifact": "editor-media-windows-x64",
+      "symbolArtifact": "editor-symbols-windows-x64",
+      "symbols": {
+        "commit": "6e7e9fb9f5d64167799d58d60ae1b802ccb6b365",
+        "arch": "x64",
+        "files": {
+          "MikuDanceStudioNG.pdb": "e3131aebde550e0a01a589e5bebca104fd7f24806a1276892cb49f88eef3104b"
+        },
+        "binarySha256": "15cc86fc89a70ef66e5100f6d42d862fccfd9cfa27fd9c31ee8b55e64ed50cb8"
+      },
+      "coverage": {
+        "mme": "packaged material and two-pass effect",
+        "gpu": {
+          "adapter": "Microsoft Basic Render Driver",
+          "backend": "dx11",
+          "driver": "software"
+        },
+        "media": {
+          "backgroundFrames": [
+            {
+              "suffix": ".mp4",
+              "frameNumbers": [
+                0,
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            },
+            {
+              "suffix": ".pcm.mp4",
+              "frameNumbers": [
+                0,
+                0,
+                1,
+                2,
+                3,
+                4
+              ]
+            }
+          ],
+          "exactPcmPulse": [
+            960,
+            1439
+          ],
+          "audioFrames": 9600,
+          "longWaveBytes": 691200044,
+          "repeatPngFrames": 6,
+          "failureRetry": true,
+          "settingsMigration": true,
+          "offscreen": true
+        },
+        "nativeAudio": {
+          "status": "unavailable",
+          "seconds": 120,
+          "detail": "No native audio output device"
+        }
+      }
+    }
+  ],
+  "workflowRuns": {
+    "fiveTargetMedia": 44369670081,
+    "macosSymbolsAndMediaRecheck": 44379048371,
+    "nativeArm64Focused": 44367225759
+  },
+  "windowsPdbCodeView": {
+    "x64": {
+      "guid": "481c8f80-379c-42e8-b565-7fc9ad6fa673",
+      "age": 1
+    },
+    "arm64": {
+      "guid": "04307b25-f8be-4fd9-94b2-56db82600d02",
+      "age": 1
+    }
+  },
+  "macosDwarfSections": {
+    "__debug_line": 3632462,
+    "__debug_info": 11153571
+  },
+  "windowsX64Hardware": [
+    {
+      "adapter": "NVIDIA TITAN Xp",
+      "backend": "dx11",
+      "driver": "hardware"
+    },
+    {
+      "adapter": "NVIDIA TITAN Xp",
+      "backend": "dx12",
+      "driver": "hardware"
+    },
+    {
+      "adapter": "NVIDIA TITAN Xp",
+      "backend": "vulkan",
+      "driver": "hardware"
+    }
+  ]
+}

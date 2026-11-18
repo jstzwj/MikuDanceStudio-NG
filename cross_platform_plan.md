@@ -2,7 +2,14 @@
 
 当前独立维护仓库：[MikuDanceStudio-NG](https://github.com/jstzwj/MikuDanceStudio-NG)，默认分支 `main`，由原仓库 `next@9afd91a` 保留完整历史迁入。下文初始 `main`／`next` 基线和历史验收链接均指迁移前的 MikuDanceStudio 仓库。
 
-更新时间：2026-11-18。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
+更新时间：2026-11-19。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
+
+**P7.1 五目标发行候选**。四个桌面便携包及 Android APK 已完成同源码候选验收。
+Windows ARM64 原生流式 WAV、视频定位及导出通过，音频输出端点待实机补验。Android
+通过 API 35 模拟器上的媒体交互和两种 ABI 的打包检查。候选范围、包校验值和符号对应关系
+见 [P7.1 记录](docs/releases/p7.1-candidate-qualification.md)。
+Ray／C3 已建立当前根效果的 DX9 与跨平台清单，仍需完成根效果执行、灯光及最终画面对照。
+[Ray 兼容记录](docs/RHI_MME_RAY_MATERIAL.md#c3-root-effect-baseline-2026-11-19)
 
 **P6 最新状态（2026-11-18）**。P6.1～P6.6 桌面范围已验收。新增媒体故障暂停与
 原位重试、解码和编码资源预算、版本化配置迁移、损坏备份及版本化离屏导出接口。

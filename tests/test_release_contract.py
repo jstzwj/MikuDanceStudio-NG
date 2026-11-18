@@ -5,10 +5,12 @@ import struct
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
-from release_contract import binary_arch, digest, inspect_archive, stem, verify_packages, version
+from release_contract import EXECUTABLES, binary_arch, digest, inspect_archive, stem, verify_packages, version
+from release_symbols import desktop_symbols
 
 
 class ReleaseContractTest(unittest.TestCase):
@@ -112,6 +114,36 @@ class ReleaseContractTest(unittest.TestCase):
             self.assertEqual(inspect_archive(path, 'v0.0.1', 'a' * 40)['arch'], 'universal')
             with self.assertRaises(ValueError):
                 inspect_archive(path, 'v0.0.2')
+
+    def test_macos_symbols_require_source_lines_even_with_matching_uuid(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            build, stage = root / 'build', root / 'dist'
+            linked = build / 'app'
+            binary = stage / EXECUTABLES['Darwin']
+            linked.parent.mkdir(parents=True)
+            binary.parent.mkdir(parents=True)
+            linked.write_bytes(b'linked with debug map')
+            binary.write_bytes(b'deployed without debug map')
+            (build / 'editor-symbol-binary-Release.txt').write_text(str(linked), encoding='utf-8')
+            info = dict(system='Darwin', arch='arm64', commit='a' * 40)
+            uuid = 'A43CE016-E88F-47B2-A72C-5AF4BB3814B5'
+            output = f'UUID: {uuid} (arm64)'
+            dsym = build / 'release-symbols' / 'MikuDanceStudioNG.dSYM'
+            with patch('release_symbols.command', side_effect=[output, output, output, 'empty']), \
+                    patch('release_symbols.subprocess.run') as run:
+                with self.assertRaisesRegex(ValueError, 'no source-line mappings'):
+                    desktop_symbols(build, stage, info)
+                run.assert_called_once_with(['dsymutil', str(linked), '-o', str(dsym)], check=True)
+            self.assertFalse((dsym.parent / 'symbols.json').exists())
+            with patch('release_symbols.command',
+                       side_effect=[output, output, output, '0x0000000100000040 25 0 1 is_stmt']), \
+                    patch('release_symbols.subprocess.run'):
+                desktop_symbols(build, stage, info)
+            symbols = json.loads((dsym.parent / 'symbols.json').read_text(encoding='utf-8'))
+            self.assertTrue(symbols['sourceLineMappings'])
+            self.assertEqual(symbols['uuid'], uuid)
+            self.assertEqual(symbols['binarySha256'], digest(binary))
 
 
 if __name__ == '__main__':
