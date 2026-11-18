@@ -162,7 +162,9 @@ jobs:
         run: |
           sudo apt-get install -y pulseaudio pulseaudio-utils
           pulseaudio --start --exit-idle-time=-1
-          pactl load-module module-null-sink sink_name=mds_export_silent
+          # Reuse the P4-qualified virtual-device profile. The default rewind
+          # history can hold two seconds even with a 100 ms stream buffer.
+          pactl load-module module-null-sink sink_name=mds_export_silent rate=48000 channels=2 norewinds=1
           pactl set-default-sink mds_export_silent
       - name: Native streamed audio clock (silence only)
         shell: pwsh
@@ -170,7 +172,8 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           $program = if ($IsWindows) { 'out/build/qt_native_audio_test.exe' } else { 'out/build/qt_native_audio_test' }
-          $nativeArgs = @('tests/test_native_audio.py','--test',$program,'--seconds','3','--report','out/native-stream-audio.json')
+          $nativeSeconds = if ($IsLinux) { '120' } else { '3' }
+          $nativeArgs = @('tests/test_native_audio.py','--test',$program,'--seconds',$nativeSeconds,'--report','out/native-stream-audio.json')
           if (!$IsLinux) { $nativeArgs += '--allow-unavailable' }
           python @nativeArgs
           exit $LASTEXITCODE
