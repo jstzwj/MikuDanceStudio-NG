@@ -77,6 +77,7 @@ permissions:
   contents: read
 env:
   MDS_RELEASE_MEDIA: ${{ inputs.release_tag != '' || inputs.candidate || inputs.release_media }}
+  MDS_RELEASE_SYMBOLS: ${{ (inputs.release_tag != '' || inputs.candidate) && 'ON' || 'OFF' }}
 jobs:
   format:
     if: ${{ !inputs.release_tag && !inputs.candidate && (github.event_name == 'pull_request' || github.event_name == 'push') }}
@@ -418,6 +419,21 @@ jobs:
             out/releases/MikuDanceStudio-NG-*.tar.gz
             out/releases/MikuDanceStudio-NG-*.sha256
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: env.MDS_RELEASE_SYMBOLS == 'ON'
+        with:
+          name: editor-symbols-windows-${{ matrix.arch }}
+          path: out/build/release-symbols/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: env.MDS_RELEASE_MEDIA == 'true'
+        with:
+          name: editor-media-windows-${{ matrix.arch }}
+          path: |
+            out/distribution-check.json
+            out/build/native-audio.json
+            out/build/release-media.xml
+          if-no-files-found: error
       - uses: actions/cache/save@v4
         if: always() && !cancelled() && github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
         with:
@@ -592,6 +608,20 @@ jobs:
             out/releases/MikuDanceStudio-NG-*.tar.gz
             out/releases/MikuDanceStudio-NG-*.sha256
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: env.MDS_RELEASE_SYMBOLS == 'ON'
+        with:
+          name: editor-symbols-linux-x64
+          path: out/build/release-symbols/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: env.MDS_RELEASE_MEDIA == 'true'
+        with:
+          name: editor-media-linux-x64
+          path: |
+            out/distribution-check.json
+            out/build/native-audio.json
+          if-no-files-found: error
       - uses: actions/cache/save@v4
         if: always() && !cancelled() && github.event_name != 'pull_request' && steps.objects.outputs.cache-hit != 'true'
         with:
@@ -616,14 +646,14 @@ jobs:
             out/build/native-audio*.json
             out/build/Testing/Temporary/
   macos:
-    if: ${{ !inputs.mme_only && (inputs.release_tag || github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'macos' || inputs.platform == 'linux-macos') }}
+    if: ${{ !inputs.mme_only && (inputs.release_tag || inputs.candidate || github.event_name != 'workflow_dispatch' || inputs.platform == 'all' || inputs.platform == 'macos' || inputs.platform == 'linux-macos') }}
     runs-on: ${{ inputs.macos_runner || 'macos-15' }}
     env:
       MDS_MACOS_CACHE: ${{ inputs.macos_runner == 'macos-26' && 'macos26' || 'macos15' }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag || github.ref }}
+          ref: ${{ inputs.release_tag || github.sha }}
           fetch-depth: 0
       - name: Validate tagged product version
         if: inputs.release_tag
@@ -752,6 +782,20 @@ jobs:
             out/releases/MikuDanceStudio-NG-*.zip
             out/releases/MikuDanceStudio-NG-*.tar.gz
             out/releases/MikuDanceStudio-NG-*.sha256
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: env.MDS_RELEASE_SYMBOLS == 'ON'
+        with:
+          name: editor-symbols-macos-arm64
+          path: out/build/release-symbols/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: env.MDS_RELEASE_MEDIA == 'true'
+        with:
+          name: editor-media-macos-arm64
+          path: |
+            out/distribution-check.json
+            out/build/native-audio.json
           if-no-files-found: error
       - name: Verify a native Metal package without MoltenVK
         if: ${{ success() && !inputs.ui_only }}

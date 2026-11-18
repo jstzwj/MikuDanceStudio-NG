@@ -73,6 +73,16 @@ int main(int argc, char** argv) {
     CHECK(longBytes > UINT32_MAX);
     CHECK(qt::AudioDurationMicroseconds(longFormat, longBytes) == qint64(21600) * 1000000);
     CHECK(qt::AudioDurationMicroseconds(longFormat, longBytes - 8) == 21599999979LL);
+    {
+        const float samples[]{0.f, -1.f, .75f, 1.f, -.5f};
+        const std::int16_t expected[]{-32768, 24576, 32767, -16384};
+        qt::WaveDevice output(
+            {{}, QByteArray(reinterpret_cast<const char*>(samples), sizeof samples)}, 4, true);
+        const QByteArray pcm(reinterpret_cast<const char*>(expected), sizeof expected);
+        CHECK(output.size() == pcm.size());
+        CHECK(output.read(3) == pcm.left(3) && output.readAll() == pcm.mid(3));
+        CHECK(output.seek(1) && output.read(5) == pcm.mid(1, 5));
+    }
     QTemporaryDir dir;
     CHECK(dir.isValid());
     QFile wave(dir.path() + "/clock.wav");

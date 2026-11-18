@@ -94,6 +94,32 @@ shortcut cannot publish; Release always builds and tests its own tagged APK.
 
 ## Prepare a release
 
+Run the candidate path on the commit to qualify. The run uploads four desktop
+portable archives and the development-signed Android APK. Each archive is
+checked against its test report and native symbol bundle before aggregation.
+The support report and per-target artifacts carry the full source commit and
+package hashes. Android candidate signing uses the development identity.
+
+```sh
+gh workflow run release.yml --ref main -f candidate=true
+```
+
+The candidate checks the extracted desktop executable with SDK lookup paths
+removed. It opens a one-hour WAV, decodes numbered background frames, executes
+a packaged material and two-pass MME effect, migrates settings, cancels and
+retries export, and verifies both MP4 profiles with an independent decoder.
+The PCM profile verifies the exact stereo pulse. The APK gate checks the
+architecture of the codec libraries for both ABIs and runs video seek, silent
+WAV playback, touch timeline drag and background/resume on the isolated emulator.
+Use the per-target support report for the driver and device coverage.
+
+Download `qualified-portable-packages` for the candidate archives and
+`platform-support.json`. The `editor-symbols-*` artifacts carry the PDB, dSYM
+or ELF debug information. Match a crash to the package SHA-256 and the symbol
+record's binary SHA-256. ELF records also carry build IDs, and the macOS
+record carries the Mach-O UUID. Companion `editor-media-*` artifacts and job
+diagnostics retain the test logs, including Android logcat.
+
 Complete the required platform gates, update `VERSION` and
 `docs/releases/vVERSION.md`, then commit all production inputs. Review package
 scope against [the cross-platform plan](../cross_platform_plan.md). A preview

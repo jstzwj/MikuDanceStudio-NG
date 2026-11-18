@@ -3,6 +3,7 @@
 #include <QBuffer>
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstring>
 namespace mikudancestudio::qt {
 qint64 AudioDurationMicroseconds(const QAudioFormat& format, qint64 bytes) {
@@ -46,12 +47,12 @@ bool AudioSamples::Read(qint64 offset, char* out, qint64 bytes, std::string& rea
     reason.clear();
     return true;
 }
-WaveDevice::WaveDevice(AudioSamples samples, qint64 origin)
-    : samples_(std::move(samples)), origin_(origin) {
+WaveDevice::WaveDevice(AudioSamples samples, qint64 origin, bool int16Output)
+    : samples_(std::move(samples)), origin_(origin), int16Output_(int16Output) {
     open(QIODevice::ReadOnly | QIODevice::Unbuffered);
 }
 qint64 WaveDevice::size() const {
-    return samples_.Size() - origin_;
+    return (samples_.Size() - origin_) / (int16Output_ ? 2 : 1);
 }
 bool WaveDevice::seek(qint64 offset) {
     if (offset < 0 || offset > size() || !QIODevice::seek(offset))
@@ -61,13 +62,36 @@ bool WaveDevice::seek(qint64 offset) {
 }
 qint64 WaveDevice::readData(char* output, qint64 requested) {
     const auto bytes = std::min({requested, size() - pos(), qint64(MediaBudget::AudioReadBytes)});
+    if (!bytes)
+        return 0;
     std::string reason;
-    if (bytes < 0 || !samples_.Read(origin_ + pos(), output, bytes, reason)) {
-        failure_ = reason.empty() ? "wave-file-read-failed" : reason;
-        setErrorString(QString::fromStdString(reason));
-        return -1;
+    if (bytes > 0) {
+        if (int16Output_) {
+            const auto read = ReadInt16(output, bytes, reason);
+            if (read >= 0)
+                return read;
+        } else if (samples_.Read(origin_ + pos(), output, bytes, reason)) {
+            return bytes;
+        }
     }
-    return bytes;
+    failure_ = reason.empty() ? "wave-file-read-failed" : reason;
+    setErrorString(QString::fromStdString(failure_));
+    return -1;
+}
+qint64 WaveDevice::ReadInt16(char* output, qint64 bytes, std::string& reason) {
+    std::array<float, 4096> input;
+    std::array<std::int16_t, 4096> converted;
+    const auto skip = pos() % 2;
+    const auto take = std::min(bytes, qint64(sizeof converted) - skip);
+    const auto samples = (take + skip + 1) / 2;
+    if (!samples_.Read(origin_ + (pos() / 2) * 4, reinterpret_cast<char*>(input.data()),
+                       samples * 4, reason))
+        return -1;
+    for (qint64 i = 0; i < samples; ++i)
+        converted[i] = std::int16_t(
+            std::clamp(std::lround(std::clamp(input[i], -1.f, 1.f) * 32768.f), -32768L, 32767L));
+    std::memcpy(output, reinterpret_cast<const char*>(converted.data()) + skip, std::size_t(take));
+    return take;
 }
 bool CaptureAudioSamples(QIODevice& source, AudioSamples& output, std::string& reason) {
     if (const auto* wave = dynamic_cast<const WaveDevice*>(&source))

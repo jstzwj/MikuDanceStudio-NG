@@ -147,6 +147,7 @@ int RunAndroidAcceptance(QApplication& app, EditorWindow& window, const QString&
                            {"resumed", resumed},
                            {"mediaPlayed", mediaPlayed},
                            {"mediaSought", mediaSought},
+                           {"cursorSeconds", session.CursorSeconds()},
                            {"reason", QString::fromStdString(reason)}};
         return file.write(QJsonDocument(result).toJson()) > 0;
     };
@@ -163,12 +164,22 @@ int RunAndroidAcceptance(QApplication& app, EditorWindow& window, const QString&
             first.image->pixels != again.image->pixels ||
             !session.ImportVideo(fixture / "mobile.avi", decoder.Info().width,
                                  decoder.Info().height, 160, 96, reason) ||
-            !session.ImportWave(fixture / "mobile.wav", reason)) {
+            !session.ImportWave(fixture / "mobile.wav", reason) ||
+            !session.Edit(
+                "media playback range",
+                [](auto& document, auto&) {
+                    document.timeline.playStartFrame = 0;
+                    document.timeline.playStopFrame = 90;
+                    document.timeline.startAtCurrent = 0;
+                    document.timeline.playbackLoop = 0;
+                    return true;
+                },
+                reason)) {
             save("failed", reason.empty() ? "android-media-seek-mismatch" : reason);
             return 14;
         }
+        session.SetPlaybackAudioDisabled(false);
     }
-    qint64 lastTick = 0;
     bool startedMedia = false;
     const auto stateConnection = QObject::connect(
         &app, &QGuiApplication::applicationStateChanged, [&](Qt::ApplicationState state) {
@@ -201,18 +212,18 @@ int RunAndroidAcceptance(QApplication& app, EditorWindow& window, const QString&
             return;
         if (phase == 0) {
             if (!mediaDirectory.isEmpty() && !mediaSought) {
-                const auto now = elapsed.elapsed();
                 if (!startedMedia) {
                     window.Dispatch(panel::kPlayButton);
                     startedMedia = true;
-                    lastTick = now;
                     return;
                 }
                 if (!mediaPlayed) {
-                    window.Tick(std::min(1., (now - lastTick) / 1000.));
-                    lastTick = now;
+                    // Only the device clock can advance this check.
+                    window.Tick(0);
                     if (!session.Playing() || !window.LastError().isEmpty()) {
-                        save("failed", window.LastError().toStdString());
+                        save("failed", window.LastError().isEmpty()
+                                           ? "android-media-playback-stopped"
+                                           : window.LastError().toStdString());
                         app.exit(15);
                         return;
                     }

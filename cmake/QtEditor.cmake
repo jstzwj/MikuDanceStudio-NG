@@ -114,6 +114,12 @@ function(mds_add_qt_editor)
     endif()
     include("${root}/cmake/QtTranslations.cmake")
     qt_add_executable(MikuDanceStudioNG "${root}/src/frontend_qt/main.cpp")
+    if(MSVC AND MDS_RELEASE_SYMBOLS)
+        target_link_options(MikuDanceStudioNG PRIVATE
+            "$<$<CONFIG:Release>:/DEBUG:FULL;/OPT:REF;/OPT:ICF;/INCREMENTAL:NO>")
+        file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/editor-pdb-$<CONFIG>.txt"
+            CONTENT "$<TARGET_PDB_FILE:MikuDanceStudioNG>")
+    endif()
     if(NOT ANDROID)
         target_sources(MikuDanceStudioNG PRIVATE "${root}/src/frontend_qt/export_command.cpp")
     endif()

@@ -6,16 +6,20 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing vMAJOR.MINOR.PATCH tag (never a branch)
-        required: true
+        description: Existing vMAJOR.MINOR.PATCH tag for publication
+        required: false
         type: string
+      candidate:
+        description: Qualify the selected commit and upload five candidate artifacts
+        type: boolean
+        default: false
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: release-${{ inputs.tag || github.ref_name }}
+  group: release-${{ inputs.candidate && github.sha || inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -26,21 +30,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref_name }}
+          ref: ${{ inputs.candidate && github.sha || inputs.tag || github.ref }}
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Validate immutable tag, version and release notes
+        if: "!inputs.candidate"
         id: tag
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo '::error::Provide an existing version tag, or choose candidate.'
+            exit 1
+          fi
           python scripts/release.py --tag "$RELEASE_TAG"
           test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
           test -s "docs/releases/$RELEASE_TAG.md"
           echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+      - name: Validate candidate source
+        if: inputs.candidate
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          test -z "$RELEASE_TAG"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python scripts/release.py
       - name: Require the persistent Android release signing identity
+        if: "!inputs.candidate"
         env:
           KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -58,21 +76,21 @@ jobs:
     uses: ./.github/workflows/portable-editor.yml
     with:
       release_tag: ${{ needs.validate.outputs.tag }}
+      candidate: ${{ inputs.candidate == true }}
   android:
     needs: validate
     uses: ./.github/workflows/android.yml
     with:
       release_tag: ${{ needs.validate.outputs.tag }}
+      candidate: ${{ inputs.candidate == true }}
     secrets: inherit
-  publish:
+  qualify:
     needs: [validate, desktop, android]
     runs-on: ubuntu-22.04
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.validate.outputs.tag }}
+          ref: ${{ needs.validate.outputs.tag || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -81,10 +99,44 @@ jobs:
           pattern: editor-dist-*
           merge-multiple: true
           path: packages
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: editor-media-*
+          path: evidence
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: editor-symbols-*
+          path: evidence
       - name: Reject incomplete, mislabeled or modified packages
         env:
           RELEASE_TAG: ${{ needs.validate.outputs.tag }}
-        run: python scripts/release.py --tag "$RELEASE_TAG" --packages packages
+          RELEASE_CANDIDATE: ${{ inputs.candidate == true }}
+        run: |
+          if [ "$RELEASE_CANDIDATE" = true ]; then
+            python scripts/release.py --candidate --packages packages --evidence evidence
+          else
+            python scripts/release.py --tag "$RELEASE_TAG" --packages packages --evidence evidence
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qualified-portable-packages
+          path: packages/
+          compression-level: 0
+          if-no-files-found: error
+  publish:
+    if: "!inputs.candidate"
+    needs: [validate, qualify]
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: qualified-portable-packages
+          path: packages
       - name: Publish only the tested portable packages and APK
         env:
           GH_TOKEN: ${{ github.token }}

@@ -81,6 +81,20 @@ class ReleaseContractTest(unittest.TestCase):
             self.assertEqual(len(result['packages']), 1)
             self.assertTrue((folder / 'SHA256SUMS').is_file())
 
+    def test_clean_candidate_is_distinct_from_tagged_release(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            path = self.package(folder, tag=None, development=True)
+            records = verify_packages(folder, None, 'a' * 40, targets=('windows-x64',),
+                                      candidate_version='0.0.1')['packages']
+            self.assertEqual(records[0]['archive'], path.name)
+            self.assertEqual(len(records[0]['binarySha256']), 64)
+            with self.assertRaises(ValueError):
+                verify_packages(folder, 'v0.0.1', 'a' * 40, targets=('windows-x64',))
+            with self.assertRaises(ValueError):
+                verify_packages(folder, None, 'a' * 40, targets=('windows-x64',),
+                                candidate_version='0.0.2')
+
     def test_android_universal_requires_both_native_abis(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / 'MikuDanceStudio-NG-v0.0.1-android-universal.apk'

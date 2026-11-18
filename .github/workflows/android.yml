@@ -11,7 +11,10 @@ on:
     inputs:
       release_tag:
         type: string
-        required: true
+        default: ''
+      candidate:
+        type: boolean
+        default: false
     secrets:
       ANDROID_KEYSTORE_BASE64:
         required: true
@@ -35,10 +38,12 @@ jobs:
     if: ${{ !inputs.candidate_run }}
     runs-on: ubuntu-22.04
     timeout-minutes: 50
+    env:
+      MDS_RELEASE_SYMBOLS: ${{ (inputs.release_tag != '' || inputs.candidate) && 'ON' || 'OFF' }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag || github.ref }}
+          ref: ${{ inputs.release_tag || github.sha }}
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
@@ -107,12 +112,12 @@ jobs:
           out/qt/6.8.3/android_arm64_v8a/bin/qt-cmake -S cmake/portable-editor -B out/android -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DANDROID_SDK_ROOT="$ANDROID_HOME" -DANDROID_NDK_ROOT="$ANDROID_HOME/ndk/26.1.10909125" \
-            -DQT_HOST_PATH="$PWD/out/qt/6.8.3/gcc_64" -DMDS_RELEASE_TAG="$RELEASE_TAG" \
+            -DQT_HOST_PATH="$PWD/out/qt/6.8.3/gcc_64" -DMDS_RELEASE_TAG="$RELEASE_TAG" -DMDS_RELEASE_SYMBOLS="$MDS_RELEASE_SYMBOLS" \
             -DMDS_DXC="$PWD/out/dxc/bin/dxc" -DMDS_SPIRV_VAL=/usr/bin/spirv-val \
             -DMDS_VULKAN_INCLUDE="$PWD/out/vulkan-headers/include" \
             -DMDS_EDITOR_FONT_FILE="$PWD/out/editor-fonts/NotoSansCJK-Regular.ttc" \
             '-DQT_ANDROID_ABIS=arm64-v8a;x86_64' \
-            '-DQT_ANDROID_MULTI_ABI_FORWARD_VARS=BUILD_TESTING;MDS_DXC;MDS_SPIRV_VAL;MDS_VULKAN_INCLUDE;MDS_RELEASE_TAG;MDS_EDITOR_FONT_FILE;CMAKE_SHARED_LINKER_FLAGS' \
+            '-DQT_ANDROID_MULTI_ABI_FORWARD_VARS=BUILD_TESTING;MDS_DXC;MDS_SPIRV_VAL;MDS_VULKAN_INCLUDE;MDS_RELEASE_TAG;MDS_RELEASE_SYMBOLS;MDS_EDITOR_FONT_FILE;CMAKE_SHARED_LINKER_FLAGS' \
             -DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384
           cmake --build out/android --target apk --parallel 3
           ccache --show-stats
@@ -155,6 +160,18 @@ jobs:
           apk=$(find out/android -path '*/outputs/apk/release/*-unsigned.apk' -print -quit)
           test -n "$apk"
           python tools/package_android.py --apk "$apk" --build-tools "$ANDROID_HOME/build-tools/35.0.0"
+      - name: Match native symbols to both APK libraries
+        if: env.MDS_RELEASE_SYMBOLS == 'ON'
+        run: |
+          llvm="$ANDROID_HOME/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          python tools/release_symbols.py --build out/android --apk out/releases/*-android-universal.apk \
+            --readelf "$llvm/llvm-readelf" --objcopy "$llvm/llvm-objcopy"
+      - uses: actions/upload-artifact@v4
+        if: env.MDS_RELEASE_SYMBOLS == 'ON'
+        with:
+          name: editor-symbols-android-universal
+          path: out/android/release-symbols/
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: android-candidate
@@ -178,7 +195,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag || github.ref }}
+          ref: ${{ inputs.release_tag || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -228,12 +245,20 @@ jobs:
           # The action runs each script line in a new shell; keep this one command.
           script: python tests/test_android_distribution.py --apk out/releases/*-android-universal.apk --output out/android-tests
       - uses: actions/upload-artifact@v4
-        if: success() && inputs.release_tag
+        if: success() && (inputs.release_tag || inputs.candidate)
         with:
           name: editor-dist-android-universal
           path: |
             out/releases/MikuDanceStudio-NG-*-android-universal.apk
             out/releases/MikuDanceStudio-NG-*-android-universal.apk.sha256
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: success() && (inputs.release_tag || inputs.candidate)
+        with:
+          name: editor-media-android-universal
+          path: |
+            out/android-tests/media-qualification.json
+            out/android-tests/logcat.txt
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()

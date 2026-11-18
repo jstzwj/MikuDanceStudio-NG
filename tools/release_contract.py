@@ -70,16 +70,20 @@ def inspect_archive(path, tag=None, commit=None):
                              'arm64': ['arm64-v8a'], 'x64': ['x86_64']}[info['arch']]
             if sorted(info.get('abis', [])) != sorted(expected_abis):
                 raise ValueError('APK ABI list does not describe its payload')
+            binaries = {}
             for abi in expected_abis:
                 native = f'lib/{abi}/libMikuDanceStudioNG_{abi}.so'
-                if binary_arch(archive.read(native)) != ('arm64' if abi == 'arm64-v8a' else 'x64'):
+                data = archive.read(native)
+                if binary_arch(data) != ('arm64' if abi == 'arm64-v8a' else 'x64'):
                     raise ValueError('APK native library architecture mismatch')
+                binaries[abi] = hashlib.sha256(data).hexdigest()
             if tag and (info.get('tag') != tag or tag != 'v' + info['version'] or
                         info.get('development') is not False or info.get('modified') is not False):
                 raise ValueError('APK is not an unmodified tagged release')
             if commit and info.get('commit') != commit:
                 raise ValueError('APK source commit mismatch')
-        return dict(info, archive=path.name, sha256=checksum, bytes=path.stat().st_size)
+        return dict(info, archive=path.name, sha256=checksum, bytes=path.stat().st_size,
+                    binarySha256=binaries)
     opener = zipfile.ZipFile if path.name.endswith('.zip') else tarfile.open
     with opener(path) as archive:
         zipped = isinstance(archive, zipfile.ZipFile)
@@ -107,7 +111,8 @@ def inspect_archive(path, tag=None, commit=None):
             raise ValueError(f'Archive filename does not describe its payload: {path.name}')
         if read('VERSION').decode('utf-8').strip() != version(info['version']):
             raise ValueError('Packaged VERSION and build identity disagree')
-        if binary_arch(read(EXECUTABLES[info['system']])) != info['arch']:
+        binary = read(EXECUTABLES[info['system']])
+        if binary_arch(binary) != info['arch']:
             raise ValueError('Executable architecture and build identity disagree')
         if not re.fullmatch('[0-9a-f]{40}', info.get('commit', '')):
             raise ValueError('Missing full source commit')
@@ -118,15 +123,21 @@ def inspect_archive(path, tag=None, commit=None):
                 raise ValueError('Development or modified packages cannot be released')
         if commit and info['commit'] != commit:
             raise ValueError('Package was built from a different source commit')
-    return dict(info, archive=path.name, sha256=checksum, bytes=path.stat().st_size)
+    return dict(info, archive=path.name, sha256=checksum, bytes=path.stat().st_size,
+                binarySha256=hashlib.sha256(binary).hexdigest())
 
 
-def verify_packages(folder, tag, commit, targets=RELEASE_TARGETS):
+def verify_packages(folder, tag, commit, targets=RELEASE_TARGETS, candidate_version=None):
     records = [inspect_archive(path, tag, commit) for path in sorted(folder.iterdir())
                if path.name.endswith(('.zip', '.tar.gz', '.apk'))]
     actual = [SYSTEMS[item['system']] + '-' + item['arch'] for item in records]
     if sorted(actual) != sorted(targets):
         raise ValueError(f'Release requires exactly {list(targets)}; found {actual}')
+    if candidate_version is not None:
+        for item in records:
+            if (item['version'] != candidate_version or item.get('modified') is not False
+                    or item.get('development') is not True or item.get('tag') is not None):
+                raise ValueError(f'Expected an untagged clean candidate: {item["archive"]}')
     manifest = dict(schema=1, product=PRODUCT, tag=tag, commit=commit, packages=records)
     (folder / 'release-manifest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
     (folder / 'SHA256SUMS').write_text(''.join(f'{item["sha256"]}  {item["archive"]}\n'

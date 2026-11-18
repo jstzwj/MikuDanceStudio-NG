@@ -9,6 +9,7 @@
   "qmake": "@mds_qmake@",
   "version": "@mds_product_version@",
   "release_tag": "@MDS_RELEASE_TAG@",
+  "symbols": "@MDS_RELEASE_SYMBOLS@",
   "vulkan": @mds_dist_vulkan@,
   "metal": @mds_dist_metal@,
   "dxc": "@MDS_DXC@",

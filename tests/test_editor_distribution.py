@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from release_contract import inspect_archive
 
 
-def qualify_release_media(report, fixtures, package, exe, env, root):
+def qualify_release_media(report, fixtures, exe, env, root):
     import background_video_fixture as oracle
     samples = array.array('f')
     pcm = str(report) + '.pcm.mp4'
@@ -97,6 +97,10 @@ def main():
             report = args.report or args.archive.parent / 'distribution-check.json'
             subprocess.run([sys.executable, str(Path(__file__).resolve()), '--dist', str(package),
                             '--report', str(report.resolve())] + (['--release-media'] if args.release_media else ['--background'] if args.background else ['--media'] if args.media else ['--mme'] if args.mme else []), check=True)
+            if args.release_media:
+                checked = json.loads(report.read_text(encoding='utf-8'))
+                checked.update(packageSha256=record['sha256'], archive=record['archive'])
+                report.write_text(json.dumps(checked, indent=2) + '\n', encoding='utf-8')
         print(f'Shipping archive passed: {record["archive"]} ({record["arch"]})')
         return
     dist = args.dist.resolve(strict=True)
@@ -243,9 +247,7 @@ def main():
         evidence['build'] = build
         if args.release_media:
             assert evidence['releaseMedia']
-            evidence['releaseMediaEvidence'] = qualify_release_media(report, fixtures, package, exe, env, root)
-            if args.archive:
-                raise AssertionError('Release media check must execute the relocated executable')
+            evidence['releaseMediaEvidence'] = qualify_release_media(report, fixtures, exe, env, root)
         if system == 'Darwin' and build.get('metal'):
             if not evidence.get('nativeMetal') or not (package / 'licenses/SPIRV-Cross/LICENSE').is_file():
                 raise RuntimeError('macOS package did not use native Metal with its compiler notices')

@@ -251,6 +251,20 @@ int DeploymentCheck(mikudancestudio::qt::EditorWindow& window, const QString& re
                        {"vulkan", rhi::BackendAvailable(rhi::Backend::Vulkan)},
                        {"metal", rhi::BackendAvailable(rhi::Backend::Metal)},
                        {"nativeMetal", options.backend == rhi::Backend::Metal}};
+    if (releaseCheck) {
+        const auto device = rhi::CreateOffscreenBackendDevice(testWidth, testHeight, options);
+        if (!device)
+            return fail(20, "deployment adapter: " + QString::fromStdString(device.reason));
+        const auto api = options.backend == rhi::Backend::D3D11   ? "dx11"
+                         : options.backend == rhi::Backend::D3D12 ? "dx12"
+                         : options.backend == rhi::Backend::Metal ? "metal"
+                                                                  : "vulkan";
+        result["gpu"] = QJsonObject{
+            {"backend", api},
+            {"adapter", QString::fromStdString(device.adapter)},
+            {"driver", options.driver == rhi::BackendDriver::Software ? "software" : "hardware"},
+        };
+    }
     QFile output(report);
     if (!output.open(QIODevice::WriteOnly) || output.write(QJsonDocument(result).toJson()) < 0)
         return fail(7, "deployment report write failed: " + output.errorString());

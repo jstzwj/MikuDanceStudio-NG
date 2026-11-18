@@ -17,7 +17,7 @@ struct AudioSamples {
 };
 class WaveDevice final : public QIODevice {
 public:
-    explicit WaveDevice(AudioSamples, qint64 origin = 0);
+    explicit WaveDevice(AudioSamples, qint64 origin = 0, bool int16Output = false);
     qint64 size() const override;
     bool seek(qint64) override;
     const AudioSamples& Samples() const { return samples_; }
@@ -30,6 +30,8 @@ protected:
 private:
     AudioSamples samples_;
     qint64 origin_ = 0;
+    bool int16Output_ = false;
+    qint64 ReadInt16(char*, qint64, std::string&);
     std::string failure_;
 };
 bool CaptureAudioSamples(QIODevice&, AudioSamples&, std::string&);

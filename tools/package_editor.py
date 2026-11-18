@@ -11,6 +11,7 @@ import tarfile
 import tempfile
 import zipfile
 from release_contract import PRODUCT, EXECUTABLES, binary_arch, version, stem
+from release_symbols import desktop_symbols
 
 
 def run(*args, **kwargs):
@@ -182,6 +183,8 @@ def main():
         architecture = binary_arch((stage / EXECUTABLES[config['system']]).read_bytes())
         metadata.update(schema=1, product=PRODUCT, format='portable', commit=commit, tag=tag or None,
                         arch=architecture, development=not bool(tag), modified=dirty)
+        if config.get('symbols') == 'ON':
+            desktop_symbols(build, stage, metadata)
         (stage / 'build-info.json').write_text(json.dumps(metadata, indent=2) + '\n', encoding='utf-8')
         (stage / '.mds-dist').write_text('MikuDanceStudio-NG distribution\n', encoding='utf-8')
         # Publish only a complete installation; a failed deploy retains the old dist.

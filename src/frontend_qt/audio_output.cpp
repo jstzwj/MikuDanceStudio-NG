@@ -25,10 +25,11 @@ public:
         pcm_ = pcm;
         // The output thread owns a tail cursor. Its size excludes the seek
         // prefix, preserving native short-stream prebuffer and drain behavior.
-        source_ = std::make_unique<WaveDevice>(pcm_, offset);
+        source_ = std::make_unique<WaveDevice>(pcm_, offset,
+                                               format.sampleFormat() == QAudioFormat::Int16);
         sink_ = std::make_unique<QAudioSink>(device, format);
         format_ = format;
-        duration_ = AudioDurationMicroseconds(format, pcm.Size() - offset);
+        duration_ = AudioDurationMicroseconds(format, source_->size());
         // Leave enough queued data for the platform's timer scheduling quantum.
         // The platform may round this up; the clock uses its actual padding.
         sink_->setBufferSize(format.bytesForDuration(100000));
@@ -133,7 +134,13 @@ public:
     bool Start(const QAudioFormat& format, QIODevice& source, float volume,
                std::string& reason) override {
         const auto device = QMediaDevices::defaultAudioOutput();
-        if (device.isNull() || !device.isFormatSupported(format)) {
+        auto outputFormat = format;
+#ifdef Q_OS_ANDROID
+        if (!device.isNull() && format.sampleFormat() == QAudioFormat::Float &&
+            !device.isFormatSupported(format))
+            outputFormat.setSampleFormat(QAudioFormat::Int16);
+#endif
+        if (device.isNull() || !device.isFormatSupported(outputFormat)) {
             reason = "audio-output-format-unavailable";
             return false;
         }
@@ -143,7 +150,7 @@ public:
             return false;
         const auto offset = source.pos();
         bool result = false;
-        Invoke([&] { result = engine_.Start(device, format, pcm, offset, volume, reason); });
+        Invoke([&] { result = engine_.Start(device, outputFormat, pcm, offset, volume, reason); });
         return result;
     }
     void Stop() override {
