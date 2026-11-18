@@ -31,11 +31,15 @@ struct MmeLegacySampler {
     // native anisotropy, as it does for built-in material samplers.
     unsigned maxAnisotropy = 1;
     bool anisotropicMin = false, anisotropicMag = false, anisotropicMip = false;
+    // Source inventory also retains states outside the execution profile.
+    std::map<std::string, std::string> states;
+    std::string unsupportedState;
 };
 struct MmeLegacyPass {
     std::string technique, name, vertex, pixel;
     std::map<std::string, std::string> states;
     std::map<std::string, std::string> annotations;
+    std::vector<std::string> vertexArguments, pixelArguments;
 };
 struct MmeLegacyTechnique {
     std::string name;
@@ -66,6 +70,7 @@ struct MmeLegacyProgram {
         struct Field {
             std::string type, name, semantic;
             std::string direction = "in";
+            bool uniform = false;
         };
         std::string result, name, semantic;
         std::vector<Field> parameters;

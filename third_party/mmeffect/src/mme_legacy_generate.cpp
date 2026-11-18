@@ -53,6 +53,9 @@ bool MmeLegacyGenerate(const MmeLegacyProgram& definition, MmeLegacyProgram& mod
     }
     if (definition.samplers.size() > 16)
         throw std::runtime_error("MME_shader_sampler_budget");
+    for (const auto& sampler : definition.samplers)
+        if (!sampler.unsupportedState.empty())
+            throw std::runtime_error(sampler.unsupportedState);
     if (!MmeLegacyLower(next, constants, declarations, reason))
         return false;
     modern = std::move(next);

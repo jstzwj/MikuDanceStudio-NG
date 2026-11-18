@@ -240,12 +240,23 @@ remain external.
 | Shared resource turn | `MaterialMap` selected the expected child, with the native repeat-boundary and first-draw regression passing |
 | Highest native pixel binding count | `DeferredLighting/ShadingTransparent` uses 13 bindings in slots 0–12, measured from the compiled FX9 shader |
 | Strict importer, native-expanded root | `MME_legacy_static_initializer` at `ray.fx:61`, `mSSAOScale`. The initializer depends on live controller values |
-| Cross-platform metadata import | Defaulted input parameters and integer-vector target annotations now pass parsing. The next rejection is `MME_legacy_sampler_filter` on `Gbuffer1Map`, which declares `NONE` for minification, magnification and mip filtering |
+| Cross-platform metadata import | `mds_effect_cli inspect` describes 170 parameters, 39 targets, 40 sampler declarations and 31 passes. Target names and pass declarations match the DX9 inventory in order |
+| Portable instance initialization | `MME_runtime/mSSAOScale/default_reference_or_function` on the controller-derived static initializer |
+| Shader specialization and sampler states | 23 passes carry FX9 compile arguments, beginning with `ShadowBlurX`. 18 sampler declarations have states outside the execution profile. Examples are `Gbuffer1Map` min/mag `NONE` and the black border on `BloomSamp1st` |
 
-The public parser regressions cover nested default argument expressions,
-invalid defaults and integer-vector target dimensions. The native run
-exercises the empty-scene root script and the separate material turn.
-Root lighting and final composition still require a portable execution
-comparison with live controller inputs. The next compatibility checks are
-DX9's effective minification/magnification state for `NONE` and the
-evaluation of controller-dependent static initializers in all shader targets.
+The public parser regressions cover nested default expressions, integer-vector
+target dimensions, source sampler states and arguments to compiled pass entries.
+The source inventory retains all declarations. Execution still checks sampler
+states and the 16-slot layout limit. The current inventory distinguishes the
+40 declarations across the effect from the maximum of 13 live bindings in a
+single DX9 pass.
+
+A generated DX9 fixture on NVIDIA TITAN Xp confirmed that changing an effect
+parameter from 0 to 1 changes a static `lerp(0.25, 0.75, Control)` from
+`0x404040` to `0xBFBFBF` in 8-bit RGB readback. Another generated fixture
+applied min/mag `NONE` with either point or linear state inherited. The effect
+set both states to 0 in each case. The sampled texel matched explicit point
+in that fixture. Portable execution still requires qualification of `NONE`,
+pass-local sampler allocation and compile arguments. The native root gate
+covers an empty scene and the separate material turn. Root lighting and final
+composition require a portable execution comparison with live controller inputs.

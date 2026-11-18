@@ -224,7 +224,52 @@ public:
         }
     }
     std::string Semantic() { return Eat(":") ? Upper(Name()) : ""; }
-    void DefaultArgument() {
+    static const char* ResolveSampler(MmeLegacySampler& sampler,
+                                      std::map<std::string, std::string> states) {
+        const auto filter = [&](const char* name, bool& linear, bool& anisotropic, bool mip) {
+            const auto v = states[name];
+            states.erase(name);
+            if (v == "NONE" && mip) {
+                sampler.mipNone = true;
+                linear = false;
+                return true;
+            }
+            linear = v == "LINEAR" || v == "ANISOTROPIC";
+            anisotropic = v == "ANISOTROPIC";
+            return linear || v == "POINT";
+        };
+        if (!filter("MINFILTER", sampler.linearMin, sampler.anisotropicMin, false) ||
+            !filter("MAGFILTER", sampler.linearMag, sampler.anisotropicMag, false) ||
+            !filter("MIPFILTER", sampler.linearMip, sampler.anisotropicMip, true))
+            return "sampler_filter";
+        if ((sampler.anisotropicMin || sampler.anisotropicMag || sampler.anisotropicMip) &&
+            !states.count("MAXANISOTROPY"))
+            return "sampler_anisotropy_missing";
+        if (auto it = states.find("MAXANISOTROPY"); it != states.end()) {
+            const auto& v = it->second;
+            if (v.empty() || v.size() > 2 ||
+                !std::all_of(v.begin(), v.end(), [](unsigned char c) { return std::isdigit(c); }) ||
+                std::stoul(v) < 1 || std::stoul(v) > 16)
+                return "sampler_anisotropy";
+            sampler.maxAnisotropy = unsigned(std::stoul(v));
+            states.erase(it);
+        }
+        const auto address = [&](const char* name, bool& clamp) {
+            const auto v = states[name];
+            states.erase(name);
+            clamp = v == "CLAMP";
+            return clamp || v == "WRAP";
+        };
+        if (!address("ADDRESSU", sampler.clampU) || !address("ADDRESSV", sampler.clampV))
+            return "sampler_address";
+        if (auto it = states.find("SRGBTEXTURE"); it != states.end()) {
+            if (it->second != "FALSE" && it->second != "0")
+                return "sampler_srgb";
+            states.erase(it);
+        }
+        return states.empty() ? nullptr : "sampler_state";
+    }
+    void ArgumentExpression(const char* reason) {
         const auto start = p;
         std::vector<std::string> closing;
         while (!Peek().empty() && (!closing.empty() || (Peek() != "," && Peek() != ")"))) {
@@ -237,13 +282,13 @@ public:
                 closing.emplace_back("}");
             else if (token == ")" || token == "]" || token == "}") {
                 if (closing.empty() || closing.back() != token)
-                    Fail("default_argument", p - 1);
+                    Fail(reason, p - 1);
                 closing.pop_back();
             } else if (token == ";")
-                Fail("default_argument", p - 1);
+                Fail(reason, p - 1);
         }
         if (p == start || !closing.empty())
-            Fail("default_argument");
+            Fail(reason);
     }
     std::string Initializer() {
         const auto start = p + 1;
@@ -348,6 +393,15 @@ public:
                         Fail("duplicate_state");
                     entry = Name();
                     Need("(");
+                    if (describe && Peek() != ")") {
+                        auto& arguments =
+                            state == "VERTEXSHADER" ? pass.vertexArguments : pass.pixelArguments;
+                        do {
+                            const auto start = p;
+                            ArgumentExpression("compile_argument");
+                            arguments.push_back(Join(t, start, p));
+                        } while (Eat(","));
+                    }
                     Need(")");
                     Need(";");
                 } else {
@@ -390,16 +444,17 @@ public:
             bool hasDefault = false;
             if (!Eat(")")) {
                 do {
+                    const bool uniform = describe && Eat("uniform");
                     std::string direction = "in";
                     if (Peek() == "in" || Peek() == "out" || Peek() == "inout")
                         direction = Take();
                     const auto pt = Name(), pn = Name(), semantic = Semantic();
-                    f.parameters.push_back({pt, pn, semantic, direction});
+                    f.parameters.push_back({pt, pn, semantic, direction, uniform});
                     const auto argument = p;
                     if (Eat("=")) {
                         if (direction != "in")
                             Fail("default_argument", argument);
-                        DefaultArgument();
+                        ArgumentExpression("default_argument");
                         f.signature += Join(t, signatureStart, argument) + " ";
                         signatureStart = p;
                         hasDefault = true;
@@ -509,50 +564,16 @@ public:
             Need(";");
             s.texture = states["TEXTURE"];
             states.erase("TEXTURE");
-            for (auto field : {"MINFILTER", "MAGFILTER", "MIPFILTER"}) {
-                auto v = states[field];
-                if (v != "LINEAR" && v != "POINT" && v != "ANISOTROPIC" &&
-                    !(std::string(field) == "MIPFILTER" && v == "NONE"))
-                    Fail("sampler_filter");
-                (std::string(field) == "MINFILTER"   ? s.linearMin
-                 : std::string(field) == "MAGFILTER" ? s.linearMag
-                                                     : s.linearMip) = v != "POINT" && v != "NONE";
-                (std::string(field) == "MINFILTER"   ? s.anisotropicMin
-                 : std::string(field) == "MAGFILTER" ? s.anisotropicMag
-                                                     : s.anisotropicMip) = v == "ANISOTROPIC";
-                if (std::string(field) == "MIPFILTER")
-                    s.mipNone = v == "NONE";
-                states.erase(field);
+            if (const auto* unsupported = ResolveSampler(s, states)) {
+                if (!describe)
+                    Fail(unsupported);
+                s.unsupportedState = "MME_legacy_" + std::string(unsupported);
             }
-            if ((s.anisotropicMin || s.anisotropicMag || s.anisotropicMip) &&
-                !states.count("MAXANISOTROPY"))
-                Fail("sampler_anisotropy_missing");
-            if (states.count("MAXANISOTROPY")) {
-                const auto v = states.at("MAXANISOTROPY");
-                if (v.empty() || v.size() > 2 ||
-                    !std::all_of(v.begin(), v.end(),
-                                 [](unsigned char c) { return std::isdigit(c); }) ||
-                    std::stoul(v) < 1 || std::stoul(v) > 16)
-                    Fail("sampler_anisotropy");
-                s.maxAnisotropy = unsigned(std::stoul(v));
-                states.erase("MAXANISOTROPY");
-            }
-            for (auto field : {"ADDRESSU", "ADDRESSV"}) {
-                auto v = states[field];
-                if (v != "WRAP" && v != "CLAMP")
-                    Fail("sampler_address");
-                (std::string(field) == "ADDRESSU" ? s.clampU : s.clampV) = v == "CLAMP";
-                states.erase(field);
-            }
-            if (states.count("SRGBTEXTURE")) {
-                if (states["SRGBTEXTURE"] != "FALSE" && states["SRGBTEXTURE"] != "0")
-                    Fail("sampler_srgb");
-                states.erase("SRGBTEXTURE");
-            }
-            if (!states.empty() || s.texture.empty())
+            if (s.texture.empty())
                 Fail("sampler_state");
-            result.samplers.push_back(s);
-            if (result.samplers.size() > 16)
+            s.states = std::move(states);
+            result.samplers.push_back(std::move(s));
+            if (!describe && result.samplers.size() > 16)
                 Fail("sampler_budget");
             return;
         }
@@ -784,6 +805,14 @@ bool MmeLegacyShader(const MmeLegacyProgram& program, const MmeLegacyPass& pass,
     const auto vs = program.functions.find(pass.vertex), ps = program.functions.find(pass.pixel);
     if (vs == program.functions.end() || ps == program.functions.end())
         return fail("entry_not_found");
+    if (!pass.vertexArguments.empty() || !pass.pixelArguments.empty())
+        return fail("compile_argument");
+    const auto uniform = [](const auto& function) {
+        return std::any_of(function.parameters.begin(), function.parameters.end(),
+                           [](const auto& field) { return field.uniform; });
+    };
+    if (uniform(vs->second) || uniform(ps->second))
+        return fail("shader_uniform");
     for (const auto& entry : {pass.vertex, pass.pixel}) {
         const auto overload = program.overloads.find(entry);
         if (overload != program.overloads.end() && !overload->second.empty())

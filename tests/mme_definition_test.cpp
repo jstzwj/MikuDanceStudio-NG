@@ -67,6 +67,50 @@ int main() try {
             result.textures.size() == 1 &&
             result.textures.front().annotations.at("DIMENSIONS") == "{2048,1024}",
         "preserve integer vector target annotations in the metadata inventory");
+    std::string samplers = "texture Image;";
+    for (int i = 0; i < 17; ++i)
+        samplers += "sampler S" + std::to_string(i) +
+                    "=sampler_state { Texture=<Image>; MinFilter=NONE; MagFilter=NONE; "
+                    "MipFilter=NONE; AddressU=CLAMP; AddressV=CLAMP; };";
+    Check(MmeLegacyDescribe(samplers + "technique T {}", result, reason) &&
+              result.samplers.size() == 17 &&
+              result.samplers.front().states.at("MINFILTER") == "NONE" &&
+              result.samplers.front().states.at("MAGFILTER") == "NONE" &&
+              result.samplers.front().states.at("MIPFILTER") == "NONE",
+          "metadata retains NONE and inventories more than one pass can bind");
+    std::vector<MmeLegacyConstant> layout;
+    unsigned bytes = 0;
+    Check(!MmeLegacyGenerate(result, strict, layout, bytes, reason) &&
+              reason == "MME_shader_sampler_budget",
+          "shader generation still enforces the binding limit");
+    result.samplers.resize(1);
+    Check(!MmeLegacyGenerate(result, strict, layout, bytes, reason) &&
+              reason == "MME_legacy_sampler_filter",
+          "shader generation rejects unqualified minification and magnification modes");
+    Check(MmeLegacyDescribe("texture Image; sampler S=sampler_state { Texture=<Image>; "
+                            "MinFilter=LINEAR; MagFilter=LINEAR; MipFilter=NONE; "
+                            "AddressU=BORDER; AddressV=BORDER; BorderColor=0.0; }; "
+                            "technique T {}",
+                            result, reason) &&
+              result.samplers.front().states.at("BORDERCOLOR") == "0.0" &&
+              result.samplers.front().unsupportedState == "MME_legacy_sampler_address",
+          "inventory retains bloom border color and reports execution eligibility");
+    const std::string specialized =
+        "float4 V(float4 p:POSITION):POSITION{return p;}"
+        "float4 P(float2 uv:TEXCOORD0, uniform sampler image, uniform float2 offset):COLOR0"
+        "{return tex2D(image, uv + offset);}"
+        "technique T {pass Draw{VertexShader=compile vs_3_0 V();"
+        "PixelShader=compile ps_3_0 P(ColorSampler, float2(1, 0));}}";
+    Check(MmeLegacyDescribe(specialized, result, reason) &&
+              result.functions.at("P").parameters[1].uniform &&
+              result.passes[0].pixelArguments.size() == 2 &&
+              result.passes[0].pixelArguments[1] == "float2 ( 1 , 0 ) ",
+          "retain FX9 pass specialization without treating uniform parameters as interpolants");
+    std::string hlsl;
+    std::vector<MmeLegacyInput> inputs;
+    Check(!MmeLegacyShader(result, result.passes[0], hlsl, inputs, reason) &&
+              reason == "MME_legacy_compile_argument",
+          "unspecialized shader generation is rejected");
     std::cout
         << "FX definitions: defaults, shared flags, annotations, techniques, empty passes and diagnostics passed\n";
     return 0;

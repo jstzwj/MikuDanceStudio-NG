@@ -32,6 +32,15 @@ std::string Map(const std::map<std::string, std::string>& values) {
     }
     return out + '}';
 }
+std::string Array(const std::vector<std::string>& values) {
+    std::string out = "[";
+    for (const auto& value : values) {
+        if (out.size() > 1)
+            out += ',';
+        out += Json(value);
+    }
+    return out + ']';
+}
 void Describe(std::ostream& out, const EffectDefinition& definition) {
     const auto& p = definition.metadata;
     out << ",\"scene\":" << p.scene << ",\"parameters\":[";
@@ -71,7 +80,8 @@ void Describe(std::ostream& out, const EffectDefinition& definition) {
             << ",\"anisotropicMin\":" << s.anisotropicMin
             << ",\"anisotropicMag\":" << s.anisotropicMag
             << ",\"anisotropicMip\":" << s.anisotropicMip
-            << ",\"maxAnisotropy\":" << s.maxAnisotropy << '}';
+            << ",\"maxAnisotropy\":" << s.maxAnisotropy << ",\"states\":" << Map(s.states)
+            << ",\"unsupportedState\":" << Json(s.unsupportedState) << '}';
     }
     out << "],\"techniques\":[";
     comma = false;
@@ -86,7 +96,10 @@ void Describe(std::ostream& out, const EffectDefinition& definition) {
                 out << ',';
             const auto& pass = p.passes.at(t.passes[i]);
             out << "{\"name\":" << Json(pass.name) << ",\"vertex\":" << Json(pass.vertex)
-                << ",\"pixel\":" << Json(pass.pixel) << ",\"states\":" << Map(pass.states)
+                << ",\"pixel\":" << Json(pass.pixel)
+                << ",\"vertexArguments\":" << Array(pass.vertexArguments)
+                << ",\"pixelArguments\":" << Array(pass.pixelArguments)
+                << ",\"states\":" << Map(pass.states)
                 << ",\"annotations\":" << Map(pass.annotations) << '}';
         }
         out << "]}";
