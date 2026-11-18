@@ -241,7 +241,11 @@ GPU 缓存。普通隐藏拖动不推进视频；保存不增添私有像素，�
 New 清理。原有 5 项门禁亦通过。新增独立工具检查隐藏 MP4 与 PNG 的帧数和 PSNR
 （仍要求 ≥30 dB）；本机约 40～42 dB。可选原版 x64 DX9 探针实际执行 RVA 0x67fa0，
 隐藏窗口读回帧号 5→5→20→30；完整加载器／命令顺序仍以源码核对为证，未声称
-驱动了原版文件对话框。本批跨平台门禁与便携包复验待完成。
+驱动了原版文件对话框。本批三平台四后端定向门禁与便携包复验全部通过：
+[44246943981](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/44246943981)，
+源码 `edd1458`；Windows DX11／DX12 WARP、Linux Vulkan、macOS Metal 各 5/5，
+三个便携包构建标记均为同一干净提交。证据见
+[p62-hidden-44246943981.json](evidence/p62-hidden-44246943981.json)。
 契约和可复现探针见 [生命周期记录](BACKGROUND_VIDEO_LIFECYCLE.md)。
 
 HDR、多视频流、镜像／非正交旋转、动态尺寸及任意编码器

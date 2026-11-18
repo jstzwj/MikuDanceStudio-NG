@@ -1,0 +1,489 @@
+{
+  "stage": "P6.2 hidden video lifecycle closure",
+  "accepted": true,
+  "source": "edd1458874aaa5eb0b1509da657f39ba79d13edf",
+  "run": 44246943981,
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/44246943981",
+  "platforms": [
+    {
+      "platform": "export-editor-Linux",
+      "gates": [
+        {
+          "file": "export-vulkan.xml",
+          "passed": [
+            "qt_menu",
+            "qt_background_video",
+            "qt_export",
+            "qt_mme",
+            "qt_editor_render"
+          ]
+        }
+      ],
+      "backgrounds": [
+        {
+          "stage": "P6.2",
+          "passed": true,
+          "backend": "vulkan",
+          "inputs": [
+            {
+              "file": "native.avi",
+              "frames": 40
+            },
+            {
+              "file": "ntsc.mp4",
+              "frames": 180
+            },
+            {
+              "file": "variable.mkv",
+              "frames": 13
+            },
+            {
+              "file": "with-audio.mp4",
+              "frames": 180
+            }
+          ],
+          "outputFrames": 12,
+          "frameNumbers": true,
+          "videoPsnrDb": 33.073190849708915,
+          "noBackgroundAudio": true,
+          "hiddenVideoPsnrDb": {
+            "hidden": 40.03150631136465,
+            "hidden-mme": 42.11020369539948
+          },
+          "hiddenSessionLifecycle": true,
+          "checks": [
+            "forward/backward boundary and endpoint",
+            "VFR and NTSC B frames",
+            "rotation and sample aspect ratio",
+            "latest seek generation",
+            "PMM save/reopen",
+            "material and two-pass MME",
+            "PNG and video",
+            "cancel and missing media cleanup",
+            "hidden Qt language and toggle",
+            "session frozen frame and stale publication rejection",
+            "hidden source loss and retry",
+            "hidden cold reopen at saved cursor",
+            "hidden PNG/movie snapshot and two-pass MME",
+            "mode 3 target readback, resize and device replacement",
+            "capture mode switch and explicit refresh events"
+          ]
+        }
+      ],
+      "package": {
+        "system": "Linux",
+        "qt": "6.8.3",
+        "version": "0.0.2",
+        "vulkan": true,
+        "metal": false,
+        "mme": true,
+        "schema": 1,
+        "product": "MikuDanceStudio-NG",
+        "format": "portable",
+        "commit": "edd1458874aaa5eb0b1509da657f39ba79d13edf",
+        "tag": null,
+        "arch": "x64",
+        "development": true,
+        "modified": false
+      },
+      "packagedBackground": true,
+      "packagedMedia": true
+    },
+    {
+      "platform": "export-editor-macOS",
+      "gates": [
+        {
+          "file": "export-metal.xml",
+          "passed": [
+            "qt_menu",
+            "qt_background_video",
+            "qt_export",
+            "qt_mme",
+            "qt_editor_render"
+          ]
+        }
+      ],
+      "backgrounds": [
+        {
+          "stage": "P6.2",
+          "passed": true,
+          "backend": "metal",
+          "inputs": [
+            {
+              "file": "native.avi",
+              "frames": 40
+            },
+            {
+              "file": "ntsc.mp4",
+              "frames": 180
+            },
+            {
+              "file": "variable.mkv",
+              "frames": 13
+            },
+            {
+              "file": "with-audio.mp4",
+              "frames": 180
+            }
+          ],
+          "outputFrames": 12,
+          "frameNumbers": true,
+          "videoPsnrDb": 33.60213749737282,
+          "noBackgroundAudio": true,
+          "hiddenVideoPsnrDb": {
+            "hidden": 40.180355545044705,
+            "hidden-mme": 42.11020369539948
+          },
+          "hiddenSessionLifecycle": true,
+          "checks": [
+            "forward/backward boundary and endpoint",
+            "VFR and NTSC B frames",
+            "rotation and sample aspect ratio",
+            "latest seek generation",
+            "PMM save/reopen",
+            "material and two-pass MME",
+            "PNG and video",
+            "cancel and missing media cleanup",
+            "hidden Qt language and toggle",
+            "session frozen frame and stale publication rejection",
+            "hidden source loss and retry",
+            "hidden cold reopen at saved cursor",
+            "hidden PNG/movie snapshot and two-pass MME",
+            "mode 3 target readback, resize and device replacement",
+            "capture mode switch and explicit refresh events"
+          ]
+        }
+      ],
+      "package": {
+        "system": "Darwin",
+        "qt": "6.8.3",
+        "version": "0.0.2",
+        "vulkan": false,
+        "metal": true,
+        "mme": true,
+        "schema": 1,
+        "product": "MikuDanceStudio-NG",
+        "format": "portable",
+        "commit": "edd1458874aaa5eb0b1509da657f39ba79d13edf",
+        "tag": null,
+        "arch": "arm64",
+        "development": true,
+        "modified": false
+      },
+      "packagedBackground": true,
+      "packagedMedia": true
+    },
+    {
+      "platform": "export-editor-Windows",
+      "gates": [
+        {
+          "file": "export-d3d11.xml",
+          "passed": [
+            "qt_menu",
+            "qt_background_video",
+            "qt_export",
+            "qt_mme",
+            "qt_editor_render"
+          ]
+        },
+        {
+          "file": "export-d3d12.xml",
+          "passed": [
+            "qt_menu",
+            "qt_background_video",
+            "qt_export",
+            "qt_mme",
+            "qt_editor_render"
+          ]
+        }
+      ],
+      "backgrounds": [
+        {
+          "stage": "P6.2",
+          "passed": true,
+          "backend": "d3d11",
+          "inputs": [
+            {
+              "file": "native.avi",
+              "frames": 40
+            },
+            {
+              "file": "ntsc.mp4",
+              "frames": 180
+            },
+            {
+              "file": "variable.mkv",
+              "frames": 13
+            },
+            {
+              "file": "with-audio.mp4",
+              "frames": 180
+            }
+          ],
+          "outputFrames": 12,
+          "frameNumbers": true,
+          "videoPsnrDb": 33.10210604969042,
+          "noBackgroundAudio": true,
+          "hiddenVideoPsnrDb": {
+            "hidden": 40.263452630177895,
+            "hidden-mme": 42.11020369539948
+          },
+          "hiddenSessionLifecycle": true,
+          "checks": [
+            "forward/backward boundary and endpoint",
+            "VFR and NTSC B frames",
+            "rotation and sample aspect ratio",
+            "latest seek generation",
+            "PMM save/reopen",
+            "material and two-pass MME",
+            "PNG and video",
+            "cancel and missing media cleanup",
+            "hidden Qt language and toggle",
+            "session frozen frame and stale publication rejection",
+            "hidden source loss and retry",
+            "hidden cold reopen at saved cursor",
+            "hidden PNG/movie snapshot and two-pass MME",
+            "mode 3 target readback, resize and device replacement",
+            "capture mode switch and explicit refresh events"
+          ]
+        },
+        {
+          "stage": "P6.2",
+          "passed": true,
+          "backend": "d3d12",
+          "inputs": [
+            {
+              "file": "native.avi",
+              "frames": 40
+            },
+            {
+              "file": "ntsc.mp4",
+              "frames": 180
+            },
+            {
+              "file": "variable.mkv",
+              "frames": 13
+            },
+            {
+              "file": "with-audio.mp4",
+              "frames": 180
+            }
+          ],
+          "outputFrames": 12,
+          "frameNumbers": true,
+          "videoPsnrDb": 33.10210604969042,
+          "noBackgroundAudio": true,
+          "hiddenVideoPsnrDb": {
+            "hidden": 40.263452630177895,
+            "hidden-mme": 42.11020369539948
+          },
+          "hiddenSessionLifecycle": true,
+          "checks": [
+            "forward/backward boundary and endpoint",
+            "VFR and NTSC B frames",
+            "rotation and sample aspect ratio",
+            "latest seek generation",
+            "PMM save/reopen",
+            "material and two-pass MME",
+            "PNG and video",
+            "cancel and missing media cleanup",
+            "hidden Qt language and toggle",
+            "session frozen frame and stale publication rejection",
+            "hidden source loss and retry",
+            "hidden cold reopen at saved cursor",
+            "hidden PNG/movie snapshot and two-pass MME",
+            "mode 3 target readback, resize and device replacement",
+            "capture mode switch and explicit refresh events"
+          ]
+        }
+      ],
+      "package": {
+        "system": "Windows",
+        "qt": "6.8.3",
+        "version": "0.0.2",
+        "vulkan": false,
+        "metal": false,
+        "mme": true,
+        "schema": 1,
+        "product": "MikuDanceStudio-NG",
+        "format": "portable",
+        "commit": "edd1458874aaa5eb0b1509da657f39ba79d13edf",
+        "tag": null,
+        "arch": "x64",
+        "development": true,
+        "modified": false
+      },
+      "packagedBackground": true,
+      "packagedMedia": true
+    }
+  ],
+  "local": [
+    {
+      "stage": "P6.2",
+      "passed": true,
+      "backend": "d3d11",
+      "inputs": [
+        {
+          "file": "native.avi",
+          "frames": 40
+        },
+        {
+          "file": "ntsc.mp4",
+          "frames": 180
+        },
+        {
+          "file": "variable.mkv",
+          "frames": 13
+        },
+        {
+          "file": "with-audio.mp4",
+          "frames": 180
+        }
+      ],
+      "outputFrames": 12,
+      "frameNumbers": true,
+      "videoPsnrDb": 33.10551965800983,
+      "noBackgroundAudio": true,
+      "hiddenVideoPsnrDb": {
+        "hidden": 40.238692496740704,
+        "hidden-mme": 42.11020369539948
+      },
+      "hiddenSessionLifecycle": true,
+      "checks": [
+        "forward/backward boundary and endpoint",
+        "VFR and NTSC B frames",
+        "rotation and sample aspect ratio",
+        "latest seek generation",
+        "PMM save/reopen",
+        "material and two-pass MME",
+        "PNG and video",
+        "cancel and missing media cleanup",
+        "hidden Qt language and toggle",
+        "session frozen frame and stale publication rejection",
+        "hidden source loss and retry",
+        "hidden cold reopen at saved cursor",
+        "hidden PNG/movie snapshot and two-pass MME",
+        "mode 3 target readback, resize and device replacement",
+        "capture mode switch and explicit refresh events"
+      ]
+    },
+    {
+      "stage": "P6.2",
+      "passed": true,
+      "backend": "d3d12",
+      "inputs": [
+        {
+          "file": "native.avi",
+          "frames": 40
+        },
+        {
+          "file": "ntsc.mp4",
+          "frames": 180
+        },
+        {
+          "file": "variable.mkv",
+          "frames": 13
+        },
+        {
+          "file": "with-audio.mp4",
+          "frames": 180
+        }
+      ],
+      "outputFrames": 12,
+      "frameNumbers": true,
+      "videoPsnrDb": 33.10551965800983,
+      "noBackgroundAudio": true,
+      "hiddenVideoPsnrDb": {
+        "hidden": 40.238692496740704,
+        "hidden-mme": 42.11020369539948
+      },
+      "hiddenSessionLifecycle": true,
+      "checks": [
+        "forward/backward boundary and endpoint",
+        "VFR and NTSC B frames",
+        "rotation and sample aspect ratio",
+        "latest seek generation",
+        "PMM save/reopen",
+        "material and two-pass MME",
+        "PNG and video",
+        "cancel and missing media cleanup",
+        "hidden Qt language and toggle",
+        "session frozen frame and stale publication rejection",
+        "hidden source loss and retry",
+        "hidden cold reopen at saved cursor",
+        "hidden PNG/movie snapshot and two-pass MME",
+        "mode 3 target readback, resize and device replacement",
+        "capture mode switch and explicit refresh events"
+      ]
+    },
+    {
+      "stage": "P6.2",
+      "passed": true,
+      "backend": "vulkan",
+      "inputs": [
+        {
+          "file": "native.avi",
+          "frames": 40
+        },
+        {
+          "file": "ntsc.mp4",
+          "frames": 180
+        },
+        {
+          "file": "variable.mkv",
+          "frames": 13
+        },
+        {
+          "file": "with-audio.mp4",
+          "frames": 180
+        }
+      ],
+      "outputFrames": 12,
+      "frameNumbers": true,
+      "videoPsnrDb": 33.05619319623774,
+      "noBackgroundAudio": true,
+      "hiddenVideoPsnrDb": {
+        "hidden": 40.23313232847329,
+        "hidden-mme": 42.11020369539948
+      },
+      "hiddenSessionLifecycle": true,
+      "checks": [
+        "forward/backward boundary and endpoint",
+        "VFR and NTSC B frames",
+        "rotation and sample aspect ratio",
+        "latest seek generation",
+        "PMM save/reopen",
+        "material and two-pass MME",
+        "PNG and video",
+        "cancel and missing media cleanup",
+        "hidden Qt language and toggle",
+        "session frozen frame and stale publication rejection",
+        "hidden source loss and retry",
+        "hidden cold reopen at saved cursor",
+        "hidden PNG/movie snapshot and two-pass MME",
+        "mode 3 target readback, resize and device replacement",
+        "capture mode switch and explicit refresh events"
+      ]
+    }
+  ],
+  "nativeDx9": {
+    "reference": "MikuMikuDanceE_v932x64",
+    "refreshRva": "0x67fa0",
+    "hiddenWindow": true,
+    "nullref": false,
+    "samples": [
+      5,
+      5,
+      20,
+      30
+    ],
+    "passed": true,
+    "referenceSha256": "07516fd3bf1e6b1339836b6773a156f61bdd6f848eeb621fdda012375df313a1"
+  },
+  "limits": [
+    "PMM does not serialize a frozen frame: cold reopen freezes at the saved cursor",
+    "Source traces qualify full loader/command ordering; native probe executes refresh and real DX9 readback",
+    "Native still-image mode 3 and bone-box stop refresh explicitly",
+    "Current desktop SDR codec and MME subset; not full original multimedia/Ray/mobile qualification"
+  ]
+}

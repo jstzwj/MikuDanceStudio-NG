@@ -16,7 +16,8 @@ Linux Vulkan、macOS Metal 各五项定向门禁与便携包通过，本机硬�
 原有严格比较保留。契约、独立工具修复和各平台实际提交见 [P6.2 记录](docs/CROSS_PLATFORM_P6.md#p62背景视频解码定位与共享-rhi-合成)
 与[证据](docs/evidence/p62-background-43838076911.json)。隐藏视频跨项目重开／导出的
 冻结帧与屏幕捕获模式 3 组合已补齐，本机 DX11／DX12／Vulkan 和原版 DX9 隐藏读回通过；
-本批 Metal 与跨平台便携包复验待完成。详见[生命周期](docs/BACKGROUND_VIDEO_LIFECYCLE.md)。
+本批三平台四后端定向门禁及便携包复验全部通过（[证据](docs/evidence/p62-hidden-44246943981.json)）。
+详见[生命周期](docs/BACKGROUND_VIDEO_LIFECYCLE.md)。下一批 P6.3 为长时间媒体同步与流式 WAV。
 不将当前明确的 SDR 子集称为全部原版媒体兼容。
 完整 P6／P7 及 Windows ARM64／Android 媒体／MME 组合均未据此验收。
 
