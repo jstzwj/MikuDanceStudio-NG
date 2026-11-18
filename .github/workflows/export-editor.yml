@@ -6,7 +6,7 @@ on:
         type: choice
         options: [all, windows-2022, ubuntu-22.04, macos-15]
         default: all
-        description: Qualify scene-time background video and offline MME exports; rerun only affected platforms
+        description: Qualify background video, streamed WAV and offline MME exports; rerun only affected platforms
 concurrency:
   group: export-editor-${{ github.ref }}
   cancel-in-progress: false
@@ -147,7 +147,32 @@ jobs:
           if ($IsLinux) { $configure += "-DMDS_VULKAN_INCLUDE=$PWD/out/vulkan-headers/include" }
           cmake @configure
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cmake --build out/build --target qt_background_video_test qt_export_test qt_mme_test qt_editor_render_test qt_menu_test MikuDanceStudioNG --parallel 3
+          cmake --build out/build --target wave_format_test wave_stream_test qt_audio_test qt_native_audio_test qt_background_video_test qt_export_test qt_mme_test qt_editor_render_test qt_menu_test MikuDanceStudioNG --parallel 3
+          exit $LASTEXITCODE
+      - name: Streamed WAV memory, long clocks and parser gates
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ctest --test-dir out/build -R '^(wave_format|wave_stream|qt_audio)$' --no-tests=error --verbose --output-junit stream.xml
+          exit $LASTEXITCODE
+      - name: Linux silent audio sink
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get install -y pulseaudio pulseaudio-utils
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=mds_export_silent
+          pactl set-default-sink mds_export_silent
+      - name: Native streamed audio clock (silence only)
+        shell: pwsh
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $program = if ($IsWindows) { 'out/build/qt_native_audio_test.exe' } else { 'out/build/qt_native_audio_test' }
+          $nativeArgs = @('tests/test_native_audio.py','--test',$program,'--seconds','3','--report','out/native-stream-audio.json')
+          if (!$IsLinux) { $nativeArgs += '--allow-unavailable' }
+          python @nativeArgs
           exit $LASTEXITCODE
       - name: Decode exports and execute retained strict gates offscreen
         shell: pwsh
@@ -179,6 +204,8 @@ jobs:
           name: export-editor-${{ runner.os }}
           path: |
             out/build/export-*.xml
+            out/build/stream.xml
+            out/native-stream-audio.json
             out/build/Testing/Temporary/
             out/media-distribution.*
             out/export-*/report.json

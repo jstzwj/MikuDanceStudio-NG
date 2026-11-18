@@ -312,6 +312,46 @@ int main(int argc, char** argv) {
     session.SetPlaybackAudioDisabled(true);
     CHECK(session.New(reason) && session.PlaybackAudioDisabled());
     CHECK(session.FrameAudioPreview());
+    // A deterministic consumer advances six project hours without allocating
+    // six hours of decoded PCM. This tests the real transport/file cursor,
+    // independent of a physical audio device or the UI event loop.
+    {
+        QFile file(dir.path() + "/six-hours.wav");
+        CHECK(file.open(QIODevice::WriteOnly));
+        constexpr quint32 count = 8000u * 21600;
+        QDataStream header(&file);
+        header.setByteOrder(QDataStream::LittleEndian);
+        header.writeRawData("RIFF", 4);
+        header << quint32(36 + count);
+        header.writeRawData("WAVEfmt ", 8);
+        header << quint32(16) << quint16(1) << quint16(1) << quint32(8000) << quint32(8000)
+               << quint16(1) << quint16(8);
+        header.writeRawData("data", 4);
+        header << count;
+        const QByteArray silence(65536, char(128));
+        for (quint32 left = count; left;) {
+            const auto n = std::min(left, quint32(silence.size()));
+            CHECK(file.write(silence.constData(), n) == n);
+            left -= n;
+        }
+        file.close();
+        auto output = std::make_unique<ConsumingOutput>();
+        auto* consumer = output.get();
+        qt::AudioTransport transport(std::move(output));
+        CHECK(transport.Load(qt::Path(file.fileName()), reason));
+        CHECK(transport.Play(0, reason));
+        for (unsigned n = 1; n <= 21600; ++n) {
+            consumer->Advance(1000000);
+            CHECK(std::abs(transport.Position() - n) < 1e-9);
+        }
+        CHECK(!consumer->Running() && transport.ClockPosition() == 21600.);
+        CHECK(!transport.ClockPosition());
+        CHECK(transport.Play(10800.125, reason));
+        CHECK(consumer->offset == qint64(86401000) * 4);
+        const auto data = consumer->source->read(7); // unaligned device request
+        CHECK(data == QByteArray(7, char(0)));
+        transport.Stop();
+    }
     std::cout
         << "Silent audio transport: PCM offsets, 120s clock/jitter, loop, seek, stop and output failure passed\n";
 }

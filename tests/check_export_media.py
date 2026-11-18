@@ -161,6 +161,8 @@ def main():
         report = dict(schema=1, backend=env.get('MDS_GPU_BACKEND', 'default'), passed=True, media=results,
                       sceneFrames=3, materialAndTwoPassMme=True, scenePsnrDb=scene_quality,
                       rawMmd30HzRegression='separate qt_mme strict gate',
+                      streamedWave=dict(projectStartSeconds=3601, sourceSeconds=3720.5,
+                                        old64MiBCapExceeded=True, pcmClip='clock-pcm-ntsc.mp4'),
                       ffmpegOracle=run('ffmpeg', '-version').decode().splitlines()[0])
         (output/'report.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
         print(json.dumps(report))

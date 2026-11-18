@@ -83,12 +83,63 @@ int main(int argc, char** argv) {
                 wave.samples[n * 2 + 1] = -.5f;
             }
         }
+        // Exercise the actual file-backed source beyond the old 64 MiB cap
+        // and at a one-hour project offset, retaining the 120s pulse oracle.
+        std::shared_ptr<const format::WaveSource> streamed;
+        if (clip == 3) {
+            settings.first = 108030;
+            settings.last = settings.first + 3599;
+            CHECK(render::MakeExportTimeline(settings, timeline, reason));
+            const auto wav = root / "long-export.wav";
+            constexpr std::uint64_t frames = 48000ull * 3720 + 24000;
+            std::ofstream out(wav, std::ios::binary);
+            const auto u32 = [&](std::uint32_t n) {
+                for (unsigned c = 0; c < 4; ++c)
+                    out.put(char(n >> (c * 8)));
+            };
+            out.write("RIFF", 4);
+            u32(unsigned(36 + frames * 4));
+            out.write("WAVEfmt ", 8);
+            u32(16);
+            out.put(1);
+            out.put(0);
+            out.put(2);
+            out.put(0);
+            u32(48000);
+            u32(192000);
+            out.put(4);
+            out.put(0);
+            out.put(16);
+            out.put(0);
+            out.write("data", 4);
+            u32(unsigned(frames * 4));
+            std::array<char, 65536> silence{};
+            for (auto left = frames * 4; left;) {
+                const auto bytes = std::min<std::uint64_t>(left, silence.size());
+                out.write(silence.data(), std::streamsize(bytes));
+                left -= bytes;
+            }
+            for (auto offset : {48000ull * 3601 + 12000, 48000ull * 3720 + 12000}) {
+                out.seekp(std::streamoff(44 + offset * 4));
+                for (unsigned n = 0; n < 480; ++n) {
+                    out.put(0);
+                    out.put(0x60);
+                    out.put(0);
+                    out.put(char(0xc0));
+                }
+            }
+            CHECK(out);
+            out.close();
+            CHECK(format::OpenWaveFile(wav, streamed, reason));
+        }
         qt::VideoEncoder encoder;
         const auto target = directory / (clip == 2                          ? "clock-ntsc.mp4"
                                          : clip == 3                        ? "clock-pcm-ntsc.mp4"
                                          : profile == qt::VideoProfile::Mp4 ? "clock.mp4"
                                                                             : "clock-pcm.mp4");
-        CHECK(encoder.Open(target, timeline, profile, &wave, [] { return true; }, reason));
+        CHECK(encoder.Open(
+            target, timeline, profile, streamed ? streamed.get() : &wave, [] { return true; },
+            reason));
         for (unsigned n = 0; n < timeline.frames; ++n) {
             render::ExportFrame frame{n, timeline.TimestampUs(n), timeline.TimestampUs(n + 1), {}};
             frame.rgba.resize(160 * 96 * 4);
@@ -108,6 +159,8 @@ int main(int argc, char** argv) {
         CHECK(encoder.Finish(reason));
         CHECK(std::filesystem::file_size(target) > 1024);
     }
+    settings.first = 30;
+    settings.last = 3629;
     rhi::BackendOptions options;
     const auto api = qEnvironmentVariable("MDS_GPU_BACKEND");
     options.backend = api == "d3d12"    ? rhi::Backend::D3D12
@@ -163,7 +216,40 @@ int main(int argc, char** argv) {
     broken.assets.wave = root / "missing.wav";
     CHECK(!qt::ExportMovie(broken, argv[2], options, directory / "missing-wave.mp4", settings,
                            qt::VideoProfile::Mp4, true, {}, reason));
-    CHECK(reason == "export-wave-read-or-size-failed");
+    CHECK(reason == "wave-file-read-failed");
+    {
+        // Metadata is intentionally cheap to open. A damaged float sample is
+        // rejected when consumed, and must still clean the staged movie.
+        const auto invalid = root / "invalid-float.wav";
+        std::ofstream file(invalid, std::ios::binary);
+        const auto u32 = [&](std::uint32_t n) {
+            for (unsigned c = 0; c < 4; ++c)
+                file.put(char(n >> (c * 8)));
+        };
+        file.write("RIFF", 4);
+        u32(40);
+        file.write("WAVEfmt ", 8);
+        u32(16);
+        file.put(3);
+        file.put(0);
+        file.put(1);
+        file.put(0);
+        u32(48000);
+        u32(192000);
+        file.put(4);
+        file.put(0);
+        file.put(32);
+        file.put(0);
+        file.write("data", 4);
+        u32(4);
+        u32(0x7fc00000);
+        file.close();
+        broken.assets.wave = invalid;
+        CHECK(!qt::ExportMovie(broken, argv[2], options, directory / "invalid-float.mp4", settings,
+                               qt::VideoProfile::Mp4, true, {}, reason));
+        CHECK(reason == "nonfinite-wave-sample" &&
+              !std::filesystem::exists(directory / "invalid-float.mp4"));
+    }
     {
         std::ofstream file(root / "effects/broken.fx");
         file << "not an effect";
