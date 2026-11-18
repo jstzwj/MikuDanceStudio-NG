@@ -17,6 +17,8 @@
 using namespace mikudancestudio;
 bool TestHiddenVideo(const std::filesystem::path&, const std::filesystem::path&,
                      const rhi::BackendOptions&);
+bool TestMediaRecovery(const std::filesystem::path&, const std::filesystem::path&,
+                       const rhi::BackendOptions&, const render::ExportSnapshot&);
 std::string reason;
 #define CHECK(x)                                                                                   \
     do {                                                                                           \
@@ -265,15 +267,6 @@ int main(int argc, char** argv) {
             if (n == 4)
                 CHECK(renderer.Rebind(*replacement.device));
         }
-        const auto live = renderer.Stats();
-        CHECK(live.residentTargets > 0 && live.residentResources > 0);
-        CHECK(renderer.Unload(1) && renderer.Detach());
-        const auto released = renderer.Stats();
-        CHECK(released.residentTargets == 0 && released.residentResources == 0 &&
-              released.retiringResources == 0 && released.pooledBuffers == 0);
-        std::cout << "Video GPU resources before unload: " << live.residentResources
-                  << ", targets: " << live.residentTargets
-                  << ", retired peak: " << live.peakRetiringResources << std::endl;
         // A screen.bmp consumer reads the same initialized AVI target this
         // frame; its sampled attachment precedes geometry and never feeds back.
         CHECK(session.ImportAccessory(root / "screen.x", reason));
@@ -297,8 +290,15 @@ int main(int argc, char** argv) {
         rhi::PreparedModelFrame gpu;
         rhi::CompletionToken token;
         CHECK(renderer.Prepare(1, captured, gpu) && renderer.Submit(gpu, token));
-        CHECK(renderer.Unload(1) && renderer.Collect());
-        CHECK(renderer.Stats().residentResources == 0);
+        const auto live = renderer.Stats();
+        CHECK(live.residentTargets > 0 && live.residentResources > 0);
+        CHECK(renderer.Unload(1) && renderer.Detach());
+        const auto released = renderer.Stats();
+        CHECK(released.residentTargets == 0 && released.residentResources == 0 &&
+              released.retiringResources == 0 && released.pooledBuffers == 0);
+        std::cout << "Video GPU resources before unload: " << live.residentResources
+                  << ", targets: " << live.residentTargets
+                  << ", retired peak: " << live.peakRetiringResources << std::endl;
         CHECK(session.UnloadAccessory(0, reason));
         CHECK(session.Edit(
             "capture off",
@@ -347,6 +347,7 @@ int main(int argc, char** argv) {
     spec.last = 5;
     CHECK(qt::ExportImages(snapshot, argv[2], options, root / "mme-sequence", spec, {}, reason));
     CHECK(Number(QImage(qt::Path(root / "mme-sequence/frame_00000005.png"))) == 4);
+    CHECK(TestMediaRecovery(root, argv[2], options, snapshot));
     spec.rateNumerator = 60;
     CHECK(qt::ExportImages(snapshot, argv[2], options, root / "mme-60", spec, {}, reason));
     spec.alpha = render::ExportAlpha::Opaque;

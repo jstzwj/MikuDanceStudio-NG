@@ -409,6 +409,7 @@ function(mds_add_qt_editor)
         qt_add_executable(qt_editor_render_test "${root}/tests/qt_editor_render_test.cpp")
         qt_add_executable(qt_mme_test "${root}/tests/qt_mme_test.cpp")
         qt_add_executable(qt_background_video_test "${root}/tests/qt_background_video_test.cpp"
+            "${root}/tests/qt_media_recovery_test.cpp"
             "${root}/tests/qt_hidden_video_test.cpp")
         target_link_libraries(qt_background_video_test PRIVATE mikudancestudio_frontend_qt)
         target_compile_definitions(qt_background_video_test PRIVATE MDS_EDITOR_EFFECTS_DIR="${root}/assets/effects/editor")
