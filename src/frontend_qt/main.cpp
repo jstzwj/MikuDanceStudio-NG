@@ -3,6 +3,7 @@
 #include "video_encoder.hpp"
 #include "editor_style.hpp"
 #include "editor_font.hpp"
+#include "export_command.hpp"
 #include <QApplication>
 #include <QIcon>
 #include <QProxyStyle>
@@ -20,6 +21,7 @@
 #include "mikudancestudio/shader_compiler.hpp"
 #include <cstdio>
 #include <iostream>
+#include <string_view>
 #ifdef __ANDROID__
 #include "android_files.hpp"
 #include "android_input.hpp"
@@ -208,6 +210,19 @@ int main(int argc, char** argv) {
 #ifdef __APPLE__
     qInstallMessageHandler(AppleMessageHandler);
 #endif
+#ifndef __ANDROID__
+    if (argc >= 2 && std::string_view(argv[1]) == "--export-job") {
+        if (argc != 3)
+            return 2;
+        qputenv("QT_QPA_PLATFORM", "offscreen");
+        QApplication commandApp(argc, argv);
+        const QDir executable(QCoreApplication::applicationDirPath());
+        const auto bundled = executable.filePath("../Resources/assets");
+        const auto assets = QFileInfo(bundled).isDir() ? bundled : executable.filePath("assets");
+        return mikudancestudio::qt::RunExportCommand(commandApp.arguments().at(2),
+                                                     mikudancestudio::qt::Path(assets));
+    }
+#endif
     QApplication app(argc, argv);
 #ifdef __ANDROID__
     mikudancestudio::qt::InstallAndroidInput();
@@ -220,6 +235,10 @@ int main(int argc, char** argv) {
     QCommandLineParser parser;
     parser.addHelpOption();
     parser.addVersionOption();
+#ifndef __ANDROID__
+    parser.addOption(
+        {"export-job", "Run an offscreen export job. Use as the first argument.", "job.json"});
+#endif
     parser.addPositionalArgument("project", "PMM project to open");
     QStringList languageCodes{"system"};
     for (const auto& language : mikudancestudio::qt::Language::Available())
@@ -246,6 +265,10 @@ int main(int argc, char** argv) {
         {"android-ui-report", "Observe ordinary editor UI state for emulator tests", "report"});
 #endif
     parser.process(app);
+#ifndef __ANDROID__
+    if (parser.isSet("export-job"))
+        return 2;
+#endif
     if (parser.isSet("gpu-driver")) {
         const auto driver = parser.value("gpu-driver");
         if (driver != "hardware" && driver != "software")

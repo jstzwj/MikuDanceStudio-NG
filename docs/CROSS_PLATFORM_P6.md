@@ -346,3 +346,35 @@ RSS 为单独文件源测试的实际增量，不是编辑器总内存；门槛�
 使用默认值，并在覆盖前保留 `editor.json.corrupt-*`。遇到更新的配置版本时保留
 原文件。区域语言别名继续经现有 Qt 语言解析。隔离测试执行旧设置迁移、坏文件
 备份、新版本保护、设置重开及菜单行为回归。
+
+## P6.6 桌面导出扩展接口
+
+脚本和外部工具可调用便携包中的 `MikuDanceStudioNG --export-job job.json`。
+命令创建离屏会话，读取 PMM 和同名效果附属文件，并复用编辑器的导出路径。
+例如以下请求将前三个 MMD 帧导出到作业文件旁的 `frames` 目录。
+
+```json
+{
+  "version": 1,
+  "project": "project/scene.pmm",
+  "destination": "frames",
+  "format": "png",
+  "first": 0,
+  "last": 2,
+  "width": 960,
+  "height": 540,
+  "rateNumerator": 30,
+  "rateDenominator": 1,
+  "cancelFile": "stop"
+}
+```
+
+相对路径以作业 JSON 所在目录为基准。必填项为版本、项目、输出路径及格式。
+格式可选 `png`、`mp4` 或 `mp4-pcm`。可指定有理数帧率、帧区间和分辨率。
+`alpha` 默认对 PNG 开启，`audio` 默认对视频开启。`backend` 可取 `default`、
+`dx11`、`dx12`、`vulkan` 或 `metal`，`driver` 可取 `hardware` 或
+`software`。输出目标必须是新路径。创建 `cancelFile` 指定的文件会请求取消。
+
+标准输出返回一条 UTF-8 JSON，包含 `version`、`status`、`frames` 和 `reason`。
+`complete`、`failed`、`cancelled` 分别使用退出码 0、1、3。命令用法错误使用
+退出码 2。扩展契约是桌面子进程与版本化 JSON，不涉及进程内二进制插件。

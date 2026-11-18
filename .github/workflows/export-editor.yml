@@ -147,14 +147,14 @@ jobs:
           if ($IsLinux) { $configure += "-DMDS_VULKAN_INCLUDE=$PWD/out/vulkan-headers/include" }
           cmake @configure
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cmake --build out/build --target wave_format_test wave_stream_test qt_audio_test qt_native_audio_test qt_background_video_test qt_export_test qt_mme_test qt_editor_render_test qt_menu_test MikuDanceStudioNG --parallel 3
+          cmake --build out/build --target wave_format_test wave_stream_test qt_audio_test qt_native_audio_test qt_background_video_test qt_export_test qt_mme_test qt_editor_render_test qt_menu_test qt_language_switch_test MikuDanceStudioNG --parallel 3
           exit $LASTEXITCODE
-      - name: Streamed WAV memory, long clocks and parser gates
+      - name: Streamed WAV, playback clocks and editor settings
         shell: pwsh
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          ctest --test-dir out/build -R '^(wave_format|wave_stream|qt_audio)$' --no-tests=error --verbose --output-junit stream.xml
+          ctest --test-dir out/build -R '^(wave_format|wave_stream|qt_audio|qt_language_switch)$' --no-tests=error --verbose --output-junit stream.xml
           exit $LASTEXITCODE
       - name: Linux silent audio sink
         if: runner.os == 'Linux'
@@ -189,7 +189,7 @@ jobs:
             $env:MDS_GPU_BACKEND = $api
             $env:MDS_EXPORT_QUALIFICATION_DIR = "$PWD/out/export-$api"
             $env:MDS_BACKGROUND_QUALIFICATION_DIR = "$PWD/out/background-$api"
-            ctest --test-dir out/build -R '^(qt_background_video|qt_export|qt_mme|qt_editor_render|qt_menu)$' --no-tests=error --output-on-failure --output-junit "export-$api.xml"
+            ctest --test-dir out/build -R '^(qt_background_video|qt_export|qt_mme|qt_editor_render|qt_menu|qt_export_command)$' --no-tests=error --output-on-failure --output-junit "export-$api.xml"
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - name: Qualify packaged codecs with no SDK or external ffmpeg paths

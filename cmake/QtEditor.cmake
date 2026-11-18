@@ -114,6 +114,9 @@ function(mds_add_qt_editor)
     endif()
     include("${root}/cmake/QtTranslations.cmake")
     qt_add_executable(MikuDanceStudioNG "${root}/src/frontend_qt/main.cpp")
+    if(NOT ANDROID)
+        target_sources(MikuDanceStudioNG PRIVATE "${root}/src/frontend_qt/export_command.cpp")
+    endif()
     qt_add_resources(MikuDanceStudioNG application_icon
         PREFIX "/icons" BASE "${root}/res/assets"
         FILES "${root}/res/assets/app.ico")
@@ -417,6 +420,9 @@ function(mds_add_qt_editor)
         add_test(NAME qt_background_video COMMAND ${Python3_EXECUTABLE} "${root}/tests/check_background_video.py"
             --program $<TARGET_FILE:qt_background_video_test> --assets "${root}/res/assets")
         set_tests_properties(qt_background_video PROPERTIES LABELS "p62;qt;gpu;offscreen" TIMEOUT 180 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+        add_test(NAME qt_export_command COMMAND ${Python3_EXECUTABLE} "${root}/tests/test_export_command.py"
+            --program $<TARGET_FILE:MikuDanceStudioNG>)
+        set_tests_properties(qt_export_command PROPERTIES LABELS "p66;qt;gpu;offscreen" TIMEOUT 60 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_export_test "${root}/tests/qt_export_test.cpp")
         target_link_libraries(qt_export_test PRIVATE mikudancestudio_frontend_qt)
         target_compile_definitions(qt_export_test PRIVATE MDS_EDITOR_EFFECTS_DIR="${root}/assets/effects/editor")
