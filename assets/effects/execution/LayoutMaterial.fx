@@ -3,6 +3,7 @@ float a=.1;float2 b={.2,.3};float one[1]={.4};float after=.5;
 bool enabled=true;int count=2;float weights[2]={.25,.75};
 float4x4 worldViewProjection:WORLDVIEWPROJECTION;
 const float host=.5;static const float privateValue=.5;
+static float derivedAlpha=lerp(.25,.75,host);
 texture Image:MATERIALTEXTURE;
 struct Vertex {float4 position:POSITION;float2 uv:TEXCOORD0;};
 Vertex vertex(float3 p:POSITION,float2 uv:TEXCOORD0) {
@@ -42,7 +43,7 @@ sampler S15=sampler_state {Texture=<Image>;MinFilter=POINT;MagFilter=POINT;
  MipFilter=NONE;AddressU=CLAMP;AddressV=CLAMP;};
 float4 pixel(Vertex input):COLOR0{return (tex2D(S0,input.uv)+tex2D(S1,input.uv)+tex2D(S2,input.uv)+tex2D(S3,input.uv)+tex2D(S4,input.uv)+tex2D(S5,input.uv)+tex2D(S6,input.uv)+tex2D(S7,input.uv)+tex2D(S8,input.uv)+tex2D(S9,input.uv)+tex2D(S10,input.uv)+tex2D(S11,input.uv)+tex2D(S12,input.uv)+tex2D(S13,input.uv)+tex2D(S14,input.uv)+tex2D(S15,input.uv))/16*
  float4((a+b.x+b.y+one[0])*.25+worldViewProjection[3].x,after+worldViewProjection[3].y,(weights[0]+weights[1])*.75,
- enabled && count==2 ? host*privateValue*2 : 0);}
+ enabled && count==2 ? derivedAlpha*privateValue*2 : 0);}
 technique Main <string MMDPass="object";> {pass Paint {CullMode=None;ZEnable=false;ZWriteEnable=false;ZFunc=Always;
  AlphaTestEnable=false;AlphaBlendEnable=false;StencilEnable=false;
  FillMode=Solid;DepthBias=0;SlopeScaleDepthBias=0;ColorWriteEnable=15;

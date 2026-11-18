@@ -321,6 +321,10 @@ bool EvaluateDefaults(const EffectDefinition& def, std::map<std::string, Paramet
         if (def.metadata.variables.size() > 256)
             Fail("parameter_budget");
         for (const auto& v : def.metadata.variables) {
+            // A shader-private static can depend on current draw parameters.
+            // Its initializer belongs in the shader, outside the host pool.
+            if (v.immutable && !v.constant)
+                continue;
             name = v.name;
             ParameterValue value;
             value.rows = v.rows;

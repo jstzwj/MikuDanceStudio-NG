@@ -260,3 +260,21 @@ in that fixture. Portable execution still requires qualification of `NONE`,
 pass-local sampler allocation and compile arguments. The native root gate
 covers an empty scene and the separate material turn. Root lighting and final
 composition require a portable execution comparison with live controller inputs.
+
+### Controller-derived shader initializers
+
+Shader-private non-const statics now initialize in compiled HLSL from the
+current draw's bound parameters. The existing host default and shared parameter
+ABI keeps these values private. The public layout fixture changes its host
+parameter after device replacement and checks alpha in every pixel. The
+DX11 and DX12 WARP runs and hardware Vulkan on TITAN Xp passed this check
+with the existing strict repeat, MRT and HDR comparisons. The local software
+Vulkan gate could not start because the installed loader exposes no software
+device.
+
+The Ray instance now advances past `mSSAOScale`. Its next initializer
+diagnostic is `MME_runtime/BloomScale/default_reference_or_function` on the
+`static const` expression that reads the viewport aspect. The native-expanded
+strict importer advances to the `FogMap` scene-target annotation. Both hidden
+DX9 inventories still pass. Pass specialization, sampler allocation and
+unsupported target/state semantics continue to block full root execution.

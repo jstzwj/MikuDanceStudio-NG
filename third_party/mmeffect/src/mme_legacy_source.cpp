@@ -487,12 +487,11 @@ public:
             Need("]");
         }
         if (!describe && (isStatic || isConst)) {
-            if (!isConst)
+            if (!isConst && Peek() != "=")
                 Fail("static_initializer");
             Initializer();
-            // FX const declarations are immutable shader values. Modern
-            // HLSL otherwise reflects a non-static global into $Globals,
-            // outside the explicit per-instance parameter ABI.
+            // The strict subset treats FX constants and private statics as
+            // shader declarations, outside the per-instance parameter block.
             code += (isStatic ? "" : "static ") + Join(t, begin, p);
             return;
         }

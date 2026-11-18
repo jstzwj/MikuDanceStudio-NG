@@ -12,6 +12,7 @@ int main() try {
         int Truncated=int(-3.8);
         float Mixed=16777217 + 1.0f;
         float Zero;
+        static float Derived=lerp(0.25, 0.75, Zero);
         string Caption="line\n\"quoted\"";
     )");
     std::map<std::string, ParameterValue> values;
@@ -25,6 +26,7 @@ int main() try {
           "bool and signed integer values");
     Check(Number(values.at("Mixed")) == 16777218.f && Number(values.at("Zero")) == 0,
           "float32 promotion and implicit zero");
+    Check(!values.count("Derived"), "shader-private initializers have no host defaults");
     Check(values.at("Caption").text == "line\n\"quoted\"", "string escapes");
     const auto saved = values;
     for (const auto* source :

@@ -121,7 +121,7 @@ int main(int argc, char** argv) try {
             }
             if (kind < 2) {
                 const int expected[4] = {kind == 0 ? 128 : 64, kind == 0 ? 96 : 128, 191,
-                                         kind == 0 ? (iteration == 2 ? 191 : 128) : 255};
+                                         kind == 0 ? (iteration == 2 ? 159 : 128) : 255};
                 for (std::size_t p = 0; p < first.bytes.size(); ++p)
                     Check(std::abs(int(first.bytes[p]) - expected[p % 4]) <= 1,
                           "layout/nested pixel " + std::to_string(p) + "=" +

@@ -28,9 +28,10 @@ bool MmeLegacyGenerate(const MmeLegacyProgram& definition, MmeLegacyProgram& mod
         if (v.array)
             declaration += "[" + std::to_string(v.elements) + "]";
         if (v.immutable) {
-            if (!v.constant || v.initializer.empty())
+            if (v.initializer.empty())
                 throw std::runtime_error("MME_shader_static_initializer");
-            declarations += "static const " + declaration + "=" + v.initializer + ";\n";
+            declarations += (v.constant ? "static const " : "static ") + declaration + "=" +
+                            v.initializer + ";\n";
             continue;
         }
         if (!v.elements || (v.rows != 1 && v.rows != 4) || !v.columns || v.columns > 4 ||
