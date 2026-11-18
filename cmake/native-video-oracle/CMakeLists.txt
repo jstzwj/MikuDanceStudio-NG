@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.21)
+project(MdsNativeVideoOracle LANGUAGES CXX)
+if(NOT WIN32 OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+    message(FATAL_ERROR "Optional v9.32 oracle requires Windows x64")
+endif()
+add_executable(background_video_native_oracle ../../tests/background_video_native_oracle.cpp)
+target_compile_features(background_video_native_oracle PRIVATE cxx_std_17)
+target_link_libraries(background_video_native_oracle PRIVATE d3d9 vfw32 bcrypt)

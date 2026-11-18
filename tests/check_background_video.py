@@ -44,13 +44,30 @@ def main():
         assert psnr >= 30, psnr
         info = json.loads(fixture.run('ffprobe', '-v', 'error', '-show_streams', '-of', 'json', root/'background.mp4'))
         assert all(s['codec_type'] != 'audio' for s in info['streams']), 'background audio leaked into export'
+        hidden_psnr = {}
+        for name, directory in [('hidden', 'hidden-sequence'), ('hidden-mme', 'hidden-mme-sequence')]:
+            actual = fixture.run('ffmpeg', '-v', 'error', '-i', root/f'{name}.mp4',
+                                 '-map', '0:v:0', '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-')
+            expected = fixture.run('ffmpeg', '-v', 'error', '-start_number', '24', '-i',
+                                   root/directory/'frame_%08d.png', '-f', 'rawvideo',
+                                   '-pix_fmt', 'rgb24', '-')
+            assert len(actual) == len(expected) == 3*160*96*3, (name, len(actual), len(expected))
+            error = sum((a-b)**2 for a, b in zip(actual, expected)) / len(actual)
+            hidden_psnr[name] = 100 if error == 0 else 10*math.log10(255**2/error)
+            assert hidden_psnr[name] >= 30, (name, hidden_psnr[name])
         report = dict(stage='P6.2', passed=True, backend=env.get('MDS_GPU_BACKEND', 'default'),
                       inputs=[dict(file=v['file'], frames=len(v['frames'])) for v in videos],
                       outputFrames=12, frameNumbers=True, videoPsnrDb=psnr, noBackgroundAudio=True,
+                      hiddenVideoPsnrDb=hidden_psnr, hiddenSessionLifecycle=True,
                       checks=['forward/backward boundary and endpoint', 'VFR and NTSC B frames',
                               'rotation and sample aspect ratio', 'latest seek generation',
                               'PMM save/reopen', 'material and two-pass MME', 'PNG and video',
-                              'cancel and missing media cleanup', 'hidden Qt language and toggle'])
+                              'cancel and missing media cleanup', 'hidden Qt language and toggle',
+                              'session frozen frame and stale publication rejection',
+                              'hidden source loss and retry', 'hidden cold reopen at saved cursor',
+                              'hidden PNG/movie snapshot and two-pass MME',
+                              'mode 3 target readback, resize and device replacement',
+                              'capture mode switch and explicit refresh events'])
         (root/'report.json').write_text(json.dumps(report, indent=2)+'\n', encoding='utf-8')
         print(json.dumps(report))
 

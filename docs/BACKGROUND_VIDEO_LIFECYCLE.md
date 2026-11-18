@@ -2,9 +2,11 @@
 
 This records the native lifecycle before changing the portable session. The
 source comparison uses MikuDanceStudio `4d5300681aa89b8e6a35a9ea8d9fe7dd5ae9be94`
-and the recovered v9.32 addresses in that source. A source trace is not a new
-native executable qualification; the VFW numbered-frame oracle separately
-qualifies sample selection.
+and the recovered v9.32 addresses in that source. The optional native oracle
+also executed the hash-verified x64 refresh function (RVA `0x67fa0`) with a
+hidden real DX9 device: the load, hidden seek, explicit hidden refresh and
+resume readbacks were respectively **5, 5, 20, 30**. The VFW numbered-frame
+oracle separately qualifies sample selection.
 
 | Operation | Native action | Portable requirement |
 | --- | --- | --- |
@@ -40,3 +42,12 @@ The portable refresh request carries a session identity, path, scene seconds
 and AVI timing mode. Publishing a decoded frame does not dirty the PMM, add an
 undo entry, or update animation/physics. Preview, offscreen rendering and export
 share immutable CPU image leases. Visibility remains the native PMM flag.
+
+To reproduce the native probe locally, configure `cmake/native-video-oracle`
+for Windows x64, build `background_video_native_oracle`, and pass the reference
+executable, the generated `native.avi`, and a new JSON report path. The reference
+SHA-256 is enforced by `original_physics_module.hpp`; missing DX9 returns 77
+and is not a pass. The probe never shows its window and blocks creation of
+unexpected native error dialogs. It verifies native refresh/readback, while the
+PMM loader and command-handler ordering above are source traces, not simulated
+claims that those complete native dialogs were driven.

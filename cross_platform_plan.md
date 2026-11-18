@@ -2,7 +2,7 @@
 
 当前独立维护仓库：[MikuDanceStudio-NG](https://github.com/jstzwj/MikuDanceStudio-NG)，默认分支 `main`，由原仓库 `next@9afd91a` 保留完整历史迁入。下文初始 `main`／`next` 基线和历史验收链接均指迁移前的 MikuDanceStudio 仓库。
 
-更新时间：2026-11-16。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
+更新时间：2026-11-18。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
 
 **P6 最新状态（2026-11-16）：P6.1 已完成；P6.2 首批桌面背景视频链路已验收。**
 PNG 与 MP4 共享独立场景／MME 帧生产，支持有理数帧率、区间、Alpha 契约、WAV
@@ -14,8 +14,10 @@ Vulkan、macOS ARM64 Metal 的定向门禁和便携包检查通过，本机硬�
 定位／AVI 原生时间规则、异步预览、共享 RHI／MME、PMM 及导出。Windows DX11／DX12、
 Linux Vulkan、macOS Metal 各五项定向门禁与便携包通过，本机硬件 Vulkan 另行通过；
 原有严格比较保留。契约、独立工具修复和各平台实际提交见 [P6.2 记录](docs/CROSS_PLATFORM_P6.md#p62背景视频解码定位与共享-rhi-合成)
-与[证据](docs/evidence/p62-background-43838076911.json)。隐藏视频跨项目重开／导出时的
-冻结帧与屏幕捕获模式 3 组合仍需补齐；不将首批链路称为全部原版媒体兼容。
+与[证据](docs/evidence/p62-background-43838076911.json)。隐藏视频跨项目重开／导出的
+冻结帧与屏幕捕获模式 3 组合已补齐，本机 DX11／DX12／Vulkan 和原版 DX9 隐藏读回通过；
+本批 Metal 与跨平台便携包复验待完成。详见[生命周期](docs/BACKGROUND_VIDEO_LIFECYCLE.md)。
+不将当前明确的 SDR 子集称为全部原版媒体兼容。
 完整 P6／P7 及 Windows ARM64／Android 媒体／MME 组合均未据此验收。
 
 **P5 最新状态（2026-11-08）：P5.1～P5.5 已在明确的桌面效果子集范围验收，C2 按此范围完成。**

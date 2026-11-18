@@ -407,7 +407,8 @@ function(mds_add_qt_editor)
         set_tests_properties(qt_editor_gpu_performance PROPERTIES LABELS "p4;offscreen;qt;gpu;performance" TIMEOUT 240 ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
         qt_add_executable(qt_editor_render_test "${root}/tests/qt_editor_render_test.cpp")
         qt_add_executable(qt_mme_test "${root}/tests/qt_mme_test.cpp")
-        qt_add_executable(qt_background_video_test "${root}/tests/qt_background_video_test.cpp")
+        qt_add_executable(qt_background_video_test "${root}/tests/qt_background_video_test.cpp"
+            "${root}/tests/qt_hidden_video_test.cpp")
         target_link_libraries(qt_background_video_test PRIVATE mikudancestudio_frontend_qt)
         target_compile_definitions(qt_background_video_test PRIVATE MDS_EDITOR_EFFECTS_DIR="${root}/assets/effects/editor")
         add_test(NAME qt_background_video COMMAND ${Python3_EXECUTABLE} "${root}/tests/check_background_video.py"

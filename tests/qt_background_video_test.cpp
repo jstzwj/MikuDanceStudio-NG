@@ -15,6 +15,8 @@
 #include <iostream>
 #include <fstream>
 using namespace mikudancestudio;
+bool TestHiddenVideo(const std::filesystem::path&, const std::filesystem::path&,
+                     const rhi::BackendOptions&);
 std::string reason;
 #define CHECK(x)                                                                                   \
     do {                                                                                           \
@@ -167,6 +169,7 @@ int main(int argc, char** argv) {
                                         : rhi::DefaultBackend();
     if (qEnvironmentVariable("MDS_GPU_DRIVER") == "software")
         options.driver = rhi::BackendDriver::Software;
+    CHECK(TestHiddenVideo(root, argv[2], options));
     editor::EditorSession session;
     CHECK(session.ImportVideo(root / "ntsc.mp4", 160, 96, 160, 96, reason));
     CHECK(session.Edit(

@@ -187,3 +187,4 @@ jobs:
             out/background-*/vfw-reference.json
             out/background-*/*.actual.png
             out/background-*/*.expected.png
+            out/background-*/hidden*.png
