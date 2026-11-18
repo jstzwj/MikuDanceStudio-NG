@@ -987,7 +987,9 @@ bool RenderImage(const runtime::SceneRuntime& scene, const editor::EditorAssets&
         const double seconds = visible ? scene.Session()->Pose().frame / 30. : assets.video.seconds;
         const bool native = visible ? !scene.Playing() : assets.video.nativeThirtyHz;
         media::VideoFrame decoded;
-        if (!visible && assets.video.frozen.image)
+        std::int64_t time;
+        if (media::VideoTime(seconds, time) && assets.video.nativeThirtyHz == native &&
+            assets.video.frozen.Covers(time))
             decoded = assets.video.frozen;
         else if (!video.Open(assets.videoPath, reason) ||
                  !video.ReadScene(seconds, native, decoded, {}, reason))

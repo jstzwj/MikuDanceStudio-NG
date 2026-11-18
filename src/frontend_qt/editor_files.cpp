@@ -299,8 +299,18 @@ void EditorWindow::FileAction(const QString& id, const QString& inputPath) {
             return;
         QImage image;
         std::string r;
-        if (session_.Document().view.captureMode == 3 && !session_.Assets().videoPath.empty())
+        if (session_.Document().view.captureMode == 3 && !session_.Assets().videoPath.empty()) {
             session_.RefreshVideo();
+            const auto request = session_.RequestVideo();
+            VideoDecoder decoder;
+            media::VideoFrame frame;
+            if (!Result(
+                    decoder.Open(request.path, r) &&
+                        decoder.ReadScene(request.seconds, request.nativeThirtyHz, frame, {}, r) &&
+                        session_.PublishVideo(request, frame, r),
+                    r))
+                return;
+        }
         const auto& settings = session_.Document().envelope.settings;
         if (Result(RenderImage(session_.Runtime(), session_.Assets(), assets_, viewport_->Options(),
                                settings.renderWidth, settings.renderHeight, image, r,
