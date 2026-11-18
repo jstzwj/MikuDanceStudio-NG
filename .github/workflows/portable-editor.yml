@@ -33,6 +33,10 @@ on:
         description: macOS acceptance image
         default: macos-15
         options: [macos-15, macos-26]
+      macos_candidate_source:
+        type: string
+        description: Requalify symbols and media on macOS for an existing candidate commit SHA
+        default: ''
       windows_runner:
         type: choice
         description: Windows acceptance image
@@ -76,8 +80,8 @@ concurrency:
 permissions:
   contents: read
 env:
-  MDS_RELEASE_MEDIA: ${{ inputs.release_tag != '' || inputs.candidate || inputs.release_media }}
-  MDS_RELEASE_SYMBOLS: ${{ (inputs.release_tag != '' || inputs.candidate) && 'ON' || 'OFF' }}
+  MDS_RELEASE_MEDIA: ${{ inputs.release_tag != '' || inputs.candidate || inputs.release_media || (inputs.platform == 'macos' && inputs.macos_candidate_source != '') }}
+  MDS_RELEASE_SYMBOLS: ${{ (inputs.release_tag != '' || inputs.candidate || (inputs.platform == 'macos' && inputs.macos_candidate_source != '')) && 'ON' || 'OFF' }}
 jobs:
   format:
     if: ${{ !inputs.release_tag && !inputs.candidate && (github.event_name == 'pull_request' || github.event_name == 'push') }}
@@ -653,8 +657,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_tag || github.sha }}
+          ref: ${{ (inputs.platform == 'macos' && inputs.macos_candidate_source) || inputs.release_tag || github.sha }}
           fetch-depth: 0
+      - name: Verify the requested candidate source
+        if: inputs.platform == 'macos' && inputs.macos_candidate_source != ''
+        env:
+          CANDIDATE_SOURCE: ${{ inputs.macos_candidate_source }}
+        run: |
+          [[ "$CANDIDATE_SOURCE" =~ ^[0-9a-f]{40}$ && "$(git rev-parse HEAD)" == "$CANDIDATE_SOURCE" ]]
       - name: Validate tagged product version
         if: inputs.release_tag
         shell: bash
@@ -774,6 +784,16 @@ jobs:
             if [ "$MDS_RELEASE_MEDIA" = true ]; then media=(--release-media); fi
             python tests/test_editor_distribution.py --archive "$archive" --report out/distribution-check.json "${media[@]}"
           done
+      - name: Qualify symbols for the pinned macOS package
+        if: inputs.platform == 'macos' && inputs.macos_candidate_source != ''
+        run: |
+          git show "$GITHUB_SHA:tools/release_symbols.py" > out/build/qualify_release_symbols.py
+          linked=out/build/MikuDanceStudioNG.app/Contents/MacOS/MikuDanceStudioNG
+          if [ -f out/build/editor-symbol-binary-Release.txt ]; then
+            linked="$(cat out/build/editor-symbol-binary-Release.txt)"
+          fi
+          PYTHONPATH="$PWD/tools" python out/build/qualify_release_symbols.py \
+            --build out/build --macos-dist out/dist --linked "$linked"
       - uses: actions/upload-artifact@v4
         if: ${{ success() && !inputs.ui_only }}
         with:
@@ -798,7 +818,7 @@ jobs:
             out/build/native-audio.json
           if-no-files-found: error
       - name: Verify a native Metal package without MoltenVK
-        if: ${{ success() && !inputs.ui_only }}
+        if: ${{ success() && !inputs.ui_only && !inputs.macos_candidate_source }}
         env:
           CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
           MTL_DEBUG_LAYER: '1'

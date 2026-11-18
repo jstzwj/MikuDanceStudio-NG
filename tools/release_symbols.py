@@ -29,7 +29,7 @@ def record_symbols(folder, info, **binaries):
     (folder / 'symbols.json').write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
 
 
-def desktop_symbols(build, stage, metadata):
+def desktop_symbols(build, stage, metadata, linked=None):
     system = metadata['system']
     folder = build / 'release-symbols'
     folder.mkdir(exist_ok=True)
@@ -40,12 +40,22 @@ def desktop_symbols(build, stage, metadata):
         shutil.copyfile(pdb, folder / 'MikuDanceStudioNG.pdb')
     elif system == 'Darwin':
         dsym = folder / 'MikuDanceStudioNG.dSYM'
-        subprocess.run(['dsymutil', str(binary), '-o', str(dsym)], check=True)
+        if linked is None:
+            linked = Path((build / 'editor-symbol-binary-Release.txt').read_text(encoding='utf-8').strip())
+        # Qt deploy runs strip before the staged app is signed. Read the debug
+        # map from the linked image while the original object files still exist.
+        subprocess.run(['dsymutil', str(linked), '-o', str(dsym)], check=True)
+
         def uuids(path):
             return re.findall(r'UUID:\s*([0-9A-Fa-f-]+)', command('dwarfdump', '--uuid', path))
-        if not uuids(binary) or uuids(binary) != uuids(dsym):
+
+        candidates = uuids(binary)
+        if not candidates or candidates != uuids(dsym) or candidates != uuids(linked):
             raise ValueError('Packaged Mach-O and dSYM UUID disagree')
-        identity['uuid'] = uuids(binary)[0]
+        lines = command('dwarfdump', '--debug-line', dsym)
+        if not re.search(r'(?m)^0x[0-9a-fA-F]+\s+[1-9]\d*\s+', lines):
+            raise ValueError('dSYM has no source-line mappings')
+        identity.update(uuid=candidates[0], sourceLineMappings=True)
     else:
         debug = folder / 'MikuDanceStudioNG.debug'
         subprocess.run(['objcopy', '--only-keep-debug', str(binary), str(debug)], check=True)
@@ -83,8 +93,19 @@ def android_symbols(build, apk, reader, objcopy):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--build', type=Path, required=True)
-    parser.add_argument('--apk', type=Path, required=True)
-    parser.add_argument('--readelf', type=Path, required=True)
-    parser.add_argument('--objcopy', type=Path, required=True)
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument('--apk', type=Path)
+    target.add_argument('--macos-dist', type=Path)
+    parser.add_argument('--readelf', type=Path)
+    parser.add_argument('--objcopy', type=Path)
+    parser.add_argument('--linked', type=Path)
     args = parser.parse_args()
-    android_symbols(args.build, args.apk, args.readelf, args.objcopy)
+    if args.macos_dist:
+        metadata = json.loads((args.macos_dist / 'build-info.json').read_text(encoding='utf-8'))
+        if metadata['system'] != 'Darwin':
+            parser.error('--macos-dist requires a macOS staging directory')
+        desktop_symbols(args.build, args.macos_dist, metadata, args.linked)
+    else:
+        if not (args.readelf and args.objcopy):
+            parser.error('--apk requires --readelf and --objcopy')
+        android_symbols(args.build, args.apk, args.readelf, args.objcopy)

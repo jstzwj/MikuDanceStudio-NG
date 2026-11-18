@@ -38,6 +38,8 @@ def verify_evidence(manifest, folder):
         else:
             if record['binarySha256'] != package['binarySha256']:
                 raise ValueError(f'{target}: symbols do not match the portable archive')
+            if target.startswith('macos-') and record.get('sourceLineMappings') is not True:
+                raise ValueError(f'{target}: dSYM has no verified source-line mappings')
             distribution, = reports.rglob('distribution-check.json')
             report = json.loads(distribution.read_text(encoding='utf-8'))
             media = report['releaseMediaEvidence']
