@@ -4,7 +4,7 @@
 
 更新时间：2026-11-18。初始审计基线：`next@ef89b0b`，已合入 `main@35d99c7`（v10.15）。
 
-**P6 最新状态（2026-11-16）：P6.1 已完成；P6.2 首批桌面背景视频链路已验收。**
+**P6 最新状态（2026-11-18）：P6.1 已完成；P6.2 隐藏视频闭环及 P6.3 流式 WAV 已在明确的桌面范围验收。**
 PNG 与 MP4 共享独立场景／MME 帧生产，支持有理数帧率、区间、Alpha 契约、WAV
 裁剪／静音补齐、后台进度、取消及成功后发布。Windows x64 DX11／DX12、Linux x64
 Vulkan、macOS ARM64 Metal 的定向门禁和便携包检查通过，本机硬件 Vulkan 另行通过。
@@ -17,7 +17,14 @@ Linux Vulkan、macOS Metal 各五项定向门禁与便携包通过，本机硬�
 与[证据](docs/evidence/p62-background-43838076911.json)。隐藏视频跨项目重开／导出的
 冻结帧与屏幕捕获模式 3 组合已补齐，本机 DX11／DX12／Vulkan 和原版 DX9 隐藏读回通过；
 本批三平台四后端定向门禁及便携包复验全部通过（[证据](docs/evidence/p62-hidden-44246943981.json)）。
-详见[生命周期](docs/BACKGROUND_VIDEO_LIFECYCLE.md)。下一批 P6.3 为长时间媒体同步与流式 WAV。
+详见[生命周期](docs/BACKGROUND_VIDEO_LIFECYCLE.md)。P6.3 已让导入、播放与编码共享
+有界文件音频源，移除应用的整文件读取和 64 MiB WAV 限制，并修正原生适配器的
+32 位 PCM 时长溢出。三平台各 3 项流式音频门禁、四后端各 5 项渲染／媒体门禁及
+便携包通过；三小时约 2 GB 文件随机读、六小时逻辑消费和一小时后区间导出已验证。
+Windows 本机与 Linux 限定静音设备各通过 120 秒实际时钟测试，macOS 通过三秒；
+Windows CI 无音频设备仍明确记为不可用。六小时墙钟播放及任意实体设备不据此通过。
+范围、内存数据与限制见 [P6.3 验收](docs/CROSS_PLATFORM_P6.md#p63长时间媒体同步与流式-wav)
+及[证据](docs/evidence/p63-streamed-44253285680.json)。
 不将当前明确的 SDR 子集称为全部原版媒体兼容。
 完整 P6／P7 及 Windows ARM64／Android 媒体／MME 组合均未据此验收。
 

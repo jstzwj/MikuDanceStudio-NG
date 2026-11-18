@@ -1,6 +1,19 @@
 # GitHub Actions 失败核查
 
-初次核查：2026-11-05，基线 `af2576c`。最新补充：2026-11-08。
+初次核查：2026-11-05，基线 `af2576c`。最新补充：2026-11-18。
+
+## P6.2 隐藏视频与 P6.3 流式音频（2026-11-18）
+
+| 运行 | 实际结果 | 原因和处理 |
+|---|---|---|
+| [44246943981](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/44246943981) | Windows DX11／DX12、Linux Vulkan、macOS Metal 各 5/5 及便携包通过 | 隐藏冻结帧、模式 3、重开、PNG／视频、MME、资源丢失及恢复已组合验证；本机另有原版 DX9 隐藏读回 |
+| [44250934776](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/44250934776) | 三平台流式音频 3/3；Windows／macOS 媒体与包通过，Linux 在原生音频 EOF 失败 | 新工作流漏用了 P4 既有的 `rate=48000 channels=2 norewinds=1` 静音设备配置，默认两秒回卷不在已资格范围；不改时钟阈值 |
+| [44253285680](https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/44253285680) | 三平台流式 3/3、四后端媒体各 5/5 及便携包全部通过 | 复核又发现 Qt 32 位字节时长溢出，修正三个适配器与 WASAPI 时钟后才重跑三平台；Linux 原生静音实际执行 120 秒，macOS 三秒，Windows CI 无音频设备仍为不可用，本机另有 120 秒实际设备通过 |
+
+实现提交均带 `[skip ci]`，只手动运行定向工作流。Linux 单平台补验在排队时被取消，
+因为后续 64 位时钟修复涉及三个平台，改为上表最终一次三平台验证；没有把取消或设备
+不可用当作测试通过。具体范围、内存指标、实际源码与首次失败见
+[P6 记录](CROSS_PLATFORM_P6.md) 和[本批证据](evidence/p63-streamed-44253285680.json)。
 
 ## P5.5 定向闭环验证（2026-11-08）
 

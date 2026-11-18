@@ -1,0 +1,626 @@
+{
+  "schema": 1,
+  "stage": "P6.3 streamed WAV and long-media clocks, bounded desktop scope",
+  "accepted": true,
+  "source": "0dfdf97cf246a4be5f9e7199681b411a2a8012db",
+  "date": "2026-11-18",
+  "run": 44253285680,
+  "url": "https://github.com/jstzwj/MikuDanceStudio-NG/actions/runs/44253285680",
+  "platforms": [
+    {
+      "platform": "Windows",
+      "streamGate": {
+        "file": "stream.xml",
+        "passed": [
+          "qt_audio",
+          "wave_format",
+          "wave_stream"
+        ]
+      },
+      "streamMetrics": {
+        "stage": "P6.3",
+        "logicalSeconds": 10800,
+        "fileBytes": 2073600044,
+        "residentBefore": 3629056,
+        "residentAfter": 4083712,
+        "maxReadFrames": 8192,
+        "concurrentSeeks": 2000,
+        "passed": true
+      },
+      "renderGates": [
+        {
+          "file": "export-d3d11.xml",
+          "passed": [
+            "qt_background_video",
+            "qt_editor_render",
+            "qt_export",
+            "qt_menu",
+            "qt_mme"
+          ]
+        },
+        {
+          "file": "export-d3d12.xml",
+          "passed": [
+            "qt_background_video",
+            "qt_editor_render",
+            "qt_export",
+            "qt_menu",
+            "qt_mme"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "backend": "d3d11",
+          "passed": true,
+          "streamedWave": {
+            "projectStartSeconds": 3601,
+            "sourceSeconds": 3720.5,
+            "old64MiBCapExceeded": true,
+            "pcmClip": "clock-pcm-ntsc.mp4"
+          },
+          "clips": [
+            {
+              "file": "clock.mp4",
+              "videoCodec": "mpeg4",
+              "audioCodecTag": "mp4a",
+              "decodedFrames": 60,
+              "decodedAudioFrames": 48000,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm.mp4",
+              "videoCodec": "mjpeg",
+              "audioCodecTag": "ipcm",
+              "decodedFrames": 60,
+              "decodedAudioFrames": 48000,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mp4",
+              "videoCodec": "mpeg4",
+              "audioCodecTag": "mp4a",
+              "decodedFrames": 3597,
+              "decodedAudioFrames": 5760955,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm-ntsc.mp4",
+              "videoCodec": "mjpeg",
+              "audioCodecTag": "ipcm",
+              "decodedFrames": 3597,
+              "decodedAudioFrames": 5760955,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            }
+          ],
+          "mme": true,
+          "scenePsnrDb": {
+            "scene.mp4": 31.766305571516536,
+            "worker.mp4": 31.766305571516536
+          },
+          "hiddenVideoLifecycleRetained": true
+        },
+        {
+          "backend": "d3d12",
+          "passed": true,
+          "streamedWave": {
+            "projectStartSeconds": 3601,
+            "sourceSeconds": 3720.5,
+            "old64MiBCapExceeded": true,
+            "pcmClip": "clock-pcm-ntsc.mp4"
+          },
+          "clips": [
+            {
+              "file": "clock.mp4",
+              "videoCodec": "mpeg4",
+              "audioCodecTag": "mp4a",
+              "decodedFrames": 60,
+              "decodedAudioFrames": 48000,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm.mp4",
+              "videoCodec": "mjpeg",
+              "audioCodecTag": "ipcm",
+              "decodedFrames": 60,
+              "decodedAudioFrames": 48000,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mp4",
+              "videoCodec": "mpeg4",
+              "audioCodecTag": "mp4a",
+              "decodedFrames": 3597,
+              "decodedAudioFrames": 5760955,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm-ntsc.mp4",
+              "videoCodec": "mjpeg",
+              "audioCodecTag": "ipcm",
+              "decodedFrames": 3597,
+              "decodedAudioFrames": 5760955,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            }
+          ],
+          "mme": true,
+          "scenePsnrDb": {
+            "scene.mp4": 30.535672742704726,
+            "worker.mp4": 30.535672742704726
+          },
+          "hiddenVideoLifecycleRetained": true
+        }
+      ],
+      "nativeAudio": {
+        "detail": "No native audio output device",
+        "seconds": 3,
+        "silent": true,
+        "status": "unavailable"
+      },
+      "package": {
+        "build": {
+          "system": "Windows",
+          "qt": "6.8.3",
+          "version": "0.0.2",
+          "vulkan": false,
+          "metal": false,
+          "mme": true,
+          "schema": 1,
+          "product": "MikuDanceStudio-NG",
+          "format": "portable",
+          "commit": "0dfdf97cf246a4be5f9e7199681b411a2a8012db",
+          "tag": null,
+          "arch": "x64",
+          "development": true,
+          "modified": false
+        },
+        "mediaExport": true,
+        "backgroundVideo": true,
+        "visible": false
+      }
+    },
+    {
+      "platform": "Linux",
+      "streamGate": {
+        "file": "stream.xml",
+        "passed": [
+          "qt_audio",
+          "wave_format",
+          "wave_stream"
+        ]
+      },
+      "streamMetrics": {
+        "stage": "P6.3",
+        "logicalSeconds": 10800,
+        "fileBytes": 2073600044,
+        "residentBefore": 3801088,
+        "residentAfter": 4091904,
+        "maxReadFrames": 8192,
+        "concurrentSeeks": 2000,
+        "passed": true
+      },
+      "renderGates": [
+        {
+          "file": "export-vulkan.xml",
+          "passed": [
+            "qt_background_video",
+            "qt_editor_render",
+            "qt_export",
+            "qt_menu",
+            "qt_mme"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "backend": "vulkan",
+          "passed": true,
+          "streamedWave": {
+            "projectStartSeconds": 3601,
+            "sourceSeconds": 3720.5,
+            "old64MiBCapExceeded": true,
+            "pcmClip": "clock-pcm-ntsc.mp4"
+          },
+          "clips": [
+            {
+              "file": "clock.mp4",
+              "videoCodec": "mpeg4",
+              "audioCodecTag": "mp4a",
+              "decodedFrames": 60,
+              "decodedAudioFrames": 48128,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm.mp4",
+              "videoCodec": "mjpeg",
+              "audioCodecTag": "ipcm",
+              "decodedFrames": 60,
+              "decodedAudioFrames": 48000,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mp4",
+              "videoCodec": "mpeg4",
+              "audioCodecTag": "mp4a",
+              "decodedFrames": 3597,
+              "decodedAudioFrames": 5761024,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm-ntsc.mp4",
+              "videoCodec": "mjpeg",
+              "audioCodecTag": "ipcm",
+              "decodedFrames": 3597,
+              "decodedAudioFrames": 5760955,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            }
+          ],
+          "mme": true,
+          "scenePsnrDb": {
+            "scene.mp4": 32.612881871128664,
+            "worker.mp4": 32.612881871128664
+          },
+          "hiddenVideoLifecycleRetained": true
+        }
+      ],
+      "nativeAudio": {
+        "advancingSamples": 11737,
+        "blockedUiAfterReadEndSeconds": 1.253915988,
+        "blockedUiAfterReadStartSeconds": 1.253910668,
+        "blockedUiBeforeReadEndSeconds": 1.003828179,
+        "blockedUiBeforeReadStartSeconds": 1.003826464,
+        "blockedUiClockAdvanceSeconds": 0.24617299999999998,
+        "blockedUiDevice": "pulse state=2 source=592080/47136000 processed-us=1440299 duration-us=122750000 drained=0 native-tail=0 error= read=553656 write=592080 sink-us=1759 playing=1 configured-sink-us=45000",
+        "blockedUiMaximumElapsedSeconds": 0.25008952399999984,
+        "blockedUiMinimumElapsedSeconds": 0.25008248899999996,
+        "channels": 2,
+        "detail": "Native silent PCM, processed clock, stop, seek/restart and EOF passed",
+        "device": "Null Output",
+        "editorJitteredTicks": 156,
+        "editorMaximumFrameError": 6.661338147750939e-15,
+        "editorMaximumWallErrorSeconds": 0.054648886999999924,
+        "endDevice": "pulse state=2 source=57600/57600 processed-us=150000 duration-us=150000 drained=1 native-tail=1 error= read=57600 write=57600 sink-us=42746 playing=0 configured-sink-us=45000",
+        "endMilliseconds": 197,
+        "endPositionSeconds": 123,
+        "ended": true,
+        "firstProgressMilliseconds": 67.126445,
+        "initializationMilliseconds": 1,
+        "longSourceDevice": "pulse state=2 source=21120/8294400000 processed-us=0 duration-us=21600000000 drained=0 native-tail=0 error= read=0 write=21120 sink-us=30821 playing=0 configured-sink-us=45000",
+        "longSourcePcmBytes": 8294400000,
+        "longSourceSeconds": 21600,
+        "maximumLagSeconds": 0.008884720999999818,
+        "maximumLeadSeconds": 0.0034652869999973746,
+        "positionSeconds": 120.436935,
+        "sampleRate": 48000,
+        "seconds": 120,
+        "silent": true,
+        "startupClockLatencySeconds": 0.03878915800000002,
+        "startupDevice": "pulse state=2 source=107600/47136000 processed-us=190627 duration-us=122750000 drained=0 native-tail=0 error= read=86480 write=107600 sink-us=34831 playing=1 configured-sink-us=45000",
+        "startupMilliseconds": 229,
+        "status": "passed",
+        "stopMilliseconds": 0,
+        "wallSeconds": 119.995416056,
+        "deviceProfile": "module-null-sink rate=48000 channels=2 norewinds=1"
+      },
+      "package": {
+        "build": {
+          "system": "Linux",
+          "qt": "6.8.3",
+          "version": "0.0.2",
+          "vulkan": true,
+          "metal": false,
+          "mme": true,
+          "schema": 1,
+          "product": "MikuDanceStudio-NG",
+          "format": "portable",
+          "commit": "0dfdf97cf246a4be5f9e7199681b411a2a8012db",
+          "tag": null,
+          "arch": "x64",
+          "development": true,
+          "modified": false
+        },
+        "mediaExport": true,
+        "backgroundVideo": true,
+        "visible": false
+      }
+    },
+    {
+      "platform": "macOS",
+      "streamGate": {
+        "file": "stream.xml",
+        "passed": [
+          "qt_audio",
+          "wave_format",
+          "wave_stream"
+        ]
+      },
+      "streamMetrics": {
+        "stage": "P6.3",
+        "logicalSeconds": 10800,
+        "fileBytes": 2073600044,
+        "residentBefore": 1261568,
+        "residentAfter": 1277952,
+        "maxReadFrames": 8192,
+        "concurrentSeeks": 2000,
+        "passed": true
+      },
+      "renderGates": [
+        {
+          "file": "export-metal.xml",
+          "passed": [
+            "qt_background_video",
+            "qt_editor_render",
+            "qt_export",
+            "qt_menu",
+            "qt_mme"
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "backend": "metal",
+          "passed": true,
+          "streamedWave": {
+            "projectStartSeconds": 3601,
+            "sourceSeconds": 3720.5,
+            "old64MiBCapExceeded": true,
+            "pcmClip": "clock-pcm-ntsc.mp4"
+          },
+          "clips": [
+            {
+              "file": "clock.mp4",
+              "videoCodec": "mpeg4",
+              "audioCodecTag": "mp4a",
+              "decodedFrames": 60,
+              "decodedAudioFrames": 48000,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm.mp4",
+              "videoCodec": "mjpeg",
+              "audioCodecTag": "ipcm",
+              "decodedFrames": 60,
+              "decodedAudioFrames": 48000,
+              "maxTimestampErrorSeconds": 3.33333333379926e-07,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 12479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-ntsc.mp4",
+              "videoCodec": "mpeg4",
+              "audioCodecTag": "mp4a",
+              "decodedFrames": 3597,
+              "decodedAudioFrames": 5760955,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            },
+            {
+              "file": "clock-pcm-ntsc.mp4",
+              "videoCodec": "mjpeg",
+              "audioCodecTag": "ipcm",
+              "decodedFrames": 3597,
+              "decodedAudioFrames": 5760955,
+              "maxTimestampErrorSeconds": 1.7000000006817118e-05,
+              "frameNumbersVerified": true,
+              "audioPulseFirst": 12000,
+              "audioPulseLast": 5724479,
+              "trailingSilence": true
+            }
+          ],
+          "mme": true,
+          "scenePsnrDb": {
+            "scene.mp4": 32.16564636270658,
+            "worker.mp4": 32.16564636270658
+          },
+          "hiddenVideoLifecycleRetained": true
+        }
+      ],
+      "nativeAudio": {
+        "advancingSamples": 138,
+        "blockedUiAfterReadEndSeconds": 1.301883166,
+        "blockedUiAfterReadStartSeconds": 1.30187275,
+        "blockedUiBeforeReadEndSeconds": 1.009447791,
+        "blockedUiBeforeReadStartSeconds": 1.009422541,
+        "blockedUiClockAdvanceSeconds": 0.29243699999999984,
+        "blockedUiDevice": "audioqueue running=1 status=0 queued-bytes=633600/2208000 pending=3 draining=0 processed-us=1496083 duration-us=5750000 discontinuities=0",
+        "blockedUiMaximumElapsedSeconds": 0.29246062500000014,
+        "blockedUiMinimumElapsedSeconds": 0.2924249590000001,
+        "channels": 2,
+        "detail": "Native silent PCM, processed clock, stop, seek/restart and EOF passed",
+        "device": "Apple Virtual Sound Device",
+        "editorJitteredTicks": 59,
+        "editorMaximumFrameError": 6.661338147750939e-15,
+        "editorMaximumWallErrorSeconds": 0.02869220899999997,
+        "endDevice": "audioqueue running=0 status=0 queued-bytes=57600/57600 pending=0 draining=1 processed-us=150000 duration-us=150000 discontinuities=0",
+        "endMilliseconds": 265,
+        "endPositionSeconds": 6,
+        "ended": true,
+        "firstProgressMilliseconds": 86.417083,
+        "initializationMilliseconds": 20,
+        "longSourceDevice": "audioqueue running=0 status=0 queued-bytes=57600/8294400000 pending=3 draining=0 processed-us=0 duration-us=21600000000 discontinuities=0",
+        "longSourcePcmBytes": 8294400000,
+        "longSourceSeconds": 21600,
+        "maximumLagSeconds": 0,
+        "maximumLeadSeconds": 0.00011670899999982609,
+        "positionSeconds": 3.437416,
+        "sampleRate": 48000,
+        "seconds": 3,
+        "silent": true,
+        "startupClockLatencySeconds": 0.04381379099999999,
+        "startupDevice": "audioqueue running=1 status=0 queued-bytes=134400/2208000 pending=3 draining=0 processed-us=194145 duration-us=5750000 discontinuities=0",
+        "startupMilliseconds": 237,
+        "status": "passed",
+        "stopMilliseconds": 4,
+        "wallSeconds": 2.993277166
+      },
+      "package": {
+        "build": {
+          "system": "Darwin",
+          "qt": "6.8.3",
+          "version": "0.0.2",
+          "vulkan": false,
+          "metal": true,
+          "mme": true,
+          "schema": 1,
+          "product": "MikuDanceStudio-NG",
+          "format": "portable",
+          "commit": "0dfdf97cf246a4be5f9e7199681b411a2a8012db",
+          "tag": null,
+          "arch": "arm64",
+          "development": true,
+          "modified": false
+        },
+        "mediaExport": true,
+        "backgroundVideo": true,
+        "visible": false
+      }
+    }
+  ],
+  "localWindows": {
+    "source": "0dfdf97cf246a4be5f9e7199681b411a2a8012db",
+    "gate": {
+      "file": "p63-accepted-local.xml",
+      "passed": [
+        "editor_session",
+        "qt_audio",
+        "qt_background_video",
+        "qt_editor_render",
+        "qt_export",
+        "qt_menu",
+        "qt_mme",
+        "wave_format",
+        "wave_stream"
+      ]
+    },
+    "nativeAudio": {
+      "advancingSamples": 11878,
+      "blockedUiAfterReadEndSeconds": 1.2527511,
+      "blockedUiAfterReadStartSeconds": 1.2523995,
+      "blockedUiBeforeReadEndSeconds": 1.0021311,
+      "blockedUiBeforeReadStartSeconds": 1.001783,
+      "blockedUiClockAdvanceSeconds": 0.25,
+      "blockedUiDevice": "state=0 error=0 source=532728/43306200 duration-us=122750000 processed-us=1440000 raw-processed-us=1510000 elapsed-us=1598714 buffer=35280 free=10584",
+      "blockedUiMaximumElapsedSeconds": 0.2509680999999999,
+      "blockedUiMinimumElapsedSeconds": 0.25026840000000017,
+      "channels": 2,
+      "detail": "Native silent PCM, processed clock, stop, seek/restart and EOF passed",
+      "device": "Remote Audio",
+      "editorJitteredTicks": 146,
+      "editorMaximumFrameError": 6.661338147750939e-15,
+      "editorMaximumWallErrorSeconds": 0.07275330000000002,
+      "endDevice": "state=3 error=0 source=52920/52920 duration-us=150000 processed-us=150000 raw-processed-us=150000 elapsed-us=326919 buffer=35280 free=35280",
+      "endMilliseconds": 230,
+      "endPositionSeconds": 123,
+      "ended": true,
+      "firstProgressMilliseconds": 176.5901,
+      "initializationMilliseconds": 94,
+      "longSourceDevice": "state=0 error=0 source=35280/7620480000 duration-us=21600000000 processed-us=0 raw-processed-us=100000 elapsed-us=94975 buffer=35280 free=0",
+      "longSourcePcmBytes": 7620480000,
+      "longSourceSeconds": 21600,
+      "maximumLagSeconds": 0.019732699999998715,
+      "maximumLeadSeconds": 0.0027799000000072738,
+      "positionSeconds": 120.43,
+      "sampleRate": 44100,
+      "seconds": 120,
+      "silent": true,
+      "startupClockLatencySeconds": 0.1566474,
+      "startupDevice": "state=0 error=0 source=84672/43306200 duration-us=122750000 processed-us=190000 raw-processed-us=240000 elapsed-us=345691 buffer=35280 free=17640",
+      "startupMilliseconds": 346,
+      "status": "passed",
+      "stopMilliseconds": 5,
+      "wallSeconds": 119.9944974
+    },
+    "package": {
+      "build": {
+        "system": "Windows",
+        "qt": "6.8.3",
+        "version": "0.0.2",
+        "vulkan": true,
+        "metal": false,
+        "mme": true,
+        "schema": 1,
+        "product": "MikuDanceStudio-NG",
+        "format": "portable",
+        "commit": "0dfdf97cf246a4be5f9e7199681b411a2a8012db",
+        "tag": null,
+        "arch": "x64",
+        "development": true,
+        "modified": false
+      },
+      "mediaExport": true,
+      "backgroundVideo": true
+    },
+    "windowPolicy": "offscreen; real audio fed silence only; no desktop interaction"
+  },
+  "earlierFailure": {
+    "run": 44250934776,
+    "source": "78edc78ebcf622448cd0eec12564407e4af40954",
+    "platform": "Linux",
+    "detail": "Default null-sink rewind profile failed native EOF; P4-qualified bounded profile was omitted",
+    "qualification": "Does not qualify default PulseAudio/PipeWire rewind or physical speaker latency"
+  },
+  "limits": [
+    "RIFF PCM 8/16/24/32 or float32, mono/stereo, 8-192 kHz; six-hour maximum and RIFF32 container size limit",
+    "Samples validated on bounded reads; malformed tail samples can fail during playback/export",
+    "Three-hour file random-read/RSS and six-hour deterministic consumption are not six-hour wall-clock playback",
+    "Native evidence is 120 seconds on Windows/Linux and three seconds on macOS; Windows CI without an audio endpoint remains unavailable",
+    "No RF64/WAVE64, compressed WAV, full FX9/Ray or mobile/media/P7 physical-device qualification"
+  ]
+}
